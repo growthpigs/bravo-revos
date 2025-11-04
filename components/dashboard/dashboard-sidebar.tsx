@@ -6,16 +6,17 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
-  LayoutDashboard, 
-  Megaphone, 
-  Users2, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Megaphone,
+  Users2,
+  Settings,
   Linkedin,
   Webhook,
   Upload,
   MessageSquare,
-  LogOut
+  LogOut,
+  Zap
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -27,6 +28,7 @@ interface DashboardSidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Campaigns', href: '/dashboard/campaigns', icon: Megaphone },
+  { name: 'Voice Cartridges', href: '/dashboard/cartridges', icon: Zap },
   { name: 'Leads', href: '/dashboard/leads', icon: Users2 },
   { name: 'LinkedIn Posts', href: '/dashboard/posts', icon: Linkedin },
   { name: 'DM Sequences', href: '/dashboard/dm-sequences', icon: MessageSquare },
