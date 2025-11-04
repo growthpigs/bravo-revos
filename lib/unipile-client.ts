@@ -36,12 +36,29 @@ export interface UnipileCheckpointResponse {
 /**
  * Connect LinkedIn account using username/password
  * Returns account_id on success, checkpoint info if checkpoint required
+ * Supports mock mode for testing
  */
 export async function authenticateLinkedinAccount(
   username: string,
   password: string
 ): Promise<UnipileAuthResponse | UnipileCheckpointResponse> {
   try {
+    // Mock mode for testing (when UNIPILE_MOCK_MODE=true)
+    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+      console.log('[MOCK] Authenticating LinkedIn account:', username);
+
+      // Simulate slight delay for realistic feel
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      return {
+        account_id: `mock_${Math.random().toString(36).substr(2, 9)}`,
+        provider: 'LINKEDIN',
+        status: 'OK',
+        name: username.split('@')[0].toUpperCase(),
+        email: username,
+      };
+    }
+
     const response = await fetch(
       `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/accounts`,
       {
@@ -104,9 +121,24 @@ export async function resolveCheckpoint(
 
 /**
  * Get account status from Unipile
+ * Supports mock mode for testing
  */
 export async function getAccountStatus(accountId: string): Promise<UnipileAccountStatus> {
   try {
+    // Mock mode for testing
+    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+      console.log('[MOCK] Getting account status:', accountId);
+      return {
+        id: accountId,
+        provider: 'LINKEDIN',
+        status: 'OK',
+        name: 'Test Account',
+        email: 'test@linkedin.com',
+        created_at: new Date().toISOString(),
+        last_update: new Date().toISOString(),
+      };
+    }
+
     const response = await fetch(
       `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/accounts/${accountId}`,
       {
