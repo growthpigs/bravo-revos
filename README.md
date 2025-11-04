@@ -1,48 +1,90 @@
-# Bravo revOS
+# Bravo revOS - AI-Powered LinkedIn Lead Generation System
 
-RevOS V1 V1 V1 - LinkedIn Lead Magnet Automation + Engagement Pod Reshare
+Transform LinkedIn connections into qualified leads automatically with AI-powered content creation and multi-channel delivery.
 
-## Architecture
+## 🚀 Quick Start
 
-- **Backend**: Node.js + Express + TypeScript
-- **Database**: Supabase PostgreSQL + pgvector
-- **Job Queue**: BullMQ + Upstash Redis
-- **AI**: OpenAI AgentKit + Mem0
-- **LinkedIn API**: Unipile
-- **Browser Automation**: Playwright
-- **Frontend**: React + Vite + shadcn/ui
+### Prerequisites
+- Node.js 18+
+- Supabase account (https://supabase.com)
 
-## Features
+### 1. Install Dependencies
 
-### V1 Core (Days 1-4)
-- Lead magnet automation with configurable trigger words
-- AI-powered email extraction from DM replies
-- Webhook integration for captured emails
-- AgentKit conversational interface
-- Cartridge system (System, User, Skills, Preferences)
-- Mem0 persistent memory
+```bash
+npm install
+```
 
-### V1.5 Premium (Days 5-6)
-- Engagement pod reshare automation
-- AI-generated unique commentary
-- Human behavior simulation (typing, mouse, timing)
-- Multi-account coordination
+### 2. Database Setup
 
-## Branch Strategy
+1. The project is already configured with Supabase
+2. Run the SQL migration in your Supabase SQL Editor:
+   - Open `/supabase/migrations/001_initial_schema.sql`
+   - Copy and paste into Supabase SQL Editor
+   - Execute
 
-- `main` - Production-ready code
-- `staging` - Pre-production testing
-- `v1-lead-magnet` - Current feature development
-- `production` - Deployed to production
+### 3. Run Development Server
 
-## Documentation
+```bash
+npm run dev
+```
 
-See `/specs/001-linkedin-growth-engine/` for complete design docs:
-- `spec.md` - Feature specification
-- `research.md` - Technology research
-- `data-model.md` - Database schema
-- `quickstart.md` - Setup and testing guide
+Open [http://localhost:3000](http://localhost:3000)
 
-## Project Management
+## 🛠️ Tech Stack
 
-This project is managed via [Archon](https://github.com/agro-bros/bravo-revos) with tasks tracked in the AgroArchon UI.
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth
+- **Charts**: Recharts
+
+## 📁 Project Structure
+
+```
+bravo-revos/
+├── app/                    # Next.js 14 App Router
+│   ├── admin/             # Agency admin portal
+│   ├── dashboard/         # Client dashboard
+│   └── api/               # API routes
+├── lib/
+│   └── supabase/          # Supabase clients
+├── supabase/
+│   └── migrations/        # SQL migrations
+└── docs/                  # Documentation
+```
+
+## 🎯 Core Features
+
+### Admin Portal (`/admin`)
+- Client management, system analytics, pod monitoring
+
+### Client Dashboard (`/dashboard`)
+- Campaign wizard, lead management, webhook configuration
+
+## 📊 Database Schema
+
+Multi-tenant architecture: `agencies → clients → users → campaigns → leads`
+
+**Key tables:** agencies, clients, users, campaigns, leads, pods (min 3 members), linkedin_accounts, webhook_configs
+
+See `/supabase/migrations/001_initial_schema.sql` for complete schema.
+
+## 📚 Documentation
+
+- **Master Spec**: `/docs/projects/bravo-revos/spec.md`
+- **Data Model**: `/docs/projects/bravo-revos/data-model.md`
+- **Archon Tasks**: 20 tasks (A-00 through G-02)
+
+## 🗺️ Implementation Roadmap
+
+### MVP (Current)
+- ✅ Next.js 14 scaffold
+- ✅ Database schema
+- ⏳ LinkedIn integration (Unipile)
+- ⏳ Lead capture & webhooks
+- ⏳ Engagement pods
+
+---
+
+**Managed via Archon MCP Server | Project ID: de2e1ce0-3d40-4cbe-80eb-8d0fd14fb531**

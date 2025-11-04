@@ -46,6 +46,10 @@ lerna-debug.log*
 # TypeScript
 *.tsbuildinfo
 
+# Next.js
+.next/
+out/
+
 # Misc
 .cache/
 temp/
