@@ -1,35 +1,142 @@
-export default function AdminPage() {
+import { createClient } from '@/lib/supabase/server'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Building2, Users, Megaphone, TrendingUp } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
+
+export default async function AdminDashboardPage() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: userData } = await supabase
+    .from('users')
+    .select('agency_id')
+    .eq('id', user?.id || '')
+    .single()
+
+  // Get stats
+  const { count: clientsCount } = await supabase
+    .from('clients')
+    .select('*', { count: 'exact', head: true })
+    .eq('agency_id', userData?.agency_id || '')
+
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('agency_id', userData?.agency_id || '')
+
+  const clientIds = clients?.map(c => c.id) || []
+
+  const { count: campaignsCount } = await supabase
+    .from('campaigns')
+    .select('*', { count: 'exact', head: true })
+    .in('client_id', clientIds.length > 0 ? clientIds : [''])
+
+  const { count: usersCount } = await supabase
+    .from('users')
+    .select('*', { count: 'exact', head: true })
+    .eq('agency_id', userData?.agency_id || '')
+
+  const stats = [
+    {
+      title: 'Total Clients',
+      value: clientsCount || 0,
+      icon: Building2,
+      description: 'Active clients',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+    },
+    {
+      title: 'Total Users',
+      value: usersCount || 0,
+      icon: Users,
+      description: 'Agency & client users',
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
+    },
+    {
+      title: 'Active Campaigns',
+      value: campaignsCount || 0,
+      icon: Megaphone,
+      description: 'Across all clients',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+    },
+    {
+      title: 'Total Leads',
+      value: 0,
+      icon: TrendingUp,
+      description: 'Generated this month',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+    },
+  ]
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="max-w-4xl w-full">
-        <h1 className="text-4xl font-bold mb-4">Admin Portal</h1>
-        <p className="text-lg text-muted-foreground mb-8">
-          Agency management, client oversight, and system analytics
+    <div className="p-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900">Agency Dashboard</h1>
+        <p className="text-slate-600 mt-2">
+          Monitor and manage all your clients and campaigns
         </p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-6 border rounded-lg">
-            <h3 className="font-semibold mb-2">Client Management</h3>
-            <p className="text-sm text-muted-foreground">
-              Add, edit, and manage client accounts
-            </p>
-          </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        {stats.map((stat) => {
+          const Icon = stat.icon
+          return (
+            <Card key={stat.title}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-600">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                  <Icon className={`h-4 w-4 ${stat.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
+                <p className="text-xs text-slate-500 mt-1">{stat.description}</p>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
 
-          <div className="p-6 border rounded-lg">
-            <h3 className="font-semibold mb-2">System Analytics</h3>
-            <p className="text-sm text-muted-foreground">
-              Monitor performance across all clients
-            </p>
-          </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest updates from your clients</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-500">No recent activity</p>
+          </CardContent>
+        </Card>
 
-          <div className="p-6 border rounded-lg">
-            <h3 className="font-semibold mb-2">Pod Monitoring</h3>
-            <p className="text-sm text-muted-foreground">
-              Track engagement pod activities
-            </p>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>System Health</CardTitle>
+            <CardDescription>Monitor your system performance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">API Status</span>
+                <span className="text-sm font-medium text-emerald-600">Operational</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">Database</span>
+                <span className="text-sm font-medium text-emerald-600">Connected</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">Storage</span>
+                <span className="text-sm font-medium text-emerald-600">Available</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
-  );
+  )
 }
