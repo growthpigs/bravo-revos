@@ -33,6 +33,20 @@ export interface UnipileCheckpointResponse {
   checkpoint_type?: 'OTP' | '2FA' | 'IN_APP_VALIDATION' | 'PHONE_REGISTER' | 'CAPTCHA';
 }
 
+export interface UnipileComment {
+  id: string;
+  text: string;
+  created_at: string;
+  author: {
+    id: string;
+    name: string;
+    headline?: string;
+    profile_url?: string;
+    connections_count?: number;
+  };
+  replies_count?: number;
+}
+
 /**
  * Connect LinkedIn account using username/password
  * Returns account_id on success, checkpoint info if checkpoint required
@@ -210,6 +224,73 @@ export async function listAccounts(): Promise<UnipileAccountStatus[]> {
     return data.items || [];
   } catch (error) {
     console.error('Error listing accounts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all comments for a specific LinkedIn post
+ * Used for comment polling to detect trigger words
+ */
+export async function getAllPostComments(
+  accountId: string,
+  postId: string
+): Promise<UnipileComment[]> {
+  try {
+    // Mock mode for testing
+    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+      console.log('[MOCK] Fetching comments for post:', postId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      return [
+        {
+          id: `mock_comment_${Math.random().toString(36).substr(2, 9)}`,
+          text: 'SCALE - I would love to get this!',
+          created_at: new Date().toISOString(),
+          author: {
+            id: 'mock_author_1',
+            name: 'John Doe',
+            headline: 'CEO at Tech Startup',
+            profile_url: 'https://linkedin.com/in/johndoe',
+            connections_count: 500,
+          },
+          replies_count: 0,
+        },
+        {
+          id: `mock_comment_${Math.random().toString(36).substr(2, 9)}`,
+          text: 'Great post!',
+          created_at: new Date(Date.now() - 60000).toISOString(),
+          author: {
+            id: 'mock_author_2',
+            name: 'LinkedIn Bot',
+            headline: 'Marketing bot',
+            profile_url: 'https://linkedin.com/in/bot',
+            connections_count: 5,
+          },
+          replies_count: 0,
+        },
+      ];
+    }
+
+    const response = await fetch(
+      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/posts/${postId}/comments?account_id=${accountId}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get post comments: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error('Error getting post comments:', error);
     throw error;
   }
 }
