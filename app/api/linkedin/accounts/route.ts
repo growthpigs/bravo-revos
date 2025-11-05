@@ -11,7 +11,7 @@ import { disconnectAccount, getAccountStatus } from '@/lib/unipile-client';
 export async function GET(request: NextRequest) {
   try {
     // For development mode, return empty array (accounts are stored in-memory on frontend)
-    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.UNIPILE_MOCK_MODE === 'true';
+    const isDevelopment = process.env.UNIPILE_MOCK_MODE !== 'false';
     if (isDevelopment) {
       console.log('[DEBUG_LINKEDIN_API] GET accounts - Development mode: returning empty array');
       return NextResponse.json({

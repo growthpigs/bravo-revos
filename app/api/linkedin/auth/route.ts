@@ -18,8 +18,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, username, password, accountId, code, accountName } = body;
 
-    // For development/mock mode, use dummy values
-    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.UNIPILE_MOCK_MODE === 'true';
+    // Check mock mode flag - if explicitly false, use production mode even in dev environment
+    // If flag is true or NODE_ENV is development (without explicit false), use development mode
+    const isDevelopment = process.env.UNIPILE_MOCK_MODE !== 'false';
 
     let userId: string;
     let clientId: string;
