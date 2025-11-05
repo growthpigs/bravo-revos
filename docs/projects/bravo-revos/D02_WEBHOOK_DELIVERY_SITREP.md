@@ -507,9 +507,9 @@ email_captured (email extracted)
     ↓ [D-02 Webhook Delivery] ← YOU ARE HERE
     ↓
 webhook_sent (to client CRM)
-    ↓ [D-03 Email Delivery]
+    ↓ [Client's email system handles lead magnet delivery]
     ↓
-lead_magnet_sent (PDF sent via email)
+COMPLETE (Phase D done - client uses their own email provider)
 ```
 
 ### Integration Points:
@@ -522,11 +522,9 @@ lead_magnet_sent (PDF sent via email)
    - POST to client's webhook URL with HMAC signature
    - Automatic retry with exponential backoff
    - Log all attempts for audit trail
+   - Client receives lead data and handles email delivery themselves
 
-3. **Escalation to Email Delivery (D-03):**
-   - Once webhook succeeds, trigger lead magnet email
-   - Send PDF via Mailgun
-   - Track opens/clicks
+**Note:** Phase D is complete after D-02. Clients use their own email providers (ConvertKit, ActiveCampaign, etc.) to send lead magnets. No Mailgun integration needed.
 
 ---
 
@@ -619,22 +617,27 @@ Time: 18.342 s
 
 D-02 is production-ready. The webhook delivery system is robust, well-tested, and ready to send leads to client CRM systems with full security and retry guarantees.
 
-**Recommended Action:** Proceed to D-03 (Mailgun email delivery) to complete the lead capture flow.
+**Recommended Action:** Phase D (Lead Capture) is COMPLETE. Proceed to Phase E (Pod Automation).
 
 ---
 
-## Next Phase: D-03 Mailgun Email Delivery
+## Next Phase: E-01 Pod Infrastructure & Database
 
-**Overview:** Once webhook succeeds, send the lead magnet PDF via Mailgun email to the captured email address.
+**Overview:** Build foundation for engagement pod automation to boost LinkedIn post reach.
 
-**Requirements:**
-- Mailgun API integration
-- Email template system
-- Lead magnet PDF attachment
-- Delivery tracking (sent, bounced, complained)
-- Backup DM delivery if email fails
+**Why This Matters:**
+- Phase D (Lead Capture) is now complete with D-01 + D-02
+- Clients handle their own email delivery via their existing email providers
+- No Mailgun integration needed - we just deliver email addresses via webhook
+- Phase E focuses on engagement pod automation (minimum 3 members)
 
-**Estimated:** 5 story points, 1 session
+**Phase E Requirements:**
+- E-01: Pod Infrastructure & Database (5 points)
+- E-02: LinkedIn Session Capture for Pod Members (5 points)
+- E-03: Pod Post Detection System (5 points)
+- E-04: Pod Automation Engine (5 points)
+
+**Estimated:** 4 tasks, ~20 story points total
 
 ---
 
