@@ -368,3 +368,75 @@ export async function sendDirectMessage(
     throw error;
   }
 }
+
+/**
+ * Get latest posts from a LinkedIn user for pod post detection
+ * @param accountId - Unipile account ID
+ * @param userId - LinkedIn user ID to fetch posts from
+ * @returns Array of posts with metadata
+ */
+export interface UnipilePost {
+  id: string;
+  text: string;
+  created_at: string;
+  likes_count?: number;
+  comments_count?: number;
+  reposts_count?: number;
+  author: {
+    id: string;
+    name: string;
+    profile_url?: string;
+  };
+}
+
+export async function getUserLatestPosts(
+  accountId: string,
+  userId: string,
+  limit: number = 10
+): Promise<UnipilePost[]> {
+  try {
+    // Mock mode for testing
+    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+      console.log('[MOCK] Fetching latest posts from user:', userId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Return mock posts
+      return [
+        {
+          id: `mock_post_${Math.random().toString(36).substr(2, 9)}`,
+          text: 'Just launched our new product! Excited to share with everyone.',
+          created_at: new Date().toISOString(),
+          likes_count: 234,
+          comments_count: 45,
+          reposts_count: 12,
+          author: {
+            id: userId,
+            name: 'Pod Member',
+            profile_url: `https://linkedin.com/in/user-${userId}`,
+          },
+        },
+      ];
+    }
+
+    const response = await fetch(
+      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/users/${userId}/posts?account_id=${accountId}&limit=${limit}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get user posts: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error('Error getting user posts:', error);
+    throw error;
+  }
+}
