@@ -281,7 +281,7 @@ async function fetchActivityFromDatabase(activityId: string): Promise<Engagement
 
 /**
  * Execute like engagement
- * (Calls E-05-2 implementation)
+ * Calls Unipile API to like a LinkedIn post
  */
 async function executeLikeEngagement(params: {
   podId: string;
@@ -289,18 +289,81 @@ async function executeLikeEngagement(params: {
   postId: string;
   profileId: string;
 }): Promise<ExecutionResult> {
-  const { activityId, postId } = params;
+  const { activityId, postId, profileId } = params;
 
-  // TODO: E-05-2 will implement this
-  // For now, return placeholder
-  console.log(`${LOG_PREFIX} [TODO: E-05-2] Executing like: post=${postId}`);
+  try {
+    if (!process.env.UNIPILE_API_KEY) {
+      throw new EngagementJobError(
+        'UNIPILE_API_KEY not configured',
+        'auth_error'
+      );
+    }
 
-  return {
-    success: true,
-    timestamp: new Date().toISOString(),
-    activityId,
-    engagementType: 'like',
-  };
+    const unipileDsn = process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211';
+    const likeUrl = `${unipileDsn}/api/v1/posts/${postId}/reactions`;
+
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Calling Unipile like API: ${likeUrl}`);
+    }
+
+    const response = await fetch(likeUrl, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': process.env.UNIPILE_API_KEY,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        account_id: profileId,
+        type: 'LIKE',
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      const errorMsg = `Unipile like failed: ${response.status} ${response.statusText}`;
+
+      if (FEATURE_FLAGS.ENABLE_LOGGING) {
+        console.error(`${LOG_PREFIX} ${errorMsg}`, errorBody);
+      }
+
+      // Classify error based on status code
+      if (response.status === 429) {
+        throw new EngagementJobError(errorMsg, 'rate_limit');
+      } else if (response.status === 401 || response.status === 403) {
+        throw new EngagementJobError(errorMsg, 'auth_error');
+      } else if (response.status === 404) {
+        throw new EngagementJobError(`Post ${postId} not found`, 'not_found');
+      } else {
+        throw new EngagementJobError(errorMsg, 'unknown_error');
+      }
+    }
+
+    const result = await response.json();
+
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Like executed successfully for post ${postId}`);
+    }
+
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      activityId,
+      engagementType: 'like',
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`${LOG_PREFIX} Like engagement failed: ${errorMsg}`);
+
+    // If it's already an EngagementJobError, throw it as-is
+    if (error instanceof EngagementJobError) {
+      throw error;
+    }
+
+    // Otherwise classify and throw
+    const errorType = classifyError(errorMsg);
+    throw new EngagementJobError(errorMsg, errorType);
+  }
 }
 
 /**
