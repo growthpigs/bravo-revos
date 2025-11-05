@@ -176,6 +176,38 @@ export const POD_AUTOMATION_CONFIG = {
 };
 
 /**
+ * Pod Engagement Executor Configuration (E-05)
+ */
+export const POD_ENGAGEMENT_CONFIG = {
+  // Worker concurrency (simultaneous jobs)
+  WORKER_CONCURRENCY: 5,
+
+  // Job timeout (max time to execute one engagement)
+  JOB_TIMEOUT_MS: 30000, // 30 seconds
+
+  // Queue configuration
+  QUEUE_ATTEMPTS: 3,
+  BACKOFF_INITIAL_DELAY_MS: 500, // Start with 500ms
+  BACKOFF_TYPE: 'exponential',
+
+  // Retry backoff timing
+  RETRY_BACKOFF_ATTEMPTS: [0, 500, 1500], // 3 attempts: immediate, 500ms, 1.5s
+
+  // Job retention
+  COMPLETED_JOB_KEEP_COUNT: 1000,
+  COMPLETED_JOB_AGE_DAYS: 7,
+  FAILED_JOB_KEEP_COUNT: 500,
+  FAILED_JOB_AGE_DAYS: 30,
+  SECONDS_PER_DAY: 86400,
+
+  // Dead letter queue for unrecoverable failures
+  DEADLETTER_QUEUE_NAME: 'pod-engagement-dead-letter',
+
+  // Logging
+  LOG_PREFIX: '[POD_ENGAGEMENT_WORKER]',
+};
+
+/**
  * Logging Configuration
  */
 export const LOGGING_CONFIG = {
