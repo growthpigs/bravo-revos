@@ -175,17 +175,24 @@ describe('Pod Post Detection System (E-03)', () => {
       const mockSupabase = {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest
-                .fn()
-                .mockResolvedValueOnce({ data: null, error: null })
-                .mockResolvedValueOnce({
-                  data: [
-                    { id: mockPodMemberId, linkedin_account_id: mockLinkedInAccountId },
-                  ],
-                  error: null,
+            eq: jest
+              .fn()
+              .mockReturnValueOnce({
+                // First .eq('unipile_post_id', post.id) for checking existing post
+                maybeSingle: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
+              })
+              .mockReturnValueOnce({
+                // Second .eq('pod_id', podId)
+                eq: jest.fn().mockReturnValue({
+                  // Third .eq('status', 'active')
+                  in: jest.fn().mockResolvedValueOnce({
+                    data: [
+                      { id: mockPodMemberId, linkedin_account_id: mockLinkedInAccountId },
+                    ],
+                    error: null,
+                  }),
                 }),
-            }),
+              }),
           }),
           insert: jest.fn().mockReturnValue({
             select: jest.fn().mockReturnValue({
@@ -222,13 +229,22 @@ describe('Pod Post Detection System (E-03)', () => {
       const mockSupabase = {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
-              in: jest.fn().mockResolvedValueOnce({
-                data: mockPodMembers,
-                error: null,
+            eq: jest
+              .fn()
+              .mockReturnValueOnce({
+                // First .eq('unipile_post_id', post.id) for checking existing post
+                maybeSingle: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
+              })
+              .mockReturnValueOnce({
+                // Second .eq('pod_id', podId)
+                eq: jest.fn().mockReturnValue({
+                  // Third .eq('status', 'active')
+                  in: jest.fn().mockResolvedValueOnce({
+                    data: mockPodMembers,
+                    error: null,
+                  }),
+                }),
               }),
-            }),
           }),
           insert: jest
             .fn()
@@ -271,13 +287,22 @@ describe('Pod Post Detection System (E-03)', () => {
       const mockSupabase = {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
-              in: jest.fn().mockResolvedValueOnce({
-                data: [{ id: 'member-1', linkedin_account_id: 'acc-1' }],
-                error: null,
+            eq: jest
+              .fn()
+              .mockReturnValueOnce({
+                // First .eq('unipile_post_id', post.id) for checking existing post
+                maybeSingle: jest.fn().mockResolvedValueOnce({ data: null, error: null }),
+              })
+              .mockReturnValueOnce({
+                // Second .eq('pod_id', podId)
+                eq: jest.fn().mockReturnValue({
+                  // Third .eq('status', 'active')
+                  in: jest.fn().mockResolvedValueOnce({
+                    data: [{ id: 'member-1', linkedin_account_id: 'acc-1' }],
+                    error: null,
+                  }),
+                }),
               }),
-            }),
           }),
           insert: jest
             .fn()
@@ -476,10 +501,9 @@ describe('Pod Post Detection System (E-03)', () => {
         new Error('Connection failed')
       );
 
-      // Should not throw, but handle gracefully
-      expect(async () => {
-        await getPodMemberByLinkedInAccountId(mockPodId, mockLinkedInAccountId);
-      }).not.toThrow();
+      // Should not throw, but handle gracefully and return null
+      const result = await getPodMemberByLinkedInAccountId(mockPodId, mockLinkedInAccountId);
+      expect(result).toBeNull();
     });
   });
 
