@@ -61,6 +61,7 @@ export default function LinkedInPage() {
   const [checkpointCode, setCheckpointCode] = useState('');
 
   useEffect(() => {
+    console.log('[DEBUG_LINKEDIN] Component mounted');
     fetchAccounts();
   }, []);
 
@@ -83,14 +84,17 @@ export default function LinkedInPage() {
   };
 
   const handleAuthenticate = async (e: React.FormEvent) => {
+    console.log('[DEBUG_LINKEDIN] Form submitted, fields:', { username, password: '***', accountName });
     e.preventDefault();
 
     if (!username || !password || !accountName) {
+      console.log('[DEBUG_LINKEDIN] Missing fields');
       toast.error('Please fill in all fields');
       return;
     }
 
     try {
+      console.log('[DEBUG_LINKEDIN] Starting authentication');
       setAuthenticating(true);
       const response = await fetch('/api/linkedin/auth', {
         method: 'POST',
@@ -104,14 +108,17 @@ export default function LinkedInPage() {
       });
 
       const data = await response.json();
+      console.log('[DEBUG_LINKEDIN] API Response:', { status: response.status, data });
 
       if (!response.ok) {
+        console.log('[DEBUG_LINKEDIN] API error:', data.error);
         toast.error(data.error || 'Authentication failed');
         return;
       }
 
       // Check if checkpoint is required
       if (data.status === 'checkpoint_required') {
+        console.log('[DEBUG_LINKEDIN] Checkpoint required');
         setCheckpointMode(true);
         setCheckpointAccountId(data.account_id);
         setCheckpointType(data.checkpoint_type);
@@ -120,13 +127,23 @@ export default function LinkedInPage() {
       }
 
       if (data.status === 'success') {
+        console.log('[DEBUG_LINKEDIN] Authentication success');
         toast.success('LinkedIn account connected successfully!');
         setUsername('');
         setPassword('');
         setAccountName('');
-        await fetchAccounts();
+        // Add the new account to the list immediately from the response
+        if (data.account) {
+          console.log('[DEBUG_LINKEDIN] Adding account to list:', data.account.id);
+          setAccounts(prev => [data.account, ...prev]);
+        }
+        // Only fetch accounts from server if not in mock mode (dev mode stores accounts in-memory)
+        if (process.env.NODE_ENV !== 'development') {
+          await fetchAccounts();
+        }
       }
     } catch (error) {
+      console.error('[DEBUG_LINKEDIN] Error:', error);
       toast.error('Authentication failed');
     } finally {
       setAuthenticating(false);

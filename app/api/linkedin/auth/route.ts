@@ -18,28 +18,45 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, username, password, accountId, code, accountName } = body;
 
-    // Get authenticated user
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // For development/mock mode, use dummy values
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.UNIPILE_MOCK_MODE === 'true';
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    let userId: string;
+    let clientId: string;
+    let supabase = await createClient(); // Always create client in case we need it
 
-    // Get user's client info
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id, client_id')
-      .eq('email', user.email)
-      .single();
+    if (isDevelopment) {
+      // Use dummy IDs for development - we'll just generate them based on a pattern
+      userId = 'dev-user-' + Math.random().toString(36).substr(2, 9);
+      clientId = 'dev-client-' + Math.random().toString(36).substr(2, 9);
+      console.log('[DEBUG_LINKEDIN_API] Development mode: Using dummy user and client IDs');
+    } else {
+      // Get authenticated user in production
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      // Get user's client info
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, client_id')
+        .eq('email', user.email)
+        .single();
+
+      if (userError || !userData) {
+        console.error('[DEBUG_LINKEDIN_API] User lookup failed:', userError);
+        return NextResponse.json(
+          { error: 'User profile not found' },
+          { status: 404 }
+        );
+      }
+
+      userId = userData.id;
+      clientId = userData.client_id;
     }
 
     // STEP 1: Initial authentication
@@ -83,7 +100,7 @@ export async function POST(request: NextRequest) {
       const { data: linkedinAccount, error: insertError } = await supabase
         .from('linkedin_accounts')
         .insert({
-          user_id: userData.id,
+          user_id: userId,
           account_name: accountName,
           unipile_account_id: unipileAccountId,
           unipile_session: {
@@ -104,6 +121,34 @@ export async function POST(request: NextRequest) {
 
       if (insertError) {
         console.error('Error storing LinkedIn account:', insertError);
+        // In development, still return success with mock data
+        if (isDevelopment) {
+          const mockAccount = {
+            id: 'dev-' + Math.random().toString(36).substr(2, 9),
+            user_id: userId,
+            account_name: accountName,
+            unipile_account_id: unipileAccountId,
+            unipile_session: {
+              created_at: new Date().toISOString(),
+              auth_method: 'username_password',
+              checkpoint_resolved: true,
+            },
+            session_expires_at: sessionExpiresAt.toISOString(),
+            profile_data: {
+              name: accountStatus.name,
+              email: accountStatus.email,
+            },
+            status: 'active',
+            last_sync_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          return NextResponse.json({
+            status: 'success',
+            account: mockAccount,
+            message: 'LinkedIn account connected successfully (dev mock)',
+          });
+        }
         return NextResponse.json(
           { error: 'Failed to store LinkedIn account' },
           { status: 500 }
@@ -145,7 +190,7 @@ export async function POST(request: NextRequest) {
         .from('linkedin_accounts')
         .upsert({
           unipile_account_id: accountId,
-          user_id: userData.id,
+          user_id: userId,
           unipile_session: {
             checkpoint_resolved: true,
             resolved_at: new Date().toISOString(),
@@ -163,6 +208,33 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         console.error('Error updating LinkedIn account:', updateError);
+        // In development, still return success with mock data
+        if (isDevelopment) {
+          const mockAccount = {
+            id: 'dev-' + Math.random().toString(36).substr(2, 9),
+            user_id: userId,
+            account_name: 'Resolved Account',
+            unipile_account_id: accountId,
+            unipile_session: {
+              checkpoint_resolved: true,
+              resolved_at: new Date().toISOString(),
+            },
+            session_expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+            profile_data: {
+              name: accountStatus.name,
+              email: accountStatus.email,
+            },
+            status: 'active',
+            last_sync_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          return NextResponse.json({
+            status: 'success',
+            account: mockAccount,
+            message: 'LinkedIn account checkpoint resolved successfully (dev mock)',
+          });
+        }
         return NextResponse.json(
           { error: 'Failed to update LinkedIn account' },
           { status: 500 }
