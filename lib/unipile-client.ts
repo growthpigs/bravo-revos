@@ -294,3 +294,77 @@ export async function getAllPostComments(
     throw error;
   }
 }
+
+/**
+ * Send a direct message to a LinkedIn user via Unipile
+ * @param accountId - Unipile account ID
+ * @param recipientId - LinkedIn user ID to send DM to
+ * @param message - Message text to send
+ * @returns Response with message ID and status
+ */
+export async function sendDirectMessage(
+  accountId: string,
+  recipientId: string,
+  message: string
+): Promise<{ message_id: string; status: string }> {
+  try {
+    // Mock mode for testing
+    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+      console.log('[MOCK] Sending DM:', {
+        accountId,
+        recipientId,
+        messageLength: message.length,
+      });
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+
+      // Simulate occasional failure (10% chance)
+      if (Math.random() < 0.1) {
+        throw new Error('MOCK: Simulated rate limit exceeded');
+      }
+
+      return {
+        message_id: `mock_msg_${Math.random().toString(36).substr(2, 9)}`,
+        status: 'sent',
+      };
+    }
+
+    const response = await fetch(
+      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          account_id: accountId,
+          recipient_id: recipientId,
+          text: message,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+
+      // Handle rate limiting specifically
+      if (response.status === 429) {
+        throw new Error('RATE_LIMIT_EXCEEDED: LinkedIn daily DM limit reached');
+      }
+
+      throw new Error(
+        `Failed to send DM: ${response.status} - ${errorData.message || 'Unknown error'}`
+      );
+    }
+
+    const data = await response.json();
+    return {
+      message_id: data.id || data.message_id,
+      status: data.status || 'sent',
+    };
+  } catch (error) {
+    console.error('Error sending direct message:', error);
+    throw error;
+  }
+}

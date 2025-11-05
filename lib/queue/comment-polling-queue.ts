@@ -88,6 +88,25 @@ function shouldSkipPoll(): boolean {
 }
 
 /**
+ * Generate personalized DM message based on trigger words
+ * TODO: Replace with template system in Phase D
+ */
+function generateDMMessage(recipientName: string, triggerWords: string[]): string {
+  const firstName = recipientName.split(' ')[0];
+
+  // Simple template for now - will be replaced with proper template system
+  const templates = [
+    `Hi ${firstName}! I saw your comment about ${triggerWords[0].toLowerCase()}. I'd love to share how we help businesses with this. Can we connect?`,
+    `Hey ${firstName}, thanks for engaging with my post! I noticed you mentioned ${triggerWords[0].toLowerCase()}. I have some insights that might be valuable for you. Would you like to chat?`,
+    `${firstName}, great to see your interest in ${triggerWords[0].toLowerCase()}! I work with businesses on exactly this. Mind if I send you some info?`,
+  ];
+
+  // Randomly select template
+  const template = templates[Math.floor(Math.random() * templates.length)];
+  return template;
+}
+
+/**
  * Schedule next polling job with randomized delay
  */
 async function scheduleNextPoll(jobData: CommentPollingJobData): Promise<void> {
@@ -137,12 +156,44 @@ async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promis
     const validComments = processComments(comments, triggerWords);
     console.log(`[COMMENT_POLLING] ${validComments.length} valid comments with trigger words`);
 
-    // TODO: Queue DMs for valid comments
-    // This will be implemented in C-03
+    // Queue DMs for valid comments (C-03 integration)
+    const { queueDM } = await import('./dm-queue');
+
     for (const processed of validComments) {
-      console.log(`[COMMENT_POLLING] Would queue DM for: ${processed.comment.author.name}`);
+      console.log(`[COMMENT_POLLING] Queueing DM for: ${processed.comment.author.name}`);
       console.log(`  - Matched words: ${processed.matchedTriggerWords.join(', ')}`);
       console.log(`  - Bot score: ${processed.botScore}`);
+
+      try {
+        // Generate personalized DM message
+        const message = generateDMMessage(
+          processed.comment.author.name,
+          processed.matchedTriggerWords
+        );
+
+        // Queue DM for delivery
+        const result = await queueDM({
+          accountId,
+          recipientId: processed.comment.author.id,
+          recipientName: processed.comment.author.name,
+          message,
+          campaignId,
+          userId,
+          commentId: processed.comment.id,
+          postId,
+        });
+
+        console.log(`[COMMENT_POLLING] ✅ DM queued (Job ID: ${result.jobId})`);
+        console.log(
+          `  - Rate limit: ${result.rateLimitStatus.sentToday}/${result.rateLimitStatus.limit}`
+        );
+      } catch (error) {
+        console.error(
+          `[COMMENT_POLLING] ❌ Failed to queue DM for ${processed.comment.author.name}:`,
+          error
+        );
+        // Continue with other comments even if one fails
+      }
     }
 
     // Schedule next poll
