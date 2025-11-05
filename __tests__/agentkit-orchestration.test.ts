@@ -2,22 +2,24 @@
  * F-01: AgentKit Campaign Orchestration Tests
  */
 
-import { CampaignAgent } from '@/lib/agentkit/client';
-import { CampaignOrchestrator } from '@/lib/agentkit/orchestrator';
+// Mock OpenAI BEFORE imports
+const mockChatCompletions = {
+  create: jest.fn(),
+};
 
-// Mock OpenAI
 jest.mock('openai', () => {
   return {
     __esModule: true,
     default: jest.fn().mockImplementation(() => ({
       chat: {
-        completions: {
-          create: jest.fn(),
-        },
+        completions: mockChatCompletions,
       },
     })),
   };
 });
+
+import { CampaignAgent } from '@/lib/agentkit/client';
+import { CampaignOrchestrator } from '@/lib/agentkit/orchestrator';
 
 // Mock Supabase
 jest.mock('@/lib/supabase/server', () => ({
@@ -39,6 +41,7 @@ jest.mock('@/lib/supabase/server', () => ({
 
 describe('F-01: AgentKit Campaign Orchestration', () => {
   let agent: CampaignAgent;
+  const mockCreate = mockChatCompletions.create as jest.Mock;
 
   beforeEach(() => {
     agent = new CampaignAgent();
@@ -48,9 +51,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
   describe('CampaignAgent', () => {
     describe('analyzeAndSchedule', () => {
       it('should return engagement strategy for new post', async () => {
-        const OpenAI = require('openai').default;
-        const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
         mockCreate.mockResolvedValueOnce({
           choices: [
             {
@@ -84,9 +84,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
       });
 
       it('should handle past performance data', async () => {
-        const OpenAI = require('openai').default;
-        const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
         mockCreate.mockResolvedValueOnce({
           choices: [
             {
@@ -129,9 +126,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
       });
 
       it('should recommend not scheduling if conditions are poor', async () => {
-        const OpenAI = require('openai').default;
-        const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
         mockCreate.mockResolvedValueOnce({
           choices: [
             {
@@ -164,9 +158,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
 
     describe('optimizeMessage', () => {
       it('should optimize message for engagement', async () => {
-        const OpenAI = require('openai').default;
-        const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
         mockCreate.mockResolvedValueOnce({
           choices: [
             {
@@ -197,9 +188,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
       });
 
       it('should optimize for different goals', async () => {
-        const OpenAI = require('openai').default;
-        const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
         // Test conversion goal
         mockCreate.mockResolvedValueOnce({
           choices: [
@@ -232,9 +220,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
 
     describe('analyzePerformance', () => {
       it('should provide campaign performance analysis', async () => {
-        const OpenAI = require('openai').default;
-        const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
         mockCreate.mockResolvedValueOnce({
           choices: [
             {
@@ -290,9 +275,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
 
     describe('generatePostContent', () => {
       it('should generate post with trigger word', async () => {
-        const OpenAI = require('openai').default;
-        const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
         mockCreate.mockResolvedValueOnce({
           choices: [
             {
@@ -343,9 +325,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
 
   describe('Error Handling', () => {
     it('should handle OpenAI API errors gracefully', async () => {
-      const OpenAI = require('openai').default;
-      const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
       mockCreate.mockRejectedValueOnce(new Error('API rate limit exceeded'));
 
       await expect(
@@ -359,9 +338,6 @@ describe('F-01: AgentKit Campaign Orchestration', () => {
     });
 
     it('should handle invalid JSON responses', async () => {
-      const OpenAI = require('openai').default;
-      const mockCreate = OpenAI.mock.results[0].value.chat.completions.create;
-
       mockCreate.mockResolvedValueOnce({
         choices: [
           {
