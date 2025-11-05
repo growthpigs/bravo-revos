@@ -55,12 +55,29 @@ export interface ExecutionResult {
   errorType?: string;
 }
 
+/**
+ * Custom error class for engagement job failures
+ * Provides type-safe error information for retry logic
+ */
+export class EngagementJobError extends Error {
+  constructor(
+    message: string,
+    public readonly errorType: 'rate_limit' | 'auth_error' | 'network_error' | 'not_found' | 'unknown_error'
+  ) {
+    super(message);
+    this.name = 'EngagementJobError';
+    // Ensure prototype chain is correct for instanceof checks
+    Object.setPrototypeOf(this, EngagementJobError.prototype);
+  }
+}
+
 // Global worker instance
 let workerInstance: Worker<EngagementJobData> | null = null;
 let queueInstance: Queue<EngagementJobData> | null = null;
 
 /**
  * Get or create the engagement queue
+ * Singleton pattern ensures only one queue instance exists
  */
 export function getEngagementQueue(): Queue<EngagementJobData> {
   if (!queueInstance) {
@@ -83,9 +100,7 @@ export function getEngagementQueue(): Queue<EngagementJobData> {
       },
     });
   }
-  return queueInstance || new Queue<EngagementJobData>(QUEUE_NAME, {
-    connection: getRedisConnection(),
-  });
+  return queueInstance;
 }
 
 /**
@@ -221,10 +236,8 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
     // Classify the error for retry logic
     const errorType = classifyError(errorMessage);
 
-    // Throw error to trigger BullMQ retry logic
-    const err = new Error(errorMessage);
-    (err as any).type = errorType;
-    throw err;
+    // Throw custom error with type-safe error classification
+    throw new EngagementJobError(errorMessage, errorType);
   }
 }
 
@@ -355,9 +368,34 @@ async function updateActivityInDatabase(
 }
 
 /**
- * Classify error type for retry logic
+ * Validate engagement job data
+ * Ensures all required fields are present and valid
  */
-function classifyError(errorMessage: string): string {
+function validateEngagementJobData(data: EngagementJobData): void {
+  if (!data.activityId || !data.podId) {
+    throw new Error('Missing required fields: activityId and podId');
+  }
+
+  if (!data.engagementType || !['like', 'comment'].includes(data.engagementType)) {
+    throw new Error(`Invalid engagement type: ${data.engagementType}`);
+  }
+
+  if (!data.scheduledFor) {
+    throw new Error('Missing required field: scheduledFor');
+  }
+
+  if (data.engagementType === 'comment' && !data.commentText) {
+    throw new Error('Comment engagement requires commentText');
+  }
+}
+
+/**
+ * Classify error type for retry logic
+ * Returns specific error type for intelligent retry strategy
+ */
+function classifyError(
+  errorMessage: string
+): 'rate_limit' | 'auth_error' | 'network_error' | 'not_found' | 'unknown_error' {
   if (
     errorMessage.includes('rate') ||
     errorMessage.includes('429') ||
@@ -431,8 +469,12 @@ export async function shutdownEngagementWorker(): Promise<void> {
 
 /**
  * Add a job to the engagement queue
+ * Validates job data before adding to ensure integrity
  */
 export async function addEngagementJob(jobData: EngagementJobData): Promise<Job<EngagementJobData>> {
+  // Validate input before adding to queue
+  validateEngagementJobData(jobData);
+
   const queue = getEngagementQueue();
 
   const job = await queue.add('execute-engagement', jobData, {
@@ -490,11 +532,14 @@ export async function getEngagementQueueStats(): Promise<{
 
 /**
  * Health check for the worker
+ * Returns comprehensive health status with queue statistics and error details
  */
 export async function getEngagementWorkerHealth(): Promise<{
   healthy: boolean;
   status: string;
   queueStats: Awaited<ReturnType<typeof getEngagementQueueStats>>;
+  timestamp: string;
+  error?: string;
 }> {
   try {
     const queueStats = await getEngagementQueueStats();
@@ -505,12 +550,16 @@ export async function getEngagementWorkerHealth(): Promise<{
       healthy,
       status: workerInstance?.isPaused() ? 'paused' : 'running',
       queueStats,
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     return {
       healthy: false,
       status: 'error',
       queueStats: { waiting: 0, active: 0, delayed: 0, completed: 0, failed: 0, total: 0 },
+      timestamp: new Date().toISOString(),
+      error: errorMsg,
     };
   }
 }
