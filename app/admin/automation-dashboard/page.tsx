@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 interface QueueStatus {
@@ -51,7 +51,7 @@ interface ActionResult {
   stats: PodStats;
 }
 
-export default function AutomationDashboard() {
+function AutomationDashboardContent() {
   const searchParams = useSearchParams();
   const podId = searchParams.get('podId') || 'test-pod-123';
 
@@ -314,5 +314,20 @@ export default function AutomationDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AutomationDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-4xl mx-auto text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    }>
+      <AutomationDashboardContent />
+    </Suspense>
   );
 }
