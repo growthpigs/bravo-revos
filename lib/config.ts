@@ -145,12 +145,44 @@ export const COMMENT_PROCESSOR_CONFIG = {
 };
 
 /**
+ * Pod Automation Engine Configuration (E-04)
+ */
+export const POD_AUTOMATION_CONFIG = {
+  // Like engagement delays
+  LIKE_MIN_DELAY_MS: 5 * 60 * 1000, // 5 minutes
+  LIKE_MAX_DELAY_MS: 30 * 60 * 1000, // 30 minutes
+  LIKE_MAX_MEMBERS_PER_HOUR: 3, // Stagger to avoid detection
+
+  // Comment engagement delays
+  COMMENT_MIN_DELAY_MS: 1 * 60 * 60 * 1000, // 1 hour
+  COMMENT_MAX_DELAY_MS: 6 * 60 * 60 * 1000, // 6 hours
+
+  // Queue configuration
+  QUEUE_CONCURRENCY: 5, // More concurrency for engagement jobs
+  QUEUE_ATTEMPTS: 3,
+  BACKOFF_INITIAL_DELAY_MS: 30000, // 30 seconds
+  BACKOFF_TYPE: 'exponential',
+
+  // Job retention
+  COMPLETED_JOB_KEEP_COUNT: 1000,
+  COMPLETED_JOB_AGE_DAYS: 7,
+  FAILED_JOB_KEEP_COUNT: 500,
+  FAILED_JOB_AGE_DAYS: 30,
+  SECONDS_PER_DAY: 86400,
+
+  // Engagement settings
+  BATCH_SIZE_LIKES: 20, // Process 20 likes per batch
+  BATCH_SIZE_COMMENTS: 10, // Process 10 comments per batch
+};
+
+/**
  * Logging Configuration
  */
 export const LOGGING_CONFIG = {
   PREFIX_COMMENT_POLLING: '[COMMENT_POLLING]',
   PREFIX_DM_QUEUE: '[DM_QUEUE]',
   PREFIX_POD_POST: '[POD_POST_QUEUE]',
+  PREFIX_POD_AUTOMATION: '[POD_AUTOMATION]',
   PREFIX_REDIS: '[REDIS]',
   PREFIX_UNIPILE: '[UNIPILE]',
   PREFIX_CONFIG: '[CONFIG]',
