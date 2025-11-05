@@ -62,7 +62,7 @@ export interface ExecutionResult {
 export class EngagementJobError extends Error {
   constructor(
     message: string,
-    public readonly errorType: 'rate_limit' | 'auth_error' | 'network_error' | 'not_found' | 'unknown_error'
+    public readonly errorType: 'rate_limit' | 'auth_error' | 'network_error' | 'not_found' | 'unknown_error' | 'validation_error' | 'timeout'
   ) {
     super(message);
     this.name = 'EngagementJobError';
@@ -292,9 +292,24 @@ async function executeLikeEngagement(params: {
   const { activityId, postId, profileId } = params;
 
   try {
+    // Validate required inputs
+    if (!postId?.trim()) {
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Missing or empty postId`,
+        'validation_error'
+      );
+    }
+
+    if (!profileId?.trim()) {
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Missing or empty profileId`,
+        'validation_error'
+      );
+    }
+
     if (!process.env.UNIPILE_API_KEY) {
       throw new EngagementJobError(
-        'UNIPILE_API_KEY not configured',
+        `[Activity ${activityId}] UNIPILE_API_KEY not configured`,
         'auth_error'
       );
     }
@@ -303,57 +318,76 @@ async function executeLikeEngagement(params: {
     const likeUrl = `${unipileDsn}/api/v1/posts/${postId}/reactions`;
 
     if (FEATURE_FLAGS.ENABLE_LOGGING) {
-      console.log(`${LOG_PREFIX} Calling Unipile like API: ${likeUrl}`);
+      console.log(`${LOG_PREFIX} [Activity ${activityId}] Calling Unipile like API: ${likeUrl}`);
     }
 
-    const response = await fetch(likeUrl, {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': process.env.UNIPILE_API_KEY,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        account_id: profileId,
-        type: 'LIKE',
-      }),
-    });
+    // Use AbortController for timeout (25 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      const errorMsg = `Unipile like failed: ${response.status} ${response.statusText}`;
+    try {
+      const response = await fetch(likeUrl, {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': process.env.UNIPILE_API_KEY,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          account_id: profileId,
+          type: 'LIKE',
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        const errorMsg = `[Activity ${activityId}] Unipile like failed: ${response.status} ${response.statusText}`;
+
+        if (FEATURE_FLAGS.ENABLE_LOGGING) {
+          console.error(`${LOG_PREFIX} ${errorMsg}`, errorBody);
+        }
+
+        // Classify error based on status code
+        if (response.status === 429) {
+          throw new EngagementJobError(errorMsg, 'rate_limit');
+        } else if (response.status === 401 || response.status === 403) {
+          throw new EngagementJobError(errorMsg, 'auth_error');
+        } else if (response.status === 404) {
+          throw new EngagementJobError(`[Activity ${activityId}] Post ${postId} not found`, 'not_found');
+        } else {
+          throw new EngagementJobError(errorMsg, 'unknown_error');
+        }
+      }
+
+      const result = await response.json();
 
       if (FEATURE_FLAGS.ENABLE_LOGGING) {
-        console.error(`${LOG_PREFIX} ${errorMsg}`, errorBody);
+        console.log(`${LOG_PREFIX} [Activity ${activityId}] Like executed successfully for post ${postId}`);
       }
 
-      // Classify error based on status code
-      if (response.status === 429) {
-        throw new EngagementJobError(errorMsg, 'rate_limit');
-      } else if (response.status === 401 || response.status === 403) {
-        throw new EngagementJobError(errorMsg, 'auth_error');
-      } else if (response.status === 404) {
-        throw new EngagementJobError(`Post ${postId} not found`, 'not_found');
-      } else {
-        throw new EngagementJobError(errorMsg, 'unknown_error');
-      }
+      return {
+        success: true,
+        timestamp: new Date().toISOString(),
+        activityId,
+        engagementType: 'like',
+      };
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const result = await response.json();
-
-    if (FEATURE_FLAGS.ENABLE_LOGGING) {
-      console.log(`${LOG_PREFIX} Like executed successfully for post ${postId}`);
-    }
-
-    return {
-      success: true,
-      timestamp: new Date().toISOString(),
-      activityId,
-      engagementType: 'like',
-    };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`${LOG_PREFIX} Like engagement failed: ${errorMsg}`);
+
+    // Handle timeout errors specifically
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error(`${LOG_PREFIX} [Activity ${activityId}] Like engagement timeout after 25s`);
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Request timeout (25s) - Unipile API not responding`,
+        'timeout'
+      );
+    }
+
+    console.error(`${LOG_PREFIX} [Activity ${activityId}] Like engagement failed: ${errorMsg}`);
 
     // If it's already an EngagementJobError, throw it as-is
     if (error instanceof EngagementJobError) {
@@ -362,7 +396,7 @@ async function executeLikeEngagement(params: {
 
     // Otherwise classify and throw
     const errorType = classifyError(errorMsg);
-    throw new EngagementJobError(errorMsg, errorType);
+    throw new EngagementJobError(`[Activity ${activityId}] ${errorMsg}`, errorType);
   }
 }
 
