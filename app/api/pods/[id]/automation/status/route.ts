@@ -10,10 +10,10 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { podId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const podId = params.podId;
+    const podId = params.id;
 
     if (!podId) {
       return NextResponse.json(

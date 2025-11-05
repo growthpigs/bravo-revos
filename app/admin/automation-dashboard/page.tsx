@@ -65,7 +65,8 @@ export default function AutomationDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/pods/${podId}/automation/status`);
+      const encodedPodId = encodeURIComponent(podId);
+      const response = await fetch(`/api/pods/${encodedPodId}/automation/status`);
       const result = await response.json();
 
       if (!response.ok) {
@@ -84,7 +85,8 @@ export default function AutomationDashboard() {
     try {
       setActionLoading(true);
       setError(null);
-      const response = await fetch(`/api/pods/${podId}/automation/actions`, {
+      const encodedPodId = encodeURIComponent(podId);
+      const response = await fetch(`/api/pods/${encodedPodId}/automation/actions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),

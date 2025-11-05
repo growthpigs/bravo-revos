@@ -13,10 +13,10 @@ import { getPodEngagementStats } from '@/lib/pods/engagement-scheduler';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { podId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const podId = params.podId;
+    const podId = params.id;
     const body = await request.json();
     const action = body.action as string;
 
