@@ -263,9 +263,24 @@ export function formatForMakeCom(lead: WebhookPayload['lead']): Record<string, u
 }
 
 /**
+ * ConvertKit webhook payload type
+ */
+export interface ConvertKitPayload {
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  custom_fields?: {
+    linkedin_profile?: string;
+    company?: string;
+    job_title?: string;
+    source?: string;
+  };
+}
+
+/**
  * Build ConvertKit webhook payload
  */
-export function formatForConvertKit(lead: WebhookPayload['lead']): Record<string, unknown> {
+export function formatForConvertKit(lead: WebhookPayload['lead']): ConvertKitPayload {
   return {
     email: lead.email,
     first_name: lead.firstName,
