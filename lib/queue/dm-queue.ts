@@ -12,6 +12,25 @@ import { validateDMJobData, validateAccountId } from '../validation';
 const QUEUE_NAME = 'dm-delivery';
 const LOG_PREFIX = LOGGING_CONFIG.PREFIX_DM_QUEUE;
 
+/**
+ * Generate unique job ID for DM queue
+ * Format: dm-{campaignId}-{recipientId}-{timestamp}
+ */
+export function generateJobId(campaignId: string, recipientId: string): string {
+  return `dm-${campaignId}-${recipientId}-${Date.now()}`;
+}
+
+/**
+ * Calculate next midnight UTC from given date
+ * Used for daily DM limit reset
+ */
+function getNextMidnightUTC(date: Date): Date {
+  const midnight = new Date(date);
+  midnight.setUTCDate(midnight.getUTCDate() + 1);
+  midnight.setUTCHours(0, 0, 0, 0);
+  return midnight;
+}
+
 export interface DMJobData {
   accountId: string;
   recipientId: string;
@@ -37,7 +56,7 @@ export const dmQueue = new Queue<DMJobData>(QUEUE_NAME, {
   defaultJobOptions: {
     attempts: DM_QUEUE_CONFIG.QUEUE_ATTEMPTS,
     backoff: {
-      type: DM_QUEUE_CONFIG.BACKOFF_TYPE as any,
+      type: DM_QUEUE_CONFIG.BACKOFF_TYPE as 'exponential' | 'fixed',
       delay: DM_QUEUE_CONFIG.BACKOFF_INITIAL_DELAY_MS,
     },
     removeOnComplete: {
@@ -75,9 +94,7 @@ export async function checkRateLimit(accountId: string): Promise<RateLimitStatus
 
   // Calculate reset time (midnight UTC)
   const now = new Date();
-  const resetTime = new Date(now);
-  resetTime.setUTCDate(resetTime.getUTCDate() + 1);
-  resetTime.setUTCHours(0, 0, 0, 0);
+  const resetTime = getNextMidnightUTC(now);
 
   return {
     accountId,
@@ -102,9 +119,7 @@ async function incrementDMCount(accountId: string): Promise<number> {
   // Set expiry to midnight UTC if this is the first DM today
   if (newCount === 1) {
     const now = new Date();
-    const midnight = new Date(now);
-    midnight.setUTCDate(midnight.getUTCDate() + 1);
-    midnight.setUTCHours(0, 0, 0, 0);
+    const midnight = getNextMidnightUTC(now);
     const secondsUntilMidnight = Math.floor((midnight.getTime() - now.getTime()) / 1000);
 
     await connection.expire(key, secondsUntilMidnight);
@@ -137,7 +152,7 @@ export async function queueDM(data: DMJobData): Promise<{
     const delayUntilReset = rateLimitStatus.resetTime.getTime() - Date.now();
 
     const job = await dmQueue.add('send-dm', data, {
-      jobId: `dm-${data.campaignId}-${data.recipientId}-${Date.now()}`,
+      jobId: generateJobId(data.campaignId, data.recipientId),
       delay: delayUntilReset,
     });
 
@@ -150,7 +165,7 @@ export async function queueDM(data: DMJobData): Promise<{
 
   // Queue immediately
   const job = await dmQueue.add('send-dm', data, {
-    jobId: `dm-${data.campaignId}-${data.recipientId}-${Date.now()}`,
+    jobId: generateJobId(data.campaignId, data.recipientId),
   });
 
   console.log(

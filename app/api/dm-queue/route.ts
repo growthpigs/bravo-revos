@@ -13,6 +13,7 @@ import {
   pauseQueue,
   resumeQueue,
   DMJobData,
+  generateJobId,
 } from '@/lib/queue/dm-queue';
 
 // POST - Queue a DM or perform action
