@@ -4,10 +4,13 @@
  */
 
 import { Queue, Worker, Job } from 'bullmq';
-import { Redis } from 'ioredis';
 import { sendDirectMessage } from '../unipile-client';
+import { getRedisConnection } from '../redis';
+import { DM_QUEUE_CONFIG, LOGGING_CONFIG } from '../config';
+import { validateDMJobData, validateAccountId } from '../validation';
 
 const QUEUE_NAME = 'dm-delivery';
+const LOG_PREFIX = LOGGING_CONFIG.PREFIX_DM_QUEUE;
 
 export interface DMJobData {
   accountId: string;
@@ -28,27 +31,22 @@ export interface RateLimitStatus {
   resetTime: Date;
 }
 
-// Redis connection for queue
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
-
 // DM delivery queue with retry configuration
 export const dmQueue = new Queue<DMJobData>(QUEUE_NAME, {
-  connection,
+  connection: getRedisConnection(),
   defaultJobOptions: {
-    attempts: 5, // Retry up to 5 times
+    attempts: DM_QUEUE_CONFIG.QUEUE_ATTEMPTS,
     backoff: {
-      type: 'exponential',
-      delay: 30000, // Start with 30 seconds, doubles each retry
+      type: DM_QUEUE_CONFIG.BACKOFF_TYPE as any,
+      delay: DM_QUEUE_CONFIG.BACKOFF_INITIAL_DELAY_MS,
     },
     removeOnComplete: {
-      count: 1000,
-      age: 86400 * 7, // Keep completed jobs for 7 days
+      count: DM_QUEUE_CONFIG.COMPLETED_JOB_KEEP_COUNT,
+      age: DM_QUEUE_CONFIG.COMPLETED_JOB_AGE_DAYS * DM_QUEUE_CONFIG.SECONDS_PER_DAY,
     },
     removeOnFail: {
-      count: 500,
-      age: 86400 * 30, // Keep failed jobs for 30 days
+      count: DM_QUEUE_CONFIG.FAILED_JOB_KEEP_COUNT,
+      age: DM_QUEUE_CONFIG.FAILED_JOB_AGE_DAYS * DM_QUEUE_CONFIG.SECONDS_PER_DAY,
     },
   },
 });
@@ -66,10 +64,13 @@ function getDMCountKey(accountId: string): string {
  * @returns RateLimitStatus with current usage
  */
 export async function checkRateLimit(accountId: string): Promise<RateLimitStatus> {
+  validateAccountId(accountId);
+
+  const connection = getRedisConnection();
   const key = getDMCountKey(accountId);
   const count = await connection.get(key);
   const sentToday = count ? parseInt(count, 10) : 0;
-  const limit = 100; // LinkedIn limit
+  const limit = DM_QUEUE_CONFIG.DM_DAILY_LIMIT;
   const remaining = Math.max(0, limit - sentToday);
 
   // Calculate reset time (midnight UTC)
@@ -92,6 +93,7 @@ export async function checkRateLimit(accountId: string): Promise<RateLimitStatus
  * Sets expiry to midnight UTC (24 hours + remaining seconds to midnight)
  */
 async function incrementDMCount(accountId: string): Promise<number> {
+  const connection = getRedisConnection();
   const key = getDMCountKey(accountId);
 
   // Increment counter
@@ -120,12 +122,15 @@ export async function queueDM(data: DMJobData): Promise<{
   rateLimitStatus: RateLimitStatus;
   queued: boolean;
 }> {
+  // Validate input
+  validateDMJobData(data);
+
   // Check rate limit first
   const rateLimitStatus = await checkRateLimit(data.accountId);
 
   if (rateLimitStatus.remaining <= 0) {
     console.log(
-      `[DM_QUEUE] Rate limit reached for account ${data.accountId} (${rateLimitStatus.sentToday}/${rateLimitStatus.limit})`
+      `${LOG_PREFIX} Rate limit reached for account ${data.accountId} (${rateLimitStatus.sentToday}/${rateLimitStatus.limit})`
     );
 
     // Still queue the job, but it will wait until tomorrow
@@ -149,7 +154,7 @@ export async function queueDM(data: DMJobData): Promise<{
   });
 
   console.log(
-    `[DM_QUEUE] Queued DM for ${data.recipientName} (${rateLimitStatus.sentToday + 1}/${rateLimitStatus.limit})`
+    `${LOG_PREFIX} Queued DM for ${data.recipientName} (${rateLimitStatus.sentToday + 1}/${rateLimitStatus.limit})`
   );
 
   return {
@@ -166,14 +171,14 @@ export async function queueDM(data: DMJobData): Promise<{
 async function processDMJob(job: Job<DMJobData>): Promise<void> {
   const { accountId, recipientId, recipientName, message, campaignId } = job.data;
 
-  console.log(`[DM_QUEUE] Processing DM job ${job.id} for ${recipientName}`);
+  console.log(`${LOG_PREFIX} Processing DM job ${job.id} for ${recipientName}`);
 
   // Double-check rate limit before sending
   const rateLimitStatus = await checkRateLimit(accountId);
 
   if (rateLimitStatus.remaining <= 0) {
     console.log(
-      `[DM_QUEUE] Rate limit exceeded, delaying until ${rateLimitStatus.resetTime.toISOString()}`
+      `${LOG_PREFIX} Rate limit exceeded, delaying until ${rateLimitStatus.resetTime.toISOString()}`
     );
 
     // Reschedule for tomorrow
@@ -186,7 +191,7 @@ async function processDMJob(job: Job<DMJobData>): Promise<void> {
     // Send DM via Unipile
     const result = await sendDirectMessage(accountId, recipientId, message);
 
-    console.log(`[DM_QUEUE] ✅ DM sent successfully:`, {
+    console.log(`${LOG_PREFIX} ✅ DM sent successfully:`, {
       jobId: job.id,
       messageId: result.message_id,
       recipient: recipientName,
@@ -201,7 +206,10 @@ async function processDMJob(job: Job<DMJobData>): Promise<void> {
 
     return;
   } catch (error) {
-    console.error(`[DM_QUEUE] ❌ Failed to send DM (attempt ${job.attemptsMade + 1}/${job.opts.attempts}):`, error);
+    console.error(
+      `${LOG_PREFIX} ❌ Failed to send DM (attempt ${job.attemptsMade + 1}/${job.opts.attempts}):`,
+      error
+    );
 
     // Check if it's a rate limit error from Unipile
     if (error instanceof Error && error.message.includes('RATE_LIMIT_EXCEEDED')) {
@@ -209,7 +217,9 @@ async function processDMJob(job: Job<DMJobData>): Promise<void> {
       const rateLimitStatus = await checkRateLimit(accountId);
       const delayUntilReset = rateLimitStatus.resetTime.getTime() - Date.now();
 
-      console.log(`[DM_QUEUE] Unipile rate limit hit, delaying until ${rateLimitStatus.resetTime.toISOString()}`);
+      console.log(
+        `${LOG_PREFIX} Unipile rate limit hit, delaying until ${rateLimitStatus.resetTime.toISOString()}`
+      );
       await job.moveToDelayed(delayUntilReset, job.token);
       return;
     }
@@ -220,31 +230,27 @@ async function processDMJob(job: Job<DMJobData>): Promise<void> {
 }
 
 // Start DM delivery worker
-export const dmWorker = new Worker<DMJobData>(
-  QUEUE_NAME,
-  processDMJob,
-  {
-    connection,
-    concurrency: 3, // Process 3 DMs at a time (conservative)
-    limiter: {
-      max: 10, // Max 10 jobs
-      duration: 60000, // Per minute (safety limit)
-    },
-  }
-);
+export const dmWorker = new Worker<DMJobData>(QUEUE_NAME, processDMJob, {
+  connection: getRedisConnection(),
+  concurrency: DM_QUEUE_CONFIG.QUEUE_CONCURRENCY,
+  limiter: {
+    max: DM_QUEUE_CONFIG.RATE_LIMITER_MAX_JOBS,
+    duration: DM_QUEUE_CONFIG.RATE_LIMITER_DURATION_MS,
+  },
+});
 
 // Worker event handlers
 dmWorker.on('completed', (job) => {
-  console.log(`[DM_QUEUE] Job ${job.id} completed for ${job.data.recipientName}`);
+  console.log(`${LOG_PREFIX} Job ${job.id} completed for ${job.data.recipientName}`);
 });
 
 dmWorker.on('failed', (job, error) => {
-  console.error(`[DM_QUEUE] Job ${job?.id} failed permanently:`, error.message);
+  console.error(`${LOG_PREFIX} Job ${job?.id} failed permanently:`, error.message);
   // TODO: Mark as failed in database (Phase D)
 });
 
 dmWorker.on('error', (error) => {
-  console.error('[DM_QUEUE] Worker error:', error);
+  console.error(`${LOG_PREFIX} Worker error:`, error);
 });
 
 /**
@@ -300,7 +306,7 @@ export async function cancelCampaignJobs(campaignId: string): Promise<number> {
     }
   }
 
-  console.log(`[DM_QUEUE] Cancelled ${cancelledCount} jobs for campaign ${campaignId}`);
+  console.log(`${LOG_PREFIX} Cancelled ${cancelledCount} jobs for campaign ${campaignId}`);
   return cancelledCount;
 }
 
@@ -309,7 +315,7 @@ export async function cancelCampaignJobs(campaignId: string): Promise<number> {
  */
 export async function pauseQueue(): Promise<void> {
   await dmQueue.pause();
-  console.log('[DM_QUEUE] Queue paused');
+  console.log(`${LOG_PREFIX} Queue paused`);
 }
 
 /**
@@ -317,5 +323,5 @@ export async function pauseQueue(): Promise<void> {
  */
 export async function resumeQueue(): Promise<void> {
   await dmQueue.resume();
-  console.log('[DM_QUEUE] Queue resumed');
+  console.log(`${LOG_PREFIX} Queue resumed`);
 }

@@ -4,10 +4,13 @@
  */
 
 import { Queue, Worker, Job } from 'bullmq';
-import { Redis } from 'ioredis';
 import { getUserLatestPosts } from '../unipile-client';
+import { getRedisConnection } from '../redis';
+import { POD_POST_CONFIG, LOGGING_CONFIG } from '../config';
+import { validatePodPostJobData } from '../validation';
 
 const QUEUE_NAME = 'pod-post-detection';
+const LOG_PREFIX = LOGGING_CONFIG.PREFIX_POD_POST;
 
 export interface PodPostJobData {
   podId: string;
@@ -17,27 +20,22 @@ export interface PodPostJobData {
   userId: string;
 }
 
-// Redis connection for queue
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
-
 // Pod post detection queue with 30-minute polling
 export const podPostQueue = new Queue<PodPostJobData>(QUEUE_NAME, {
-  connection,
+  connection: getRedisConnection(),
   defaultJobOptions: {
-    attempts: 3,
+    attempts: POD_POST_CONFIG.QUEUE_ATTEMPTS,
     backoff: {
-      type: 'exponential',
-      delay: 30000,
+      type: POD_POST_CONFIG.BACKOFF_TYPE as any,
+      delay: POD_POST_CONFIG.BACKOFF_INITIAL_DELAY_MS,
     },
     removeOnComplete: {
-      count: 100,
-      age: 86400 * 7, // 7 days
+      count: POD_POST_CONFIG.COMPLETED_JOB_KEEP_COUNT,
+      age: POD_POST_CONFIG.COMPLETED_JOB_AGE_DAYS * POD_POST_CONFIG.SECONDS_PER_DAY || 86400,
     },
     removeOnFail: {
-      count: 50,
-      age: 86400 * 30, // 30 days
+      count: POD_POST_CONFIG.FAILED_JOB_KEEP_COUNT,
+      age: POD_POST_CONFIG.FAILED_JOB_AGE_DAYS * POD_POST_CONFIG.SECONDS_PER_DAY || 2592000,
     },
   },
 });
@@ -46,25 +44,27 @@ export const podPostQueue = new Queue<PodPostJobData>(QUEUE_NAME, {
  * Get the Redis key for tracking seen posts per pod
  */
 function getSeenPostsKey(podId: string): string {
-  return `pod-posts-seen:${podId}`;
+  return `${POD_POST_CONFIG.POSTS_SEEN_KEY_PREFIX}:${podId}`;
 }
 
 /**
  * Check if post was already detected
  */
 async function isPostSeen(podId: string, postId: string): Promise<boolean> {
+  const connection = getRedisConnection();
   const key = getSeenPostsKey(podId);
-  return await connection.sismember(key, postId) > 0;
+  return (await connection.sismember(key, postId)) === 1;
 }
 
 /**
  * Mark post as seen
  */
 async function markPostSeen(podId: string, postId: string): Promise<void> {
+  const connection = getRedisConnection();
   const key = getSeenPostsKey(podId);
   await connection.sadd(key, postId);
-  // Keep for 7 days then auto-expire
-  await connection.expire(key, 86400 * 7);
+  // Keep for configured days then auto-expire
+  await connection.expire(key, POD_POST_CONFIG.POSTS_RETENTION_DAYS * 86400);
 }
 
 /**
@@ -74,16 +74,16 @@ export async function startPodPostDetection(data: PodPostJobData): Promise<{
   jobId: string;
   message: string;
 }> {
+  validatePodPostJobData(data);
+
   const job = await podPostQueue.add('detect-posts', data, {
     jobId: `pod-${data.podId}-initial`,
     repeat: {
-      every: 30 * 60 * 1000, // 30 minutes
+      every: POD_POST_CONFIG.POLLING_INTERVAL_MS,
     },
   });
 
-  console.log(
-    `[POD_POST_QUEUE] Started post detection for pod ${data.podId} (Job ID: ${job.id})`
-  );
+  console.log(`${LOG_PREFIX} Started post detection for pod ${data.podId} (Job ID: ${job.id})`);
 
   return {
     jobId: job.id!,
@@ -105,7 +105,7 @@ export async function stopPodPostDetection(podId: string): Promise<number> {
     }
   }
 
-  console.log(`[POD_POST_QUEUE] Stopped detection for pod ${podId} (removed ${removedCount} jobs)`);
+  console.log(`${LOG_PREFIX} Stopped detection for pod ${podId} (removed ${removedCount} jobs)`);
   return removedCount;
 }
 
@@ -115,21 +115,23 @@ export async function stopPodPostDetection(podId: string): Promise<number> {
 async function processPodPostJob(job: Job<PodPostJobData>): Promise<void> {
   const { podId, accountId, podMemberIds } = job.data;
 
-  console.log(
-    `[POD_POST_QUEUE] Detecting new posts from ${podMemberIds.length} pod members`
-  );
+  console.log(`${LOG_PREFIX} Detecting new posts from ${podMemberIds.length} pod members`);
 
   const newPostsDetected: Array<{ memberId: string; postId: string; text: string }> = [];
 
   for (const memberId of podMemberIds) {
     try {
-      const posts = await getUserLatestPosts(accountId, memberId, 5);
+      const posts = await getUserLatestPosts(
+        accountId,
+        memberId,
+        POD_POST_CONFIG.POSTS_TO_CHECK_PER_POLL
+      );
 
       for (const post of posts) {
         const alreadySeen = await isPostSeen(podId, post.id);
 
         if (!alreadySeen) {
-          console.log(`[POD_POST_QUEUE] ✅ New post detected from ${post.author.name}`);
+          console.log(`${LOG_PREFIX} ✅ New post detected from ${post.author.name}`);
           console.log(`   Text: ${post.text.substring(0, 100)}...`);
 
           await markPostSeen(podId, post.id);
@@ -150,33 +152,27 @@ async function processPodPostJob(job: Job<PodPostJobData>): Promise<void> {
         }
       }
     } catch (error) {
-      console.error(`[POD_POST_QUEUE] Error fetching posts from ${memberId}:`, error);
+      console.error(`${LOG_PREFIX} Error fetching posts from ${memberId}:`, error);
       // Continue with other members
     }
   }
 
-  console.log(
-    `[POD_POST_QUEUE] Detection complete: Found ${newPostsDetected.length} new posts`
-  );
+  console.log(`${LOG_PREFIX} Detection complete: Found ${newPostsDetected.length} new posts`);
 }
 
 // Start pod post detection worker
-export const podPostWorker = new Worker<PodPostJobData>(
-  QUEUE_NAME,
-  processPodPostJob,
-  {
-    connection,
-    concurrency: 3, // Process 3 pods concurrently
-  }
-);
+export const podPostWorker = new Worker<PodPostJobData>(QUEUE_NAME, processPodPostJob, {
+  connection: getRedisConnection(),
+  concurrency: POD_POST_CONFIG.QUEUE_CONCURRENCY,
+});
 
 // Worker event handlers
 podPostWorker.on('completed', (job) => {
-  console.log(`[POD_POST_QUEUE] Job ${job.id} completed`);
+  console.log(`${LOG_PREFIX} Job ${job.id} completed`);
 });
 
 podPostWorker.on('failed', (job, error) => {
-  console.error(`[POD_POST_QUEUE] Job ${job?.id} failed:`, error.message);
+  console.error(`${LOG_PREFIX} Job ${job?.id} failed:`, error.message);
 });
 
 /**

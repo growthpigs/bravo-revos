@@ -4,9 +4,11 @@
  */
 
 import { Queue, Worker, Job } from 'bullmq';
-import { Redis } from 'ioredis';
 import { getAllPostComments } from '../unipile-client';
 import { processComments } from '../comment-processor';
+import { getRedisConnection } from '../redis';
+import { COMMENT_POLLING_CONFIG, LOGGING_CONFIG } from '../config';
+import { validateCommentPollingJobData } from '../validation';
 
 /**
  * Job data structure
@@ -24,28 +26,24 @@ export interface CommentPollingJobData {
  * Queue configuration
  */
 const QUEUE_NAME = 'comment-polling';
-
-// Redis connection
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+const LOG_PREFIX = LOGGING_CONFIG.PREFIX_COMMENT_POLLING;
 
 // Create queue
 export const commentPollingQueue = new Queue<CommentPollingJobData>(QUEUE_NAME, {
-  connection,
+  connection: getRedisConnection(),
   defaultJobOptions: {
-    attempts: 3,
+    attempts: COMMENT_POLLING_CONFIG.QUEUE_ATTEMPTS,
     backoff: {
-      type: 'exponential',
-      delay: 60000, // Start at 1 minute
+      type: COMMENT_POLLING_CONFIG.BACKOFF_TYPE as any,
+      delay: COMMENT_POLLING_CONFIG.BACKOFF_INITIAL_DELAY_MS,
     },
     removeOnComplete: {
-      count: 100, // Keep last 100 completed jobs
-      age: 86400, // Keep for 24 hours
+      count: COMMENT_POLLING_CONFIG.COMPLETED_JOB_KEEP_COUNT,
+      age: COMMENT_POLLING_CONFIG.COMPLETED_JOB_AGE_DAYS * 86400,
     },
     removeOnFail: {
-      count: 50, // Keep last 50 failed jobs
-      age: 86400 * 7, // Keep for 7 days
+      count: COMMENT_POLLING_CONFIG.FAILED_JOB_KEEP_COUNT,
+      age: COMMENT_POLLING_CONFIG.FAILED_JOB_AGE_DAYS * 86400,
     },
   },
 });
@@ -55,11 +53,13 @@ export const commentPollingQueue = new Queue<CommentPollingJobData>(QUEUE_NAME, 
  * Returns delay in milliseconds
  */
 function calculateNextDelay(): number {
-  // Base: Random between 15-45 minutes
-  const baseMinutes = 15 + Math.random() * 30; // 15-45 minutes
+  // Base: Random between configured min-max minutes
+  const baseMinutes =
+    COMMENT_POLLING_CONFIG.MIN_POLL_DELAY_MIN +
+    Math.random() * (COMMENT_POLLING_CONFIG.MAX_POLL_DELAY_MIN - COMMENT_POLLING_CONFIG.MIN_POLL_DELAY_MIN);
 
-  // Jitter: ±5 minutes
-  const jitterMinutes = (Math.random() - 0.5) * 10; // -5 to +5 minutes
+  // Jitter: ±configured minutes
+  const jitterMinutes = (Math.random() - 0.5) * (COMMENT_POLLING_CONFIG.JITTER_MIN * 2);
 
   // Convert to milliseconds
   const totalMinutes = baseMinutes + jitterMinutes;
@@ -67,7 +67,7 @@ function calculateNextDelay(): number {
 }
 
 /**
- * Check if current time is within working hours (9am-5pm)
+ * Check if current time is within working hours
  * Returns true if within working hours, false otherwise
  */
 function isWithinWorkingHours(timezone?: string): boolean {
@@ -77,14 +77,17 @@ function isWithinWorkingHours(timezone?: string): boolean {
   // For now, use local time
   const hour = now.getHours();
 
-  return hour >= 9 && hour < 17; // 9am to 5pm
+  return (
+    hour >= COMMENT_POLLING_CONFIG.WORKING_HOURS_START &&
+    hour < COMMENT_POLLING_CONFIG.WORKING_HOURS_END
+  );
 }
 
 /**
- * Determine if this poll should be skipped (10% chance)
+ * Determine if this poll should be skipped
  */
 function shouldSkipPoll(): boolean {
-  return Math.random() < 0.1; // 10% chance to skip
+  return Math.random() < COMMENT_POLLING_CONFIG.SKIP_POLL_PERCENTAGE;
 }
 
 /**
@@ -113,36 +116,35 @@ async function scheduleNextPoll(jobData: CommentPollingJobData): Promise<void> {
   const delay = calculateNextDelay();
   const delayMinutes = (delay / 60000).toFixed(1);
 
-  console.log(`[COMMENT_POLLING] Scheduling next poll in ${delayMinutes} minutes`);
+  console.log(`${LOG_PREFIX} Scheduling next poll in ${delayMinutes} minutes`);
 
-  await commentPollingQueue.add(
-    'poll-comments',
-    jobData,
-    {
-      delay,
-      jobId: `poll-${jobData.campaignId}-${Date.now()}`, // Unique job ID
-    }
-  );
+  await commentPollingQueue.add('poll-comments', jobData, {
+    delay,
+    jobId: `poll-${jobData.campaignId}-${Date.now()}`, // Unique job ID
+  });
 }
 
 /**
  * Process comment polling job
  */
 async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promise<void> {
+  // Validate input
+  validateCommentPollingJobData(job.data);
+
   const { accountId, postId, triggerWords, campaignId, userId, timezone } = job.data;
 
-  console.log(`[COMMENT_POLLING] Processing job for campaign ${campaignId}, post ${postId}`);
+  console.log(`${LOG_PREFIX} Processing job for campaign ${campaignId}, post ${postId}`);
 
   // Check if within working hours
   if (!isWithinWorkingHours(timezone)) {
-    console.log(`[COMMENT_POLLING] Outside working hours, skipping and rescheduling`);
+    console.log(`${LOG_PREFIX} Outside working hours, skipping and rescheduling`);
     await scheduleNextPoll(job.data);
     return;
   }
 
-  // Random skip chance (10%)
+  // Random skip chance
   if (shouldSkipPoll()) {
-    console.log(`[COMMENT_POLLING] Random skip triggered, rescheduling`);
+    console.log(`${LOG_PREFIX} Random skip triggered, rescheduling`);
     await scheduleNextPoll(job.data);
     return;
   }
@@ -150,17 +152,17 @@ async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promis
   try {
     // Fetch comments from Unipile
     const comments = await getAllPostComments(accountId, postId);
-    console.log(`[COMMENT_POLLING] Fetched ${comments.length} comments`);
+    console.log(`${LOG_PREFIX} Fetched ${comments.length} comments`);
 
     // Process comments (bot filtering + trigger word detection)
     const validComments = processComments(comments, triggerWords);
-    console.log(`[COMMENT_POLLING] ${validComments.length} valid comments with trigger words`);
+    console.log(`${LOG_PREFIX} ${validComments.length} valid comments with trigger words`);
 
     // Queue DMs for valid comments (C-03 integration)
     const { queueDM } = await import('./dm-queue');
 
     for (const processed of validComments) {
-      console.log(`[COMMENT_POLLING] Queueing DM for: ${processed.comment.author.name}`);
+      console.log(`${LOG_PREFIX} Queueing DM for: ${processed.comment.author.name}`);
       console.log(`  - Matched words: ${processed.matchedTriggerWords.join(', ')}`);
       console.log(`  - Bot score: ${processed.botScore}`);
 
@@ -183,13 +185,13 @@ async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promis
           postId,
         });
 
-        console.log(`[COMMENT_POLLING] ✅ DM queued (Job ID: ${result.jobId})`);
+        console.log(`${LOG_PREFIX} ✅ DM queued (Job ID: ${result.jobId})`);
         console.log(
           `  - Rate limit: ${result.rateLimitStatus.sentToday}/${result.rateLimitStatus.limit}`
         );
       } catch (error) {
         console.error(
-          `[COMMENT_POLLING] ❌ Failed to queue DM for ${processed.comment.author.name}:`,
+          `${LOG_PREFIX} ❌ Failed to queue DM for ${processed.comment.author.name}:`,
           error
         );
         // Continue with other comments even if one fails
@@ -199,7 +201,7 @@ async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promis
     // Schedule next poll
     await scheduleNextPoll(job.data);
   } catch (error) {
-    console.error(`[COMMENT_POLLING] Error polling comments:`, error);
+    console.error(`${LOG_PREFIX} Error polling comments:`, error);
     // Don't schedule next poll on error - BullMQ retry will handle it
     throw error;
   }
@@ -214,28 +216,28 @@ export const commentPollingWorker = new Worker<CommentPollingJobData>(
     await processCommentPollingJob(job);
   },
   {
-    connection,
-    concurrency: 5, // Process up to 5 jobs concurrently
+    connection: getRedisConnection(),
+    concurrency: COMMENT_POLLING_CONFIG.QUEUE_CONCURRENCY || 3,
   }
 );
 
 // Worker event handlers
 commentPollingWorker.on('completed', (job) => {
-  console.log(`[COMMENT_POLLING] Job ${job.id} completed successfully`);
+  console.log(`${LOG_PREFIX} Job ${job.id} completed successfully`);
 });
 
 commentPollingWorker.on('failed', (job, err) => {
-  console.error(`[COMMENT_POLLING] Job ${job?.id} failed:`, err);
+  console.error(`${LOG_PREFIX} Job ${job?.id} failed:`, err);
 });
 
 /**
  * Start comment polling for a campaign
  * This is called when a campaign is created/activated
  */
-export async function startCommentPolling(
-  jobData: CommentPollingJobData
-): Promise<void> {
-  console.log(`[COMMENT_POLLING] Starting polling for campaign ${jobData.campaignId}`);
+export async function startCommentPolling(jobData: CommentPollingJobData): Promise<void> {
+  validateCommentPollingJobData(jobData);
+
+  console.log(`${LOG_PREFIX} Starting polling for campaign ${jobData.campaignId}`);
 
   // Add first job immediately
   await commentPollingQueue.add('poll-comments', jobData, {
@@ -248,7 +250,7 @@ export async function startCommentPolling(
  * This is called when a campaign is paused/deactivated
  */
 export async function stopCommentPolling(campaignId: string): Promise<void> {
-  console.log(`[COMMENT_POLLING] Stopping polling for campaign ${campaignId}`);
+  console.log(`${LOG_PREFIX} Stopping polling for campaign ${campaignId}`);
 
   // Remove all jobs for this campaign
   const jobs = await commentPollingQueue.getJobs(['waiting', 'delayed', 'active']);
@@ -258,7 +260,7 @@ export async function stopCommentPolling(campaignId: string): Promise<void> {
     await job.remove();
   }
 
-  console.log(`[COMMENT_POLLING] Removed ${campaignJobs.length} jobs for campaign ${campaignId}`);
+  console.log(`${LOG_PREFIX} Removed ${campaignJobs.length} jobs for campaign ${campaignId}`);
 }
 
 /**
