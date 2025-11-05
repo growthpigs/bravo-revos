@@ -136,7 +136,7 @@ export async function scheduleLikeActivities(
   }
 
   // Process each post's activities
-  for (const [postId, postActivities] of activitiesByPost.entries()) {
+  for (const [postId, postActivities] of Array.from(activitiesByPost.entries())) {
     // Limit members per hour
     const activitiesToSchedule = postActivities.slice(0, maxMembersPerHour);
 

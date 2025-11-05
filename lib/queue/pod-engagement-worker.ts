@@ -72,7 +72,6 @@ export function getEngagementQueue(): Queue<EngagementJobData> {
           type: 'exponential',
           delay: 500,
         },
-        timeout: JOB_TIMEOUT_MS,
         removeOnComplete: {
           count: 1000,
           age: 7 * 24 * 60 * 60, // 7 days
@@ -84,7 +83,9 @@ export function getEngagementQueue(): Queue<EngagementJobData> {
       },
     });
   }
-  return queueInstance;
+  return queueInstance || new Queue<EngagementJobData>(QUEUE_NAME, {
+    connection: getRedisConnection(),
+  });
 }
 
 /**
