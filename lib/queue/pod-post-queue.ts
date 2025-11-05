@@ -5,6 +5,7 @@
 
 import { Queue, Worker, Job } from 'bullmq';
 import { getUserLatestPosts } from '../unipile-client';
+import { saveDetectedPost, getPodMemberByLinkedInAccountId } from '../pods/post-detector';
 import { getRedisConnection } from '../redis';
 import { POD_POST_CONFIG, LOGGING_CONFIG } from '../config';
 import { validatePodPostJobData } from '../validation';
@@ -117,7 +118,13 @@ async function processPodPostJob(job: Job<PodPostJobData>): Promise<void> {
 
   console.log(`${LOG_PREFIX} Detecting new posts from ${podMemberIds.length} pod members`);
 
-  const newPostsDetected: Array<{ memberId: string; postId: string; text: string }> = [];
+  const newPostsDetected: Array<{
+    memberId: string;
+    postId: string;
+    text: string;
+    activitiesCreated: number;
+  }> = [];
+  let totalActivitiesCreated = 0;
 
   for (const memberId of podMemberIds) {
     try {
@@ -135,20 +142,44 @@ async function processPodPostJob(job: Job<PodPostJobData>): Promise<void> {
           console.log(`   Text: ${post.text.substring(0, 100)}...`);
 
           await markPostSeen(podId, post.id);
+
+          // Get pod member ID for this LinkedIn account
+          // Note: accountId is the Unipile account ID, we use it to look up the LinkedIn account
+          const podMemberId = await getPodMemberByLinkedInAccountId(podId, accountId);
+          if (!podMemberId) {
+            console.error(
+              `${LOG_PREFIX} Could not find pod member for account ${accountId}`
+            );
+            continue;
+          }
+
+          // Save post to database and create engagement activities
+          const result = await saveDetectedPost(
+            podId,
+            accountId,
+            accountId, // Pass accountId as the linkedin_account_id for now
+            post,
+            podMemberIds
+          );
+
+          if (result.error) {
+            console.error(`${LOG_PREFIX} Failed to save post: ${result.error}`);
+            continue;
+          }
+
+          totalActivitiesCreated += result.activitiesCreated;
           newPostsDetected.push({
             memberId,
             postId: post.id,
             text: post.text,
+            activitiesCreated: result.activitiesCreated,
           });
 
-          // TODO: Queue reshare job (E-04 integration)
-          // await podReshareQueue.add('reshare-post', {
-          //   podId,
-          //   postId: post.id,
-          //   postUrl: post.url,
-          //   authorId: memberId,
-          //   ...
-          // });
+          // TODO: Queue engagement jobs (E-04 integration)
+          // Next: Schedule like jobs with staggered timing
+          // Then: Schedule comment jobs with longer delays
+          // Pattern: 5-30min delay for likes, 1-6hr delay for comments
+          // Stagger: Not all members at once
         }
       }
     } catch (error) {
@@ -157,7 +188,9 @@ async function processPodPostJob(job: Job<PodPostJobData>): Promise<void> {
     }
   }
 
-  console.log(`${LOG_PREFIX} Detection complete: Found ${newPostsDetected.length} new posts`);
+  console.log(`${LOG_PREFIX} Detection complete:`);
+  console.log(`   Found ${newPostsDetected.length} new posts`);
+  console.log(`   Created ${totalActivitiesCreated} engagement activities`);
 }
 
 // Start pod post detection worker
