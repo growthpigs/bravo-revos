@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "archon": {
+      "command": "bash",
+      "args": [
+        "/Users/rodericandrews/Obsidian/Master/_Projects/bravo-revos/.archon/start.sh"
+      ],
+      "env": {
+        "PROJECT_PATH": "/Users/rodericandrews/Obsidian/Master/_Projects/bravo-revos",
+        "PROJECT_NAME": "Bravo revOS"
+      }
+    }
+  }
+}
