@@ -157,9 +157,9 @@ export async function getPodMemberByLinkedInAccountId(
   podId: string,
   linkedinAccountDatabaseId: string
 ): Promise<string | null> {
-  const supabase = await createClient();
-
   try {
+    const supabase = await createClient();
+
     const { data, error } = await supabase
       .from('pod_members')
       .select('id')
