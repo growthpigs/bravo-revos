@@ -18,7 +18,7 @@ CREATE TABLE agencies (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_agencies_slug ON agencies(slug);
+CREATE INDEX IF NOT EXISTS idx_agencies_slug ON agencies(slug);
 
 -- Clients (belong to agencies)
 CREATE TABLE clients (
@@ -36,7 +36,7 @@ CREATE TABLE clients (
   UNIQUE(agency_id, name)
 );
 
-CREATE INDEX idx_clients_agency ON clients(agency_id);
+CREATE INDEX IF NOT EXISTS idx_clients_agency ON clients(agency_id);
 
 -- Users (belong to clients)
 CREATE TABLE users (
@@ -53,8 +53,8 @@ CREATE TABLE users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_client ON users(client_id);
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_client ON users(client_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- ============================================================
 -- LINKEDIN INTEGRATION TABLES
@@ -79,8 +79,8 @@ CREATE TABLE linkedin_accounts (
   UNIQUE(user_id, account_name)
 );
 
-CREATE INDEX idx_linkedin_accounts_user ON linkedin_accounts(user_id);
-CREATE INDEX idx_linkedin_accounts_status ON linkedin_accounts(status);
+CREATE INDEX IF NOT EXISTS idx_linkedin_accounts_user ON linkedin_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_linkedin_accounts_status ON linkedin_accounts(status);
 
 -- ============================================================
 -- LEAD MANAGEMENT TABLES
@@ -102,7 +102,7 @@ CREATE TABLE lead_magnets (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_lead_magnets_client ON lead_magnets(client_id);
+CREATE INDEX IF NOT EXISTS idx_lead_magnets_client ON lead_magnets(client_id);
 
 -- Campaigns
 CREATE TABLE campaigns (
@@ -126,8 +126,8 @@ CREATE TABLE campaigns (
   UNIQUE(client_id, name)
 );
 
-CREATE INDEX idx_campaigns_client ON campaigns(client_id);
-CREATE INDEX idx_campaigns_status ON campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_campaigns_client ON campaigns(client_id);
+CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
 
 -- Posts
 CREATE TABLE posts (
@@ -147,8 +147,8 @@ CREATE TABLE posts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_posts_campaign ON posts(campaign_id);
-CREATE INDEX idx_posts_status ON posts(status);
+CREATE INDEX IF NOT EXISTS idx_posts_campaign ON posts(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 
 -- Comments
 CREATE TABLE comments (
@@ -165,8 +165,8 @@ CREATE TABLE comments (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_comments_post ON comments(post_id);
-CREATE INDEX idx_comments_trigger ON comments(has_trigger_word) WHERE has_trigger_word = true;
+CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_comments_trigger ON comments(has_trigger_word) WHERE has_trigger_word = true;
 
 -- Leads
 CREATE TABLE leads (
@@ -194,8 +194,8 @@ CREATE TABLE leads (
   UNIQUE(campaign_id, linkedin_id)
 );
 
-CREATE INDEX idx_leads_campaign ON leads(campaign_id);
-CREATE INDEX idx_leads_status ON leads(status);
+CREATE INDEX IF NOT EXISTS idx_leads_campaign ON leads(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 
 -- ============================================================
 -- WEBHOOK TABLES
@@ -218,7 +218,7 @@ CREATE TABLE webhook_configs (
   UNIQUE(client_id, name)
 );
 
-CREATE INDEX idx_webhook_configs_client ON webhook_configs(client_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_configs_client ON webhook_configs(client_id);
 
 -- Webhook Deliveries
 CREATE TABLE webhook_deliveries (
@@ -236,7 +236,7 @@ CREATE TABLE webhook_deliveries (
   delivered_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_webhook_deliveries_status ON webhook_deliveries(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);
 
 -- ============================================================
 -- ENGAGEMENT POD TABLES
@@ -257,7 +257,7 @@ CREATE TABLE pods (
   UNIQUE(client_id, name)
 );
 
-CREATE INDEX idx_pods_client ON pods(client_id);
+CREATE INDEX IF NOT EXISTS idx_pods_client ON pods(client_id);
 
 -- Pod Members
 CREATE TABLE pod_members (
@@ -272,7 +272,7 @@ CREATE TABLE pod_members (
   UNIQUE(pod_id, user_id)
 );
 
-CREATE INDEX idx_pod_members_pod ON pod_members(pod_id);
+CREATE INDEX IF NOT EXISTS idx_pod_members_pod ON pod_members(pod_id);
 
 -- Pod Activities
 CREATE TABLE pod_activities (
@@ -288,7 +288,7 @@ CREATE TABLE pod_activities (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_pod_activities_scheduled ON pod_activities(scheduled_for) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_pod_activities_scheduled ON pod_activities(scheduled_for) WHERE status = 'pending';
 
 -- ============================================================
 -- CARTRIDGE SYSTEM (VOICE)
@@ -310,8 +310,8 @@ CREATE TABLE cartridges (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_cartridges_client ON cartridges(client_id);
-CREATE INDEX idx_cartridges_tier ON cartridges(tier);
+CREATE INDEX IF NOT EXISTS idx_cartridges_client ON cartridges(client_id);
+CREATE INDEX IF NOT EXISTS idx_cartridges_tier ON cartridges(tier);
 
 -- ============================================================
 -- AUTO-UPDATE TIMESTAMPS

@@ -4,43 +4,39 @@
 -- System → Agency → Client → Campaign/User
 
 -- ============================================================
--- CARTRIDGES TABLE
+-- CARTRIDGES TABLE MIGRATION (extends 001_initial_schema)
 -- ============================================================
+-- Note: Cartridges table is created in 001_initial_schema.sql
+-- This migration adds enhanced columns and the 4-tier hierarchy system
 
-CREATE TABLE cartridges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-- Drop existing indexes that will be recreated with IF NOT EXISTS
+DROP INDEX IF EXISTS idx_cartridges_client;
+DROP INDEX IF EXISTS idx_cartridges_tier;
 
-  -- Hierarchy (parent_id determines tier)
-  parent_id UUID REFERENCES cartridges(id) ON DELETE CASCADE,
+-- Add missing columns for 4-tier hierarchy if they don't exist
+ALTER TABLE cartridges
+ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES cartridges(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS agency_id UUID REFERENCES agencies(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS voice_params JSONB DEFAULT '{}'::jsonb,
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
+ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
 
-  -- Ownership (determines which tier)
-  agency_id UUID REFERENCES agencies(id) ON DELETE CASCADE,
-  client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+-- Rename parent_cartridge_id to parent_id if it exists (for consistency)
+-- This is already handled by the above ADD COLUMN IF NOT EXISTS parent_id
 
-  -- Cartridge metadata
-  name TEXT NOT NULL,
-  description TEXT,
-  tier TEXT NOT NULL CHECK (tier IN ('system', 'agency', 'client', 'user')),
+-- Update tier enum to include 'agency' option
+-- First drop the constraint if it exists, then recreate with new values
+ALTER TABLE cartridges
+DROP CONSTRAINT IF EXISTS "cartridges_tier_check",
+ADD CONSTRAINT cartridges_tier_check CHECK (tier IN ('system', 'agency', 'client', 'user', 'skill', 'workspace'));
 
-  -- Voice parameters (JSONB for flexibility)
-  voice_params JSONB NOT NULL DEFAULT '{}'::jsonb,
-
-  -- Status
-  is_active BOOLEAN DEFAULT true,
-
-  -- Timestamps
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-
-  -- Constraints
-  CONSTRAINT valid_tier_ownership CHECK (
-    (tier = 'system' AND agency_id IS NULL AND client_id IS NULL AND user_id IS NULL) OR
-    (tier = 'agency' AND agency_id IS NOT NULL AND client_id IS NULL AND user_id IS NULL) OR
-    (tier = 'client' AND client_id IS NOT NULL AND user_id IS NULL) OR
-    (tier = 'user' AND user_id IS NOT NULL)
-  )
+-- Add constraint for tier ownership if not exists
+ALTER TABLE cartridges
+ADD CONSTRAINT IF NOT EXISTS valid_tier_ownership CHECK (
+  (tier = 'system' AND agency_id IS NULL AND client_id IS NULL AND user_id IS NULL) OR
+  (tier = 'agency' AND agency_id IS NOT NULL AND client_id IS NULL AND user_id IS NULL) OR
+  (tier = 'client' AND client_id IS NOT NULL AND user_id IS NULL) OR
+  (tier = 'user' AND user_id IS NOT NULL)
 );
 
 -- ============================================================
@@ -80,15 +76,15 @@ CREATE TABLE cartridges (
 -- INDEXES FOR PERFORMANCE
 -- ============================================================
 
-CREATE INDEX idx_cartridges_parent_id ON cartridges(parent_id);
-CREATE INDEX idx_cartridges_agency_id ON cartridges(agency_id);
-CREATE INDEX idx_cartridges_client_id ON cartridges(client_id);
-CREATE INDEX idx_cartridges_user_id ON cartridges(user_id);
-CREATE INDEX idx_cartridges_tier ON cartridges(tier);
-CREATE INDEX idx_cartridges_active ON cartridges(is_active);
+CREATE INDEX IF NOT EXISTS idx_cartridges_parent_id ON cartridges(parent_id);
+CREATE INDEX IF NOT EXISTS idx_cartridges_agency_id ON cartridges(agency_id);
+CREATE INDEX IF NOT EXISTS idx_cartridges_client_id ON cartridges(client_id);
+CREATE INDEX IF NOT EXISTS idx_cartridges_user_id ON cartridges(user_id);
+CREATE INDEX IF NOT EXISTS idx_cartridges_tier ON cartridges(tier);
+CREATE INDEX IF NOT EXISTS idx_cartridges_active ON cartridges(is_active);
 
 -- GIN index for JSONB queries
-CREATE INDEX idx_cartridges_voice_params ON cartridges USING GIN (voice_params);
+CREATE INDEX IF NOT EXISTS idx_cartridges_voice_params ON cartridges USING GIN (voice_params);
 
 -- ============================================================
 -- HELPER FUNCTION: GET RESOLVED VOICE PARAMETERS
