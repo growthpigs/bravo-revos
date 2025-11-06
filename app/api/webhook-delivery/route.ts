@@ -8,12 +8,9 @@ import { createClient } from '@supabase/supabase-js';
 import {
   generateWebhookSignature,
   maskWebhookUrl,
-  sendWebhook,
-  shouldRetry,
-  calculateRetryDelay,
   WebhookPayload,
-  WebhookDelivery,
 } from '@/lib/webhook-delivery';
+import { queueWebhookDelivery } from '@/lib/queue/webhook-delivery-queue';
 
 /**
  * POST - Queue webhook delivery for a lead
@@ -115,6 +112,17 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Queue webhook delivery job
+    await queueWebhookDelivery({
+      deliveryId: delivery.id,
+      leadId,
+      webhookUrl,
+      webhookSecret: webhookSecret || '',
+      payload,
+      attempt: 1,
+      maxAttempts: 4,
+    });
 
     console.log(
       `[WEBHOOK_API] Queued webhook delivery for lead ${leadId} to ${maskWebhookUrl(webhookUrl)}`
