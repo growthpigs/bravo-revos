@@ -188,8 +188,19 @@ export function createWebhookWorker(): Worker<WebhookJobData> {
         sent_at: new Date().toISOString(),
       };
 
+      // Create WebhookDelivery object for shouldRetry check
+      const deliveryForRetry = {
+        id: deliveryId,
+        webhookUrl,
+        payload,
+        signature,
+        attempt,
+        maxAttempts,
+        status: 'sent' as const,
+      };
+
       // If failed and should retry, calculate next retry time
-      if (!result.success && shouldRetry({ ...job.data, status: 'sent' }, result)) {
+      if (!result.success && shouldRetry(deliveryForRetry, result)) {
         const nextDelay = calculateRetryDelay(attempt + 1);
         updateData.next_retry_at = new Date(Date.now() + nextDelay).toISOString();
 
@@ -225,7 +236,7 @@ export function createWebhookWorker(): Worker<WebhookJobData> {
         response_body: result.body.substring(0, 1000),
         error: result.error,
         error_type: result.error ? (result.status === 0 ? 'network' : 'http') : null,
-        will_retry: !result.success && shouldRetry({ ...job.data, status: 'sent' }, result),
+        will_retry: !result.success && shouldRetry(deliveryForRetry, result),
         retry_at: updateData.next_retry_at,
       });
 
