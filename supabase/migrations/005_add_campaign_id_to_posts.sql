@@ -3,12 +3,12 @@
 -- Reference: docs/projects/bravo-revos/data-model.md
 -- Required by: F-01 Campaign Orchestration feature
 
--- Step 1: Add campaign_id column to posts
+-- Step 1: Add campaign_id column to posts (if it doesn't exist)
 ALTER TABLE posts
-ADD COLUMN campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE;
+ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE;
 
 -- Step 2: Create index for performance (queries filtering by campaign_id)
-CREATE INDEX idx_posts_campaign ON posts(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_posts_campaign ON posts(campaign_id);
 
 -- Step 3: Document the relationship
 -- Posts are now linked to campaigns via campaign_id foreign key

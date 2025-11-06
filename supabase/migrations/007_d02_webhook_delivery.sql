@@ -41,10 +41,10 @@ CREATE TABLE webhook_deliveries (
 );
 
 -- Indexes for performance and queries
-CREATE INDEX idx_webhook_deliveries_lead ON webhook_deliveries(lead_id);
-CREATE INDEX idx_webhook_deliveries_status ON webhook_deliveries(status);
-CREATE INDEX idx_webhook_deliveries_created ON webhook_deliveries(created_at DESC);
-CREATE INDEX idx_webhook_deliveries_next_retry ON webhook_deliveries(next_retry_at)
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_lead ON webhook_deliveries(lead_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_created ON webhook_deliveries(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_next_retry ON webhook_deliveries(next_retry_at)
   WHERE status IN ('pending', 'sent');
 
 -- RLS Policies
@@ -115,8 +115,8 @@ CREATE TABLE webhook_delivery_logs (
 );
 
 -- Indexes for audit trail
-CREATE INDEX idx_webhook_delivery_logs_delivery ON webhook_delivery_logs(delivery_id);
-CREATE INDEX idx_webhook_delivery_logs_attempted ON webhook_delivery_logs(attempted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_logs_delivery ON webhook_delivery_logs(delivery_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_logs_attempted ON webhook_delivery_logs(attempted_at DESC);
 
 -- RLS Policies for logs
 ALTER TABLE webhook_delivery_logs ENABLE ROW LEVEL SECURITY;

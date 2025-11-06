@@ -36,10 +36,10 @@ CREATE TABLE email_extraction_reviews (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_email_extraction_reviews_lead ON email_extraction_reviews(lead_id);
-CREATE INDEX idx_email_extraction_reviews_status ON email_extraction_reviews(status);
-CREATE INDEX idx_email_extraction_reviews_created ON email_extraction_reviews(created_at DESC);
-CREATE INDEX idx_email_extraction_reviews_confidence ON email_extraction_reviews(confidence);
+CREATE INDEX IF NOT EXISTS idx_email_extraction_reviews_lead ON email_extraction_reviews(lead_id);
+CREATE INDEX IF NOT EXISTS idx_email_extraction_reviews_status ON email_extraction_reviews(status);
+CREATE INDEX IF NOT EXISTS idx_email_extraction_reviews_created ON email_extraction_reviews(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_email_extraction_reviews_confidence ON email_extraction_reviews(confidence);
 
 -- RLS Policies
 ALTER TABLE email_extraction_reviews ENABLE ROW LEVEL SECURITY;
