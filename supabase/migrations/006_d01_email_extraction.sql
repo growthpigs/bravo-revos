@@ -58,8 +58,8 @@ CREATE POLICY "Users can view email extraction reviews for their campaigns" ON e
       JOIN campaigns ON leads.campaign_id = campaigns.id
       WHERE leads.id = email_extraction_reviews.lead_id
       AND campaigns.client_id IN (
-        SELECT id FROM clients
-        WHERE workspace_id = auth.uid()::uuid
+        SELECT client_id FROM users
+        WHERE id = auth.uid()
       )
     )
   );
@@ -73,8 +73,8 @@ CREATE POLICY "Users can update email extraction reviews for their campaigns" ON
       JOIN campaigns ON leads.campaign_id = campaigns.id
       WHERE leads.id = email_extraction_reviews.lead_id
       AND campaigns.client_id IN (
-        SELECT id FROM clients
-        WHERE workspace_id = auth.uid()::uuid
+        SELECT client_id FROM users
+        WHERE id = auth.uid()
       )
     )
   );

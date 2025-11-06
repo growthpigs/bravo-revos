@@ -64,8 +64,8 @@ CREATE POLICY "Users can view webhook deliveries for their leads" ON webhook_del
       JOIN campaigns ON leads.campaign_id = campaigns.id
       WHERE leads.id = webhook_deliveries.lead_id
       AND campaigns.client_id IN (
-        SELECT id FROM clients
-        WHERE workspace_id = auth.uid()::uuid
+        SELECT client_id FROM users
+        WHERE id = auth.uid()
       )
     )
   );
@@ -140,8 +140,8 @@ CREATE POLICY "Users can view webhook delivery logs for their deliveries" ON web
       JOIN campaigns ON leads.campaign_id = campaigns.id
       WHERE webhook_deliveries.id = webhook_delivery_logs.delivery_id
       AND campaigns.client_id IN (
-        SELECT id FROM clients
-        WHERE workspace_id = auth.uid()::uuid
+        SELECT client_id FROM users
+        WHERE id = auth.uid()
       )
     )
   );
@@ -189,9 +189,9 @@ CREATE POLICY "Users can view their webhook endpoints" ON webhook_endpoints
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM clients
-      WHERE clients.id = webhook_endpoints.client_id
-      AND clients.workspace_id = auth.uid()::uuid
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.client_id = webhook_endpoints.client_id
     )
   );
 
@@ -199,9 +199,9 @@ CREATE POLICY "Users can update their webhook endpoints" ON webhook_endpoints
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM clients
-      WHERE clients.id = webhook_endpoints.client_id
-      AND clients.workspace_id = auth.uid()::uuid
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.client_id = webhook_endpoints.client_id
     )
   );
 
