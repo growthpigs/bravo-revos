@@ -35,8 +35,6 @@ interface Post {
  * Makes AI-driven decisions about campaign execution
  */
 export class CampaignOrchestrator {
-  private supabase = createClient();
-
   /**
    * Orchestrate engagement for a new post
    * This is called when a post is published to decide engagement strategy
@@ -236,7 +234,8 @@ export class CampaignOrchestrator {
       }
 
       // Get lead magnet details
-      const { data: leadMagnet } = await this.supabase
+      const supabase = await createClient();
+      const { data: leadMagnet } = await supabase
         .from('lead_magnets')
         .select('title')
         .eq('id', campaign.lead_magnet_id)
@@ -264,7 +263,8 @@ export class CampaignOrchestrator {
   // ========== Private Helper Methods ==========
 
   private async getCampaign(campaignId: string): Promise<Campaign | null> {
-    const { data } = await this.supabase
+    const supabase = await createClient();
+    const { data } = await supabase
       .from('campaigns')
       .select('*')
       .eq('id', campaignId)
@@ -274,7 +274,8 @@ export class CampaignOrchestrator {
   }
 
   private async getPod(podId: string): Promise<Pod | null> {
-    const { data } = await this.supabase
+    const supabase = await createClient();
+    const { data } = await supabase
       .from('pods')
       .select('*, pod_members(count)')
       .eq('id', podId)
@@ -291,7 +292,8 @@ export class CampaignOrchestrator {
   }
 
   private async getPost(postId: string): Promise<Post | null> {
-    const { data } = await this.supabase
+    const supabase = await createClient();
+    const { data } = await supabase
       .from('posts')
       .select('*')
       .eq('id', postId)
@@ -302,7 +304,8 @@ export class CampaignOrchestrator {
 
   private async getPastPerformance(campaignId: string): Promise<any> {
     // Get metrics from past posts in this campaign
-    const { data: posts } = await this.supabase
+    const supabase = await createClient();
+    const { data: posts } = await supabase
       .from('posts')
       .select('*, comments(count), leads(count)')
       .eq('campaign_id', campaignId)
@@ -315,10 +318,10 @@ export class CampaignOrchestrator {
 
     // Calculate averages
     const avgComments =
-      posts.reduce((sum, p) => sum + (p.comments?.[0]?.count || 0), 0) /
+      posts.reduce((sum: number, p: any) => sum + (p.comments?.[0]?.count || 0), 0) /
       posts.length;
     const avgLeads =
-      posts.reduce((sum, p) => sum + (p.leads?.[0]?.count || 0), 0) /
+      posts.reduce((sum: number, p: any) => sum + (p.leads?.[0]?.count || 0), 0) /
       posts.length;
 
     return {
@@ -334,23 +337,30 @@ export class CampaignOrchestrator {
     podId: string;
     strategy: any;
   }): Promise<number> {
-    // Get all pod members
-    const { data: members } = await this.supabase
+    // Get all pod members with their profiles to find post URL
+    const supabase = await createClient();
+    const { data: members } = await supabase
       .from('pod_members')
-      .select('profile_id')
+      .select('id, profile_id')
       .eq('pod_id', params.podId);
 
-    if (!members || members.length === 0) {
+    // Get post with URL
+    const { data: post } = await supabase
+      .from('posts')
+      .select('linkedin_post_url')
+      .eq('id', params.postId)
+      .single();
+
+    if (!members || members.length === 0 || !post) {
       return 0;
     }
 
     const now = new Date();
     const activities: any[] = [];
+    const postUrl = post.linkedin_post_url || `https://linkedin.com/feed/update/${params.postId}`;
 
     // Schedule likes for all members
-    const [likeMinDelay, likeMaxDelay] = params.strategy.likeWindow || [
-      1, 30,
-    ];
+    const [likeMinDelay, likeMaxDelay] = params.strategy.likeWindow || [1, 30];
     for (const member of members) {
       const likeDelay = Math.random() * (likeMaxDelay - likeMinDelay) + likeMinDelay;
       const scheduledFor = new Date(now.getTime() + likeDelay * 60 * 1000);
@@ -358,9 +368,10 @@ export class CampaignOrchestrator {
       activities.push({
         pod_id: params.podId,
         post_id: params.postId,
-        profile_id: member.profile_id,
+        post_url: postUrl,
+        member_id: member.id,
         engagement_type: 'like',
-        status: 'scheduled',
+        status: 'pending',
         scheduled_for: scheduledFor.toISOString(),
         created_at: now.toISOString(),
       });
@@ -378,17 +389,17 @@ export class CampaignOrchestrator {
       activities.push({
         pod_id: params.podId,
         post_id: params.postId,
-        profile_id: member.profile_id,
+        post_url: postUrl,
+        member_id: member.id,
         engagement_type: 'comment',
-        status: 'scheduled',
+        status: 'pending',
         scheduled_for: scheduledFor.toISOString(),
-        comment_text: 'Great insights!', // Will be enhanced by voice cartridge in E-05
         created_at: now.toISOString(),
       });
     }
 
     // Insert all activities
-    const { error } = await this.supabase
+    const { error } = await supabase
       .from('pod_activities')
       .insert(activities);
 
@@ -409,7 +420,8 @@ export class CampaignOrchestrator {
     strategy: any;
     activitiesScheduled: number;
   }): Promise<void> {
-    await this.supabase.from('agentkit_decisions').insert({
+    const supabase = await createClient();
+    await supabase.from('agentkit_decisions').insert({
       campaign_id: params.campaignId,
       post_id: params.postId,
       decision_type: 'engagement_strategy',
@@ -427,7 +439,8 @@ export class CampaignOrchestrator {
     confidence: number;
     variants: string[];
   }): Promise<void> {
-    await this.supabase.from('agentkit_optimizations').insert({
+    const supabase = await createClient();
+    await supabase.from('agentkit_optimizations').insert({
       campaign_id: params.campaignId,
       message_type: params.messageType,
       original_message: params.original,
@@ -443,7 +456,8 @@ export class CampaignOrchestrator {
     timeRange: string;
     analysis: any;
   }): Promise<void> {
-    await this.supabase.from('agentkit_analyses').insert({
+    const supabase = await createClient();
+    await supabase.from('agentkit_analyses').insert({
       campaign_id: params.campaignId,
       time_range: params.timeRange,
       analysis: params.analysis,
@@ -461,7 +475,8 @@ export class CampaignOrchestrator {
     since.setDate(since.getDate() - days);
 
     // Get posts in time range
-    const { data: posts } = await this.supabase
+    const supabase = await createClient();
+    const { data: posts } = await supabase
       .from('posts')
       .select(
         `
@@ -486,15 +501,15 @@ export class CampaignOrchestrator {
     }
 
     const comments = posts.reduce(
-      (sum, p) => sum + (p.comments?.[0]?.count || 0),
+      (sum: number, p: any) => sum + (p.comments?.[0]?.count || 0),
       0
     );
-    const dms = posts.reduce((sum, p) => sum + (p.dm_sequences?.[0]?.count || 0), 0);
-    const leads = posts.reduce((sum, p) => sum + (p.leads?.[0]?.count || 0), 0);
+    const dms = posts.reduce((sum: number, p: any) => sum + (p.dm_sequences?.[0]?.count || 0), 0);
+    const leads = posts.reduce((sum: number, p: any) => sum + (p.leads?.[0]?.count || 0), 0);
 
     return {
       posts: posts.length,
-      impressions: posts.reduce((sum, p) => sum + (p.impressions || 0), 0),
+      impressions: posts.reduce((sum: number, p: any) => sum + (p.impressions || 0), 0),
       comments,
       triggerRate: comments > 0 ? (comments / posts.length) * 100 : 0,
       dmsDelivered: dms,
