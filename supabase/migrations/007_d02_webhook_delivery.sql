@@ -1,6 +1,13 @@
 -- D-02: Webhook Delivery to Client CRM/ESP
 -- Delivers captured lead data with HMAC signatures and retry logic
--- Run this migration in Supabase SQL editor
+-- Supabase Project: kvjcidxbyimoswntpjcp
+--
+-- 🔗 OPEN IN SUPABASE EDITOR:
+-- https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+-- (Copy this entire file and paste into the SQL editor above)
+--
+-- Or use this quick link to go directly to SQL editor:
+-- Click: Dashboard → SQL Editor → New Query → Paste content
 
 -- Create webhook_deliveries table for tracking all webhook delivery attempts
 CREATE TABLE webhook_deliveries (

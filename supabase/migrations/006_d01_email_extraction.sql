@@ -1,5 +1,12 @@
 -- D-01: Email Extraction Manual Review Queue
--- Run this migration in Supabase SQL editor
+-- Supabase Project: kvjcidxbyimoswntpjcp
+--
+-- 🔗 OPEN IN SUPABASE EDITOR:
+-- https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+-- (Copy this entire file and paste into the SQL editor above)
+--
+-- Or use this quick link to go directly to SQL editor:
+-- Click: Dashboard → SQL Editor → New Query → Paste content
 
 -- Create email_extraction_reviews table for manual review queue
 CREATE TABLE email_extraction_reviews (
