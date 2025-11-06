@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/server';
 interface Campaign {
   id: string;
   name: string;
-  trigger_word: string;
+  trigger_words: string;
   lead_magnet_id: string;
   client_id: string;
   status: string;
@@ -243,7 +243,7 @@ export class CampaignOrchestrator {
 
       const postContent = await campaignAgent.generatePostContent({
         topic: params.topic,
-        triggerWord: campaign.trigger_word,
+        triggerWord: campaign.trigger_words,
         leadMagnetName: leadMagnet?.title || 'Lead Magnet',
       });
 
