@@ -112,20 +112,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create cartridge
+    // Create cartridge - force user_id from auth context, not request body
+    const insertData: any = {
+      name,
+      description,
+      tier,
+      voice_params: voice_params || {},
+      created_by: user.id,
+    };
+
+    // Set ownership fields based on tier - ALWAYS use authenticated user for user tier
+    if (tier === 'agency' && agency_id) {
+      insertData.agency_id = agency_id;
+    } else if (tier === 'client' && client_id) {
+      insertData.client_id = client_id;
+    } else if (tier === 'user') {
+      insertData.user_id = user.id; // ✅ Force from auth, not request
+    }
+
+    // Optional parent reference
+    if (parent_id) {
+      insertData.parent_id = parent_id;
+    }
+
     const { data: cartridge, error: createError } = await supabase
       .from('cartridges')
-      .insert({
-        name,
-        description,
-        tier,
-        parent_id,
-        agency_id,
-        client_id,
-        user_id,
-        voice_params: voice_params || {},
-        created_by: user.id,
-      })
+      .insert(insertData)
       .select()
       .single();
 
