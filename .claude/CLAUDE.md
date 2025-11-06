@@ -1,5 +1,31 @@
 # Bravo revOS - Project-Specific Instructions
 
+---
+
+## 📌 CURRENT SESSION STATUS (2025-11-06)
+
+### F-01 AgentKit Orchestration: ✅ COMPLETE
+- Browser testing UI created: `/admin/orchestration-dashboard`
+- 30 comprehensive tests passing (100%)
+- TypeScript validation: ZERO errors
+- Database: Migration 005 applied, test data ready
+- **Ready for**: Colm browser testing with COMET_COMPREHENSIVE_TESTING_SCRIPT
+
+### Voice Cartridge Bug: 🔴 IDENTIFIED (Root Cause Found)
+- **Issue**: User can't create voice cartridges (tier='user')
+- **Root Cause**: API doesn't set `user_id` from authenticated user, RLS policy blocks insert
+- **File**: `/app/api/cartridges/route.ts` line 125
+- **Fix**: Force `user_id = user.id` instead of using client value
+- **Time to Fix**: ~10 minutes
+- **Analysis Doc**: `docs/projects/bravo-revos/VOICE_CARTRIDGE_FAILURE_ANALYSIS.md` (in chat, not .md)
+
+### Testing Scripts Created (In Chat Only - No .md Files):
+- F-01 Testing: 6 phases, complete checklist
+- Voice Cartridge Debugging: Error collection guide
+- Summary in chat for easy copy/paste
+
+---
+
 ## 🚨 CRITICAL: Repository Boundaries
 
 **YOU MUST ONLY WORK IN THIS REPOSITORY: `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`**
