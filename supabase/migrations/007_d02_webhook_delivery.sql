@@ -10,7 +10,7 @@
 -- Click: Dashboard → SQL Editor → New Query → Paste content
 
 -- Create webhook_deliveries table for tracking all webhook delivery attempts
-CREATE TABLE webhook_deliveries (
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
 
@@ -50,6 +50,11 @@ CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_next_retry ON webhook_deliveri
 -- RLS Policies
 ALTER TABLE webhook_deliveries ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view webhook deliveries for their leads" ON webhook_deliveries;
+DROP POLICY IF EXISTS "Service role can manage webhook deliveries" ON webhook_deliveries;
+DROP POLICY IF EXISTS "Service role can update webhook deliveries" ON webhook_deliveries;
+
 -- Allow authenticated users to view deliveries for their campaigns
 CREATE POLICY "Users can view webhook deliveries for their leads" ON webhook_deliveries
   FOR SELECT
@@ -84,13 +89,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS webhook_deliveries_updated_at ON webhook_deliveries;
 CREATE TRIGGER webhook_deliveries_updated_at
 BEFORE UPDATE ON webhook_deliveries
 FOR EACH ROW
 EXECUTE FUNCTION update_webhook_deliveries_timestamp();
 
 -- Create webhook_delivery_logs table for detailed delivery history
-CREATE TABLE webhook_delivery_logs (
+CREATE TABLE IF NOT EXISTS webhook_delivery_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   delivery_id UUID NOT NULL REFERENCES webhook_deliveries(id) ON DELETE CASCADE,
 
@@ -120,6 +126,10 @@ CREATE INDEX IF NOT EXISTS idx_webhook_delivery_logs_attempted ON webhook_delive
 
 -- RLS Policies for logs
 ALTER TABLE webhook_delivery_logs ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view webhook delivery logs for their deliveries" ON webhook_delivery_logs;
+DROP POLICY IF EXISTS "Service role can insert webhook delivery logs" ON webhook_delivery_logs;
 
 CREATE POLICY "Users can view webhook delivery logs for their deliveries" ON webhook_delivery_logs
   FOR SELECT
@@ -171,6 +181,10 @@ CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_active ON webhook_endpoints(act
 -- RLS Policies
 ALTER TABLE webhook_endpoints ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their webhook endpoints" ON webhook_endpoints;
+DROP POLICY IF EXISTS "Users can update their webhook endpoints" ON webhook_endpoints;
+
 CREATE POLICY "Users can view their webhook endpoints" ON webhook_endpoints
   FOR SELECT
   USING (
@@ -200,6 +214,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS webhook_endpoints_updated_at ON webhook_endpoints;
 CREATE TRIGGER webhook_endpoints_updated_at
 BEFORE UPDATE ON webhook_endpoints
 FOR EACH ROW

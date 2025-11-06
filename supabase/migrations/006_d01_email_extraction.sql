@@ -9,7 +9,7 @@
 -- Click: Dashboard → SQL Editor → New Query → Paste content
 
 -- Create email_extraction_reviews table for manual review queue
-CREATE TABLE email_extraction_reviews (
+CREATE TABLE IF NOT EXISTS email_extraction_reviews (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
 
@@ -43,6 +43,11 @@ CREATE INDEX IF NOT EXISTS idx_email_extraction_reviews_confidence ON email_extr
 
 -- RLS Policies
 ALTER TABLE email_extraction_reviews ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view email extraction reviews for their campaigns" ON email_extraction_reviews;
+DROP POLICY IF EXISTS "Users can update email extraction reviews for their campaigns" ON email_extraction_reviews;
+DROP POLICY IF EXISTS "Service role can insert email extraction reviews" ON email_extraction_reviews;
 
 -- Allow authenticated users to view reviews for their campaigns
 CREATE POLICY "Users can view email extraction reviews for their campaigns" ON email_extraction_reviews
@@ -88,6 +93,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS email_extraction_reviews_updated_at ON email_extraction_reviews;
 CREATE TRIGGER email_extraction_reviews_updated_at
 BEFORE UPDATE ON email_extraction_reviews
 FOR EACH ROW
