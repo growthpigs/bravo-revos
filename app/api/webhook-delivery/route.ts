@@ -9,6 +9,7 @@ import {
   generateWebhookSignature,
   maskWebhookUrl,
   WebhookPayload,
+  isValidWebhookUrl,
 } from '@/lib/webhook-delivery';
 import { queueWebhookDelivery } from '@/lib/queue/webhook-delivery-queue';
 
@@ -24,6 +25,14 @@ export async function POST(request: NextRequest) {
     if (!leadId || !webhookUrl) {
       return NextResponse.json(
         { error: 'leadId and webhookUrl are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate webhook URL format
+    if (!isValidWebhookUrl(webhookUrl)) {
+      return NextResponse.json(
+        { error: 'Invalid webhook URL. Must be HTTPS (or HTTP for localhost only)' },
         { status: 400 }
       );
     }

@@ -179,11 +179,15 @@ export function createWebhookWorker(): Worker<WebhookJobData> {
       });
 
       // Update delivery record
+      const MAX_RESPONSE_LENGTH = 1000;
       const updateData: any = {
         status: result.success ? 'success' : attempt >= maxAttempts ? 'failed' : 'sent',
         attempt,
         response_status: result.status,
-        response_body: result.body.substring(0, 1000), // Limit to 1000 chars
+        response_body:
+          result.body.length > MAX_RESPONSE_LENGTH
+            ? result.body.substring(0, MAX_RESPONSE_LENGTH) + ' [TRUNCATED]'
+            : result.body,
         last_error: result.error,
         sent_at: new Date().toISOString(),
       };
@@ -233,7 +237,10 @@ export function createWebhookWorker(): Worker<WebhookJobData> {
         attempt_number: attempt,
         attempted_at: new Date().toISOString(),
         response_status: result.status,
-        response_body: result.body.substring(0, 1000),
+        response_body:
+          result.body.length > MAX_RESPONSE_LENGTH
+            ? result.body.substring(0, MAX_RESPONSE_LENGTH) + ' [TRUNCATED]'
+            : result.body,
         error: result.error,
         error_type: result.error ? (result.status === 0 ? 'network' : 'http') : null,
         will_retry: !result.success && shouldRetry(deliveryForRetry, result),

@@ -5,6 +5,45 @@
 
 import crypto from 'crypto';
 
+/**
+ * Validate webhook URL format
+ * Ensures URL is a valid HTTPS endpoint (or HTTP for localhost/private IPs)
+ */
+export function isValidWebhookUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Only allow HTTPS (or HTTP for localhost/private networks)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return false;
+    }
+    // Allow HTTP only for localhost, 127.0.0.1, .local domains, and private IP ranges
+    if (parsed.protocol === 'http:') {
+      const hostname = parsed.hostname;
+      const isLocalhost =
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.endsWith('.local');
+
+      // Check for private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+      const isPrivateIP =
+        hostname.startsWith('10.') ||
+        hostname.startsWith('192.168.') ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname);
+
+      if (!isLocalhost && !isPrivateIP) {
+        return false;
+      }
+    }
+    // Reject common invalid hostnames
+    if (!parsed.hostname || parsed.hostname === 'undefined' || parsed.hostname === 'null') {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface WebhookPayload {
   event: 'lead_captured' | 'lead_qualified' | 'campaign_completed';
   lead: {
@@ -292,18 +331,6 @@ export function formatForConvertKit(lead: WebhookPayload['lead']): ConvertKitPay
       source: lead.source,
     },
   };
-}
-
-/**
- * Validate webhook URL
- */
-export function isValidWebhookUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 /**

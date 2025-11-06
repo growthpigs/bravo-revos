@@ -14,7 +14,8 @@
  *   - SUPABASE_SERVICE_ROLE_KEY: Supabase service role key
  */
 
-import { createWebhookWorker } from '../lib/queue/webhook-delivery-queue';
+import { createWebhookQueue, createWebhookWorker } from '../lib/queue/webhook-delivery-queue';
+import { checkRedisHealth } from '../lib/redis';
 
 const LOG_PREFIX = '[WEBHOOK_WORKER]';
 
@@ -38,7 +39,20 @@ async function startWorker() {
     process.exit(1);
   }
 
-  // Create and start worker
+  // Check Redis health before starting
+  console.log(`${LOG_PREFIX} Checking Redis connection...`);
+  const redisHealthy = await checkRedisHealth();
+
+  if (!redisHealthy) {
+    console.error(`${LOG_PREFIX} Redis health check failed`);
+    console.error(`${LOG_PREFIX} Verify REDIS_URL: ${process.env.REDIS_URL}`);
+    process.exit(1);
+  }
+
+  console.log(`${LOG_PREFIX} Redis connection healthy`);
+
+  // Create queue and worker
+  const queue = createWebhookQueue();
   const worker = createWebhookWorker();
 
   console.log(`${LOG_PREFIX} Worker started successfully`);
@@ -54,8 +68,11 @@ async function startWorker() {
     console.log(`\n${LOG_PREFIX} Received ${signal}, shutting down gracefully...`);
 
     try {
+      console.log(`${LOG_PREFIX} Closing worker...`);
       await worker.close();
-      console.log(`${LOG_PREFIX} Worker closed successfully`);
+      console.log(`${LOG_PREFIX} Closing queue...`);
+      await queue.close();
+      console.log(`${LOG_PREFIX} Shutdown complete`);
       process.exit(0);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error during shutdown:`, error);
