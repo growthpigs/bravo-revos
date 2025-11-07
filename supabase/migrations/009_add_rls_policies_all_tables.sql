@@ -462,7 +462,8 @@ CREATE POLICY "Users can manage activities in their pods"
 -- ============================================================================
 -- RLS is already enabled in 003, these add additional policies
 
-CREATE POLICY IF NOT EXISTS "Users can view their client cartridges"
+DROP POLICY IF EXISTS "Users can view their client cartridges" ON cartridges;
+CREATE POLICY "Users can view their client cartridges"
   ON cartridges
   FOR SELECT
   TO authenticated
@@ -474,7 +475,8 @@ CREATE POLICY IF NOT EXISTS "Users can view their client cartridges"
     (tier = 'user' AND user_id = auth.uid())
   );
 
-CREATE POLICY IF NOT EXISTS "Users can manage their cartridges"
+DROP POLICY IF EXISTS "Users can manage their cartridges" ON cartridges;
+CREATE POLICY "Users can manage their cartridges"
   ON cartridges
   FOR ALL
   TO authenticated
