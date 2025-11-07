@@ -1,6 +1,10 @@
 /**
  * POST/GET /api/webhook-delivery
  * Deliver leads to client CRM/ESP via webhooks
+ *
+ * POST test mode:
+ *   Send { test: true, webhookUrl, webhookSecret } to test with mock lead data
+ *   Useful for testing webhook delivery without real leads in database
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,17 +18,43 @@ import {
 import { queueWebhookDelivery } from '@/lib/queue/webhook-delivery-queue';
 
 /**
+ * Generate mock lead data for testing
+ */
+function generateMockLead() {
+  const timestamp = new Date().toISOString();
+  const leadId = `test-lead-${Date.now()}`;
+
+  return {
+    id: leadId,
+    email: `lead${Math.floor(Math.random() * 10000)}@example.com`,
+    first_name: 'Test',
+    last_name: 'Lead',
+    linkedin_id: 'mock-linkedin-id-' + Math.random().toString(36).substr(2, 9),
+    linkedin_url: 'https://linkedin.com/in/testlead',
+    company: 'Test Company Inc.',
+    title: 'Software Engineer',
+    source: 'comment' as const,
+    created_at: timestamp,
+    campaigns: {
+      id: `campaign-${Date.now()}`,
+      name: 'Test Campaign',
+      lead_magnets: { name: 'Test Lead Magnet' },
+    },
+  };
+}
+
+/**
  * POST - Queue webhook delivery for a lead
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { leadId, webhookUrl, webhookSecret, campaignName, customFields } = body;
+    const { test, leadId, webhookUrl, webhookSecret, campaignName, customFields } = body;
 
-    // Validate input
-    if (!leadId || !webhookUrl) {
+    // Validate webhook URL
+    if (!webhookUrl) {
       return NextResponse.json(
-        { error: 'leadId and webhookUrl are required' },
+        { error: 'webhookUrl is required' },
         { status: 400 }
       );
     }
@@ -37,38 +67,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    // Get or generate lead data
+    let lead;
+    if (test) {
+      // Test mode: use mock data
+      console.log('[WEBHOOK_API] Using test mode with mock lead data');
+      lead = generateMockLead();
+    } else {
+      // Production mode: fetch from database
+      if (!leadId) {
+        return NextResponse.json(
+          { error: 'leadId is required (or set test=true for test mode)' },
+          { status: 400 }
+        );
+      }
 
-    // Get lead data
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .select(
-        `
-        id,
-        email,
-        first_name,
-        last_name,
-        linkedin_id,
-        linkedin_url,
-        company,
-        title,
-        source,
-        created_at,
-        campaigns (id, name, lead_magnets (name))
-      `
-      )
-      .eq('id', leadId)
-      .single();
-
-    if (leadError || !lead) {
-      console.error(`[WEBHOOK_API] Lead not found: ${leadId}`);
-      return NextResponse.json(
-        { error: 'Lead not found' },
-        { status: 404 }
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
+
+      const { data: dbLead, error: leadError } = await supabase
+        .from('leads')
+        .select(
+          `
+          id,
+          email,
+          first_name,
+          last_name,
+          linkedin_id,
+          linkedin_url,
+          company,
+          title,
+          source,
+          created_at,
+          campaigns (id, name, lead_magnets (name))
+        `
+        )
+        .eq('id', leadId)
+        .single();
+
+      if (leadError || !dbLead) {
+        console.error(`[WEBHOOK_API] Lead not found: ${leadId}`);
+        return NextResponse.json(
+          { error: 'Lead not found. Use test=true to test with mock data.' },
+          { status: 404 }
+        );
+      }
+
+      lead = dbLead;
     }
 
     // Build webhook payload
@@ -98,55 +145,92 @@ export async function POST(request: NextRequest) {
     // Generate signature
     const signature = generateWebhookSignature(payload, webhookSecret || '');
 
-    // Create delivery record
-    const { data: delivery, error: deliveryError } = await supabase
-      .from('webhook_deliveries')
-      .insert({
-        lead_id: leadId,
-        webhook_url: webhookUrl,
-        payload: payload,
-        signature: signature,
-        attempt: 1,
-        max_attempts: 4,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // For test mode, generate a test delivery ID
+    const deliveryId = test
+      ? `test-delivery-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      : undefined;
 
-    if (deliveryError || !delivery) {
-      console.error(`[WEBHOOK_API] Failed to create delivery:`, deliveryError);
-      return NextResponse.json(
-        { error: 'Failed to create webhook delivery' },
-        { status: 500 }
+    if (!test) {
+      // Production mode: Create delivery record in database
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
+
+      const { data: delivery, error: deliveryError } = await supabase
+        .from('webhook_deliveries')
+        .insert({
+          lead_id: leadId,
+          webhook_url: webhookUrl,
+          payload: payload,
+          signature: signature,
+          attempt: 1,
+          max_attempts: 4,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (deliveryError || !delivery) {
+        console.error(`[WEBHOOK_API] Failed to create delivery:`, deliveryError);
+        return NextResponse.json(
+          { error: 'Failed to create webhook delivery' },
+          { status: 500 }
+        );
+      }
+
+      // Queue webhook delivery job (production mode)
+      await queueWebhookDelivery({
+        deliveryId: delivery.id,
+        leadId,
+        webhookUrl,
+        webhookSecret: webhookSecret || '',
+        payload,
+        attempt: 1,
+        maxAttempts: 4,
+      });
+
+      console.log(
+        `[WEBHOOK_API] Queued webhook delivery for lead ${leadId} to ${maskWebhookUrl(webhookUrl)}`
+      );
+
+      return NextResponse.json({
+        status: 'success',
+        delivery: {
+          id: delivery.id,
+          leadId: delivery.lead_id,
+          webhookUrl: maskWebhookUrl(webhookUrl),
+          status: delivery.status,
+          attempt: delivery.attempt,
+        },
+      });
+    } else {
+      // Test mode: Queue delivery without database record
+      await queueWebhookDelivery({
+        deliveryId: deliveryId!,
+        leadId: lead.id,
+        webhookUrl,
+        webhookSecret: webhookSecret || '',
+        payload,
+        attempt: 1,
+        maxAttempts: 4,
+      });
+
+      console.log(`[WEBHOOK_API] [TEST] Queued test webhook delivery to ${maskWebhookUrl(webhookUrl)}`);
+
+      return NextResponse.json({
+        status: 'success',
+        delivery: {
+          id: deliveryId,
+          leadId: lead.id,
+          webhookUrl: maskWebhookUrl(webhookUrl),
+          status: 'pending',
+          attempt: 1,
+          isTestDelivery: true,
+        },
+      });
     }
-
-    // Queue webhook delivery job
-    await queueWebhookDelivery({
-      deliveryId: delivery.id,
-      leadId,
-      webhookUrl,
-      webhookSecret: webhookSecret || '',
-      payload,
-      attempt: 1,
-      maxAttempts: 4,
-    });
-
-    console.log(
-      `[WEBHOOK_API] Queued webhook delivery for lead ${leadId} to ${maskWebhookUrl(webhookUrl)}`
-    );
-
-    return NextResponse.json({
-      status: 'success',
-      delivery: {
-        id: delivery.id,
-        leadId: delivery.lead_id,
-        webhookUrl: maskWebhookUrl(webhookUrl),
-        status: delivery.status,
-        attempt: delivery.attempt,
-      },
-    });
   } catch (error) {
     console.error('[WEBHOOK_API] Delivery queue error:', error);
     return NextResponse.json(

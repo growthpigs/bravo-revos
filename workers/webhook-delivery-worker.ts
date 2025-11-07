@@ -14,6 +14,10 @@
  *   - SUPABASE_SERVICE_ROLE_KEY: Supabase service role key
  */
 
+// Load environment variables from .env.local before any other imports
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
 import { createWebhookQueue, createWebhookWorker } from '../lib/queue/webhook-delivery-queue';
 import { checkRedisHealth } from '../lib/redis';
 

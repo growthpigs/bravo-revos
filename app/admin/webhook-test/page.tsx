@@ -13,7 +13,6 @@ export default function WebhookTestPage() {
   const [testData, setTestData] = useState({
     webhookUrl: 'https://webhook.site/unique-url-here',
     webhookSecret: 'test-secret-123',
-    leadId: 'test-lead-' + Date.now(),
   });
 
   const [loading, setLoading] = useState(false);
@@ -34,7 +33,7 @@ export default function WebhookTestPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          leadId: testData.leadId,
+          test: true, // Enable test mode to use mock lead data
           webhookUrl: testData.webhookUrl,
           webhookSecret: testData.webhookSecret,
           campaignName: 'Test Campaign',
@@ -116,7 +115,9 @@ export default function WebhookTestPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Webhook Delivery Testing</h1>
         <p className="text-muted-foreground mt-2">
-          Test the D-03 webhook delivery system with retry logic and HMAC signatures
+          Test the D-03 webhook delivery system with retry logic and HMAC signatures.
+          <br />
+          This tool uses <strong>mock lead data</strong> - no database records needed.
         </p>
       </div>
 
@@ -162,19 +163,6 @@ export default function WebhookTestPage() {
               />
               <p className="text-sm text-muted-foreground mt-1">
                 Used for HMAC-SHA256 signature (X-Webhook-Signature header)
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="leadId">Lead ID</Label>
-              <Input
-                id="leadId"
-                type="text"
-                value={testData.leadId}
-                onChange={(e) => setTestData({ ...testData, leadId: e.target.value })}
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Test lead ID (auto-generated)
               </p>
             </div>
 
