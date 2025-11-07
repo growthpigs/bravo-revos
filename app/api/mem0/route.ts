@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Add memory
     const memories = await addMemory(
       tenantKey,
-      { messages, userId: user.id },
+      { messages },
       metadata
     );
 

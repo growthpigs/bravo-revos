@@ -55,12 +55,14 @@ CREATE POLICY "Users can update their client"
 -- ============================================================================
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Users can view own record"
+DROP POLICY IF EXISTS "Users can view own record" ON users;
+CREATE POLICY "Users can view own record"
   ON users
   FOR SELECT
   USING (auth.uid() = id);
 
-CREATE POLICY IF NOT EXISTS "Users can view colleagues"
+DROP POLICY IF EXISTS "Users can view colleagues" ON users;
+CREATE POLICY "Users can view colleagues"
   ON users
   FOR SELECT
   TO authenticated
@@ -70,7 +72,8 @@ CREATE POLICY IF NOT EXISTS "Users can view colleagues"
     )
   );
 
-CREATE POLICY IF NOT EXISTS "Service role can manage all users"
+DROP POLICY IF EXISTS "Service role can manage all users" ON users;
+CREATE POLICY "Service role can manage all users"
   ON users
   FOR ALL
   USING (auth.role() = 'service_role');
@@ -344,7 +347,8 @@ CREATE POLICY "Service role can manage webhook deliveries"
 -- ============================================================================
 ALTER TABLE IF EXISTS webhook_delivery_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Users can view their webhook delivery logs"
+DROP POLICY IF EXISTS "Users can view their webhook delivery logs" ON webhook_delivery_logs;
+CREATE POLICY "Users can view their webhook delivery logs"
   ON webhook_delivery_logs
   FOR SELECT
   TO authenticated
@@ -360,7 +364,8 @@ CREATE POLICY IF NOT EXISTS "Users can view their webhook delivery logs"
     )
   );
 
-CREATE POLICY IF NOT EXISTS "Service role can manage webhook delivery logs"
+DROP POLICY IF EXISTS "Service role can manage webhook delivery logs" ON webhook_delivery_logs;
+CREATE POLICY "Service role can manage webhook delivery logs"
   ON webhook_delivery_logs
   FOR ALL
   USING (auth.role() = 'service_role');

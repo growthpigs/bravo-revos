@@ -77,7 +77,7 @@ export async function getMemories(
   try {
     const client = getMem0Client();
 
-    const memories = await client.get({
+    const memories = await client.getAll({
       user_id: tenantKey,
       page_size: limit || 100,
     });
@@ -143,9 +143,9 @@ export async function updateMemory(
   try {
     const client = getMem0Client();
 
-    // Mem0 update operation
-    const updatedMemory = await client.update(memoryId, newMemory, {
-      user_id: tenantKey,
+    // Mem0 update operation - signature: update(memoryId, { text, metadata })
+    const updatedMemories = await client.update(memoryId, {
+      text: newMemory,
       metadata: metadata || {},
     });
 
@@ -153,7 +153,8 @@ export async function updateMemory(
       `${LOG_PREFIX} Updated memory ${memoryId} for tenant ${tenantKey}`
     );
 
-    return updatedMemory || null;
+    // Return first updated memory or null
+    return (updatedMemories && updatedMemories[0]) || null;
   } catch (error) {
     console.error(`${LOG_PREFIX} Error updating memory:`, error);
     throw error;
@@ -174,9 +175,8 @@ export async function deleteMemory(
   try {
     const client = getMem0Client();
 
-    await client.delete(memoryId, {
-      user_id: tenantKey,
-    });
+    // Delete doesn't use user_id in options, tenant isolation is handled via API key
+    await client.delete(memoryId);
 
     console.log(
       `${LOG_PREFIX} Deleted memory ${memoryId} for tenant ${tenantKey}`
