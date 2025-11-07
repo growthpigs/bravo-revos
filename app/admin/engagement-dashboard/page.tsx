@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface WorkerHealth {
   healthy: boolean;
@@ -35,7 +35,7 @@ export default function EngagementDashboard() {
   const [jobMessage, setJobMessage] = useState<string | null>(null);
 
   // Fetch status
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -52,7 +52,7 @@ export default function EngagementDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [podId]);
 
   // Create a like job
   const createLikeJob = async () => {
@@ -122,7 +122,7 @@ export default function EngagementDashboard() {
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
-  }, [podId]);
+  }, [fetchStatus]);
 
   return (
     <div style={{ padding: '20px', fontFamily: 'monospace', backgroundColor: '#f5f5f5' }}>

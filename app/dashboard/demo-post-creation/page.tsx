@@ -151,7 +151,7 @@ export default function DemoPostCreationPage() {
             <CardContent className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>Demo: Using "Demo LinkedIn Account" for this walkthrough</AlertDescription>
+                <AlertDescription>Demo: Using &quot;Demo LinkedIn Account&quot; for this walkthrough</AlertDescription>
               </Alert>
               <div className="space-y-2">
                 <Label>LinkedIn Account</Label>

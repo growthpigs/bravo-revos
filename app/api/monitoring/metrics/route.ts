@@ -4,6 +4,8 @@
  * GET /api/monitoring/metrics/historical - Get historical data for charts
  */
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getDashboardMetrics,

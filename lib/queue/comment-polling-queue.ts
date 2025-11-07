@@ -28,25 +28,47 @@ export interface CommentPollingJobData {
 const QUEUE_NAME = 'comment-polling';
 const LOG_PREFIX = LOGGING_CONFIG.PREFIX_COMMENT_POLLING;
 
-// Create queue
-export const commentPollingQueue = new Queue<CommentPollingJobData>(QUEUE_NAME, {
-  connection: getRedisConnection(),
-  defaultJobOptions: {
-    attempts: COMMENT_POLLING_CONFIG.QUEUE_ATTEMPTS,
-    backoff: {
-      type: COMMENT_POLLING_CONFIG.BACKOFF_TYPE as any,
-      delay: COMMENT_POLLING_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+let queueInstance: Queue<CommentPollingJobData> | null = null;
+
+function createQueue(): Queue<CommentPollingJobData> {
+  return new Queue<CommentPollingJobData>(QUEUE_NAME, {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: COMMENT_POLLING_CONFIG.QUEUE_ATTEMPTS,
+      backoff: {
+        type: COMMENT_POLLING_CONFIG.BACKOFF_TYPE as any,
+        delay: COMMENT_POLLING_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+      },
+      removeOnComplete: {
+        count: COMMENT_POLLING_CONFIG.COMPLETED_JOB_KEEP_COUNT,
+        age: COMMENT_POLLING_CONFIG.COMPLETED_JOB_AGE_DAYS * 86400,
+      },
+      removeOnFail: {
+        count: COMMENT_POLLING_CONFIG.FAILED_JOB_KEEP_COUNT,
+        age: COMMENT_POLLING_CONFIG.FAILED_JOB_AGE_DAYS * 86400,
+      },
     },
-    removeOnComplete: {
-      count: COMMENT_POLLING_CONFIG.COMPLETED_JOB_KEEP_COUNT,
-      age: COMMENT_POLLING_CONFIG.COMPLETED_JOB_AGE_DAYS * 86400,
+  });
+}
+
+export function getCommentPollingQueue(): Queue<CommentPollingJobData> {
+  if (!queueInstance) {
+    queueInstance = createQueue();
+  }
+
+  return queueInstance;
+}
+
+export const commentPollingQueue: Queue<CommentPollingJobData> = new Proxy(
+  {} as Queue<CommentPollingJobData>,
+  {
+    get(_target, prop: keyof Queue<CommentPollingJobData>) {
+      const queue = getCommentPollingQueue() as any;
+      const value = queue[prop];
+      return typeof value === 'function' ? value.bind(queue) : value;
     },
-    removeOnFail: {
-      count: COMMENT_POLLING_CONFIG.FAILED_JOB_KEEP_COUNT,
-      age: COMMENT_POLLING_CONFIG.FAILED_JOB_AGE_DAYS * 86400,
-    },
-  },
-});
+  }
+);
 
 /**
  * Calculate next polling delay with randomization and jitter
@@ -118,7 +140,8 @@ async function scheduleNextPoll(jobData: CommentPollingJobData): Promise<void> {
 
   console.log(`${LOG_PREFIX} Scheduling next poll in ${delayMinutes} minutes`);
 
-  await commentPollingQueue.add('poll-comments', jobData, {
+  const queue = getCommentPollingQueue();
+  await queue.add('poll-comments', jobData, {
     delay,
     jobId: `poll-${jobData.campaignId}-${Date.now()}`, // Unique job ID
   });
@@ -210,25 +233,52 @@ async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promis
 /**
  * Worker to process comment polling jobs
  */
-export const commentPollingWorker = new Worker<CommentPollingJobData>(
-  QUEUE_NAME,
-  async (job) => {
-    await processCommentPollingJob(job);
-  },
-  {
-    connection: getRedisConnection(),
-    concurrency: COMMENT_POLLING_CONFIG.QUEUE_CONCURRENCY || 3,
+let workerInstance: Worker<CommentPollingJobData> | null = null;
+
+function createWorker(): Worker<CommentPollingJobData> {
+  const worker = new Worker<CommentPollingJobData>(
+    QUEUE_NAME,
+    async (job) => {
+      await processCommentPollingJob(job);
+    },
+    {
+      connection: getRedisConnection(),
+      concurrency: COMMENT_POLLING_CONFIG.QUEUE_CONCURRENCY || 3,
+    }
+  );
+
+  worker.on('completed', (job) => {
+    console.log(`${LOG_PREFIX} Job ${job.id} completed successfully`);
+  });
+
+  worker.on('failed', (job, err) => {
+    console.error(`${LOG_PREFIX} Job ${job?.id} failed:`, err);
+  });
+
+  return worker;
+}
+
+export function getCommentPollingWorker(): Worker<CommentPollingJobData> {
+  if (!workerInstance) {
+    workerInstance = createWorker();
   }
-);
 
-// Worker event handlers
-commentPollingWorker.on('completed', (job) => {
-  console.log(`${LOG_PREFIX} Job ${job.id} completed successfully`);
-});
+  return workerInstance;
+}
 
-commentPollingWorker.on('failed', (job, err) => {
-  console.error(`${LOG_PREFIX} Job ${job?.id} failed:`, err);
-});
+export async function closeCommentPollingWorker(): Promise<void> {
+  if (workerInstance) {
+    await workerInstance.close();
+    workerInstance = null;
+  }
+}
+
+export async function closeCommentPollingQueue(): Promise<void> {
+  if (queueInstance) {
+    await queueInstance.close();
+    queueInstance = null;
+  }
+}
 
 /**
  * Start comment polling for a campaign
@@ -240,7 +290,8 @@ export async function startCommentPolling(jobData: CommentPollingJobData): Promi
   console.log(`${LOG_PREFIX} Starting polling for campaign ${jobData.campaignId}`);
 
   // Add first job immediately
-  await commentPollingQueue.add('poll-comments', jobData, {
+  const queue = getCommentPollingQueue();
+  await queue.add('poll-comments', jobData, {
     jobId: `poll-${jobData.campaignId}-initial`,
   });
 }
@@ -253,7 +304,8 @@ export async function stopCommentPolling(campaignId: string): Promise<void> {
   console.log(`${LOG_PREFIX} Stopping polling for campaign ${campaignId}`);
 
   // Remove all jobs for this campaign
-  const jobs = await commentPollingQueue.getJobs(['waiting', 'delayed', 'active']);
+  const queue = getCommentPollingQueue();
+  const jobs = await queue.getJobs(['waiting', 'delayed', 'active']);
   const campaignJobs = jobs.filter((job) => job.data.campaignId === campaignId);
 
   for (const job of campaignJobs) {
@@ -267,11 +319,12 @@ export async function stopCommentPolling(campaignId: string): Promise<void> {
  * Get queue status
  */
 export async function getQueueStatus() {
-  const waiting = await commentPollingQueue.getWaitingCount();
-  const active = await commentPollingQueue.getActiveCount();
-  const delayed = await commentPollingQueue.getDelayedCount();
-  const completed = await commentPollingQueue.getCompletedCount();
-  const failed = await commentPollingQueue.getFailedCount();
+  const queue = getCommentPollingQueue();
+  const waiting = await queue.getWaitingCount();
+  const active = await queue.getActiveCount();
+  const delayed = await queue.getDelayedCount();
+  const completed = await queue.getCompletedCount();
+  const failed = await queue.getFailedCount();
 
   return {
     waiting,

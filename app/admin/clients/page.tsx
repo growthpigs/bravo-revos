@@ -1,9 +1,8 @@
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Plus, Building2, Users, Megaphone } from 'lucide-react'
-import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,10 +45,13 @@ export default async function AdminClientsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     {client.logo_url ? (
-                      <img
+                      <Image
                         src={client.logo_url}
                         alt={client.name}
-                        className="h-10 w-10 rounded"
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded object-cover"
+                        unoptimized
                       />
                     ) : (
                       <div className="h-10 w-10 rounded bg-blue-100 flex items-center justify-center">

@@ -24,27 +24,51 @@ export interface PodAutomationJobData {
   activityId?: string; // For individual activity execution
 }
 
-/**
- * Pod automation queue for processing engagement jobs
- */
-export const podAutomationQueue = new Queue<PodAutomationJobData>(QUEUE_NAME, {
-  connection: getRedisConnection(),
-  defaultJobOptions: {
-    attempts: POD_AUTOMATION_CONFIG.QUEUE_ATTEMPTS,
-    backoff: {
-      type: POD_AUTOMATION_CONFIG.BACKOFF_TYPE as any,
-      delay: POD_AUTOMATION_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+let queueInstance: Queue<PodAutomationJobData> | null = null;
+
+function createQueue(): Queue<PodAutomationJobData> {
+  return new Queue<PodAutomationJobData>(QUEUE_NAME, {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: POD_AUTOMATION_CONFIG.QUEUE_ATTEMPTS,
+      backoff: {
+        type: POD_AUTOMATION_CONFIG.BACKOFF_TYPE as any,
+        delay: POD_AUTOMATION_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+      },
+      removeOnComplete: {
+        count: POD_AUTOMATION_CONFIG.COMPLETED_JOB_KEEP_COUNT,
+        age:
+          POD_AUTOMATION_CONFIG.COMPLETED_JOB_AGE_DAYS *
+            POD_AUTOMATION_CONFIG.SECONDS_PER_DAY || 604800,
+      },
+      removeOnFail: {
+        count: POD_AUTOMATION_CONFIG.FAILED_JOB_KEEP_COUNT,
+        age:
+          POD_AUTOMATION_CONFIG.FAILED_JOB_AGE_DAYS * POD_AUTOMATION_CONFIG.SECONDS_PER_DAY ||
+          2592000,
+      },
     },
-    removeOnComplete: {
-      count: POD_AUTOMATION_CONFIG.COMPLETED_JOB_KEEP_COUNT,
-      age: POD_AUTOMATION_CONFIG.COMPLETED_JOB_AGE_DAYS * POD_AUTOMATION_CONFIG.SECONDS_PER_DAY || 604800,
+  });
+}
+
+export function getPodAutomationQueue(): Queue<PodAutomationJobData> {
+  if (!queueInstance) {
+    queueInstance = createQueue();
+  }
+
+  return queueInstance;
+}
+
+export const podAutomationQueue: Queue<PodAutomationJobData> = new Proxy(
+  {} as Queue<PodAutomationJobData>,
+  {
+    get(_target, prop: keyof Queue<PodAutomationJobData>) {
+      const queue = getPodAutomationQueue() as any;
+      const value = queue[prop];
+      return typeof value === 'function' ? value.bind(queue) : value;
     },
-    removeOnFail: {
-      count: POD_AUTOMATION_CONFIG.FAILED_JOB_KEEP_COUNT,
-      age: POD_AUTOMATION_CONFIG.FAILED_JOB_AGE_DAYS * POD_AUTOMATION_CONFIG.SECONDS_PER_DAY || 2592000,
-    },
-  },
-});
+  }
+);
 
 /**
  * Schedule like jobs for pending activities
@@ -77,7 +101,8 @@ export async function scheduleLikeJobs(podId: string): Promise<{
     );
 
     // Add scheduling job to queue
-    const job = await podAutomationQueue.add('schedule-likes', {
+    const queue = getPodAutomationQueue();
+    const job = await queue.add('schedule-likes', {
       podId,
       jobType: 'schedule-likes',
     });
@@ -125,7 +150,8 @@ export async function scheduleCommentJobs(podId: string): Promise<{
     const scheduledJobs = await scheduleCommentActivities(commentActivities);
 
     // Add scheduling job to queue
-    const job = await podAutomationQueue.add('schedule-comments', {
+    const queue = getPodAutomationQueue();
+    const job = await queue.add('schedule-comments', {
       podId,
       jobType: 'schedule-comments',
     });
@@ -153,7 +179,8 @@ export async function executeEngagementActivity(
   engagementType: 'like' | 'comment'
 ): Promise<boolean> {
   try {
-    const job = await podAutomationQueue.add('execute-engagement', {
+    const queue = getPodAutomationQueue();
+    const job = await queue.add('execute-engagement', {
       podId: '',
       jobType: 'execute-engagement',
       activityId,
@@ -209,28 +236,50 @@ async function processPodAutomationJob(
   }
 }
 
-/**
- * Start pod automation worker
- */
-export const podAutomationWorker = new Worker<PodAutomationJobData>(
-  QUEUE_NAME,
-  processPodAutomationJob,
-  {
-    connection: getRedisConnection(),
-    concurrency: POD_AUTOMATION_CONFIG.QUEUE_CONCURRENCY,
+let workerInstance: Worker<PodAutomationJobData> | null = null;
+
+function createWorker(): Worker<PodAutomationJobData> {
+  const worker = new Worker<PodAutomationJobData>(
+    QUEUE_NAME,
+    processPodAutomationJob,
+    {
+      connection: getRedisConnection(),
+      concurrency: POD_AUTOMATION_CONFIG.QUEUE_CONCURRENCY,
+    }
+  );
+
+  worker.on('completed', (job) => {
+    console.log(`${LOG_PREFIX} ✅ Job ${job.id} completed`);
+  });
+
+  worker.on('failed', (job, error) => {
+    console.error(`${LOG_PREFIX} ❌ Job ${job?.id} failed:`, error.message);
+  });
+
+  return worker;
+}
+
+export function getPodAutomationWorker(): Worker<PodAutomationJobData> {
+  if (!workerInstance) {
+    workerInstance = createWorker();
   }
-);
 
-/**
- * Worker event handlers
- */
-podAutomationWorker.on('completed', (job) => {
-  console.log(`${LOG_PREFIX} ✅ Job ${job.id} completed`);
-});
+  return workerInstance;
+}
 
-podAutomationWorker.on('failed', (job, error) => {
-  console.error(`${LOG_PREFIX} ❌ Job ${job?.id} failed:`, error.message);
-});
+export async function closePodAutomationWorker(): Promise<void> {
+  if (workerInstance) {
+    await workerInstance.close();
+    workerInstance = null;
+  }
+}
+
+export async function closePodAutomationQueue(): Promise<void> {
+  if (queueInstance) {
+    await queueInstance.close();
+    queueInstance = null;
+  }
+}
 
 /**
  * Get queue health status
@@ -244,12 +293,13 @@ export async function getAutomationQueueStatus(): Promise<{
   total: number;
 }> {
   try {
+    const queue = getPodAutomationQueue();
     const [waiting, active, delayed, completed, failed] = await Promise.all([
-      podAutomationQueue.getWaitingCount(),
-      podAutomationQueue.getActiveCount(),
-      podAutomationQueue.getDelayedCount(),
-      podAutomationQueue.getCompletedCount(),
-      podAutomationQueue.getFailedCount(),
+      queue.getWaitingCount(),
+      queue.getActiveCount(),
+      queue.getDelayedCount(),
+      queue.getCompletedCount(),
+      queue.getFailedCount(),
     ]);
 
     return {
@@ -296,7 +346,8 @@ export async function getPodAutomationStats(podId: string): Promise<any> {
  */
 export async function clearAutomationJobs(): Promise<number> {
   try {
-    const jobs = await podAutomationQueue.getJobs([
+    const queue = getPodAutomationQueue();
+    const jobs = await queue.getJobs([
       'waiting',
       'delayed',
       'active',

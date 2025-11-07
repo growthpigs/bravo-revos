@@ -265,8 +265,8 @@ export default function AuthDebugPage() {
             <CardTitle>Instructions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-sm">1. First, try "Test Login" with your current credentials</p>
-            <p className="text-sm">2. If that fails, click "Create Test User" to create a fresh user</p>
+            <p className="text-sm">1. First, try &quot;Test Login&quot; with your current credentials</p>
+            <p className="text-sm">2. If that fails, click &quot;Create Test User&quot; to create a fresh user</p>
             <p className="text-sm">3. Note the password shown after creation</p>
             <p className="text-sm">4. Use those credentials to log in at /auth/login</p>
             <p className="text-sm text-muted-foreground">

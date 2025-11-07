@@ -200,7 +200,7 @@ export default function EmailReviewPage() {
                 {/* Original message snippet */}
                 <div className="p-3 bg-slate-50 rounded-lg">
                   <p className="text-sm font-semibold text-slate-700 mb-2">Original DM Reply:</p>
-                  <p className="text-sm text-slate-600 italic">"{review.original_text.substring(0, 200)}{review.original_text.length > 200 ? '...' : ''}"</p>
+                  <p className="text-sm text-slate-600 italic">&quot;{review.original_text.substring(0, 200)}{review.original_text.length > 200 ? '...' : ''}&quot;</p>
                 </div>
 
                 {/* Extracted email display */}

@@ -242,7 +242,7 @@ export default function CartridgesPage() {
                 Quick Start
               </h3>
               <ol className="text-sm text-green-800 space-y-2 ml-4 list-decimal">
-                <li>Click "New Cartridge" to create a voice profile</li>
+                <li>Click &quot;New Cartridge&quot; to create a voice profile</li>
                 <li>Set the basic tone: formality, enthusiasm, empathy (0-10)</li>
                 <li>Customize writing style: sentence length, emojis, hashtags</li>
                 <li>Define personality traits and vocabulary preferences</li>

@@ -80,7 +80,7 @@ export default function VoicePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold mb-2">What's next?</h3>
+              <h3 className="font-semibold mb-2">What&apos;s next?</h3>
               <ul className="space-y-2 text-sm">
                 <li>✓ Your voice cartridge has been created</li>
                 <li>✓ You can now use it for content generation</li>
@@ -122,7 +122,7 @@ export default function VoicePage() {
         </CardHeader>
         <CardContent className="text-sm space-y-2">
           <p>
-            1. <strong>Connect your LinkedIn:</strong> We'll fetch your recent posts
+            1. <strong>Connect your LinkedIn:</strong> We&apos;ll fetch your recent posts
           </p>
           <p>
             2. <strong>AI Analysis:</strong> GPT-4 analyzes your writing style

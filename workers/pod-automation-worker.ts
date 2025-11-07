@@ -22,9 +22,11 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 import {
-  podAutomationQueue,
-  podAutomationWorker,
+  closePodAutomationQueue,
+  closePodAutomationWorker,
   getAutomationQueueStatus,
+  getPodAutomationQueue,
+  getPodAutomationWorker,
 } from '../lib/queue/pod-automation-queue';
 import { checkRedisHealth } from '../lib/redis';
 import {
@@ -87,6 +89,9 @@ async function startWorker() {
     console.log(`${LOG_PREFIX} Processing queue: pod-automation`);
     console.log(`${LOG_PREFIX} Listening for jobs...`);
 
+    getPodAutomationWorker();
+    getPodAutomationQueue();
+
     // Get initial queue status
     const status = await getAutomationQueueStatus();
     console.log(`${LOG_PREFIX} Queue status:`, status);
@@ -98,8 +103,8 @@ async function startWorker() {
   // Graceful shutdown
   const releaseAndExit = async (code: number) => {
     try {
-      await podAutomationWorker.close();
-      await podAutomationQueue.close();
+      await closePodAutomationWorker();
+      await closePodAutomationQueue();
       console.log(`${LOG_PREFIX} ✅ Worker closed successfully`);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error during shutdown:`, error);

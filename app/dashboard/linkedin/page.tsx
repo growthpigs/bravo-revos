@@ -398,7 +398,7 @@ export default function LinkedInPage() {
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Your credentials are securely transmitted to Unipile's servers and not stored in plain
+                      Your credentials are securely transmitted to Unipile&apos;s servers and not stored in plain
                       text. We only keep encrypted session tokens.
                     </AlertDescription>
                   </Alert>
@@ -475,7 +475,7 @@ export default function LinkedInPage() {
                   Automatic Monitoring
                 </h4>
                 <p className="text-sm text-slate-600">
-                  Your sessions are automatically monitored for expiry. If a session expires, we'll
+                  Your sessions are automatically monitored for expiry. If a session expires, we&apos;ll
                   notify you to reconnect.
                 </p>
               </div>
@@ -483,10 +483,10 @@ export default function LinkedInPage() {
               <div>
                 <h4 className="font-semibold mb-2 flex items-center">
                   <Clock className="w-4 h-4 mr-2 text-yellow-600" />
-                  Session Expiry
+                      Session Expiry
                 </h4>
                 <p className="text-sm text-slate-600">
-                  Sessions typically last 90 days. You'll be notified 7 days before expiry to reconnect.
+                  Sessions typically last 90 days. You&apos;ll be notified 7 days before expiry to reconnect.
                 </p>
               </div>
 
@@ -496,9 +496,9 @@ export default function LinkedInPage() {
                   What Happens If Session Expires
                 </h4>
                 <ul className="text-sm text-slate-600 space-y-2 ml-6 list-disc">
-                  <li>We'll notify you to reconnect</li>
+                  <li>We&apos;ll notify you to reconnect</li>
                   <li>Lead generation will pause temporarily</li>
-                  <li>You can reconnect anytime from the "Connect New Account" tab</li>
+                  <li>You can reconnect anytime from the &quot;Connect New Account&quot; tab</li>
                 </ul>
               </div>
 
@@ -509,7 +509,7 @@ export default function LinkedInPage() {
                 </h4>
                 <ul className="text-sm text-slate-600 space-y-2 ml-6 list-disc">
                   <li>Passwords are never stored - only encrypted session tokens</li>
-                  <li>All communication with LinkedIn is through Unipile's secure API</li>
+                  <li>All communication with LinkedIn is through Unipile&apos;s secure API</li>
                   <li>You can disconnect any account at any time</li>
                 </ul>
               </div>

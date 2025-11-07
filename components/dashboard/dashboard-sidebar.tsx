@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -53,7 +54,14 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
     <div className="flex flex-col w-64 bg-white border-r border-slate-200">
       <div className="flex items-center gap-3 p-6 border-b border-slate-200">
         {client?.logo_url ? (
-          <img src={client.logo_url} alt={client.name} className="h-8 w-8 rounded" />
+          <Image
+            src={client.logo_url}
+            alt={client.name}
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded object-cover"
+            unoptimized
+          />
         ) : (
           <div className="h-8 w-8 rounded bg-emerald-600 flex items-center justify-center">
             <Megaphone className="h-5 w-5 text-white" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 interface QueueStatus {
@@ -61,7 +61,7 @@ function AutomationDashboardContent() {
   const [actionLoading, setActionLoading] = useState(false);
   const [lastAction, setLastAction] = useState<ActionResult | null>(null);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -79,7 +79,7 @@ function AutomationDashboardContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [podId]);
 
   const triggerAction = async (action: 'schedule-likes' | 'schedule-comments') => {
     try {
@@ -111,7 +111,7 @@ function AutomationDashboardContent() {
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000); // Auto-refresh every 5 seconds
     return () => clearInterval(interval);
-  }, [podId]);
+  }, [fetchStatus]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">

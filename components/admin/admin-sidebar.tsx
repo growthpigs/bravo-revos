@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -47,7 +48,14 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
     <div className="flex flex-col w-64 bg-white border-r border-slate-200">
       <div className="flex items-center gap-3 p-6 border-b border-slate-200">
         {agency?.logo_url ? (
-          <img src={agency.logo_url} alt={agency.name} className="h-8 w-8 rounded" />
+          <Image
+            src={agency.logo_url}
+            alt={agency.name}
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded object-cover"
+            unoptimized
+          />
         ) : (
           <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center">
             <Building2 className="h-5 w-5 text-white" />

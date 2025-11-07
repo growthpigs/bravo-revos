@@ -51,22 +51,42 @@ export interface RateLimitStatus {
 }
 
 // DM delivery queue with retry configuration
-export const dmQueue = new Queue<DMJobData>(QUEUE_NAME, {
-  connection: getRedisConnection(),
-  defaultJobOptions: {
-    attempts: DM_QUEUE_CONFIG.QUEUE_ATTEMPTS,
-    backoff: {
-      type: DM_QUEUE_CONFIG.BACKOFF_TYPE as 'exponential' | 'fixed',
-      delay: DM_QUEUE_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+let queueInstance: Queue<DMJobData> | null = null;
+
+function createQueue(): Queue<DMJobData> {
+  return new Queue<DMJobData>(QUEUE_NAME, {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: DM_QUEUE_CONFIG.QUEUE_ATTEMPTS,
+      backoff: {
+        type: DM_QUEUE_CONFIG.BACKOFF_TYPE as 'exponential' | 'fixed',
+        delay: DM_QUEUE_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+      },
+      removeOnComplete: {
+        count: DM_QUEUE_CONFIG.COMPLETED_JOB_KEEP_COUNT,
+        age: DM_QUEUE_CONFIG.COMPLETED_JOB_AGE_DAYS * DM_QUEUE_CONFIG.SECONDS_PER_DAY,
+      },
+      removeOnFail: {
+        count: DM_QUEUE_CONFIG.FAILED_JOB_KEEP_COUNT,
+        age: DM_QUEUE_CONFIG.FAILED_JOB_AGE_DAYS * DM_QUEUE_CONFIG.SECONDS_PER_DAY,
+      },
     },
-    removeOnComplete: {
-      count: DM_QUEUE_CONFIG.COMPLETED_JOB_KEEP_COUNT,
-      age: DM_QUEUE_CONFIG.COMPLETED_JOB_AGE_DAYS * DM_QUEUE_CONFIG.SECONDS_PER_DAY,
-    },
-    removeOnFail: {
-      count: DM_QUEUE_CONFIG.FAILED_JOB_KEEP_COUNT,
-      age: DM_QUEUE_CONFIG.FAILED_JOB_AGE_DAYS * DM_QUEUE_CONFIG.SECONDS_PER_DAY,
-    },
+  });
+}
+
+export function getDMQueue(): Queue<DMJobData> {
+  if (!queueInstance) {
+    queueInstance = createQueue();
+  }
+
+  return queueInstance;
+}
+
+export const dmQueue: Queue<DMJobData> = new Proxy({} as Queue<DMJobData>, {
+  get(_target, prop: keyof Queue<DMJobData>) {
+    const queue = getDMQueue() as any;
+    const value = queue[prop];
+    return typeof value === 'function' ? value.bind(queue) : value;
   },
 });
 
@@ -151,7 +171,8 @@ export async function queueDM(data: DMJobData): Promise<{
     // Still queue the job, but it will wait until tomorrow
     const delayUntilReset = rateLimitStatus.resetTime.getTime() - Date.now();
 
-    const job = await dmQueue.add('send-dm', data, {
+    const queue = getDMQueue();
+    const job = await queue.add('send-dm', data, {
       jobId: generateJobId(data.campaignId, data.recipientId),
       delay: delayUntilReset,
     });
@@ -164,7 +185,8 @@ export async function queueDM(data: DMJobData): Promise<{
   }
 
   // Queue immediately
-  const job = await dmQueue.add('send-dm', data, {
+  const queue = getDMQueue();
+  const job = await queue.add('send-dm', data, {
     jobId: generateJobId(data.campaignId, data.recipientId),
   });
 
@@ -244,29 +266,55 @@ async function processDMJob(job: Job<DMJobData>): Promise<void> {
   }
 }
 
-// Start DM delivery worker
-export const dmWorker = new Worker<DMJobData>(QUEUE_NAME, processDMJob, {
-  connection: getRedisConnection(),
-  concurrency: DM_QUEUE_CONFIG.QUEUE_CONCURRENCY,
-  limiter: {
-    max: DM_QUEUE_CONFIG.RATE_LIMITER_MAX_JOBS,
-    duration: DM_QUEUE_CONFIG.RATE_LIMITER_DURATION_MS,
-  },
-});
+let workerInstance: Worker<DMJobData> | null = null;
 
-// Worker event handlers
-dmWorker.on('completed', (job) => {
-  console.log(`${LOG_PREFIX} Job ${job.id} completed for ${job.data.recipientName}`);
-});
+function createWorker(): Worker<DMJobData> {
+  const worker = new Worker<DMJobData>(QUEUE_NAME, processDMJob, {
+    connection: getRedisConnection(),
+    concurrency: DM_QUEUE_CONFIG.QUEUE_CONCURRENCY,
+    limiter: {
+      max: DM_QUEUE_CONFIG.RATE_LIMITER_MAX_JOBS,
+      duration: DM_QUEUE_CONFIG.RATE_LIMITER_DURATION_MS,
+    },
+  });
 
-dmWorker.on('failed', (job, error) => {
-  console.error(`${LOG_PREFIX} Job ${job?.id} failed permanently:`, error.message);
-  // TODO: Mark as failed in database (Phase D)
-});
+  worker.on('completed', (job) => {
+    console.log(`${LOG_PREFIX} Job ${job.id} completed for ${job.data.recipientName}`);
+  });
 
-dmWorker.on('error', (error) => {
-  console.error(`${LOG_PREFIX} Worker error:`, error);
-});
+  worker.on('failed', (job, error) => {
+    console.error(`${LOG_PREFIX} Job ${job?.id} failed permanently:`, error.message);
+    // TODO: Mark as failed in database (Phase D)
+  });
+
+  worker.on('error', (error) => {
+    console.error(`${LOG_PREFIX} Worker error:`, error);
+  });
+
+  return worker;
+}
+
+export function getDMWorker(): Worker<DMJobData> {
+  if (!workerInstance) {
+    workerInstance = createWorker();
+  }
+
+  return workerInstance;
+}
+
+export async function closeDMWorker(): Promise<void> {
+  if (workerInstance) {
+    await workerInstance.close();
+    workerInstance = null;
+  }
+}
+
+export async function closeDMQueue(): Promise<void> {
+  if (queueInstance) {
+    await queueInstance.close();
+    queueInstance = null;
+  }
+}
 
 /**
  * Get queue statistics
@@ -279,12 +327,13 @@ export async function getQueueStatus(): Promise<{
   failed: number;
   total: number;
 }> {
+  const queue = getDMQueue();
   const [waiting, active, delayed, completed, failed] = await Promise.all([
-    dmQueue.getWaitingCount(),
-    dmQueue.getActiveCount(),
-    dmQueue.getDelayedCount(),
-    dmQueue.getCompletedCount(),
-    dmQueue.getFailedCount(),
+    queue.getWaitingCount(),
+    queue.getActiveCount(),
+    queue.getDelayedCount(),
+    queue.getCompletedCount(),
+    queue.getFailedCount(),
   ]);
 
   return {
@@ -301,7 +350,8 @@ export async function getQueueStatus(): Promise<{
  * Get all jobs for a campaign
  */
 export async function getCampaignJobs(campaignId: string): Promise<Job<DMJobData>[]> {
-  const jobs = await dmQueue.getJobs(['waiting', 'active', 'delayed', 'completed', 'failed']);
+  const queue = getDMQueue();
+  const jobs = await queue.getJobs(['waiting', 'active', 'delayed', 'completed', 'failed']);
 
   return jobs.filter((job) => job.data.campaignId === campaignId);
 }
@@ -329,7 +379,7 @@ export async function cancelCampaignJobs(campaignId: string): Promise<number> {
  * Pause DM queue (emergency stop)
  */
 export async function pauseQueue(): Promise<void> {
-  await dmQueue.pause();
+  await getDMQueue().pause();
   console.log(`${LOG_PREFIX} Queue paused`);
 }
 
@@ -337,6 +387,6 @@ export async function pauseQueue(): Promise<void> {
  * Resume DM queue
  */
 export async function resumeQueue(): Promise<void> {
-  await dmQueue.resume();
+  await getDMQueue().resume();
   console.log(`${LOG_PREFIX} Queue resumed`);
 }

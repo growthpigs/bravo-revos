@@ -25,11 +25,12 @@ export default function ReviewStep({ data, onBack }: StepProps) {
     setLoading(true)
     try {
       console.log('[CAMPAIGN_CREATE] Starting campaign creation...')
-      console.log('[CAMPAIGN_CREATE] Campaign data:', {
-        name: data.name,
-        description: data.description,
-        triggerWords: data.triggerWords,
-      })
+      console.log('[CAMPAIGN_CREATE] Full campaign data:', data)
+
+      // Validate required fields
+      if (!data.name || !data.name.trim()) {
+        throw new Error('Campaign name is required')
+      }
 
       // Call API endpoint to create campaign
       const response = await fetch('/api/campaigns', {
@@ -38,16 +39,24 @@ export default function ReviewStep({ data, onBack }: StepProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: data.name,
-          description: data.description,
-          trigger_words: data.triggerWords,
+          name: data.name.trim(),
+          description: data.description || null,
+          trigger_words: data.triggerWords || [],
           status: 'draft',
         }),
       })
 
+      console.log('[CAMPAIGN_CREATE] API Response status:', response.status)
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create campaign')
+        const errorText = await response.text()
+        console.error('[CAMPAIGN_CREATE] Error response:', errorText)
+        try {
+          const error = JSON.parse(errorText)
+          throw new Error(error.error || `Failed to create campaign (${response.status})`)
+        } catch {
+          throw new Error(`Failed to create campaign (${response.status}): ${errorText}`)
+        }
       }
 
       const result = await response.json()
@@ -57,11 +66,13 @@ export default function ReviewStep({ data, onBack }: StepProps) {
       // TODO: Create DM sequences
       // TODO: Create webhook config if enabled
 
+      // Small delay to ensure DB is ready before redirect
+      await new Promise(resolve => setTimeout(resolve, 500))
       router.push('/dashboard/campaigns')
     } catch (error) {
       console.error('[CAMPAIGN_CREATE] Error:', error)
-      alert(`Error creating campaign: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Error creating campaign: ${errorMessage}`)
       setLoading(false)
     }
   }

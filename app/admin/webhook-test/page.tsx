@@ -102,8 +102,8 @@ export default function WebhookTestPage() {
         <ol className="list-decimal ml-4 mt-2 space-y-1">
           <li>Go to <a href="https://webhook.site" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">webhook.site</a></li>
           <li>Copy your unique URL (e.g., https://webhook.site/abc-123)</li>
-          <li>Paste it into the "Webhook URL" field below</li>
-          <li>Click "Send Test Webhook"</li>
+          <li>Paste it into the &quot;Webhook URL&quot; field below</li>
+          <li>Click &quot;Send Test Webhook&quot;</li>
           <li>Go back to webhook.site to see the payload received</li>
         </ol>
       </AlertDescription>

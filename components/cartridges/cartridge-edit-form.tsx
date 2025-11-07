@@ -472,7 +472,7 @@ export function CartridgeEditForm({
               <div className="space-y-2 mb-3">
                 {voiceParams.vocabulary.preferred_phrases.map((phrase, i) => (
                   <div key={i} className="flex items-center justify-between p-2 bg-blue-50 rounded">
-                    <span className="text-sm">"{phrase}"</span>
+                    <span className="text-sm">&quot;{phrase}&quot;</span>
                     <button
                       type="button"
                       onClick={() => removeArrayItem('vocabulary', 'preferred_phrases', i)}

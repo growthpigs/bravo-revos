@@ -21,7 +21,7 @@ describe('Pod Engagement API Integration Tests', () => {
     });
 
     it('should return error for missing podId', () => {
-      const request = {
+      const request: { action: string; podId?: string } = {
         action: 'schedule-likes',
       };
 

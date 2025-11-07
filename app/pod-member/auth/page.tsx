@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,17 +35,7 @@ function PodMemberAuthContent() {
   const [accountName, setAccountName] = useState('');
   const [checkpointCode, setCheckpointCode] = useState('');
 
-  useEffect(() => {
-    if (!token) {
-      toast.error('Missing invitation token');
-      setLoading(false);
-      return;
-    }
-
-    verifyToken();
-  }, [token]);
-
-  const verifyToken = async () => {
+  const verifyToken = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/pods/members/auth?token=${token}`);
@@ -66,7 +56,17 @@ function PodMemberAuthContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      toast.error('Missing invitation token');
+      setLoading(false);
+      return;
+    }
+
+    verifyToken();
+  }, [token, verifyToken]);
 
   const handleAuthenticate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,7 +214,7 @@ function PodMemberAuthContent() {
               <Alert>
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>{invitationData?.member_name}</strong>, you've been invited to join{' '}
+                  <strong>{invitationData?.member_name}</strong>, you&apos;ve been invited to join{' '}
                   <strong>{invitationData?.pod_name}</strong> by {invitationData?.client_name}.
                 </AlertDescription>
               </Alert>
@@ -260,7 +260,7 @@ function PodMemberAuthContent() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Your credentials are securely transmitted to Unipile's servers and not stored in
+                  Your credentials are securely transmitted to Unipile&apos;s servers and not stored in
                   plain text. We only keep encrypted session tokens.
                 </AlertDescription>
               </Alert>

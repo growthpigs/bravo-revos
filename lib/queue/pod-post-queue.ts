@@ -22,25 +22,49 @@ export interface PodPostJobData {
   userId: string;
 }
 
-// Pod post detection queue with 30-minute polling
-export const podPostQueue = new Queue<PodPostJobData>(QUEUE_NAME, {
-  connection: getRedisConnection(),
-  defaultJobOptions: {
-    attempts: POD_POST_CONFIG.QUEUE_ATTEMPTS,
-    backoff: {
-      type: POD_POST_CONFIG.BACKOFF_TYPE as any,
-      delay: POD_POST_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+let queueInstance: Queue<PodPostJobData> | null = null;
+
+function createQueue(): Queue<PodPostJobData> {
+  return new Queue<PodPostJobData>(QUEUE_NAME, {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: POD_POST_CONFIG.QUEUE_ATTEMPTS,
+      backoff: {
+        type: POD_POST_CONFIG.BACKOFF_TYPE as any,
+        delay: POD_POST_CONFIG.BACKOFF_INITIAL_DELAY_MS,
+      },
+      removeOnComplete: {
+        count: POD_POST_CONFIG.COMPLETED_JOB_KEEP_COUNT,
+        age:
+          POD_POST_CONFIG.COMPLETED_JOB_AGE_DAYS * POD_POST_CONFIG.SECONDS_PER_DAY || 86400,
+      },
+      removeOnFail: {
+        count: POD_POST_CONFIG.FAILED_JOB_KEEP_COUNT,
+        age:
+          POD_POST_CONFIG.FAILED_JOB_AGE_DAYS * POD_POST_CONFIG.SECONDS_PER_DAY || 2592000,
+      },
     },
-    removeOnComplete: {
-      count: POD_POST_CONFIG.COMPLETED_JOB_KEEP_COUNT,
-      age: POD_POST_CONFIG.COMPLETED_JOB_AGE_DAYS * POD_POST_CONFIG.SECONDS_PER_DAY || 86400,
+  });
+}
+
+export function getPodPostQueue(): Queue<PodPostJobData> {
+  if (!queueInstance) {
+    queueInstance = createQueue();
+  }
+
+  return queueInstance;
+}
+
+export const podPostQueue: Queue<PodPostJobData> = new Proxy(
+  {} as Queue<PodPostJobData>,
+  {
+    get(_target, prop: keyof Queue<PodPostJobData>) {
+      const queue = getPodPostQueue() as any;
+      const value = queue[prop];
+      return typeof value === 'function' ? value.bind(queue) : value;
     },
-    removeOnFail: {
-      count: POD_POST_CONFIG.FAILED_JOB_KEEP_COUNT,
-      age: POD_POST_CONFIG.FAILED_JOB_AGE_DAYS * POD_POST_CONFIG.SECONDS_PER_DAY || 2592000,
-    },
-  },
-});
+  }
+);
 
 /**
  * Get the Redis key for tracking seen posts per pod
@@ -78,7 +102,8 @@ export async function startPodPostDetection(data: PodPostJobData): Promise<{
 }> {
   validatePodPostJobData(data);
 
-  const job = await podPostQueue.add('detect-posts', data, {
+  const queue = getPodPostQueue();
+  const job = await queue.add('detect-posts', data, {
     jobId: `pod-${data.podId}-initial`,
     repeat: {
       every: POD_POST_CONFIG.POLLING_INTERVAL_MS,
@@ -97,7 +122,8 @@ export async function startPodPostDetection(data: PodPostJobData): Promise<{
  * Stop pod post detection
  */
 export async function stopPodPostDetection(podId: string): Promise<number> {
-  const jobs = await podPostQueue.getJobs(['waiting', 'delayed', 'active']);
+  const queue = getPodPostQueue();
+  const jobs = await queue.getJobs(['waiting', 'delayed', 'active']);
   let removedCount = 0;
 
   for (const job of jobs) {
@@ -216,19 +242,46 @@ async function processPodPostJob(job: Job<PodPostJobData>): Promise<void> {
 }
 
 // Start pod post detection worker
-export const podPostWorker = new Worker<PodPostJobData>(QUEUE_NAME, processPodPostJob, {
-  connection: getRedisConnection(),
-  concurrency: POD_POST_CONFIG.QUEUE_CONCURRENCY,
-});
+let workerInstance: Worker<PodPostJobData> | null = null;
 
-// Worker event handlers
-podPostWorker.on('completed', (job) => {
-  console.log(`${LOG_PREFIX} Job ${job.id} completed`);
-});
+function createWorker(): Worker<PodPostJobData> {
+  const worker = new Worker<PodPostJobData>(QUEUE_NAME, processPodPostJob, {
+    connection: getRedisConnection(),
+    concurrency: POD_POST_CONFIG.QUEUE_CONCURRENCY,
+  });
 
-podPostWorker.on('failed', (job, error) => {
-  console.error(`${LOG_PREFIX} Job ${job?.id} failed:`, error.message);
-});
+  worker.on('completed', (job) => {
+    console.log(`${LOG_PREFIX} Job ${job.id} completed`);
+  });
+
+  worker.on('failed', (job, error) => {
+    console.error(`${LOG_PREFIX} Job ${job?.id} failed:`, error.message);
+  });
+
+  return worker;
+}
+
+export function getPodPostWorker(): Worker<PodPostJobData> {
+  if (!workerInstance) {
+    workerInstance = createWorker();
+  }
+
+  return workerInstance;
+}
+
+export async function closePodPostWorker(): Promise<void> {
+  if (workerInstance) {
+    await workerInstance.close();
+    workerInstance = null;
+  }
+}
+
+export async function closePodPostQueue(): Promise<void> {
+  if (queueInstance) {
+    await queueInstance.close();
+    queueInstance = null;
+  }
+}
 
 /**
  * Get queue status
@@ -241,12 +294,13 @@ export async function getQueueStatus(): Promise<{
   failed: number;
   total: number;
 }> {
+  const queue = getPodPostQueue();
   const [waiting, active, delayed, completed, failed] = await Promise.all([
-    podPostQueue.getWaitingCount(),
-    podPostQueue.getActiveCount(),
-    podPostQueue.getDelayedCount(),
-    podPostQueue.getCompletedCount(),
-    podPostQueue.getFailedCount(),
+    queue.getWaitingCount(),
+    queue.getActiveCount(),
+    queue.getDelayedCount(),
+    queue.getCompletedCount(),
+    queue.getFailedCount(),
   ]);
 
   return {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -46,7 +46,7 @@ export default function LeadsPage() {
     searchTerm: '',
   })
   const [showFilters, setShowFilters] = useState(false)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Fetch leads and campaigns
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function LeadsPage() {
     }
 
     fetchData()
-  }, [])
+  }, [supabase])
 
   const statusColors: Record<string, string> = {
     comment_detected: 'bg-blue-100 text-blue-700',

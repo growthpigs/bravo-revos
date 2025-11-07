@@ -190,7 +190,7 @@ export function VoicePreview({
                 <div className="space-y-2">
                   {voiceParams.vocabulary.preferred_phrases.map((phrase, i) => (
                     <div key={i} className="text-sm p-2 bg-blue-50 rounded border border-blue-100">
-                      "{phrase}"
+                      &quot;{phrase}&quot;
                     </div>
                   ))}
                 </div>
