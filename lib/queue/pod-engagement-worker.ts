@@ -402,7 +402,7 @@ async function executeLikeEngagement(params: {
 
 /**
  * Execute comment engagement with voice cartridge
- * (Calls E-05-3 implementation)
+ * E-05-3: Applies pod's voice personality to comment before posting
  */
 async function executeCommentEngagement(params: {
   podId: string;
@@ -411,18 +411,199 @@ async function executeCommentEngagement(params: {
   profileId: string;
   commentText: string;
 }): Promise<ExecutionResult> {
-  const { activityId, postId, commentText } = params;
+  const { podId, activityId, postId, profileId, commentText } = params;
 
-  // TODO: E-05-3 will implement this
-  // For now, return placeholder
-  console.log(`${LOG_PREFIX} [TODO: E-05-3] Executing comment: post=${postId}, text="${commentText}"`);
+  try {
+    // Validate inputs
+    if (!postId?.trim()) {
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Missing or empty postId`,
+        'validation_error'
+      );
+    }
 
-  return {
-    success: true,
-    timestamp: new Date().toISOString(),
-    activityId,
-    engagementType: 'comment',
-  };
+    if (!profileId?.trim()) {
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Missing or empty profileId`,
+        'validation_error'
+      );
+    }
+
+    if (!commentText?.trim()) {
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Missing or empty comment text`,
+        'validation_error'
+      );
+    }
+
+    if (!process.env.UNIPILE_API_KEY) {
+      throw new EngagementJobError(
+        `[Activity ${activityId}] UNIPILE_API_KEY not configured`,
+        'auth_error'
+      );
+    }
+
+    // Fetch pod's voice cartridge to apply personality
+    const supabase = await createClient();
+    const { data: pod, error: podError } = await supabase
+      .from('pods')
+      .select('voice_cartridge_id')
+      .eq('id', podId)
+      .maybeSingle();
+
+    if (podError) {
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Failed to fetch pod ${podId}: ${podError.message}`,
+        'unknown_error'
+      );
+    }
+
+    let finalCommentText = commentText;
+
+    // Apply voice transformation if cartridge is configured
+    if (pod?.voice_cartridge_id) {
+      const { data: cartridge, error: cartridgeError } = await supabase
+        .from('cartridges')
+        .select('voice_params')
+        .eq('id', pod.voice_cartridge_id)
+        .maybeSingle();
+
+      if (!cartridgeError && cartridge?.voice_params) {
+        // Apply voice parameters to the comment
+        finalCommentText = applyVoiceParams(commentText, cartridge.voice_params);
+
+        if (FEATURE_FLAGS.ENABLE_LOGGING) {
+          console.log(
+            `${LOG_PREFIX} [Activity ${activityId}] Applied voice cartridge to comment`
+          );
+        }
+      }
+    }
+
+    // Post comment to LinkedIn via Unipile
+    const unipileDsn = process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211';
+    const commentUrl = `${unipileDsn}/api/v1/posts/${postId}/comments`;
+
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} [Activity ${activityId}] Posting comment to Unipile: ${commentUrl}`);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    try {
+      const response = await fetch(commentUrl, {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': process.env.UNIPILE_API_KEY,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          account_id: profileId,
+          text: finalCommentText,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        const errorMsg = `[Activity ${activityId}] Unipile comment failed: ${response.status} ${response.statusText}`;
+
+        if (FEATURE_FLAGS.ENABLE_LOGGING) {
+          console.error(`${LOG_PREFIX} ${errorMsg}`, errorBody);
+        }
+
+        // Classify error based on status code
+        if (response.status === 429) {
+          throw new EngagementJobError(errorMsg, 'rate_limit');
+        } else if (response.status === 401 || response.status === 403) {
+          throw new EngagementJobError(errorMsg, 'auth_error');
+        } else if (response.status === 404) {
+          throw new EngagementJobError(`[Activity ${activityId}] Post ${postId} not found`, 'not_found');
+        } else {
+          throw new EngagementJobError(errorMsg, 'unknown_error');
+        }
+      }
+
+      await response.json();
+
+      if (FEATURE_FLAGS.ENABLE_LOGGING) {
+        console.log(
+          `${LOG_PREFIX} [Activity ${activityId}] Comment posted successfully for post ${postId}`
+        );
+      }
+
+      return {
+        success: true,
+        timestamp: new Date().toISOString(),
+        activityId,
+        engagementType: 'comment',
+      };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+
+    // Handle timeout errors specifically
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error(`${LOG_PREFIX} [Activity ${activityId}] Comment engagement timeout after 25s`);
+      throw new EngagementJobError(
+        `[Activity ${activityId}] Request timeout (25s) - Unipile API not responding`,
+        'timeout'
+      );
+    }
+
+    console.error(`${LOG_PREFIX} [Activity ${activityId}] Comment engagement failed: ${errorMsg}`);
+
+    // If it's already an EngagementJobError, throw it as-is
+    if (error instanceof EngagementJobError) {
+      throw error;
+    }
+
+    // Otherwise classify and throw
+    const errorType = classifyError(errorMsg);
+    throw new EngagementJobError(`[Activity ${activityId}] ${errorMsg}`, errorType);
+  }
+}
+
+/**
+ * Apply voice parameters to comment text
+ * Transforms tone, style, and personality based on voice cartridge settings
+ */
+function applyVoiceParams(text: string, voiceParams: any): string {
+  let transformedText = text;
+
+  // Apply tone adjustments
+  if (voiceParams.tone?.formality === 'casual') {
+    // Convert formal language to casual
+    transformedText = transformedText
+      .replace(/therefore,?/gi, 'so')
+      .replace(/moreover,?/gi, 'plus')
+      .replace(/nevertheless,?/gi, 'but')
+      .replace(/regarding/gi, 'about');
+  }
+
+  // Apply emoji preferences
+  if (voiceParams.style?.use_emojis && !transformedText.includes('😊')) {
+    transformedText += ' 👍';
+  }
+
+  // Apply hashtag preferences
+  if (voiceParams.style?.use_hashtags && voiceParams.personality?.traits) {
+    // Could add relevant hashtags based on traits
+  }
+
+  // Apply vocabulary constraints
+  if (voiceParams.vocabulary?.banned_words && Array.isArray(voiceParams.vocabulary.banned_words)) {
+    for (const bannedWord of voiceParams.vocabulary.banned_words) {
+      const regex = new RegExp(`\\b${bannedWord}\\b`, 'gi');
+      transformedText = transformedText.replace(regex, '');
+    }
+  }
+
+  return transformedText.trim();
 }
 
 /**
