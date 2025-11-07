@@ -9,6 +9,7 @@ import { saveDetectedPost, getPodMemberByLinkedInAccountId } from '../pods/post-
 import { getRedisConnection } from '../redis';
 import { POD_POST_CONFIG, LOGGING_CONFIG } from '../config';
 import { validatePodPostJobData } from '../validation';
+import { scheduleLikeJobs, scheduleCommentJobs } from './pod-automation-queue';
 
 const QUEUE_NAME = 'pod-post-detection';
 const LOG_PREFIX = LOGGING_CONFIG.PREFIX_POD_POST;
@@ -175,11 +176,32 @@ async function processPodPostJob(job: Job<PodPostJobData>): Promise<void> {
             activitiesCreated: result.activitiesCreated,
           });
 
-          // TODO: Queue engagement jobs (E-04 integration)
-          // Next: Schedule like jobs with staggered timing
-          // Then: Schedule comment jobs with longer delays
-          // Pattern: 5-30min delay for likes, 1-6hr delay for comments
-          // Stagger: Not all members at once
+          // E-04: Queue engagement jobs for pod members to engage with this post
+          // Schedule likes with 5-30 minute delays (staggered, max 3 per hour)
+          try {
+            const likeJobResult = await scheduleLikeJobs(podId);
+            console.log(
+              `${LOG_PREFIX} ✅ Queued ${likeJobResult.scheduledCount} like jobs for pod ${podId}`
+            );
+          } catch (error) {
+            console.error(
+              `${LOG_PREFIX} Failed to queue like jobs for pod ${podId}:`,
+              error
+            );
+          }
+
+          // Schedule comments with 1-6 hour delays (longer spread)
+          try {
+            const commentJobResult = await scheduleCommentJobs(podId);
+            console.log(
+              `${LOG_PREFIX} ✅ Queued ${commentJobResult.scheduledCount} comment jobs for pod ${podId}`
+            );
+          } catch (error) {
+            console.error(
+              `${LOG_PREFIX} Failed to queue comment jobs for pod ${podId}:`,
+              error
+            );
+          }
         }
       }
     } catch (error) {
