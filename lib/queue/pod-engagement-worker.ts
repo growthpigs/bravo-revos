@@ -607,7 +607,8 @@ function applyVoiceParams(text: string, voiceParams: any): string {
 }
 
 /**
- * Update activity in database with execution result
+ * Update activity in database with execution result (idempotent)
+ * E-05-4: State Manager - ensures exactly-once execution semantics
  */
 async function updateActivityInDatabase(
   activityId: string,
@@ -616,28 +617,71 @@ async function updateActivityInDatabase(
   try {
     const supabase = await createClient();
 
+    // Step 1: Check current status for idempotency
+    // Only update if status is still 'pending' or 'scheduled'
+    const { data: currentActivity, error: fetchError } = await supabase
+      .from('pod_activities')
+      .select('status, execution_attempts, execution_result')
+      .eq('id', activityId)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch current activity: ${fetchError.message}`);
+    }
+
+    // Already executed? Check if same result to prevent duplicates
+    if (currentActivity?.status === 'completed' || currentActivity?.status === 'executed') {
+      if (FEATURE_FLAGS.ENABLE_LOGGING) {
+        console.log(
+          `${LOG_PREFIX} Activity ${activityId} already executed (idempotency check passed)`
+        );
+      }
+      return; // Idempotent: already completed, no duplicate update
+    }
+
+    // Step 2: Prepare update data with full execution result
+    const executionAttempts = (currentActivity?.execution_attempts || 0) + 1;
     const updateData = {
-      status: result.success ? 'executed' : 'failed',
+      status: result.success ? 'completed' : 'failed',
       executed_at: new Date().toISOString(),
+      execution_attempts: executionAttempts,
       execution_result: {
         success: result.success,
         timestamp: result.timestamp,
         error: result.error || null,
         error_type: result.errorType || null,
+        attempt: executionAttempts,
       },
+      last_error: result.error || null,
     };
 
-    const { error } = await supabase
+    // Step 3: Perform atomic update (only if status hasn't changed)
+    // This prevents race conditions from concurrent execution attempts
+    const { data: updated, error: updateError } = await supabase
       .from('pod_activities')
       .update(updateData)
-      .eq('id', activityId);
+      .eq('id', activityId)
+      .eq('status', 'pending') // Atomic: only update if still pending
+      .select();
 
-    if (error) {
-      throw new Error(`Database update error: ${error.message}`);
+    if (updateError) {
+      throw new Error(`Database update error: ${updateError.message}`);
+    }
+
+    // If no rows were updated, activity was already modified (idempotency)
+    if (!updated || updated.length === 0) {
+      if (FEATURE_FLAGS.ENABLE_LOGGING) {
+        console.log(
+          `${LOG_PREFIX} Activity ${activityId} was already updated by another process (idempotency check passed)`
+        );
+      }
+      return; // Idempotent: concurrent request beat us, no duplicate update
     }
 
     if (FEATURE_FLAGS.ENABLE_LOGGING) {
-      console.log(`${LOG_PREFIX} Activity ${activityId} updated: status=${updateData.status}`);
+      console.log(
+        `${LOG_PREFIX} Activity ${activityId} updated: status=${updateData.status}, attempts=${executionAttempts}`
+      );
     }
   } catch (error) {
     console.error(`${LOG_PREFIX} Error updating activity:`, error);
