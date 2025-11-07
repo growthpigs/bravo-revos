@@ -187,9 +187,34 @@ CREATE POLICY "Users can view their campaigns"
     )
   );
 
-CREATE POLICY "Users can manage their campaigns"
+CREATE POLICY "Users can insert their campaigns"
   ON campaigns
-  FOR ALL
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    client_id IN (
+      SELECT client_id FROM users WHERE id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update their campaigns"
+  ON campaigns
+  FOR UPDATE
+  TO authenticated
+  USING (
+    client_id IN (
+      SELECT client_id FROM users WHERE id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    client_id IN (
+      SELECT client_id FROM users WHERE id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete their campaigns"
+  ON campaigns
+  FOR DELETE
   TO authenticated
   USING (
     client_id IN (
