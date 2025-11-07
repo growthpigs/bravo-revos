@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bravo revOS - Fix RLS Infinite Recursion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f24444 0%, #d92424 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #d92424;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .alert-box {
+            background: #fee;
+            border-left: 4px solid #d92424;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 6px;
+            color: #d92424;
+        }
+
+        .alert-box strong {
+            color: #d92424;
+        }
+
+        .sql-display {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #d92424;
+            color: white;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn-primary:hover {
+            background: #b81f1f;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(217, 36, 36, 0.3);
+        }
+
+        .btn-secondary {
+            background: #fee;
+            color: #d92424;
+            border: 2px solid #d92424;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn-secondary:hover {
+            background: #d92424;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .instructions {
+            background: #fff8e1;
+            border-left: 4px solid #fbc02d;
+            padding: 15px;
+            margin-top: 30px;
+            border-radius: 6px;
+            color: #f57f17;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .project-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 RLS Infinite Recursion Fix</h1>
+        <p class="subtitle">Apply critical database policy fixes to Supabase</p>
+
+        <div class="alert-box">
+            <strong>⚠️ CRITICAL FIX:</strong> Campaign creation fails due to infinite recursion in RLS policies. This fix removes circular subqueries.
+        </div>
+
+        <h3 style="margin-bottom: 15px; color: #333;">Migration Preview:</h3>
+        <div class="sql-display" id="sqlPreview"></div>
+
+        <div class="buttons">
+            <button class="btn-primary" onclick="copySql()">📋 Copy SQL to Clipboard</button>
+            <button class="btn-secondary" onclick="openSupabase()">🔗 Open Supabase Editor</button>
+        </div>
+
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ol>
+                <li><strong>Copy</strong> the SQL using the "Copy SQL to Clipboard" button</li>
+                <li><strong>Open</strong> Supabase SQL Editor (link above)</li>
+                <li><strong>Paste</strong> the SQL into the editor</li>
+                <li><strong>Run</strong> the query by clicking the "Run" button</li>
+                <li><strong>Test</strong> campaign creation again</li>
+            </ol>
+        </div>
+
+        <div class="project-info">
+            <strong>Issue Fixed:</strong> Infinite recursion in nested users table queries<br>
+            <strong>Policies Updated:</strong> linkedin_accounts, campaigns, lead_magnets, pods, leads<br>
+            <strong>Impact:</strong> Campaign creation will now work correctly
+        </div>
+    </div>
+
+    <script>
+        const SQL = `-- Fix infinite recursion in RLS policies
+-- Issue: Nested SELECT on users table within users table RLS check
+-- Solution: Use client_id directly from users table without nested users query
+
+-- ============================================================================
+-- FIX LINKEDIN ACCOUNTS RLS POLICY - Remove nested users table reference
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Users can view their linkedin accounts" ON linkedin_accounts;
+
+-- FIXED: Use auth.uid() directly with user's own record join
+-- This avoids the circular subquery on the users table
+CREATE POLICY "Users can view their linkedin accounts"
+  ON linkedin_accounts
+  FOR SELECT
+  TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR
+    user_id IN (
+      -- Get other users in same client
+      SELECT u.id FROM users u
+      WHERE u.client_id = (
+        -- Get current user's client_id directly
+        SELECT client_id FROM users WHERE id = auth.uid() LIMIT 1
+      )
+      AND u.client_id IS NOT NULL
+    )
+  );
+
+-- ============================================================================
+-- FIX CAMPAIGNS RLS POLICY - Remove nested users table reference if it exists
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Users can view their campaigns" ON campaigns;
+
+CREATE POLICY "Users can view their campaigns"
+  ON campaigns
+  FOR SELECT
+  TO authenticated
+  USING (
+    client_id = (
+      SELECT client_id FROM users WHERE id = auth.uid() LIMIT 1
+    )
+  );
+
+-- ============================================================================
+-- FIX LEAD MAGNETS RLS POLICY - Remove nested users table reference if it exists
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Users can view their lead magnets" ON lead_magnets;
+
+CREATE POLICY "Users can view their lead magnets"
+  ON lead_magnets
+  FOR SELECT
+  TO authenticated
+  USING (
+    client_id = (
+      SELECT client_id FROM users WHERE id = auth.uid() LIMIT 1
+    )
+  );
+
+-- ============================================================================
+-- FIX PODS RLS POLICY - Remove nested users table reference if it exists
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Users can view their pods" ON pods;
+
+CREATE POLICY "Users can view their pods"
+  ON pods
+  FOR SELECT
+  TO authenticated
+  USING (
+    client_id = (
+      SELECT client_id FROM users WHERE id = auth.uid() LIMIT 1
+    )
+  );
+
+-- ============================================================================
+-- FIX LEADS RLS POLICY - Remove nested users table reference if it exists
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Users can view their leads" ON leads;
+
+CREATE POLICY "Users can view their leads"
+  ON leads
+  FOR SELECT
+  TO authenticated
+  USING (
+    client_id = (
+      SELECT client_id FROM users WHERE id = auth.uid() LIMIT 1
+    )
+  );`;
+
+        // Load SQL preview
+        document.getElementById('sqlPreview').textContent = SQL.substring(0, 800) + '\n\n... (more lines)';
+
+        function copySql() {
+            navigator.clipboard.writeText(SQL).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied to Clipboard!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        function openSupabase() {
+            window.open('https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/new', '_blank');
+        }
+    </script>
+</body>
+</html>

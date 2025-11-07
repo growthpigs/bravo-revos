@@ -20,11 +20,28 @@ dotenv.config({ path: '.env.local' });
 
 import { createWebhookQueue, createWebhookWorker } from '../lib/queue/webhook-delivery-queue';
 import { checkRedisHealth } from '../lib/redis';
+import {
+  enforceSingleInstance,
+  type ReleaseSingleInstance,
+} from '../lib/utils/single-instance';
 
 const LOG_PREFIX = '[WEBHOOK_WORKER]';
 
 async function startWorker() {
   console.log(`${LOG_PREFIX} Starting webhook delivery worker...`);
+
+  const singletonPort = Number.parseInt(process.env.WEBHOOK_WORKER_PORT ?? '4732', 10);
+  let releaseSingleInstance: ReleaseSingleInstance | undefined;
+
+  try {
+    releaseSingleInstance = await enforceSingleInstance({
+      id: 'WEBHOOK_WORKER',
+      port: singletonPort,
+    });
+  } catch (error) {
+    console.error(`${LOG_PREFIX} ${error instanceof Error ? error.message : error}`);
+    process.exit(1);
+  }
 
   // Validate required environment variables
   const requiredEnvVars = [
@@ -68,7 +85,7 @@ async function startWorker() {
   console.log(`${LOG_PREFIX} Listening for jobs...`);
 
   // Graceful shutdown handler
-  const shutdown = async (signal: string) => {
+  const shutdown = async (signal: string, exitCode = 0) => {
     console.log(`\n${LOG_PREFIX} Received ${signal}, shutting down gracefully...`);
 
     try {
@@ -77,16 +94,25 @@ async function startWorker() {
       console.log(`${LOG_PREFIX} Closing queue...`);
       await queue.close();
       console.log(`${LOG_PREFIX} Shutdown complete`);
-      process.exit(0);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error during shutdown:`, error);
-      process.exit(1);
+      exitCode = 1;
+    } finally {
+      if (releaseSingleInstance) {
+        releaseSingleInstance();
+        releaseSingleInstance = undefined;
+      }
+      process.exit(exitCode);
     }
   };
 
   // Register shutdown handlers
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+  process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
 
   // Keep process alive
   process.stdin.resume();

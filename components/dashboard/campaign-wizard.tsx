@@ -8,12 +8,12 @@ import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Import step components
+import LeadMagnetSelectStep from './wizard-steps/lead-magnet-select'
 import CampaignBasicsStep from './wizard-steps/campaign-basics'
-import LeadMagnetUploadStep from './wizard-steps/lead-magnet-upload'
 import ContentCreationStep from './wizard-steps/content-creation'
 import TriggerWordsStep from './wizard-steps/trigger-words'
-import WebhookConfigStep from './wizard-steps/webhook-config'
 import DMSequenceStep from './wizard-steps/dm-sequence'
+import WebhookConfigStep from './wizard-steps/webhook-config'
 import ReviewStep from './wizard-steps/review'
 
 interface CampaignWizardProps {
@@ -21,12 +21,12 @@ interface CampaignWizardProps {
 }
 
 const steps = [
-  { id: 1, name: 'Campaign Basics', component: CampaignBasicsStep },
-  { id: 2, name: 'Lead Magnet', component: LeadMagnetUploadStep },
-  { id: 3, name: 'Content Creation', component: ContentCreationStep },
+  { id: 1, name: 'Lead Magnet Template', component: LeadMagnetSelectStep },
+  { id: 2, name: 'Campaign Details', component: CampaignBasicsStep },
+  { id: 3, name: 'Post Content', component: ContentCreationStep },
   { id: 4, name: 'Trigger Words', component: TriggerWordsStep },
-  { id: 5, name: 'Webhook Config', component: WebhookConfigStep },
-  { id: 6, name: 'DM Sequence', component: DMSequenceStep },
+  { id: 5, name: 'DM Sequence', component: DMSequenceStep },
+  { id: 6, name: 'Webhook & Delivery', component: WebhookConfigStep },
   { id: 7, name: 'Review & Launch', component: ReviewStep },
 ]
 

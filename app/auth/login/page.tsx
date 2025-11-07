@@ -45,58 +45,25 @@ export default function LoginPage() {
           return
         }
 
-        // First, create or get a default agency
-        const { data: agencies } = await supabase
-          .from('agencies')
-          .select('id')
-          .limit(1)
-
-        let agencyId = agencies?.[0]?.id
-
-        if (!agencyId) {
-          const { data: newAgency, error: agencyError } = await supabase
-            .from('agencies')
-            .insert({
-              name: 'Default Agency',
-            })
-            .select()
-            .single()
-
-          if (agencyError) {
-            console.error('Error creating agency:', agencyError)
-            agencyId = 'default'
-          } else {
-            agencyId = newAgency?.id
-          }
-        }
-
-        // Create a default client for the agency
-        const { data: newClient, error: clientError } = await supabase
-          .from('clients')
-          .insert({
-            agency_id: agencyId,
-            name: 'Test Client',
-          })
-          .select()
-          .single()
-
-        if (clientError) {
-          console.error('Error creating client:', clientError)
-        }
-
-        const clientId = newClient?.id || 'd1234567-1234-1234-1234-123456789012'
-
-        // Create user record in users table
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
+        // Call API endpoint to create user record using service role
+        console.log('[LOGIN] Creating user record via API for:', authData.user.id)
+        const signupResponse = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: authData.user.id,
             email: authData.user.email,
-            client_id: clientId,
-          })
+            password, // Not needed but included for context
+          }),
+        })
 
-        if (insertError && !insertError.message.includes('duplicate')) {
-          console.error('Error creating user record:', insertError)
+        if (!signupResponse.ok) {
+          const error = await signupResponse.json()
+          console.error('[LOGIN] Signup API error:', error)
+          setError(`Failed to create user record: ${error.error}`)
+          return
         }
 
         setError('Sign up successful! Please check your email to confirm.')

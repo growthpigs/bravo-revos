@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bravo revOS - Apply Database Migration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .status-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 6px;
+        }
+
+        .status-box strong {
+            color: #667eea;
+        }
+
+        .sql-display {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f4ff;
+            color: #667eea;
+            border: 2px solid #667eea;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .instructions {
+            background: #fff8e1;
+            border-left: 4px solid #fbc02d;
+            padding: 15px;
+            margin-top: 30px;
+            border-radius: 6px;
+            color: #f57f17;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .success {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+            color: #2e7d32;
+        }
+
+        .success strong {
+            color: #4caf50;
+        }
+
+        .project-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Bravo revOS Database Migration</h1>
+        <p class="subtitle">Apply missing tables to Supabase</p>
+
+        <div class="status-box">
+            <strong>✅ Status:</strong> Ready to apply 6 tables + 4 indexes + 6 RLS policies
+        </div>
+
+        <h3 style="margin-bottom: 15px; color: #333;">Migration Preview:</h3>
+        <div class="sql-display" id="sqlPreview"></div>
+
+        <div class="buttons">
+            <button class="btn-primary" onclick="copySql()">📋 Copy SQL to Clipboard</button>
+            <button class="btn-secondary" onclick="openSupabase()">🔗 Open Supabase Editor</button>
+        </div>
+
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ol>
+                <li><strong>Copy</strong> the SQL using the "Copy SQL to Clipboard" button</li>
+                <li><strong>Open</strong> Supabase SQL Editor (link above)</li>
+                <li><strong>Paste</strong> the SQL into the editor</li>
+                <li><strong>Run</strong> the query by clicking the "Run" button</li>
+                <li><strong>Verify</strong> all tables are created</li>
+            </ol>
+        </div>
+
+        <div class="project-info">
+            <strong>Supabase Project:</strong> trdoainmejxanrownbuz<br>
+            <strong>Tables to create:</strong> voice_cartridges, webhooks, memories, email_queue, activity_logs, pod_activities_dlq
+        </div>
+    </div>
+
+    <script>
+        const SQL = `-- Create missing tables individually
+
+-- 13. Voice Cartridges Table
+CREATE TABLE IF NOT EXISTS public.voice_cartridges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  tier TEXT DEFAULT 'user',
+  tone TEXT,
+  style TEXT,
+  personality_traits TEXT[],
+  banned_words TEXT[],
+  emoji_usage BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Webhooks Table
+CREATE TABLE IF NOT EXISTS public.webhooks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+  event_type TEXT,
+  payload JSONB,
+  status TEXT DEFAULT 'pending',
+  response TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 15. Memories Table (for Mem0)
+CREATE TABLE IF NOT EXISTS public.memories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_key TEXT NOT NULL,
+  memory_content TEXT,
+  metadata JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 16. Email Queue Table
+CREATE TABLE IF NOT EXISTS public.email_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  recipient_email TEXT NOT NULL,
+  subject TEXT,
+  body TEXT,
+  status TEXT DEFAULT 'pending',
+  attempts INT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 17. Activity Logs Table
+CREATE TABLE IF NOT EXISTS public.activity_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  action TEXT,
+  resource_type TEXT,
+  resource_id UUID,
+  details JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 11. Pod Activities DLQ Table
+CREATE TABLE IF NOT EXISTS public.pod_activities_dlq (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_id UUID,
+  pod_id UUID,
+  post_id UUID,
+  error_type TEXT,
+  error_message TEXT,
+  attempts INT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create remaining indexes
+CREATE INDEX IF NOT EXISTS idx_webhooks_client_id ON public.webhooks(client_id);
+CREATE INDEX IF NOT EXISTS idx_voice_cartridges_client_id ON public.voice_cartridges(client_id);
+CREATE INDEX IF NOT EXISTS idx_memories_tenant ON public.memories(tenant_key);
+CREATE INDEX IF NOT EXISTS idx_pod_activities_dlq_activity ON public.pod_activities_dlq(activity_id);
+
+-- Enable RLS on remaining tables
+ALTER TABLE public.voice_cartridges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.webhooks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.email_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pod_activities_dlq ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for remaining tables
+CREATE POLICY "Users can access voice cartridges"
+  ON public.voice_cartridges FOR SELECT
+  USING (client_id IN (SELECT client_id FROM public.users WHERE id = auth.uid()));
+
+CREATE POLICY "Users can access their webhooks"
+  ON public.webhooks FOR SELECT
+  USING (client_id IN (SELECT client_id FROM public.users WHERE id = auth.uid()));
+
+CREATE POLICY "Users can access their memories"
+  ON public.memories FOR SELECT
+  USING (tenant_key LIKE (SELECT CONCAT(client_id, '::', id, ':%') FROM public.users WHERE id = auth.uid()));
+
+CREATE POLICY "Email queue is accessible"
+  ON public.email_queue FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can access activity logs"
+  ON public.activity_logs FOR SELECT
+  USING (user_id = auth.uid() OR user_id IS NULL);`;
+
+        // Load SQL preview
+        document.getElementById('sqlPreview').textContent = SQL.substring(0, 800) + '\n\n... (23 more lines)';
+
+        function copySql() {
+            navigator.clipboard.writeText(SQL).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied to Clipboard!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        function openSupabase() {
+            window.open('https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/new', '_blank');
+        }
+    </script>
+</body>
+</html>

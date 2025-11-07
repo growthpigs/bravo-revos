@@ -24,53 +24,34 @@ export default function ReviewStep({ data, onBack }: StepProps) {
   const handleLaunch = async () => {
     setLoading(true)
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        throw new Error('No authenticated user found')
-      }
-
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('client_id')
-        .eq('id', user.id)
-        .single()
-
-      if (userError) {
-        throw new Error(`Failed to fetch user data: ${userError.message}`)
-      }
-
-      if (!userData) {
-        throw new Error('User data not found')
-      }
-
-      console.log('[CAMPAIGN_CREATE] User ID:', user.id)
-      console.log('[CAMPAIGN_CREATE] Client ID:', userData.client_id)
+      console.log('[CAMPAIGN_CREATE] Starting campaign creation...')
       console.log('[CAMPAIGN_CREATE] Campaign data:', {
         name: data.name,
         description: data.description,
         triggerWords: data.triggerWords,
       })
 
-      // Create campaign
-      const { data: campaign, error: campaignError } = await supabase
-        .from('campaigns')
-        .insert({
-          client_id: userData.client_id,
+      // Call API endpoint to create campaign
+      const response = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: data.name,
           description: data.description,
           trigger_words: data.triggerWords,
           status: 'draft',
-        })
-        .select()
-        .single()
+        }),
+      })
 
-      if (campaignError) {
-        console.error('[CAMPAIGN_CREATE] INSERT error:', campaignError)
-        throw new Error(`Failed to create campaign: ${campaignError.message}`)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create campaign')
       }
 
-      console.log('[CAMPAIGN_CREATE] Campaign created successfully:', campaign)
+      const result = await response.json()
+      console.log('[CAMPAIGN_CREATE] Campaign created successfully:', result.data)
 
       // TODO: Upload lead magnet to Supabase Storage
       // TODO: Create DM sequences
@@ -101,7 +82,21 @@ export default function ReviewStep({ data, onBack }: StepProps) {
 
       <div className="space-y-4">
         <Card className="p-4">
-          <h4 className="font-semibold text-slate-900 mb-2">Campaign Basics</h4>
+          <h4 className="font-semibold text-slate-900 mb-2">Lead Magnet</h4>
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-slate-600">Type:</dt>
+              <dd className="font-medium text-slate-900">{data.leadMagnetTemplate}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-slate-600">Title:</dt>
+              <dd className="font-medium text-slate-900">{data.leadMagnetTitle}</dd>
+            </div>
+          </dl>
+        </Card>
+
+        <Card className="p-4">
+          <h4 className="font-semibold text-slate-900 mb-2">Campaign Details</h4>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-slate-600">Name:</dt>
@@ -116,14 +111,6 @@ export default function ReviewStep({ data, onBack }: StepProps) {
               </div>
             )}
           </dl>
-        </Card>
-
-        <Card className="p-4">
-          <h4 className="font-semibold text-slate-900 mb-2">Lead Magnet</h4>
-          <p className="text-sm text-slate-900">{data.leadMagnetTitle}</p>
-          <p className="text-xs text-slate-500 mt-1">
-            File: {data.leadMagnetFile?.name || 'Not uploaded'}
-          </p>
         </Card>
 
         <Card className="p-4">
@@ -152,12 +139,24 @@ export default function ReviewStep({ data, onBack }: StepProps) {
 
         <Card className="p-4">
           <h4 className="font-semibold text-slate-900 mb-2">DM Sequence</h4>
-          <p className="text-sm text-slate-600">
-            {data.dm1 ? '3-step sequence configured' : 'Not configured'}
-          </p>
-          {data.backupDmEnabled && (
-            <p className="text-xs text-amber-600 mt-1">Backup sequence enabled</p>
-          )}
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-slate-600">DM 1 (Email Request):</dt>
+              <dd className="font-medium text-emerald-600">✓ Configured</dd>
+            </div>
+            {data.dm2Enabled && (
+              <div className="flex justify-between">
+                <dt className="text-slate-600">DM 2 (5-min fallback):</dt>
+                <dd className="font-medium text-emerald-600">✓ Enabled</dd>
+              </div>
+            )}
+            {data.dm3Enabled && (
+              <div className="flex justify-between">
+                <dt className="text-slate-600">DM 3 (Follow-up):</dt>
+                <dd className="font-medium text-emerald-600">✓ Enabled ({data.dm3DelayMinutes} min delay)</dd>
+              </div>
+            )}
+          </dl>
         </Card>
       </div>
 

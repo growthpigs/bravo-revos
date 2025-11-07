@@ -27,11 +27,28 @@ import {
   getAutomationQueueStatus,
 } from '../lib/queue/pod-automation-queue';
 import { checkRedisHealth } from '../lib/redis';
+import {
+  enforceSingleInstance,
+  type ReleaseSingleInstance,
+} from '../lib/utils/single-instance';
 
 const LOG_PREFIX = '[POD_AUTOMATION_WORKER]';
 
 async function startWorker() {
   console.log(`${LOG_PREFIX} Starting pod automation engine worker...`);
+
+  const singletonPort = Number.parseInt(process.env.POD_AUTOMATION_WORKER_PORT ?? '4731', 10);
+  let releaseSingleInstance: ReleaseSingleInstance | undefined;
+
+  try {
+    releaseSingleInstance = await enforceSingleInstance({
+      id: 'POD_AUTOMATION_WORKER',
+      port: singletonPort,
+    });
+  } catch (error) {
+    console.error(`${LOG_PREFIX} ${error instanceof Error ? error.message : error}`);
+    process.exit(1);
+  }
 
   // Validate required environment variables
   const requiredEnvVars = [
@@ -79,30 +96,31 @@ async function startWorker() {
   }
 
   // Graceful shutdown
-  process.on('SIGTERM', async () => {
-    console.log(`${LOG_PREFIX} Received SIGTERM signal, shutting down gracefully...`);
+  const releaseAndExit = async (code: number) => {
     try {
       await podAutomationWorker.close();
       await podAutomationQueue.close();
       console.log(`${LOG_PREFIX} ✅ Worker closed successfully`);
-      process.exit(0);
     } catch (error) {
       console.error(`${LOG_PREFIX} Error during shutdown:`, error);
-      process.exit(1);
+      code = 1;
+    } finally {
+      if (releaseSingleInstance) {
+        releaseSingleInstance();
+        releaseSingleInstance = undefined;
+      }
+      process.exit(code);
     }
+  };
+
+  process.on('SIGTERM', async () => {
+    console.log(`${LOG_PREFIX} Received SIGTERM signal, shutting down gracefully...`);
+    await releaseAndExit(0);
   });
 
   process.on('SIGINT', async () => {
     console.log(`${LOG_PREFIX} Received SIGINT signal, shutting down gracefully...`);
-    try {
-      await podAutomationWorker.close();
-      await podAutomationQueue.close();
-      console.log(`${LOG_PREFIX} ✅ Worker closed successfully`);
-      process.exit(0);
-    } catch (error) {
-      console.error(`${LOG_PREFIX} Error during shutdown:`, error);
-      process.exit(1);
-    }
+    await releaseAndExit(0);
   });
 }
 

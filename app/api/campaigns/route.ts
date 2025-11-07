@@ -19,11 +19,18 @@ export async function GET(request: NextRequest) {
       .from('users')
       .select('client_id')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (userError || !userData) {
+    if (userError) {
       return NextResponse.json(
-        { error: 'Failed to fetch user data' },
+        { error: `Failed to fetch user data: ${userError.message}` },
+        { status: 400 }
+      )
+    }
+
+    if (!userData) {
+      return NextResponse.json(
+        { error: 'User data not found' },
         { status: 400 }
       )
     }
@@ -70,15 +77,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's client_id
+    console.log('[CAMPAIGNS_API] Fetching user data for ID:', user.id)
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('client_id')
+      .select('*')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (userError || !userData) {
+    console.log('[CAMPAIGNS_API] User query result:', { userData, userError })
+
+    if (userError) {
+      console.error('[CAMPAIGNS_API] User query error:', userError)
       return NextResponse.json(
-        { error: 'Failed to fetch user data' },
+        { error: `Failed to fetch user data: ${userError.message}` },
+        { status: 400 }
+      )
+    }
+
+    if (!userData) {
+      console.error('[CAMPAIGNS_API] No user record found for ID:', user.id)
+      return NextResponse.json(
+        { error: 'User data not found - user record does not exist in database' },
+        { status: 400 }
+      )
+    }
+
+    const clientId = userData.client_id
+    console.log('[CAMPAIGNS_API] User client_id:', clientId)
+
+    if (!clientId) {
+      return NextResponse.json(
+        { error: 'User has no associated client_id' },
         { status: 400 }
       )
     }
@@ -88,9 +117,7 @@ export async function POST(request: NextRequest) {
     const {
       name,
       description,
-      trigger_words,
       status = 'draft',
-      linkedin_account_id,
     } = body
 
     if (!name) {
@@ -101,10 +128,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[CAMPAIGNS_API] Creating campaign:', {
-      client_id: userData.client_id,
+      client_id: clientId,
       name,
       description,
-      trigger_words,
       status,
     })
 
@@ -112,12 +138,11 @@ export async function POST(request: NextRequest) {
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .insert({
-        client_id: userData.client_id,
+        client_id: clientId,
         name,
         description: description || null,
-        trigger_words: trigger_words || [],
         status,
-        linkedin_account_id: linkedin_account_id || null,
+        trigger_word: 'default', // Default trigger word
       })
       .select()
       .single()

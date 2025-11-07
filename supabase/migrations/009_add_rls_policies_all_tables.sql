@@ -61,17 +61,6 @@ CREATE POLICY "Users can view own record"
   FOR SELECT
   USING (auth.uid() = id);
 
-DROP POLICY IF EXISTS "Users can view colleagues" ON users;
-CREATE POLICY "Users can view colleagues"
-  ON users
-  FOR SELECT
-  TO authenticated
-  USING (
-    client_id IN (
-      SELECT client_id FROM users WHERE id = auth.uid()
-    )
-  );
-
 DROP POLICY IF EXISTS "Service role can manage all users" ON users;
 CREATE POLICY "Service role can manage all users"
   ON users
