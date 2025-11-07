@@ -11,7 +11,7 @@ describe('Pod Engagement API Integration Tests', () => {
 
   describe('POST /api/pod-automation (schedule-likes)', () => {
     it('should accept valid podId and return scheduled count', () => {
-      const request = {
+      const request: Record<string, string> = {
         action: 'schedule-likes',
         podId: 'pod-123',
       };
