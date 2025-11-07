@@ -229,15 +229,33 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
     const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    console.error(
-      `${LOG_PREFIX} ❌ Engagement execution failed (${engagementType}, ${duration}ms): ${errorMessage}`
-    );
-
     // Classify the error for retry logic
     const errorType = classifyError(errorMessage);
+    const attempt = job.attemptsMade + 1;
+    const maxAttempts = 3;
+
+    console.error(
+      `${LOG_PREFIX} ❌ Engagement execution failed (${engagementType}, attempt ${attempt}/${maxAttempts}, ${duration}ms): [${errorType}] ${errorMessage}`
+    );
+
+    // E-05-5: Error-type-specific retry logic
+    // Determine if we should retry based on error classification
+    const shouldRetry = determineRetryStrategy(errorType, attempt, maxAttempts);
+
+    if (!shouldRetry && attempt >= maxAttempts) {
+      // Move to dead-letter queue for permanent failures
+      await handleFailedActivity(activityId, errorMessage, errorType, attempt);
+
+      console.error(
+        `${LOG_PREFIX} 💀 Activity ${activityId} moved to dead-letter queue (error: ${errorType})`
+      );
+    }
 
     // Throw custom error with type-safe error classification
-    throw new EngagementJobError(errorMessage, errorType);
+    // BullMQ will handle retry based on queue configuration
+    const jobError = new EngagementJobError(errorMessage, errorType);
+    (jobError as any).shouldRetry = shouldRetry;
+    throw jobError;
   }
 }
 
@@ -750,6 +768,127 @@ function classifyError(
   }
 
   return 'unknown_error';
+}
+
+/**
+ * E-05-5: Determine retry strategy based on error type
+ * Different error types have different retry behavior
+ */
+function determineRetryStrategy(
+  errorType: 'rate_limit' | 'auth_error' | 'network_error' | 'not_found' | 'unknown_error' | 'validation_error' | 'timeout',
+  attempt: number,
+  maxAttempts: number
+): boolean {
+  // Never retry auth errors - they won't succeed on retry
+  if (errorType === 'auth_error') {
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Skipping retry for auth_error (permanent failure)`);
+    }
+    return false;
+  }
+
+  // Never retry validation errors - they won't succeed on retry
+  if (errorType === 'validation_error') {
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Skipping retry for validation_error (permanent failure)`);
+    }
+    return false;
+  }
+
+  // Never retry not_found errors - post doesn't exist
+  if (errorType === 'not_found') {
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Skipping retry for not_found error (post removed)`);
+    }
+    return false;
+  }
+
+  // Retry rate_limit and network errors up to max attempts
+  if (errorType === 'rate_limit' || errorType === 'network_error' || errorType === 'timeout') {
+    const shouldRetry = attempt < maxAttempts;
+    if (FEATURE_FLAGS.ENABLE_LOGGING && shouldRetry) {
+      console.log(`${LOG_PREFIX} Scheduling retry for ${errorType} (attempt ${attempt}/${maxAttempts})`);
+    }
+    return shouldRetry;
+  }
+
+  // Retry unknown errors up to max attempts
+  if (errorType === 'unknown_error') {
+    const shouldRetry = attempt < maxAttempts;
+    if (FEATURE_FLAGS.ENABLE_LOGGING && shouldRetry) {
+      console.log(`${LOG_PREFIX} Scheduling retry for unknown_error (attempt ${attempt}/${maxAttempts})`);
+    }
+    return shouldRetry;
+  }
+
+  return false;
+}
+
+/**
+ * E-05-5: Handle permanently failed activities
+ * Move to dead-letter queue and update database
+ */
+async function handleFailedActivity(
+  activityId: string,
+  errorMessage: string,
+  errorType: string,
+  attempt: number
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+
+    // Mark activity as permanently failed with detailed error info
+    const { error: updateError } = await supabase
+      .from('pod_activities')
+      .update({
+        status: 'failed',
+        executed_at: new Date().toISOString(),
+        execution_attempts: attempt,
+        last_error: errorMessage,
+        execution_result: {
+          success: false,
+          timestamp: new Date().toISOString(),
+          error: errorMessage,
+          error_type: errorType,
+          permanent_failure: true,
+          moved_to_dlq: true,
+        },
+      })
+      .eq('id', activityId);
+
+    if (updateError) {
+      console.error(
+        `${LOG_PREFIX} Failed to update dead-letter activity ${activityId}: ${updateError.message}`
+      );
+      return;
+    }
+
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(
+        `${LOG_PREFIX} Activity ${activityId} marked as failed (error_type: ${errorType})`
+      );
+    }
+
+    // Log to dead-letter queue table for monitoring/debugging
+    const { error: dlqError } = await supabase
+      .from('pod_activities_dlq')
+      .insert({
+        activity_id: activityId,
+        error_message: errorMessage,
+        error_type: errorType,
+        attempts: attempt,
+        created_at: new Date().toISOString(),
+      })
+      .select();
+
+    if (dlqError && !dlqError.message.includes('relation.*not exist')) {
+      console.error(
+        `${LOG_PREFIX} Failed to log to dead-letter queue: ${dlqError.message}`
+      );
+    }
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Error handling failed activity:`, error);
+  }
 }
 
 /**
