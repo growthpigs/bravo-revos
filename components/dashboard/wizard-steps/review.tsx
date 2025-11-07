@@ -26,17 +26,37 @@ export default function ReviewStep({ data, onBack }: StepProps) {
     try {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
-      const { data: userData } = await supabase
+      if (!user) {
+        throw new Error('No authenticated user found')
+      }
+
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('client_id')
-        .eq('id', user?.id || '')
+        .eq('id', user.id)
         .single()
+
+      if (userError) {
+        throw new Error(`Failed to fetch user data: ${userError.message}`)
+      }
+
+      if (!userData) {
+        throw new Error('User data not found')
+      }
+
+      console.log('[CAMPAIGN_CREATE] User ID:', user.id)
+      console.log('[CAMPAIGN_CREATE] Client ID:', userData.client_id)
+      console.log('[CAMPAIGN_CREATE] Campaign data:', {
+        name: data.name,
+        description: data.description,
+        triggerWords: data.triggerWords,
+      })
 
       // Create campaign
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
         .insert({
-          client_id: userData?.client_id,
+          client_id: userData.client_id,
           name: data.name,
           description: data.description,
           trigger_words: data.triggerWords,
@@ -45,7 +65,12 @@ export default function ReviewStep({ data, onBack }: StepProps) {
         .select()
         .single()
 
-      if (campaignError) throw campaignError
+      if (campaignError) {
+        console.error('[CAMPAIGN_CREATE] INSERT error:', campaignError)
+        throw new Error(`Failed to create campaign: ${campaignError.message}`)
+      }
+
+      console.log('[CAMPAIGN_CREATE] Campaign created successfully:', campaign)
 
       // TODO: Upload lead magnet to Supabase Storage
       // TODO: Create DM sequences
@@ -53,7 +78,8 @@ export default function ReviewStep({ data, onBack }: StepProps) {
 
       router.push('/dashboard/campaigns')
     } catch (error) {
-      console.error('Error creating campaign:', error)
+      console.error('[CAMPAIGN_CREATE] Error:', error)
+      alert(`Error creating campaign: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
