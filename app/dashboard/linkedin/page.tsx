@@ -12,11 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertCircle,
   CheckCircle,
@@ -25,7 +21,6 @@ import {
   Loader2,
   Trash2,
   Zap,
-  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -50,7 +45,6 @@ export default function LinkedInPage() {
   const [checkpointMode, setCheckpointMode] = useState(false);
   const [checkpointAccountId, setCheckpointAccountId] = useState('');
   const [checkpointType, setCheckpointType] = useState('');
-  const [showConnectForm, setShowConnectForm] = useState(false);
 
   // Form state
   const [username, setUsername] = useState('');
@@ -143,8 +137,6 @@ export default function LinkedInPage() {
         setAccountName('');
         // Always fetch the full account list from the server to ensure we have all fields
         await fetchAccounts();
-        // Collapse the connect form after successful connection
-        setShowConnectForm(false);
       }
     } catch (error) {
       console.error('[DEBUG_LINKEDIN] Error:', error);
@@ -189,7 +181,6 @@ export default function LinkedInPage() {
         setPassword('');
         setAccountName('');
         await fetchAccounts();
-        setShowConnectForm(false);
       }
     } catch (error) {
       toast.error('Checkpoint resolution failed');
@@ -258,245 +249,200 @@ export default function LinkedInPage() {
         </p>
       </div>
 
-      {/* Connected Accounts Section */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Connected Accounts</h2>
+      <Tabs defaultValue="connected" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="connected">Connected</TabsTrigger>
+          <TabsTrigger value="connect">Connect</TabsTrigger>
+          <TabsTrigger value="guide">Guide</TabsTrigger>
+        </TabsList>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-          </div>
-        ) : accounts.length === 0 ? (
-          <Card>
-            <CardContent className="py-8">
-              <Link2 className="w-12 h-12 text-slate-300 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Accounts Connected</h3>
-              <p className="text-slate-500 mb-4">
-                Connect your first LinkedIn account to get started
-              </p>
-              <Button onClick={() => setShowConnectForm(true)}>
-                Connect Your First Account
+        {/* Connected Accounts Tab */}
+        <TabsContent value="connected" className="space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            </div>
+          ) : accounts.length === 0 ? (
+            <Card>
+              <CardContent className="py-8">
+                <Link2 className="w-12 h-12 text-slate-300 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Accounts Connected</h3>
+                <p className="text-slate-500 mb-4">
+                  Connect your first LinkedIn account to get started
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {accounts.map((account) => (
+                <Card key={account.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {account.profile_data.name || account.account_name}
+                        </CardTitle>
+                        <CardDescription>{account.profile_data.email}</CardDescription>
+                      </div>
+                      {getStatusBadge(account.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-slate-500">Account Name</p>
+                        <p className="font-medium">{account.account_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Unipile ID</p>
+                        <p className="font-mono text-xs">{account.unipile_account_id.slice(0, 12)}...</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Expires</p>
+                        <p className="font-medium">
+                          {formatDistanceToNow(new Date(account.session_expires_at), {
+                            addSuffix: true,
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Connected</p>
+                        <p className="font-medium">
+                          {formatDistanceToNow(new Date(account.created_at), {
+                            addSuffix: true,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {account.status === 'expired' && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          This account needs reauthentication. Please reconnect.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDisconnect(account.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Disconnect
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Connect Tab */}
+        <TabsContent value="connect" className="space-y-4">
+          {!checkpointMode ? (
+            <form onSubmit={handleAuthenticate} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Account Name</label>
+                <Input
+                  placeholder="e.g., My Sales Account"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  disabled={authenticating}
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  A friendly name to identify this account in the system
+                </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Email/Username</label>
+                <Input
+                  type="email"
+                  placeholder="your.email@linkedin.com"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={authenticating}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Password</label>
+                <Input
+                  type="password"
+                  placeholder="Your LinkedIn password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={authenticating}
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Your password is encrypted and never stored in plain text
+                </p>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Your credentials are securely transmitted to Unipile&apos;s servers and not stored in plain
+                  text. We only keep encrypted session tokens.
+                </AlertDescription>
+              </Alert>
+
+              <Button type="submit" disabled={authenticating} className="w-full">
+                {authenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Connect Account
               </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {accounts.map((account) => (
-              <Card key={account.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">
-                        {account.profile_data.name || account.account_name}
-                      </CardTitle>
-                      <CardDescription>{account.profile_data.email}</CardDescription>
-                    </div>
-                    {getStatusBadge(account.status)}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-slate-500">Account Name</p>
-                      <p className="font-medium">{account.account_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Unipile ID</p>
-                      <p className="font-mono text-xs">{account.unipile_account_id.slice(0, 12)}...</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Expires</p>
-                      <p className="font-medium">
-                        {formatDistanceToNow(new Date(account.session_expires_at), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Connected</p>
-                      <p className="font-medium">
-                        {formatDistanceToNow(new Date(account.created_at), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  </div>
+            </form>
+          ) : (
+            <form onSubmit={handleCheckpointResolution} className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  LinkedIn is requesting a {checkpointType} code. Please provide the code to continue.
+                </AlertDescription>
+              </Alert>
 
-                  {account.status === 'expired' && (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        This account needs reauthentication. Please reconnect.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  Verification Code ({checkpointType})
+                </label>
+                <Input
+                  placeholder="Enter the code from your device"
+                  value={checkpointCode}
+                  onChange={(e) => setCheckpointCode(e.target.value)}
+                  disabled={authenticating}
+                  maxLength={6}
+                />
+              </div>
 
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDisconnect(account.id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Disconnect
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={authenticating} className="flex-1">
+                  {authenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Verify
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCheckpointMode(false);
+                    setCheckpointCode('');
+                  }}
+                  disabled={authenticating}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
+        </TabsContent>
 
-      {/* Connect New Account Collapsible Section */}
-      <Collapsible open={showConnectForm} onOpenChange={setShowConnectForm}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <button className="w-full">
-              <CardHeader className="pb-3 cursor-pointer hover:bg-slate-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">Connect New Account</CardTitle>
-                    <CardDescription>Add another LinkedIn account</CardDescription>
-                  </div>
-                  <ChevronDown
-                    className={`w-5 h-5 text-slate-400 transition-transform ${
-                      showConnectForm ? 'rotate-180' : ''
-                    }`}
-                  />
-                </div>
-              </CardHeader>
-            </button>
-          </CollapsibleTrigger>
-
-          <CollapsibleContent>
-            <CardContent>
-              {!checkpointMode ? (
-                <form onSubmit={handleAuthenticate} className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Account Name</label>
-                    <Input
-                      placeholder="e.g., My Sales Account"
-                      value={accountName}
-                      onChange={(e) => setAccountName(e.target.value)}
-                      disabled={authenticating}
-                    />
-                    <p className="text-xs text-slate-500 mt-1">
-                      A friendly name to identify this account in the system
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Email/Username</label>
-                    <Input
-                      type="email"
-                      placeholder="your.email@linkedin.com"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      disabled={authenticating}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Password</label>
-                    <Input
-                      type="password"
-                      placeholder="Your LinkedIn password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={authenticating}
-                    />
-                    <p className="text-xs text-slate-500 mt-1">
-                      Your password is encrypted and never stored in plain text
-                    </p>
-                  </div>
-
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Your credentials are securely transmitted to Unipile&apos;s servers and not stored in plain
-                      text. We only keep encrypted session tokens.
-                    </AlertDescription>
-                  </Alert>
-
-                  <Button
-                    type="submit"
-                    disabled={authenticating}
-                    className="w-full"
-                  >
-                    {authenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Connect Account
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={handleCheckpointResolution} className="space-y-4">
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      LinkedIn is requesting a {checkpointType} code. Please provide the code to continue.
-                    </AlertDescription>
-                  </Alert>
-
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">
-                      Verification Code ({checkpointType})
-                    </label>
-                    <Input
-                      placeholder="Enter the code from your device"
-                      value={checkpointCode}
-                      onChange={(e) => setCheckpointCode(e.target.value)}
-                      disabled={authenticating}
-                      maxLength={6}
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      type="submit"
-                      disabled={authenticating}
-                      className="flex-1"
-                    >
-                      {authenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      Verify
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setCheckpointMode(false);
-                        setCheckpointCode('');
-                      }}
-                      disabled={authenticating}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
-      {/* Quick Guide Section */}
-      <Collapsible defaultOpen={false}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <button className="w-full">
-              <CardHeader className="pb-3 cursor-pointer hover:bg-slate-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">Quick Guide</CardTitle>
-                    <CardDescription>Learn about session management and security</CardDescription>
-                  </div>
-                  <ChevronDown className="w-5 h-5 text-slate-400 transition-transform data-[state=open]:rotate-180" />
-                </div>
-              </CardHeader>
-            </button>
-          </CollapsibleTrigger>
-
-          <CollapsibleContent>
-            <CardContent className="space-y-4">
+        {/* Guide Tab */}
+        <TabsContent value="guide" className="space-y-4">
+          <Card>
+            <CardContent className="space-y-4 pt-6">
               <div>
                 <h4 className="font-semibold mb-2 flex items-center">
                   <Zap className="w-4 h-4 mr-2 text-blue-600" />
@@ -526,7 +472,7 @@ export default function LinkedInPage() {
                 <ul className="text-sm text-slate-600 space-y-2 ml-6 list-disc">
                   <li>We&apos;ll notify you to reconnect</li>
                   <li>Lead generation will pause temporarily</li>
-                  <li>You can reconnect anytime using the &quot;Connect New Account&quot; section</li>
+                  <li>You can reconnect anytime using the &quot;Connect&quot; tab</li>
                 </ul>
               </div>
 
@@ -542,9 +488,9 @@ export default function LinkedInPage() {
                 </ul>
               </div>
             </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

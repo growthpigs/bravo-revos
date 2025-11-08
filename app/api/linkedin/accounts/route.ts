@@ -11,6 +11,15 @@ import { disconnectAccount, getAccountStatus } from '@/lib/unipile-client';
 export async function GET(request: NextRequest) {
   try {
     const isDevelopment = process.env.UNIPILE_MOCK_MODE !== 'false';
+    console.log('[DEBUG_LINKEDIN_API] GET request received:', {
+      isDevelopment,
+      url: request.url,
+      headers: {
+        authorization: request.headers.get('authorization') ? 'present' : 'missing',
+        cookie: request.headers.get('cookie') ? 'present' : 'missing',
+      },
+    });
+
     // Use service role to bypass RLS policies for LinkedIn account management
     const supabase = await createClient({ isServiceRole: true });
 
@@ -56,6 +65,7 @@ export async function GET(request: NextRequest) {
       accountsCount: accounts?.length,
       error: accountsError?.message,
       userId,
+      raw: accounts,
     });
 
     if (accountsError) {
