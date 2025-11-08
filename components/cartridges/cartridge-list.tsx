@@ -70,96 +70,101 @@ export function CartridgeList({
     user: cartridges.filter((c) => c.tier === 'user'),
   };
 
-  const renderCartridgeRow = (cartridge: Cartridge, level: number = 0) => {
+  const renderCartridgeRow = (cartridge: Cartridge, level: number = 0): React.ReactNode[] => {
     const childCartridges = cartridges.filter((c) => c.parent_id === cartridge.id);
     const isExpanded = expandedHierarchy.has(cartridge.id);
+    const rows: React.ReactNode[] = [];
 
-    return (
-      <div key={cartridge.id}>
-        <TableRow>
-          <TableCell style={{ paddingLeft: `${level * 2}rem` }}>
-            <div className="flex items-center gap-2">
-              {childCartridges.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-0 h-6 w-6"
-                  onClick={() => {
-                    const newExpanded = new Set(expandedHierarchy);
-                    if (isExpanded) {
-                      newExpanded.delete(cartridge.id);
-                    } else {
-                      newExpanded.add(cartridge.id);
-                    }
-                    setExpandedHierarchy(newExpanded);
-                  }}
+    // Main cartridge row
+    rows.push(
+      <TableRow key={cartridge.id}>
+        <TableCell style={{ paddingLeft: `${level * 2}rem` }}>
+          <div className="flex items-center gap-2">
+            {childCartridges.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-0 h-6 w-6"
+                onClick={() => {
+                  const newExpanded = new Set(expandedHierarchy);
+                  if (isExpanded) {
+                    newExpanded.delete(cartridge.id);
+                  } else {
+                    newExpanded.add(cartridge.id);
+                  }
+                  setExpandedHierarchy(newExpanded);
+                }}
+              >
+                <span className="text-xs">{isExpanded ? '▼' : '▶'}</span>
+              </Button>
+            )}
+            <span className="font-medium">{cartridge.name}</span>
+          </div>
+        </TableCell>
+
+        <TableCell>
+          <Badge className={tierColors[cartridge.tier]}>
+            {cartridge.tier}
+          </Badge>
+        </TableCell>
+
+        <TableCell className="text-sm text-gray-600">
+          {cartridge.description || '—'}
+        </TableCell>
+
+        <TableCell>
+          <Badge variant={cartridge.is_active ? 'default' : 'outline'}>
+            {cartridge.is_active ? 'Active' : 'Inactive'}
+          </Badge>
+        </TableCell>
+
+        <TableCell className="text-sm text-gray-500">
+          {formatDistanceToNow(new Date(cartridge.created_at), { addSuffix: true })}
+        </TableCell>
+
+        <TableCell align="right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit?.(cartridge)}>
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit Voice
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDuplicate?.(cartridge)}>
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAutoGenerate?.(cartridge)}>
+                <Zap className="h-4 w-4 mr-2" />
+                Auto-Generate
+              </DropdownMenuItem>
+              {cartridge.tier !== 'system' && (
+                <DropdownMenuItem
+                  onClick={() => onDelete?.(cartridge.id)}
+                  className="text-red-600"
                 >
-                  <span className="text-xs">{isExpanded ? '▼' : '▶'}</span>
-                </Button>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
               )}
-              <span className="font-medium">{cartridge.name}</span>
-            </div>
-          </TableCell>
-
-          <TableCell>
-            <Badge className={tierColors[cartridge.tier]}>
-              {cartridge.tier}
-            </Badge>
-          </TableCell>
-
-          <TableCell className="text-sm text-gray-600">
-            {cartridge.description || '—'}
-          </TableCell>
-
-          <TableCell>
-            <Badge variant={cartridge.is_active ? 'default' : 'outline'}>
-              {cartridge.is_active ? 'Active' : 'Inactive'}
-            </Badge>
-          </TableCell>
-
-          <TableCell className="text-sm text-gray-500">
-            {formatDistanceToNow(new Date(cartridge.created_at), { addSuffix: true })}
-          </TableCell>
-
-          <TableCell align="right">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit?.(cartridge)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit Voice
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDuplicate?.(cartridge)}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAutoGenerate?.(cartridge)}>
-                  <Zap className="h-4 w-4 mr-2" />
-                  Auto-Generate
-                </DropdownMenuItem>
-                {cartridge.tier !== 'system' && (
-                  <DropdownMenuItem
-                    onClick={() => onDelete?.(cartridge.id)}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-        </TableRow>
-
-        {/* Render child cartridges if expanded */}
-        {isExpanded &&
-          childCartridges.map((child) => renderCartridgeRow(child, level + 1))}
-      </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </TableRow>
     );
+
+    // Render child cartridges if expanded
+    if (isExpanded && childCartridges.length > 0) {
+      childCartridges.forEach((child) => {
+        rows.push(...renderCartridgeRow(child, level + 1));
+      });
+    }
+
+    return rows;
   };
 
   return (
@@ -185,22 +190,22 @@ export function CartridgeList({
             </TableHeader>
             <TableBody>
               {/* System tier */}
-              {groupedByTier.system.map((cartridge) =>
+              {groupedByTier.system.flatMap((cartridge) =>
                 renderCartridgeRow(cartridge)
               )}
 
               {/* Agency tier */}
-              {groupedByTier.agency.map((cartridge) =>
+              {groupedByTier.agency.flatMap((cartridge) =>
                 renderCartridgeRow(cartridge)
               )}
 
               {/* Client tier */}
-              {groupedByTier.client.map((cartridge) =>
+              {groupedByTier.client.flatMap((cartridge) =>
                 renderCartridgeRow(cartridge)
               )}
 
               {/* User tier */}
-              {groupedByTier.user.map((cartridge) =>
+              {groupedByTier.user.flatMap((cartridge) =>
                 renderCartridgeRow(cartridge)
               )}
             </TableBody>
