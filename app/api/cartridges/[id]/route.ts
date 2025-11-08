@@ -97,7 +97,7 @@ export async function PATCH(
       );
     }
 
-    // Update cartridge - no .select() to avoid RLS filtering race condition
+    // Update cartridge - don't use .select() to avoid RLS filtering race condition
     // Same issue as INSERT: UPDATE succeeds but SELECT can be RLS-filtered
     const { error } = await supabase
       .from('cartridges')
@@ -112,11 +112,11 @@ export async function PATCH(
       );
     }
 
-    // Return updated object from memory
+    // Don't return the full cartridge - client will re-fetch if needed
+    // This avoids RLS filtering issues on the SELECT
     return NextResponse.json({
       success: true,
       message: 'Cartridge updated successfully',
-      cartridge: { id, ...updates },
     });
   } catch (error) {
     console.error('Cartridge PATCH error:', error);

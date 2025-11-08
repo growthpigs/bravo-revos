@@ -68,9 +68,14 @@ export default function CartridgesPage() {
           throw new Error('Failed to update cartridge');
         }
 
-        const result = await response.json();
+        // Update the local state with the new data
+        // We construct the full cartridge by merging updates with existing data
         setCartridges((prev) =>
-          prev.map((c) => (c.id === editingCartridge.id ? result.cartridge : c))
+          prev.map((c) =>
+            c.id === editingCartridge.id
+              ? { ...c, ...data }  // Merge updates with existing cartridge
+              : c
+          )
         );
         toast.success('Cartridge updated successfully');
       } else {
