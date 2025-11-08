@@ -7,6 +7,15 @@
 // because the SDK initialization happens at build-time and fails if UNIPILE_API_KEY is not set
 
 /**
+ * Check if mock mode is enabled
+ * Mock mode is enabled when UNIPILE_MOCK_MODE is NOT explicitly set to 'false'
+ * This provides a consistent way to check mock mode across all files
+ */
+function isMockMode(): boolean {
+  return process.env.UNIPILE_MOCK_MODE !== 'false';
+}
+
+/**
  * Types for Unipile operations
  */
 export interface UnipileAuthResponse {
@@ -57,8 +66,8 @@ export async function authenticateLinkedinAccount(
   password: string
 ): Promise<UnipileAuthResponse | UnipileCheckpointResponse> {
   try {
-    // Mock mode for testing (when UNIPILE_MOCK_MODE=true)
-    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+    // Mock mode for testing (when UNIPILE_MOCK_MODE !== 'false')
+    if (isMockMode()) {
       console.log('[MOCK] Authenticating LinkedIn account:', username);
 
       // Simulate slight delay for realistic feel
@@ -139,8 +148,8 @@ export async function resolveCheckpoint(
  */
 export async function getAccountStatus(accountId: string): Promise<UnipileAccountStatus> {
   try {
-    // Mock mode for testing
-    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+    // Mock mode for testing (when UNIPILE_MOCK_MODE !== 'false')
+    if (isMockMode()) {
       console.log('[MOCK] Getting account status:', accountId);
       return {
         id: accountId,
@@ -238,7 +247,7 @@ export async function getAllPostComments(
 ): Promise<UnipileComment[]> {
   try {
     // Mock mode for testing
-    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+    if (isMockMode()) {
       console.log('[MOCK] Fetching comments for post:', postId);
       await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -309,7 +318,7 @@ export async function sendDirectMessage(
 ): Promise<{ message_id: string; status: string }> {
   try {
     // Mock mode for testing
-    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+    if (isMockMode()) {
       console.log('[MOCK] Sending DM:', {
         accountId,
         recipientId,
@@ -396,7 +405,7 @@ export async function getUserLatestPosts(
 ): Promise<UnipilePost[]> {
   try {
     // Mock mode for testing
-    if (process.env.UNIPILE_MOCK_MODE === 'true') {
+    if (isMockMode()) {
       console.log('[MOCK] Fetching latest posts from user:', userId);
       await new Promise(resolve => setTimeout(resolve, 300));
 
