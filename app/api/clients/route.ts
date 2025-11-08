@@ -12,11 +12,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's agency
-    const { data: userData } = await supabase
+    let { data: userData, error: userError } = await supabase
       .from('users')
       .select('agency_id')
       .eq('id', user.id)
       .single()
+
+    // If user exists but doesn't have an agency, create one
+    if (userData && !userData.agency_id) {
+      const { data: agency, error: agencyError } = await supabase
+        .from('agencies')
+        .insert({
+          name: `${user.email?.split('@')[0]}'s Agency`,
+          slug: user.email?.split('@')[0] || 'agency',
+        })
+        .select()
+        .single()
+
+      if (agencyError || !agency) {
+        console.error('Error creating agency:', agencyError)
+        return NextResponse.json({ error: 'Failed to create agency' }, { status: 500 })
+      }
+
+      // Update user with the new agency_id
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ agency_id: agency.id })
+        .eq('id', user.id)
+
+      if (updateError) {
+        console.error('Error updating user:', updateError)
+        return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
+      }
+
+      userData = { agency_id: agency.id }
+    }
 
     if (!userData?.agency_id) {
       return NextResponse.json({ error: 'Agency not found' }, { status: 404 })
