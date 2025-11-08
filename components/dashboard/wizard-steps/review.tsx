@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, Check, Rocket } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface StepProps {
   data: any
@@ -29,20 +30,47 @@ export default function ReviewStep({ data, onBack }: StepProps) {
 
       // Validate required fields
       if (!data.name || !data.name.trim()) {
-        throw new Error('Campaign name is required')
+        toast.error('Campaign name is required')
+        setLoading(false)
+        return
       }
 
-      // Call API endpoint to create campaign
+      // Call API endpoint to create campaign with ALL wizard data
       const response = await fetch('/api/campaigns', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          // Campaign details
           name: data.name.trim(),
           description: data.description || null,
-          trigger_words: data.triggerWords || [],
           status: 'draft',
+
+          // Lead magnet
+          leadMagnetSource: data.libraryId ? 'library' : data.isCustom ? 'custom' : 'none',
+          libraryId: data.libraryId || null,
+          libraryMagnetTitle: data.libraryMagnetTitle || null,
+          libraryMagnetUrl: data.libraryMagnetUrl || null,
+          libraryMagnetCategory: data.libraryMagnetCategory || null,
+          isCustom: data.isCustom || false,
+          leadMagnetTitle: data.leadMagnetTitle || null,
+          deliveryMethod: data.deliveryMethod || null,
+          leadMagnetLink: data.leadMagnetLink || null,
+          leadMagnetText: data.leadMagnetText || null,
+
+          // Content
+          postContent: data.postContent || '',
+          triggerWords: data.triggerWords || [],
+
+          // DM Sequence
+          dm1: data.dm1 || '',
+          dm2: data.dm2 || null,
+
+          // Webhook
+          webhookEnabled: data.webhookEnabled || false,
+          webhookUrl: data.webhookUrl || null,
+          webhookType: data.webhookType || null,
         }),
       })
 
@@ -62,9 +90,10 @@ export default function ReviewStep({ data, onBack }: StepProps) {
       const result = await response.json()
       console.log('[CAMPAIGN_CREATE] Campaign created successfully:', result.data)
 
-      // TODO: Upload lead magnet to Supabase Storage
-      // TODO: Create DM sequences
-      // TODO: Create webhook config if enabled
+      // Show success toast
+      toast.success('Campaign created successfully!', {
+        description: 'Redirecting to campaigns page...',
+      })
 
       // Small delay to ensure DB is ready before redirect
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -72,7 +101,12 @@ export default function ReviewStep({ data, onBack }: StepProps) {
     } catch (error) {
       console.error('[CAMPAIGN_CREATE] Error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Error creating campaign: ${errorMessage}`)
+
+      toast.error('Failed to create campaign', {
+        description: errorMessage,
+        duration: 5000,
+      })
+
       setLoading(false)
     }
   }
@@ -97,12 +131,30 @@ export default function ReviewStep({ data, onBack }: StepProps) {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-slate-600">Type:</dt>
-              <dd className="font-medium text-slate-900">{data.leadMagnetTemplate}</dd>
+              <dd className="font-medium text-slate-900">
+                {data.isCustom ? 'Custom' : 'Library Template'}
+              </dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-600">Title:</dt>
-              <dd className="font-medium text-slate-900">{data.leadMagnetTitle}</dd>
-            </div>
+            {!data.isCustom && data.libraryMagnetTitle && (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-slate-600">Title:</dt>
+                  <dd className="font-medium text-slate-900">{data.libraryMagnetTitle}</dd>
+                </div>
+                {data.libraryMagnetCategory && (
+                  <div className="flex justify-between">
+                    <dt className="text-slate-600">Category:</dt>
+                    <dd className="font-medium text-slate-900">{data.libraryMagnetCategory}</dd>
+                  </div>
+                )}
+              </>
+            )}
+            {data.isCustom && data.leadMagnetTitle && (
+              <div className="flex justify-between">
+                <dt className="text-slate-600">Title:</dt>
+                <dd className="font-medium text-slate-900">{data.leadMagnetTitle}</dd>
+              </div>
+            )}
           </dl>
         </Card>
 

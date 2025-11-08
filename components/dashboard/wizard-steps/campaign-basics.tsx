@@ -17,9 +17,24 @@ interface StepProps {
 }
 
 export default function CampaignBasicsStep({ data, onNext, onBack }: StepProps) {
+  // Auto-populate from library magnet if selected
+  const getDefaultName = () => {
+    if (data.name) return data.name
+    if (data.libraryMagnetTitle) return `${data.libraryMagnetTitle} Campaign`
+    return ''
+  }
+
+  const getDefaultDescription = () => {
+    if (data.description) return data.description
+    if (data.libraryMagnetTitle) {
+      return `Lead generation campaign offering "${data.libraryMagnetTitle}" to engage prospects and capture emails on LinkedIn.`
+    }
+    return ''
+  }
+
   const [formData, setFormData] = useState({
-    name: data.name || '',
-    description: data.description || '',
+    name: getDefaultName(),
+    description: getDefaultDescription(),
   })
   const [error, setError] = useState<string | null>(null)
   const [existingNames, setExistingNames] = useState<string[]>([])

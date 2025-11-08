@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Sparkles, Eraser } from 'lucide-react'
 
 interface StepProps {
   data: any
@@ -14,9 +14,44 @@ interface StepProps {
   isLastStep: boolean
 }
 
+// Generate LinkedIn post based on lead magnet details
+const generateDefaultPost = (leadMagnetTitle?: string, category?: string) => {
+  const title = leadMagnetTitle || 'our exclusive guide'
+  const hook = category === 'AI & Automation'
+    ? 'Want to automate your workflow and save 10+ hours per week?'
+    : category === 'LinkedIn & Growth'
+    ? 'Struggling to grow your LinkedIn presence and generate quality leads?'
+    : 'Want to level up your business results fast?'
+
+  return `${hook}
+
+I've spent years perfecting a system that actually works.
+
+And I'm sharing it with you for FREE.
+
+Comment "GUIDE" below and I'll send you "${title}" directly.
+
+Inside you'll discover:
+✓ Proven strategies that get results
+✓ Step-by-step implementation guides
+✓ Real examples from successful campaigns
+
+No fluff. No theory. Just what works.
+
+Drop "GUIDE" in the comments 👇
+
+#LinkedInGrowth #LeadGeneration #MarketingStrategy`
+}
+
 export default function ContentCreationStep({ data, onNext, onBack }: StepProps) {
+  const getDefaultContent = () => {
+    if (data.postContent) return data.postContent
+    // Auto-generate based on lead magnet selection
+    return generateDefaultPost(data.libraryMagnetTitle || data.leadMagnetTitle, data.libraryMagnetCategory)
+  }
+
   const [formData, setFormData] = useState({
-    postContent: data.postContent || '',
+    postContent: getDefaultContent(),
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,25 +60,16 @@ export default function ContentCreationStep({ data, onNext, onBack }: StepProps)
   }
 
   const handleGenerateAI = () => {
-    // TODO: Integrate AI content generation
-    const sampleContent = `Struggling to generate quality leads on LinkedIn?
+    // Regenerate with fresh content (will use AgentKit/Mem0 when available)
+    const newContent = generateDefaultPost(
+      data.libraryMagnetTitle || data.leadMagnetTitle,
+      data.libraryMagnetCategory
+    )
+    setFormData({ ...formData, postContent: newContent })
+  }
 
-I've spent the last 5 years perfecting a system that consistently brings in 50+ qualified leads per month.
-
-And I'm giving it away for FREE.
-
-Comment "GUIDE" below and I'll send you my complete LinkedIn Growth Blueprint.
-
-Inside you'll discover:
-✓ The exact post formula that gets 10x engagement
-✓ How to turn comments into conversations
-✓ My proven outreach sequence that converts at 35%
-
-No fluff. No theory. Just what actually works.
-
-Drop "GUIDE" in the comments 👇`
-
-    setFormData({ ...formData, postContent: sampleContent })
+  const handleClear = () => {
+    setFormData({ ...formData, postContent: '' })
   }
 
   return (
@@ -52,15 +78,26 @@ Drop "GUIDE" in the comments 👇`
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="postContent">LinkedIn Post Content</Label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateAI}
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate with AI
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClear}
+              >
+                <Eraser className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateAI}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Regenerate
+              </Button>
+            </div>
           </div>
           <Textarea
             id="postContent"
@@ -72,7 +109,8 @@ Drop "GUIDE" in the comments 👇`
             className="font-mono text-sm"
           />
           <p className="text-sm text-slate-500">
-            Make sure to include a clear call-to-action for users to comment with a trigger word
+            Pre-filled with LinkedIn best practices. Edit as needed, or click "Regenerate" for fresh copy.
+            Make sure to include a clear call-to-action for users to comment with a trigger word.
           </p>
         </div>
       </div>

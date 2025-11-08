@@ -104,20 +104,28 @@ export default function DMSequenceStep({ data, onNext, onBack }: StepProps) {
                     <div className="flex-1">
                       <div className="text-sm text-slate-900">{template}</div>
                     </div>
-                    <button
-                      type="button"
+                    <div
                       onClick={(e) => {
                         e.stopPropagation()
                         copyToClipboard(template, key)
                       }}
-                      className="mt-1"
+                      className="mt-1 cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          copyToClipboard(template, key)
+                        }
+                      }}
                     >
                       {copied === key ? (
                         <Check className="h-4 w-4 text-emerald-600" />
                       ) : (
                         <Copy className="h-4 w-4 text-slate-400 hover:text-slate-600" />
                       )}
-                    </button>
+                    </div>
                   </div>
                 </button>
               ))}

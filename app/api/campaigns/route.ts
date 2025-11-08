@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { campaignCreateSchema } from '@/lib/validations/campaign'
+import { ZodError } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,27 +86,14 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .maybeSingle()
 
-    console.log('[CAMPAIGNS_API] User query result:', { userData, userError })
-
-    if (userError) {
-      console.error('[CAMPAIGNS_API] User query error:', userError)
+    if (userError || !userData) {
       return NextResponse.json(
-        { error: `Failed to fetch user data: ${userError.message}` },
-        { status: 400 }
-      )
-    }
-
-    if (!userData) {
-      console.error('[CAMPAIGNS_API] No user record found for ID:', user.id)
-      return NextResponse.json(
-        { error: 'User data not found - user record does not exist in database' },
+        { error: 'User data not found' },
         { status: 400 }
       )
     }
 
     const clientId = userData.client_id
-    console.log('[CAMPAIGNS_API] User client_id:', clientId)
-
     if (!clientId) {
       return NextResponse.json(
         { error: 'User has no associated client_id' },
@@ -112,50 +101,108 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse request body
+    // Parse and validate request body
     const body = await request.json()
-    const {
-      name,
-      description,
-      status = 'draft',
-    } = body
 
-    if (!name) {
-      return NextResponse.json(
-        { error: 'Campaign name is required' },
-        { status: 400 }
-      )
+    let validatedData
+    try {
+      validatedData = campaignCreateSchema.parse(body)
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return NextResponse.json(
+          {
+            error: 'Validation failed',
+            details: error.errors.map((e) => ({
+              field: e.path.join('.'),
+              message: e.message,
+            })),
+          },
+          { status: 400 }
+        )
+      }
+      throw error
     }
 
-    console.log('[CAMPAIGNS_API] Creating campaign:', {
+    console.log('[CAMPAIGNS_API] Creating campaign with validated data')
+
+    // Determine lead magnet source
+    let leadMagnetSource: 'library' | 'custom' | 'none' = 'none'
+    if (validatedData.libraryId) {
+      leadMagnetSource = 'library'
+    } else if (validatedData.isCustom && validatedData.leadMagnetTitle) {
+      leadMagnetSource = 'custom'
+    }
+
+    // Prepare campaign data
+    const campaignData = {
       client_id: clientId,
-      name,
-      description,
-      status,
-    })
+      name: validatedData.name,
+      description: validatedData.description || null,
+      status: validatedData.status,
+
+      // Lead magnet
+      lead_magnet_source: leadMagnetSource,
+      library_magnet_id: validatedData.libraryId || null,
+      // lead_magnet_id will be set later if custom magnet created
+
+      // Content
+      post_template: validatedData.postContent,
+      trigger_word: validatedData.triggerWords.join(', '), // Store comma-separated for now
+
+      // DM Sequence
+      dm_template_step1: validatedData.dm1,
+      dm_template_step2: validatedData.dm2 || null,
+    }
 
     // Create campaign
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
-      .insert({
-        client_id: clientId,
-        name,
-        description: description || null,
-        status,
-        trigger_word: 'default', // Default trigger word
-      })
+      .insert(campaignData)
       .select()
       .single()
 
     if (campaignError) {
       console.error('[CAMPAIGNS_API] INSERT error:', campaignError)
       return NextResponse.json(
-        { error: campaignError.message },
+        { error: `Failed to create campaign: ${campaignError.message}` },
         { status: 400 }
       )
     }
 
-    console.log('[CAMPAIGNS_API] Campaign created successfully:', campaign)
+    console.log('[CAMPAIGNS_API] Campaign created successfully:', campaign.id)
+
+    // TODO: If custom magnet with file upload, handle file storage
+    // TODO: If webhook enabled, create webhook_config record
+
+    // If webhook enabled, create webhook config
+    if (validatedData.webhookEnabled && validatedData.webhookUrl) {
+      console.log('[CAMPAIGNS_API] Creating webhook config')
+
+      const { data: webhookConfig, error: webhookError } = await supabase
+        .from('webhook_configs')
+        .insert({
+          client_id: clientId,
+          name: `${validatedData.name} - Webhook`,
+          url: validatedData.webhookUrl,
+          esp_type: validatedData.webhookType || 'custom',
+          active: true,
+        })
+        .select()
+        .single()
+
+      if (webhookError) {
+        console.error('[CAMPAIGNS_API] Webhook creation error:', webhookError)
+        // Don't fail the entire request, just log the error
+      } else {
+        // Update campaign with webhook_config_id
+        await supabase
+          .from('campaigns')
+          .update({ webhook_config_id: webhookConfig.id })
+          .eq('id', campaign.id)
+
+        console.log('[CAMPAIGNS_API] Webhook config created:', webhookConfig.id)
+      }
+    }
 
     return NextResponse.json({
       success: true,
