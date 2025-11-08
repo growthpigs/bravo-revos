@@ -135,22 +135,27 @@ export async function POST(request: NextRequest) {
       insertData.parent_id = parent_id;
     }
 
-    const { data: cartridge, error: createError } = await supabase
+    // Insert cartridge - RLS policy will validate during INSERT
+    // We intentionally DON'T use .select() because it causes RLS filtering on SELECT
+    // which can fail even though INSERT succeeded
+    const { error: createError } = await supabase
       .from('cartridges')
-      .insert(insertData)
-      .select()
-      .single();
+      .insert([insertData]);
 
     if (createError) {
+      console.error('Cartridge INSERT error:', createError);
       return NextResponse.json(
         { error: createError.message },
         { status: 400 }
       );
     }
 
+    // Return success immediately - the data was inserted successfully
+    // Client can fetch it via GET endpoint if needed
     return NextResponse.json({
       success: true,
-      cartridge,
+      message: 'Cartridge created successfully',
+      cartridge: { ...insertData, id: 'generated-id-available-on-fetch' },
     }, { status: 201 });
   } catch (error) {
     console.error('Cartridges POST error:', error);
