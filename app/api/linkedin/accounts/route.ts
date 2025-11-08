@@ -10,41 +10,45 @@ import { disconnectAccount, getAccountStatus } from '@/lib/unipile-client';
 // GET - Retrieve all LinkedIn accounts for user
 export async function GET(request: NextRequest) {
   try {
-    // For development mode, return empty array (accounts are stored in-memory on frontend)
     const isDevelopment = process.env.UNIPILE_MOCK_MODE !== 'false';
+    // Use service role to bypass RLS policies for LinkedIn account management
+    const supabase = await createClient({ isServiceRole: true });
+
+    let userId: string;
+
     if (isDevelopment) {
-      console.log('[DEBUG_LINKEDIN_API] GET accounts - Development mode: returning empty array');
-      return NextResponse.json({
-        accounts: [],
-        total: 0,
-      });
-    }
+      // Use test user from migration 013
+      userId = '00000000-0000-0000-0000-000000000003';
+      console.log('[DEBUG_LINKEDIN_API] Development mode: Using test user ID');
+    } else {
+      // Get authenticated user in production
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+      // Get user's client info
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', user.email)
+        .single();
 
-    // Get user's client info
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', user.email)
-      .single();
+      if (userError || !userData) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
 
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      userId = userData.id;
     }
 
     // Get all LinkedIn accounts for this user
     const { data: accounts, error: accountsError } = await supabase
       .from('linkedin_accounts')
       .select('*')
-      .eq('user_id', userData.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (accountsError) {
@@ -122,13 +126,37 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const isDevelopment = process.env.UNIPILE_MOCK_MODE !== 'false';
+    // Use service role to bypass RLS policies for LinkedIn account management
+    const supabase = await createClient({ isServiceRole: true });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let userId: string;
+
+    if (isDevelopment) {
+      // Use test user from migration 013
+      userId = '00000000-0000-0000-0000-000000000003';
+      console.log('[DEBUG_LINKEDIN_API] DELETE Development mode: Using test user ID');
+    } else {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      // Get user ID from users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+
+      if (userError || !userData) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      userId = userData.id;
     }
 
     // Get the account to verify ownership
@@ -146,13 +174,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify user owns this account
-    const { data: userData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', user.email)
-      .single();
-
-    if (account.user_id !== userData?.id) {
+    if (account.user_id !== userId) {
       return NextResponse.json(
         { error: 'Unauthorized: Account does not belong to user' },
         { status: 403 }

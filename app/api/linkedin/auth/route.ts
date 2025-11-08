@@ -24,13 +24,14 @@ export async function POST(request: NextRequest) {
 
     let userId: string;
     let clientId: string;
-    let supabase = await createClient(); // Always create client in case we need it
+    // Use service role to bypass RLS policies for LinkedIn account management
+    let supabase = await createClient({ isServiceRole: true });
 
     if (isDevelopment) {
-      // Use dummy IDs for development - we'll just generate them based on a pattern
-      userId = 'dev-user-' + Math.random().toString(36).substr(2, 9);
-      clientId = 'dev-client-' + Math.random().toString(36).substr(2, 9);
-      console.log('[DEBUG_LINKEDIN_API] Development mode: Using dummy user and client IDs');
+      // Use fixed test user IDs for development (created by migration 013)
+      userId = '00000000-0000-0000-0000-000000000003';
+      clientId = '00000000-0000-0000-0000-000000000002';
+      console.log('[DEBUG_LINKEDIN_API] Development mode: Using test user and client IDs from migration 013');
     } else {
       // Get authenticated user in production
       const {
