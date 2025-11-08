@@ -122,7 +122,15 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (insertError) {
-        console.error('Error storing LinkedIn account:', insertError);
+        console.error('[LINKEDIN_AUTH] Error storing LinkedIn account:', {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          userId,
+          accountName,
+          unipileAccountId,
+        });
         // In development, still return success with mock data
         if (isDevelopment) {
           const mockAccount = {

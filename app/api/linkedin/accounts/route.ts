@@ -45,11 +45,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all LinkedIn accounts for this user
+    console.log('[DEBUG_LINKEDIN_API] Querying accounts with userId:', userId);
     const { data: accounts, error: accountsError } = await supabase
       .from('linkedin_accounts')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    console.log('[DEBUG_LINKEDIN_API] Query result:', {
+      accountsCount: accounts?.length,
+      error: accountsError?.message,
+      userId,
+    });
 
     if (accountsError) {
       console.error('Error fetching accounts:', accountsError);

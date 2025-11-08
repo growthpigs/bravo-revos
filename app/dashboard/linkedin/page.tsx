@@ -66,15 +66,26 @@ export default function LinkedInPage() {
   const fetchAccounts = async () => {
     try {
       setLoading(true);
+      console.log('[DEBUG_LINKEDIN] Fetching accounts...');
       const response = await fetch('/api/linkedin/accounts');
       const data = await response.json();
 
+      console.log('[DEBUG_LINKEDIN] Fetch response:', {
+        status: response.status,
+        ok: response.ok,
+        accountsCount: data.accounts?.length,
+        accounts: data.accounts,
+      });
+
       if (response.ok) {
+        console.log('[DEBUG_LINKEDIN] Setting accounts state:', data.accounts?.length);
         setAccounts(data.accounts || []);
       } else {
+        console.error('[DEBUG_LINKEDIN] Fetch failed:', data.error);
         toast.error(data.error || 'Failed to fetch accounts');
       }
     } catch (error) {
+      console.error('[DEBUG_LINKEDIN] Fetch error:', error);
       toast.error('Failed to fetch accounts');
     } finally {
       setLoading(false);
