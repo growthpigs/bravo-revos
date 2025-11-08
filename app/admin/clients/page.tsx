@@ -2,7 +2,8 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Building2, Users, Megaphone } from 'lucide-react'
+import { Building2, Users, Megaphone } from 'lucide-react'
+import { AddClientModal } from '@/components/admin/add-client-modal'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,10 +32,7 @@ export default async function AdminClientsPage() {
             Manage all clients in your agency
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Client
-        </Button>
+        <AddClientModal onSuccess={() => window.location.reload()} />
       </div>
 
       {clients && clients.length > 0 ? (
@@ -99,10 +97,7 @@ export default async function AdminClientsPage() {
             <p className="text-slate-600 mb-6">
               Add your first client to get started
             </p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
-            </Button>
+            <AddClientModal onSuccess={() => window.location.reload()} />
           </CardContent>
         </Card>
       )}

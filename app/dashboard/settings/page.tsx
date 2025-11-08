@@ -1,13 +1,68 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Bell, Lock, Zap } from 'lucide-react';
+import { Settings, Lock } from 'lucide-react';
 
 export default function SettingsPage() {
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [company, setCompany] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Load user data
+    fetch('/api/user')
+      .then(res => res.json())
+      .then(data => {
+        setEmail(data.email || '');
+        setName(data.full_name || '');
+        setCompany(data.company || '');
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load user data:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleSaveGeneral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setSuccess('');
+    setError('');
+
+    try {
+      const response = await fetch('/api/user', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: name, company }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+
+      setSuccess('Settings saved successfully');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8">Loading...</div>;
+  }
+
   return (
     <div className="space-y-8 p-8">
       {/* Header */}
@@ -18,9 +73,8 @@ export default function SettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
@@ -35,58 +89,47 @@ export default function SettingsPage() {
               <CardDescription>Manage your basic account settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" placeholder="user@example.com" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input id="name" placeholder="Your name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company">Company</Label>
-                <Input id="company" placeholder="Your company" />
-              </div>
-              <Button>Save Changes</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              {success && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm text-green-700">{success}</p>
+                </div>
+              )}
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
 
-        {/* Notification Settings */}
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notification Preferences
-              </CardTitle>
-              <CardDescription>Control how you receive notifications</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Campaign Updates</p>
-                    <p className="text-sm text-slate-600">Get notified when campaigns are updated</p>
-                  </div>
-                  <input type="checkbox" defaultChecked className="h-4 w-4" />
+              <form onSubmit={handleSaveGeneral} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input id="email" type="email" value={email} disabled />
+                  <p className="text-xs text-slate-500">Email cannot be changed</p>
                 </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Performance Alerts</p>
-                    <p className="text-sm text-slate-600">Alerts when performance targets are hit</p>
-                  </div>
-                  <input type="checkbox" defaultChecked className="h-4 w-4" />
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={saving}
+                  />
                 </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">Weekly Summary</p>
-                    <p className="text-sm text-slate-600">Receive weekly performance summary</p>
-                  </div>
-                  <input type="checkbox" className="h-4 w-4" />
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input
+                    id="company"
+                    placeholder="Your company"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    disabled={saving}
+                  />
                 </div>
-              </div>
-              <Button>Save Preferences</Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
@@ -102,22 +145,15 @@ export default function SettingsPage() {
               <CardDescription>Manage your account security</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <p className="font-medium mb-2">Change Password</p>
-                  <div className="space-y-3">
-                    <Input type="password" placeholder="Current password" />
-                    <Input type="password" placeholder="New password" />
-                    <Input type="password" placeholder="Confirm password" />
-                  </div>
-                </div>
-                <div className="p-4 border rounded-lg bg-slate-50">
-                  <p className="font-medium mb-2">Two-Factor Authentication</p>
-                  <p className="text-sm text-slate-600 mb-3">Add an extra layer of security to your account</p>
-                  <Button variant="outline">Enable 2FA</Button>
-                </div>
+              <div className="p-4 border rounded-lg bg-slate-50">
+                <p className="font-medium mb-2">Password Management</p>
+                <p className="text-sm text-slate-600 mb-4">
+                  Use your email address to reset your password through authentication email
+                </p>
+                <Button variant="outline" disabled>
+                  Change Password (via email)
+                </Button>
               </div>
-              <Button>Update Security</Button>
             </CardContent>
           </Card>
         </TabsContent>

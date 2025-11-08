@@ -190,10 +190,12 @@ export async function DELETE(request: NextRequest) {
     const supabase = await createClient({ isServiceRole: true });
 
     let userId: string;
+    let clientId: string;
 
     if (isDevelopment) {
       // Use test user from migration 013
       userId = '00000000-0000-0000-0000-000000000003';
+      clientId = '00000000-0000-0000-0000-000000000002';
       console.log('[DEBUG_LINKEDIN_API] DELETE Development mode: Using test user ID');
     } else {
       const {
@@ -204,10 +206,10 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
-      // Get user ID from users table
+      // Get user ID and client ID from users table
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id')
+        .select('id, client_id')
         .eq('email', user.email)
         .single();
 
@@ -216,7 +218,31 @@ export async function DELETE(request: NextRequest) {
       }
 
       userId = userData.id;
+      clientId = userData.client_id;
     }
+
+    // Fetch client's Unipile credentials
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('unipile_api_key, unipile_dsn, unipile_enabled')
+      .eq('id', clientId)
+      .single();
+
+    if (clientError) {
+      console.error('[DEBUG_LINKEDIN_API] Client lookup failed:', clientError);
+      return NextResponse.json(
+        { error: 'Client configuration not found' },
+        { status: 404 }
+      );
+    }
+
+    // Use client-specific credentials if configured, otherwise fall back to system-wide
+    const clientCredentials = clientData?.unipile_enabled && clientData?.unipile_api_key
+      ? {
+          apiKey: clientData.unipile_api_key,
+          dsn: clientData.unipile_dsn || 'https://api3.unipile.com:13344',
+        }
+      : null;
 
     // Get the account to verify ownership
     const { data: account, error: fetchError } = await supabase
