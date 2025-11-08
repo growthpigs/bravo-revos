@@ -109,7 +109,7 @@ export default function ContentCreationStep({ data, onNext, onBack }: StepProps)
             className="font-mono text-sm"
           />
           <p className="text-sm text-slate-500">
-            Pre-filled with LinkedIn best practices. Edit as needed, or click "Regenerate" for fresh copy.
+            Pre-filled with LinkedIn best practices. Edit as needed, or click &quot;Regenerate&quot; for fresh copy.
             Make sure to include a clear call-to-action for users to comment with a trigger word.
           </p>
         </div>

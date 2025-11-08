@@ -13,14 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   AlertCircle,
   CheckCircle,
@@ -29,6 +25,7 @@ import {
   Loader2,
   Trash2,
   Zap,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -53,6 +50,7 @@ export default function LinkedInPage() {
   const [checkpointMode, setCheckpointMode] = useState(false);
   const [checkpointAccountId, setCheckpointAccountId] = useState('');
   const [checkpointType, setCheckpointType] = useState('');
+  const [showConnectForm, setShowConnectForm] = useState(false);
 
   // Form state
   const [username, setUsername] = useState('');
@@ -141,6 +139,8 @@ export default function LinkedInPage() {
         if (process.env.NODE_ENV !== 'development') {
           await fetchAccounts();
         }
+        // Collapse the connect form after successful connection
+        setShowConnectForm(false);
       }
     } catch (error) {
       console.error('[DEBUG_LINKEDIN] Error:', error);
@@ -250,110 +250,118 @@ export default function LinkedInPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="accounts" className="w-full">
-        <TabsList>
-          <TabsTrigger value="accounts">Connected Accounts</TabsTrigger>
-          <TabsTrigger value="connect">Connect New Account</TabsTrigger>
-          <TabsTrigger value="guide">Quick Guide</TabsTrigger>
-        </TabsList>
+      {/* Connected Accounts Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Connected Accounts</h2>
 
-        {/* Connected Accounts Tab */}
-        <TabsContent value="accounts" className="space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-            </div>
-          ) : accounts.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Link2 className="w-12 h-12 text-slate-300 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Accounts Connected</h3>
-                <p className="text-slate-500 mb-4">
-                  Connect your first LinkedIn account to get started
-                </p>
-                <Button asChild>
-                  <a href="#connect">Connect Account</a>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {accounts.map((account) => (
-                <Card key={account.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">
-                          {account.profile_data.name || account.account_name}
-                        </CardTitle>
-                        <CardDescription>{account.profile_data.email}</CardDescription>
-                      </div>
-                      {getStatusBadge(account.status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-slate-500">Account Name</p>
-                        <p className="font-medium">{account.account_name}</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-500">Unipile ID</p>
-                        <p className="font-mono text-xs">{account.unipile_account_id.slice(0, 12)}...</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-500">Expires</p>
-                        <p className="font-medium">
-                          {formatDistanceToNow(new Date(account.session_expires_at), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-slate-500">Connected</p>
-                        <p className="font-medium">
-                          {formatDistanceToNow(new Date(account.created_at), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                    </div>
-
-                    {account.status === 'expired' && (
-                      <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          This account needs reauthentication. Please reconnect.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnect(account.id)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Disconnect
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Connect New Account Tab */}
-        <TabsContent value="connect">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          </div>
+        ) : accounts.length === 0 ? (
           <Card>
-            <CardHeader>
-              <CardTitle>Connect LinkedIn Account</CardTitle>
-              <CardDescription>
-                Use your LinkedIn credentials to securely connect your account
-              </CardDescription>
-            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Link2 className="w-12 h-12 text-slate-300 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Accounts Connected</h3>
+              <p className="text-slate-500 mb-4">
+                Connect your first LinkedIn account to get started
+              </p>
+              <Button onClick={() => setShowConnectForm(true)}>
+                Connect Your First Account
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {accounts.map((account) => (
+              <Card key={account.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {account.profile_data.name || account.account_name}
+                      </CardTitle>
+                      <CardDescription>{account.profile_data.email}</CardDescription>
+                    </div>
+                    {getStatusBadge(account.status)}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-slate-500">Account Name</p>
+                      <p className="font-medium">{account.account_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Unipile ID</p>
+                      <p className="font-mono text-xs">{account.unipile_account_id.slice(0, 12)}...</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Expires</p>
+                      <p className="font-medium">
+                        {formatDistanceToNow(new Date(account.session_expires_at), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Connected</p>
+                      <p className="font-medium">
+                        {formatDistanceToNow(new Date(account.created_at), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {account.status === 'expired' && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        This account needs reauthentication. Please reconnect.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDisconnect(account.id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Disconnect
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Connect New Account Collapsible Section */}
+      <Collapsible open={showConnectForm} onOpenChange={setShowConnectForm}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full">
+              <CardHeader className="pb-3 cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Connect New Account</CardTitle>
+                    <CardDescription>Add another LinkedIn account</CardDescription>
+                  </div>
+                  <ChevronDown
+                    className={`w-5 h-5 text-slate-400 transition-transform ${
+                      showConnectForm ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </CardHeader>
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
             <CardContent>
               {!checkpointMode ? (
                 <form onSubmit={handleAuthenticate} className="space-y-4">
@@ -458,16 +466,28 @@ export default function LinkedInPage() {
                 </form>
               )}
             </CardContent>
-          </Card>
-        </TabsContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
-        {/* Guide Tab */}
-        <TabsContent value="guide" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Session Management</CardTitle>
-              <CardDescription>How your LinkedIn sessions are managed</CardDescription>
-            </CardHeader>
+      {/* Quick Guide Section */}
+      <Collapsible defaultOpen={false}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full">
+              <CardHeader className="pb-3 cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Quick Guide</CardTitle>
+                    <CardDescription>Learn about session management and security</CardDescription>
+                  </div>
+                  <ChevronDown className="w-5 h-5 text-slate-400 transition-transform data-[state=open]:rotate-180" />
+                </div>
+              </CardHeader>
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-semibold mb-2 flex items-center">
@@ -483,7 +503,7 @@ export default function LinkedInPage() {
               <div>
                 <h4 className="font-semibold mb-2 flex items-center">
                   <Clock className="w-4 h-4 mr-2 text-yellow-600" />
-                      Session Expiry
+                  Session Expiry
                 </h4>
                 <p className="text-sm text-slate-600">
                   Sessions typically last 90 days. You&apos;ll be notified 7 days before expiry to reconnect.
@@ -498,7 +518,7 @@ export default function LinkedInPage() {
                 <ul className="text-sm text-slate-600 space-y-2 ml-6 list-disc">
                   <li>We&apos;ll notify you to reconnect</li>
                   <li>Lead generation will pause temporarily</li>
-                  <li>You can reconnect anytime from the &quot;Connect New Account&quot; tab</li>
+                  <li>You can reconnect anytime using the &quot;Connect New Account&quot; section</li>
                 </ul>
               </div>
 
@@ -514,9 +534,9 @@ export default function LinkedInPage() {
                 </ul>
               </div>
             </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 }
