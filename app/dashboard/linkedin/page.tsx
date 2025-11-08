@@ -62,13 +62,33 @@ export default function LinkedInPage() {
       setLoading(true);
       console.log('[DEBUG_LINKEDIN] Fetching accounts...');
       const response = await fetch('/api/linkedin/accounts');
-      const data = await response.json();
+
+      console.log('[DEBUG_LINKEDIN] Fetch response status:', response.status, response.ok);
+      console.log('[DEBUG_LINKEDIN] Response headers:', {
+        'content-type': response.headers.get('content-type'),
+        'content-length': response.headers.get('content-length'),
+      });
+
+      const rawText = await response.text();
+      console.log('[DEBUG_LINKEDIN] Raw response text length:', rawText.length);
+      console.log('[DEBUG_LINKEDIN] Raw response first 500 chars:', rawText.substring(0, 500));
+
+      let data;
+      try {
+        data = JSON.parse(rawText);
+        console.log('[DEBUG_LINKEDIN] Successfully parsed JSON');
+      } catch (parseError) {
+        console.error('[DEBUG_LINKEDIN] JSON parse error:', parseError);
+        console.error('[DEBUG_LINKEDIN] Failed to parse:', rawText.substring(0, 200));
+        throw parseError;
+      }
 
       console.log('[DEBUG_LINKEDIN] Fetch response:', {
         status: response.status,
         ok: response.ok,
         accountsCount: data.accounts?.length,
-        accounts: data.accounts,
+        accountsType: typeof data.accounts,
+        accountsIsArray: Array.isArray(data.accounts),
       });
 
       if (response.ok) {

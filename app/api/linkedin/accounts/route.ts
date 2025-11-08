@@ -11,13 +11,19 @@ import { disconnectAccount, getAccountStatus } from '@/lib/unipile-client';
 export async function GET(request: NextRequest) {
   try {
     const isDevelopment = process.env.UNIPILE_MOCK_MODE !== 'false';
+    const allHeaders = Object.fromEntries(request.headers.entries());
+
     console.log('[DEBUG_LINKEDIN_API] GET request received:', {
       isDevelopment,
       url: request.url,
+      method: request.method,
       headers: {
         authorization: request.headers.get('authorization') ? 'present' : 'missing',
         cookie: request.headers.get('cookie') ? 'present' : 'missing',
+        'content-type': request.headers.get('content-type'),
+        'user-agent': request.headers.get('user-agent'),
       },
+      allHeaders,
     });
 
     // Use service role to bypass RLS policies for LinkedIn account management
@@ -65,7 +71,7 @@ export async function GET(request: NextRequest) {
       accountsCount: accounts?.length,
       error: accountsError?.message,
       userId,
-      raw: accounts,
+      accountsDebug: accounts?.map(a => ({ id: a.id, user_id: a.user_id, account_name: a.account_name })),
     });
 
     if (accountsError) {
@@ -116,6 +122,16 @@ export async function GET(request: NextRequest) {
         }
       })
     );
+
+    console.log('[DEBUG_LINKEDIN_API] Final response:', {
+      accountsCount: accountsWithStatus.length,
+      statusCheckDetails: accountsWithStatus.map(a => ({
+        id: a.id,
+        account_name: a.account_name,
+        status: a.status,
+        unipile_status: a.unipile_status,
+      })),
+    });
 
     return NextResponse.json({
       accounts: accountsWithStatus,
