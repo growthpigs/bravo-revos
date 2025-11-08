@@ -32,7 +32,7 @@ export default async function AdminClientsPage() {
             Manage all clients in your agency
           </p>
         </div>
-        <AddClientModal onSuccess={() => window.location.reload()} />
+        <AddClientModal />
       </div>
 
       {clients && clients.length > 0 ? (
@@ -97,7 +97,7 @@ export default async function AdminClientsPage() {
             <p className="text-slate-600 mb-6">
               Add your first client to get started
             </p>
-            <AddClientModal onSuccess={() => window.location.reload()} />
+            <AddClientModal />
           </CardContent>
         </Card>
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,11 +15,8 @@ import {
 } from '@/components/ui/dialog'
 import { Plus } from 'lucide-react'
 
-interface AddClientModalProps {
-  onSuccess: () => void
-}
-
-export function AddClientModal({ onSuccess }: AddClientModalProps) {
+export function AddClientModal() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -59,7 +57,7 @@ export function AddClientModal({ onSuccess }: AddClientModalProps) {
       setOpen(false)
       setName('')
       setSlug('')
-      onSuccess()
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
