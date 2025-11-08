@@ -30,11 +30,13 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient({ isServiceRole: true });
 
     let userId: string;
+    let clientId: string;
 
     if (isDevelopment) {
       // Use test user from migration 013
       userId = '00000000-0000-0000-0000-000000000003';
-      console.log('[DEBUG_LINKEDIN_API] Development mode: Using test user ID');
+      clientId = '00000000-0000-0000-0000-000000000002';
+      console.log('[DEBUG_LINKEDIN_API] Development mode: Using test user and client IDs');
     } else {
       // Get authenticated user in production
       const {
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
       // Get user's client info
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('id')
+        .select('id, client_id')
         .eq('email', user.email)
         .single();
 
@@ -57,7 +59,31 @@ export async function GET(request: NextRequest) {
       }
 
       userId = userData.id;
+      clientId = userData.client_id;
     }
+
+    // Fetch client's Unipile credentials
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('unipile_api_key, unipile_dsn, unipile_enabled')
+      .eq('id', clientId)
+      .single();
+
+    if (clientError) {
+      console.error('[DEBUG_LINKEDIN_API] Client lookup failed:', clientError);
+      return NextResponse.json(
+        { error: 'Client configuration not found' },
+        { status: 404 }
+      );
+    }
+
+    // Use client-specific credentials if configured, otherwise fall back to system-wide
+    const clientCredentials = clientData?.unipile_enabled && clientData?.unipile_api_key
+      ? {
+          apiKey: clientData.unipile_api_key,
+          dsn: clientData.unipile_dsn || 'https://api3.unipile.com:13344',
+        }
+      : null;
 
     // Get all LinkedIn accounts for this user
     console.log('[DEBUG_LINKEDIN_API] Querying accounts with userId:', userId);
@@ -87,7 +113,7 @@ export async function GET(request: NextRequest) {
       (accounts || []).map(async (account) => {
         try {
           // Get current status from Unipile
-          const unipileStatus = await getAccountStatus(account.unipile_account_id);
+          const unipileStatus = await getAccountStatus(account.unipile_account_id, clientCredentials);
 
           // Map Unipile status to our status
           let dbStatus = account.status;
@@ -216,7 +242,7 @@ export async function DELETE(request: NextRequest) {
 
     // Disconnect from Unipile
     try {
-      await disconnectAccount(account.unipile_account_id);
+      await disconnectAccount(account.unipile_account_id, clientCredentials);
     } catch (error) {
       console.warn('Could not disconnect from Unipile:', error);
       // Continue with local deletion even if Unipile disconnect fails

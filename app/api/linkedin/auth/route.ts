@@ -61,6 +61,29 @@ export async function POST(request: NextRequest) {
       clientId = userData.client_id;
     }
 
+    // Fetch client's Unipile credentials
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('unipile_api_key, unipile_dsn, unipile_enabled')
+      .eq('id', clientId)
+      .single();
+
+    if (clientError) {
+      console.error('[DEBUG_LINKEDIN_API] Client lookup failed:', clientError);
+      return NextResponse.json(
+        { error: 'Client configuration not found' },
+        { status: 404 }
+      );
+    }
+
+    // Use client-specific credentials if configured, otherwise fall back to system-wide
+    const clientCredentials = clientData?.unipile_enabled && clientData?.unipile_api_key
+      ? {
+          apiKey: clientData.unipile_api_key,
+          dsn: clientData.unipile_dsn || 'https://api3.unipile.com:13344',
+        }
+      : null;
+
     // STEP 1: Initial authentication
     if (action === 'authenticate') {
       if (!username || !password || !accountName) {
@@ -70,7 +93,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const authResult = await authenticateLinkedinAccount(username, password);
+      const authResult = await authenticateLinkedinAccount(username, password, clientCredentials);
 
       // Check if checkpoint is required
       if ('checkpoint_type' in authResult && authResult.checkpoint_type) {
@@ -181,7 +204,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const checkpointResult = await resolveCheckpoint(accountId, code);
+      const checkpointResult = await resolveCheckpoint(accountId, code, clientCredentials);
 
       if (checkpointResult.status !== 'OK') {
         return NextResponse.json(

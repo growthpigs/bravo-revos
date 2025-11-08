@@ -1,10 +1,22 @@
 /**
  * Unipile Client
  * Handles all Unipile API interactions for LinkedIn account management
+ *
+ * Supports both system-wide (fallback) and per-client Unipile credentials.
+ * When client credentials are provided, they take precedence over system-wide env vars.
  */
 
 // Note: We're using REST API calls directly instead of UnipileClient SDK
 // because the SDK initialization happens at build-time and fails if UNIPILE_API_KEY is not set
+
+/**
+ * Unipile API Credentials
+ * Can be either system-wide (from env vars) or per-client (from database)
+ */
+export interface UnipileCredentials {
+  apiKey: string;
+  dsn: string;
+}
 
 /**
  * Check if mock mode is enabled
@@ -13,6 +25,30 @@
  */
 function isMockMode(): boolean {
   return process.env.UNIPILE_MOCK_MODE !== 'false';
+}
+
+/**
+ * Get Unipile credentials - either from client config or fallback to system-wide
+ * @param clientCredentials - Optional per-client credentials (takes precedence)
+ * @returns UnipileCredentials with apiKey and dsn
+ */
+function getUnipileCredentials(clientCredentials?: UnipileCredentials | null): UnipileCredentials {
+  if (clientCredentials?.apiKey && clientCredentials?.dsn) {
+    return clientCredentials;
+  }
+
+  // Fallback to system-wide credentials from environment variables
+  const apiKey = process.env.UNIPILE_API_KEY;
+  const dsn = process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211';
+
+  if (!apiKey) {
+    throw new Error(
+      'Unipile API credentials not configured. ' +
+      'Provide per-client credentials via function parameter or set UNIPILE_API_KEY environment variable.'
+    );
+  }
+
+  return { apiKey, dsn };
 }
 
 /**
@@ -60,12 +96,18 @@ export interface UnipileComment {
  * Connect LinkedIn account using username/password
  * Returns account_id on success, checkpoint info if checkpoint required
  * Supports mock mode for testing
+ * @param username - LinkedIn email
+ * @param password - LinkedIn password
+ * @param clientCredentials - Optional per-client Unipile credentials (uses system-wide if not provided)
  */
 export async function authenticateLinkedinAccount(
   username: string,
-  password: string
+  password: string,
+  clientCredentials?: UnipileCredentials | null
 ): Promise<UnipileAuthResponse | UnipileCheckpointResponse> {
   try {
+    const credentials = getUnipileCredentials(clientCredentials);
+
     // Mock mode for testing (when UNIPILE_MOCK_MODE !== 'false')
     if (isMockMode()) {
       console.log('[MOCK] Authenticating LinkedIn account:', username);
@@ -83,11 +125,11 @@ export async function authenticateLinkedinAccount(
     }
 
     const response = await fetch(
-      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/accounts`,
+      `${credentials.dsn}/api/v1/accounts`,
       {
         method: 'POST',
         headers: {
-          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'X-API-KEY': credentials.apiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -112,18 +154,24 @@ export async function authenticateLinkedinAccount(
 
 /**
  * Resolve LinkedIn account checkpoint (2FA, OTP, etc.)
+ * @param accountId - Unipile account ID
+ * @param code - Verification code
+ * @param clientCredentials - Optional per-client Unipile credentials (uses system-wide if not provided)
  */
 export async function resolveCheckpoint(
   accountId: string,
-  code: string
+  code: string,
+  clientCredentials?: UnipileCredentials | null
 ): Promise<UnipileAuthResponse> {
   try {
+    const credentials = getUnipileCredentials(clientCredentials);
+
     const response = await fetch(
-      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/accounts/${accountId}/checkpoint`,
+      `${credentials.dsn}/api/v1/accounts/${accountId}/checkpoint`,
       {
         method: 'POST',
         headers: {
-          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'X-API-KEY': credentials.apiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ code }),
@@ -146,8 +194,10 @@ export async function resolveCheckpoint(
  * Get account status from Unipile
  * Supports mock mode for testing
  */
-export async function getAccountStatus(accountId: string): Promise<UnipileAccountStatus> {
+export async function getAccountStatus(accountId: string, clientCredentials?: UnipileCredentials | null): Promise<UnipileAccountStatus> {
   try {
+    const credentials = getUnipileCredentials(clientCredentials);
+
     // Mock mode for testing (when UNIPILE_MOCK_MODE !== 'false')
     if (isMockMode()) {
       console.log('[MOCK] Getting account status:', accountId);
@@ -163,11 +213,11 @@ export async function getAccountStatus(accountId: string): Promise<UnipileAccoun
     }
 
     const response = await fetch(
-      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/accounts/${accountId}`,
+      `${credentials.dsn}/api/v1/accounts/${accountId}`,
       {
         method: 'GET',
         headers: {
-          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'X-API-KEY': credentials.apiKey,
           'Accept': 'application/json',
         },
       }
@@ -188,14 +238,16 @@ export async function getAccountStatus(accountId: string): Promise<UnipileAccoun
 /**
  * Disconnect account from Unipile
  */
-export async function disconnectAccount(accountId: string): Promise<void> {
+export async function disconnectAccount(accountId: string, clientCredentials?: UnipileCredentials | null): Promise<void> {
   try {
+    const credentials = getUnipileCredentials(clientCredentials);
+
     const response = await fetch(
-      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/accounts/${accountId}`,
+      `${credentials.dsn}/api/v1/accounts/${accountId}`,
       {
         method: 'DELETE',
         headers: {
-          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'X-API-KEY': credentials.apiKey,
         },
       }
     );
