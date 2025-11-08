@@ -130,15 +130,8 @@ export default function LinkedInPage() {
         setUsername('');
         setPassword('');
         setAccountName('');
-        // Add the new account to the list immediately from the response
-        if (data.account) {
-          console.log('[DEBUG_LINKEDIN] Adding account to list:', data.account.id);
-          setAccounts(prev => [data.account, ...prev]);
-        }
-        // Only fetch accounts from server if not in mock mode (dev mode stores accounts in-memory)
-        if (process.env.NODE_ENV !== 'development') {
-          await fetchAccounts();
-        }
+        // Always fetch the full account list from the server to ensure we have all fields
+        await fetchAccounts();
         // Collapse the connect form after successful connection
         setShowConnectForm(false);
       }
@@ -181,7 +174,11 @@ export default function LinkedInPage() {
         toast.success('LinkedIn account verified!');
         setCheckpointMode(false);
         setCheckpointCode('');
+        setUsername('');
+        setPassword('');
+        setAccountName('');
         await fetchAccounts();
+        setShowConnectForm(false);
       }
     } catch (error) {
       toast.error('Checkpoint resolution failed');
@@ -260,7 +257,7 @@ export default function LinkedInPage() {
           </div>
         ) : accounts.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
+            <CardContent className="py-8">
               <Link2 className="w-12 h-12 text-slate-300 mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Accounts Connected</h3>
               <p className="text-slate-500 mb-4">
