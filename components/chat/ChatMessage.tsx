@@ -2,7 +2,6 @@
 
 import type { UIMessage } from 'ai';
 import { cn } from '@/lib/utils';
-import { User, Bot } from 'lucide-react';
 
 interface ChatMessageProps {
   message: UIMessage;
@@ -25,13 +24,7 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
   const messageText = getMessageText();
 
   return (
-    <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
-      {!isUser && (
-        <div className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-          <Bot className="w-4 h-4 text-gray-600" />
-        </div>
-      )}
-
+    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
           'max-w-[80%] px-4 py-2.5 rounded-xl text-sm',
@@ -46,18 +39,12 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
           </div>
         ) : isLoading ? (
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-75" />
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-150" />
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" />
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.2s' }} />
+            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.4s' }} />
           </div>
         ) : null}
       </div>
-
-      {isUser && (
-        <div className="flex-shrink-0 w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center">
-          <User className="w-4 h-4 text-white" />
-        </div>
-      )}
     </div>
   );
 }

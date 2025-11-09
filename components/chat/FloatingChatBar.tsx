@@ -330,7 +330,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Floating bar view (default)
   return (
     <div className={cn(
-      "fixed bottom-8 left-1/2 -translate-x-1/2 w-4/5 max-w-5xl z-50",
+      "fixed bottom-8 left-[calc(256px+10%*(100vw-256px))] w-[calc((100vw-256px)*0.8)] max-w-5xl z-50 -translate-x-1/2 translate-x-0",
       className
     )}>
       {/* Single cohesive container */}

@@ -62,11 +62,7 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
             className="h-8 w-8 rounded object-cover"
             unoptimized
           />
-        ) : (
-          <div className="h-8 w-8 rounded bg-black flex items-center justify-center">
-            <Megaphone className="h-5 w-5 text-white" />
-          </div>
-        )}
+        ) : null}
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-semibold text-gray-900 truncate">{client?.name}</h2>
         </div>
@@ -92,36 +88,40 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
               </Link>
             )
           })}
+
+          {/* Divider */}
+          <div className="my-4 border-t border-gray-200"></div>
+
+          {/* User Profile Section */}
+          <div className="px-3 py-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.avatar_url} />
+                <AvatarFallback>
+                  {user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-gray-900 truncate">
+                  {user?.full_name || user?.email}
+                </p>
+                <p className="text-xs text-gray-500 capitalize">
+                  {user?.role?.replace('_', ' ')}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </nav>
       </ScrollArea>
-
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={user?.avatar_url} />
-            <AvatarFallback>
-              {user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {user?.full_name || user?.email}
-            </p>
-            <p className="text-xs text-gray-500 capitalize">
-              {user?.role?.replace('_', ' ')}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
-        </Button>
-      </div>
     </div>
   )
 }
