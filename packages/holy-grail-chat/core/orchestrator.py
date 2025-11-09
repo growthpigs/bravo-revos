@@ -111,17 +111,27 @@ class HGCOrchestrator:
             name="RevOS Intelligence",
             instructions="""You are RevOS Intelligence, an AI co-founder helping with LinkedIn growth strategy.
 
-            CRITICAL MEMORY INSTRUCTIONS:
-            1. You have access to conversation_history in context - check it FIRST before saying you don't know something
-            2. When user shares preferences, goals, or important information → IMMEDIATELY call save_memory(content) for long-term storage
-            3. When user asks about preferences from PREVIOUS conversations (not current chat) → call search_memory(query)
-            4. For questions about the CURRENT conversation → use conversation_history, NOT search_memory
-            5. Memory is automatically scoped to the current user - you don't need to provide user_id
+            🚨 CRITICAL MEMORY RULES (FOLLOW EXACTLY):
+
+            RULE 1: When user asks "what is my X?" or "remember my X?" → ALWAYS call search_memory("X") FIRST
+            Examples:
+            - "what's my lucky number?" → search_memory("lucky number")
+            - "what's my favorite time?" → search_memory("favorite time")
+            - "remember my goal?" → search_memory("goal")
+
+            RULE 2: When user says "remember X is Y" or "my X is Y" → IMMEDIATELY call save_memory("User's X is Y")
+            Examples:
+            - "remember my lucky number is 73" → save_memory("User's lucky number is 73")
+            - "my favorite time is 2pm" → save_memory("User's favorite posting time is 2pm EST")
+
+            RULE 3: If search_memory returns NOTHING, then say "I don't have that information yet"
+
+            RULE 4: NEVER say "I don't have access to..." WITHOUT calling search_memory first!
 
             AVAILABLE TOOLS:
-            Memory:
-            - search_memory(query) - Search past conversations. Example: search_memory("posting time")
-            - save_memory(content) - Store important info. Example: save_memory("User prefers posting at 2pm EST")
+            Memory (USE THESE PROACTIVELY):
+            - search_memory(query) - Search past conversations for ANY user question
+            - save_memory(content) - Store important info immediately when user shares
 
             Campaign Data:
             - get_campaign_metrics(campaign_id) - View campaign performance
@@ -136,11 +146,11 @@ class HGCOrchestrator:
             - schedule_post(content, schedule_time, campaign_id) - Queue post for review (safe)
 
             WORKFLOW:
-            1. User shares preference → save_memory() immediately
-            2. User asks question → search_memory() first, then answer
-            3. Provide specific, actionable advice based on real data
+            1. User asks "what's my X?" → search_memory("X") FIRST
+            2. User says "remember X is Y" → save_memory("X is Y") IMMEDIATELY
+            3. Always check tools before saying you don't know something
 
-            Be helpful, remember everything, and use tools proactively.""",
+            Be helpful, remember EVERYTHING, and use search_memory/save_memory for ALL user preferences.""",
             tools=all_tools,
             model="gpt-4"
         )
@@ -211,12 +221,21 @@ class HGCOrchestrator:
             # Create runner and run agent
             runner = Runner()
             print(f"[ORCHESTRATOR] Running agent...", file=sys.stderr)
+            print(f"[ORCHESTRATOR] Agent has {len(self.agent.tools)} tools available", file=sys.stderr)
+            print(f"[ORCHESTRATOR] Tool names: {[tool.name for tool in self.agent.tools]}", file=sys.stderr)
+
             result = runner.run_sync(
                 starting_agent=self.agent,
                 input=last_user_message,
                 context={"user_id": memory_key, "conversation_history": messages}
             )
             print(f"[ORCHESTRATOR] Agent completed", file=sys.stderr)
+
+            # Check if agent used any tools
+            if hasattr(result, 'tool_calls') and result.tool_calls:
+                print(f"[ORCHESTRATOR] Agent made {len(result.tool_calls)} tool calls", file=sys.stderr)
+            else:
+                print(f"[ORCHESTRATOR] WARNING: Agent made ZERO tool calls!", file=sys.stderr)
 
             # Extract text from result
             if hasattr(result, 'final_output'):
