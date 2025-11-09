@@ -5,13 +5,15 @@ MVP with tool-based integration (AgentKit + Mem0 + RevOS Data Tools)
 
 from agents import Agent, function_tool
 from mem0 import MemoryClient
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import sys
 import os
+import threading
 
 # Add tools directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
 from revos_tools import RevOSTools
+from validation import InputValidator
 
 
 class HGCOrchestrator:
@@ -24,8 +26,18 @@ class HGCOrchestrator:
         # Initialize RevOS data tools
         self.revos_tools = RevOSTools(api_base_url, auth_token)
 
-        # Memory key will be set during process() call
-        self.current_memory_key = None
+        # Thread-local storage for memory key (prevents race conditions)
+        self._memory_key_storage = threading.local()
+
+    @property
+    def current_memory_key(self) -> Optional[str]:
+        """Get current memory key from thread-local storage"""
+        return getattr(self._memory_key_storage, 'key', None)
+
+    @current_memory_key.setter
+    def current_memory_key(self, value: str) -> None:
+        """Set current memory key in thread-local storage"""
+        self._memory_key_storage.key = value
 
         # Define memory tools (agent decides when to use)
         # CRITICAL: Tools capture memory_key from orchestrator, NOT from agent parameters
@@ -133,10 +145,38 @@ class HGCOrchestrator:
             model="gpt-4"
         )
 
-    def process(self, messages: list, user_id: str, pod_id: str) -> str:
-        """Process conversation with full message history"""
+    def process(self, messages: List[Dict[str, str]], user_id: str, pod_id: str) -> str:
+        """Process conversation with full message history.
+
+        Args:
+            messages: List of conversation messages with 'role' and 'content' keys
+            user_id: Unique identifier for the user
+            pod_id: Identifier for the user's engagement pod
+
+        Returns:
+            Agent's response text
+
+        Raises:
+            ValueError: If input validation fails
+        """
         import sys
         from agents import Runner
+
+        # Validate inputs
+        valid, error = InputValidator.validate_messages(messages)
+        if not valid:
+            print(f"[ORCHESTRATOR] Input validation failed: {error}", file=sys.stderr)
+            raise ValueError(f"Invalid messages: {error}")
+
+        valid, error = InputValidator.validate_user_id(user_id)
+        if not valid:
+            print(f"[ORCHESTRATOR] User ID validation failed: {error}", file=sys.stderr)
+            raise ValueError(f"Invalid user_id: {error}")
+
+        valid, error = InputValidator.validate_pod_id(pod_id)
+        if not valid:
+            print(f"[ORCHESTRATOR] Pod ID validation failed: {error}", file=sys.stderr)
+            raise ValueError(f"Invalid pod_id: {error}")
 
         # Format memory key (pod::user scoping)
         memory_key = f"{pod_id}::{user_id}"
@@ -162,7 +202,10 @@ class HGCOrchestrator:
         if not last_user_message:
             return "I didn't receive a message. Please try again."
 
-        print(f"[ORCHESTRATOR] Last user message: '{last_user_message}'", file=sys.stderr)
+        # Sanitize user input
+        last_user_message = InputValidator.sanitize_message(last_user_message)
+
+        print(f"[ORCHESTRATOR] Last user message: '{last_user_message[:100]}'", file=sys.stderr)
 
         try:
             # Create runner and run agent

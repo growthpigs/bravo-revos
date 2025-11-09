@@ -87,19 +87,38 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder()
     const readable = new ReadableStream({
       async start(controller) {
+        let buffer = ''
+        let errorBuffer = ''
+        let cleanedUp = false
+
+        const cleanup = () => {
+          if (cleanedUp) return
+          cleanedUp = true
+
+          try {
+            python.stdout.removeAllListeners()
+            python.stderr.removeAllListeners()
+            python.removeAllListeners()
+
+            // Kill process if still running
+            if (!python.killed) {
+              python.kill('SIGTERM')
+            }
+          } catch (e) {
+            console.error('[HGC_API] Cleanup error:', e)
+          }
+        }
+
         try {
-          let buffer = ''
-          let errorBuffer = ''
-
-          python.stdout.on('data', (data) => {
+          const handleStdout = (data: Buffer) => {
             buffer += data.toString()
-          })
+          }
 
-          python.stderr.on('data', (data) => {
+          const handleStderr = (data: Buffer) => {
             errorBuffer += data.toString()
-          })
+          }
 
-          python.on('close', (code) => {
+          const handleClose = (code: number | null) => {
             console.log('[HGC_API] Python process closed with code:', code)
 
             // ALWAYS log stderr (debug logs go here)
@@ -110,6 +129,7 @@ export async function POST(request: NextRequest) {
             if (code !== 0) {
               console.error('[HGC_API] Python error:', errorBuffer)
               controller.error(new Error(`Python error: ${errorBuffer}`))
+              cleanup()
               return
             }
 
@@ -135,16 +155,32 @@ export async function POST(request: NextRequest) {
               console.error('[HGC_API] Error in streaming:', e)
               console.error('[HGC_API] Buffer contents:', buffer)
               controller.error(new Error('Failed to process Python response'))
+            } finally {
+              cleanup()
             }
-          })
+          }
 
-          python.on('error', (error) => {
+          const handleError = (error: Error) => {
             console.error('[HGC_API] Python spawn error:', error)
             controller.error(error)
-          })
+            cleanup()
+          }
+
+          python.stdout.on('data', handleStdout)
+          python.stderr.on('data', handleStderr)
+          python.on('close', handleClose)
+          python.on('error', handleError)
         } catch (error) {
           console.error('[HGC_API] Stream error:', error)
-          controller.error(error)
+          controller.error(error instanceof Error ? error : new Error(String(error)))
+          cleanup()
+        }
+      },
+      cancel() {
+        // Called when stream is cancelled (user navigates away)
+        console.log('[HGC_API] Stream cancelled by client')
+        if (!python.killed) {
+          python.kill('SIGTERM')
         }
       }
     })

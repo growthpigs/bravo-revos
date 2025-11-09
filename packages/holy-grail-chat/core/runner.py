@@ -1,12 +1,25 @@
-#!/opt/homebrew/bin/python3.11
+#!/usr/bin/env python3
 """
 HGC Runner - Subprocess wrapper for orchestrator
 Called by Next.js API route with context in environment variable
+
+Requirements:
+- Python 3.10+ (for union type syntax in agents library)
+- Dependencies: mem0ai, agents (openai-agents), requests
 """
 
 import os
 import json
 import sys
+
+# Verify Python version (require 3.10+ for union type syntax)
+if sys.version_info < (3, 10):
+    error = {
+        'error': f'Python 3.10+ required, found {sys.version_info.major}.{sys.version_info.minor}',
+        'type': 'PythonVersionError'
+    }
+    print(json.dumps(error), file=sys.stderr)
+    sys.exit(1)
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
