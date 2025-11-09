@@ -54,3 +54,4 @@ out/
 .cache/
 temp/
 tmp/
+docs/PRODUCTION_CREDENTIALS.md
