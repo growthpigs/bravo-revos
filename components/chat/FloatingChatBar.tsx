@@ -64,7 +64,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     try {
       abortControllerRef.current = new AbortController();
 
-      const response = await fetch('/api/hgc', {
+      // Fallback to simple chat API if HGC isn't available
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +81,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Please log in to use RevOS Intelligence');
+          throw new Error('Please log in to use the chat');
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -95,7 +96,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Read the streaming response (word-by-word from HGC)
+      // Read the streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
@@ -109,19 +110,30 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        // HGC streams word-by-word as plain text
         const chunk = decoder.decode(value);
-        fullContent += chunk;
+        const lines = chunk.split('\n');
 
-        // Update the assistant message in place
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            lastMessage.content = fullContent;
+        for (const line of lines) {
+          if (line.startsWith('0:')) {
+            // Extract the text content from AI SDK format
+            const content = line.slice(2);
+            if (content && content !== '"\n"') {
+              // Remove quotes and parse escaped characters
+              const parsed = content.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+              fullContent += parsed;
+
+              // Update the assistant message in place
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage && lastMessage.role === 'assistant') {
+                  lastMessage.content = fullContent;
+                }
+                return newMessages;
+              });
+            }
           }
-          return newMessages;
-        });
+        }
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
