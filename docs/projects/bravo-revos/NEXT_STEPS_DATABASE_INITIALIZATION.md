@@ -203,8 +203,8 @@ This uses the updated `.env.local` credentials (new Bravo RevOS project).
 3. Settings → Environment
 4. Update:
    - `NEXT_PUBLIC_SUPABASE_URL=https://trdoainmejxanrownbuz.supabase.co`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0OTQ5MTUsImV4cCI6MjA3ODA3MDkxNX0.42jDkJvFkrSkHWitgnTTc_58Hq1H378LPdB0u8-aGfI`
-   - `SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjQ5NDkxNSwiZXhwIjoyMDc4MDcwOTE1fQ.-_DnyCrCh_UDEuNwGddPL_LFKDYTocICU4L6Tx-G3Do`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=[REDACTED_ANON_KEY]`
+   - `SUPABASE_SERVICE_ROLE_KEY=[REDACTED_SERVICE_KEY]`
 5. Save and redeploy
 
 ### Netlify Frontend
@@ -261,8 +261,8 @@ Files you'll need:
 
 **New Bravo RevOS Project**:
 - URL: `https://trdoainmejxanrownbuz.supabase.co`
-- Anon Key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0OTQ5MTUsImV4cCI6MjA3ODA3MDkxNX0.42jDkJvFkrSkHWitgnTTc_58Hq1H378LPdB0u8-aGfI`
-- Service Key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjQ5NDkxNSwiZXhwIjoyMDc4MDcwOTE1fQ.-_DnyCrCh_UDEuNwGddPL_LFKDYTocICU4L6Tx-G3Do`
+- Anon Key: `[REDACTED_ANON_KEY]`
+- Service Key: `[REDACTED_SERVICE_KEY]`
 
 **Old Shared Project** (to be deleted):
 - URL: `https://cdoikmuoiccqllqdpoew.supabase.co`

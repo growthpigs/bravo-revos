@@ -11,22 +11,27 @@
 These credentials are already available and verified:
 
 ```env
+# ⚠️ SECURITY WARNING: Do NOT paste real credentials here!
+# This is a template. All actual keys should be stored in .env.local (git-ignored)
+
 # Supabase - NEW PROJECT
 NEXT_PUBLIC_SUPABASE_URL=https://trdoainmejxanrownbuz.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0OTQ5MTUsImV4cCI6MjA3ODA3MDkxNX0.42jDkJvFkrSkHWitgnTTc_58Hq1H378LPdB0u8-aGfI
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjQ5NDkxNSwiZXhwIjoyMDc4MDcwOTE1fQ.-_DnyCrCh_UDEuNwGddPL_LFKDYTocICU4L6Tx-G3Do
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[GET_FROM_SUPABASE_DASHBOARD]
+SUPABASE_SERVICE_ROLE_KEY=[GET_FROM_SUPABASE_DASHBOARD]
 
 # Unipile (Real credentials from Brent - bravo-revos project)
-UNIPILE_API_KEY=kc7szEw8.FWyZ8rlM+Ael9oMwcn5OaKE5COkpsutMZe/ZSs5RST8=
+UNIPILE_API_KEY=[GET_FROM_UNIPILE_DASHBOARD]
 UNIPILE_DSN=https://api3.unipile.com:13344
 UNIPILE_MOCK_MODE=false
 
 # OpenAI (for voice generation & HGC)
-OPENAI_API_KEY=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
+OPENAI_API_KEY=[GET_FROM_OPENAI_DASHBOARD]
 
 # Mem0 (for HGC persistent memory)
-MEM0_API_KEY=m0-InfquYnYd7rl3YT2ytHXETxNLHxouLHZusRP1Wk6
+MEM0_API_KEY=[GET_FROM_MEM0_DASHBOARD]
 ```
+
+**SECURITY NOTE:** All credentials are stored in `.env.local` which is git-ignored. Never commit real API keys to git!
 
 ---
 
@@ -82,39 +87,43 @@ deb323419a6b4a7c1d8f238f8833f5e7f76cc7243cda4eadc0531eb28431d252
 
 ---
 
-## 📋 COMPLETE PRODUCTION ENV FILE
+## 📋 PRODUCTION ENV FILE TEMPLATE
 
-Use this for Netlify and Render environment variables:
+**⚠️ SECURITY WARNING:** Never commit real credentials to documentation!
+
+All credentials are stored in `.env.local` which is git-ignored. Use this as a reference for Netlify/Render setup:
 
 ```env
 # ===== Supabase Configuration =====
 NEXT_PUBLIC_SUPABASE_URL=https://trdoainmejxanrownbuz.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0OTQ5MTUsImV4cCI6MjA3ODA3MDkxNX0.42jDkJvFkrSkHWitgnTTc_58Hq1H378LPdB0u8-aGfI
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjQ5NDkxNSwiZXhwIjoyMDc4MDcwOTE1fQ.-_DnyCrCh_UDEuNwGddPL_LFKDYTocICU4L6Tx-G3Do
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[From Supabase dashboard > Settings > API > anon key]
+SUPABASE_SERVICE_ROLE_KEY=[From Supabase dashboard > Settings > API > service_role key]
 
 # ===== Security & Encryption =====
 ENCRYPTION_KEY=31e77e98af31feda39dea281e40ba0f20cd9080cb675d4e4ec148162bea4b0c9
 CRON_SECRET=deb323419a6b4a7c1d8f238f8833f5e7f76cc7243cda4eadc0531eb28431d252
 
 # ===== OpenAI =====
-OPENAI_API_KEY=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
+OPENAI_API_KEY=[From OpenAI > Account > API keys]
 
 # ===== Unipile (LinkedIn API) =====
 UNIPILE_DSN=https://api3.unipile.com:13344
-UNIPILE_API_KEY=kc7szEw8.FWyZ8rlM+Ael9oMwcn5OaKE5COkpsutMZe/ZSs5RST8=
+UNIPILE_API_KEY=[From Unipile dashboard]
 UNIPILE_MOCK_MODE=false
 
 # ===== Mem0 (HGC Memory) =====
-MEM0_API_KEY=m0-InfquYnYd7rl3YT2ytHXETxNLHxouLHZusRP1Wk6
+MEM0_API_KEY=[From Mem0 dashboard]
 
 # ===== Redis / BullMQ =====
-REDIS_URL=rediss://YOUR_UPSTASH_URL_HERE  # ← REQUIRED: Get from Upstash console
+REDIS_URL=[From Upstash console - rediss://...]
 
 # ===== Application Configuration =====
-NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN_HERE  # ← Set after Netlify deploys
+NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN_HERE
 NODE_ENV=production
 NODE_VERSION=18
 ```
+
+**👉 Get actual credentials from `.env.local` (not committed to git)**
 
 ---
 

@@ -46,8 +46,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle form submission
   const handleSubmit = async (e: FormEvent) => {
+    console.log('[HGC_STREAM] ========================================');
+    console.log('[HGC_STREAM] SUBMIT BUTTON CLICKED - handleSubmit called');
+    console.log('[HGC_STREAM] ========================================');
+
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading) {
+      console.log('[HGC_STREAM] Early return - input empty or already loading');
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -56,16 +63,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       createdAt: new Date(),
     };
 
+    console.log('[HGC_STREAM] User message created:', userMessage.content);
+
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     setError(null);
 
     try {
-      abortControllerRef.current = new AbortController();
-
-      // Fallback to simple chat API if HGC isn't available
-      const response = await fetch('/api/chat', {
+      console.log('[HGC_STREAM] Starting fetch request to /api/hgc');
+      const response = await fetch('/api/hgc', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,14 +83,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             content: m.content,
           })),
         }),
-        signal: abortControllerRef.current.signal,
+      });
+
+      console.log('[HGC_STREAM] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
       });
 
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Please log in to use the chat');
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
       }
 
       // Create assistant message placeholder
@@ -95,51 +111,45 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      console.log('[HGC_STREAM] Starting to read stream chunks');
 
-      // Read the streaming response
-      const reader = response.body?.getReader();
+      // Read the streaming response - HGC sends plain text chunks
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error('No response body');
-      }
-
-      let fullContent = '';
+      let assistantContent = '';
+      let chunkCount = 0;
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('0:')) {
-            // Extract the text content from AI SDK format
-            const content = line.slice(2);
-            if (content && content !== '"\n"') {
-              // Remove quotes and parse escaped characters
-              const parsed = content.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
-              fullContent += parsed;
-
-              // Update the assistant message in place
-              setMessages(prev => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                  lastMessage.content = fullContent;
-                }
-                return newMessages;
-              });
-            }
-          }
+        if (done) {
+          console.log('[HGC_STREAM] Stream complete. Total chunks:', chunkCount, 'Total content length:', assistantContent.length);
+          break;
         }
+
+        // Decode chunk as plain text (HGC streams word-by-word)
+        const chunk = decoder.decode(value, { stream: true });
+        chunkCount++;
+
+        console.log('[HGC_STREAM] Chunk', chunkCount, '- Length:', chunk.length, 'Raw:', JSON.stringify(chunk));
+
+        assistantContent += chunk;
+
+        // Update the assistant message in place
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant') {
+            lastMessage.content = assistantContent;
+          }
+          return newMessages;
+        });
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log('Request was aborted');
+        console.log('[HGC_STREAM] Request was aborted');
       } else {
-        console.error('Chat error:', error);
+        console.error('[HGC_STREAM] Error:', error);
         setError(error.message || 'An error occurred');
         // Remove the empty assistant message if there was an error
         setMessages(prev => {
@@ -314,7 +324,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Floating bar view (default)
   return (
     <div className={cn(
-      "fixed bottom-5 left-1/2 -translate-x-1/2 w-2/3 max-w-3xl z-50",
+      "fixed bottom-8 left-1/2 -translate-x-1/2 w-4/5 max-w-5xl z-50",
       className
     )}>
       <form onSubmit={handleSubmit}>
@@ -325,28 +335,31 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               {messages[messages.length - 1].role === 'user' && (
                 <div className="text-xs text-gray-500 mb-1">You</div>
               )}
-              <div className="text-sm text-gray-700 line-clamp-2">
+              <div className="text-base text-gray-700 line-clamp-2">
                 {messages[messages.length - 1].content}
               </div>
             </div>
           )}
 
-          {/* Input area */}
-          <div className="p-4">
+          {/* Input area - clickable to focus */}
+          <div
+            className="p-5 cursor-text"
+            onClick={() => textareaRef.current?.focus()}
+          >
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Revy wants to help! Type..."
-              className="w-full text-gray-700 text-sm outline-none resize-none"
+              className="w-full text-gray-700 text-base outline-none resize-none"
               rows={1}
               disabled={isLoading}
             />
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between px-3 pb-3 pt-1 border-t border-gray-100">
+          <div className="flex items-center justify-between px-3 pb-3 pt-1">
             <div className="flex gap-1">
               <button
                 type="button"
