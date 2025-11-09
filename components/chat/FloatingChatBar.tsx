@@ -330,7 +330,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Floating bar view (default)
   return (
     <div className={cn(
-      "fixed bottom-8 left-[calc(256px+10%*(100vw-256px))] w-[calc((100vw-256px)*0.8)] max-w-5xl z-50 -translate-x-1/2 translate-x-0",
+      "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
       className
     )}>
       {/* Single cohesive container */}
@@ -359,16 +359,24 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             className="p-5 cursor-text"
             onClick={() => textareaRef.current?.focus()}
           >
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Revy wants to help! Type..."
-              className="w-full text-gray-700 text-base outline-none resize-none"
-              rows={1}
-              disabled={isLoading}
-            />
+            {isLoading ? (
+              <div className="flex items-center gap-1 h-6">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.2s' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.4s' }} />
+              </div>
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={messages.length === 0 ? "Revvy wants to help! Type..." : ""}
+                className="w-full bg-white text-gray-700 text-base outline-none resize-none placeholder-gray-500"
+                rows={1}
+                disabled={isLoading}
+              />
+            )}
           </div>
 
           {/* Toolbar */}

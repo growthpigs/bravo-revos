@@ -33,17 +33,11 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
             : 'bg-gray-100 text-gray-900'
         )}
       >
-        {messageText ? (
+        {messageText && (
           <div className="whitespace-pre-wrap break-words">
             {messageText}
           </div>
-        ) : isLoading ? (
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" />
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.2s' }} />
-            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.4s' }} />
-          </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
