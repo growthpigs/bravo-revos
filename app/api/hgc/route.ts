@@ -74,9 +74,9 @@ export async function POST(request: NextRequest) {
 
     console.log('[HGC_API] Calling Python orchestrator...')
 
-    // Call Python runner with Python 3.11 explicitly (requires 3.10+)
+    // Call Python runner
     const pythonPath = path.join(process.cwd(), 'packages', 'holy-grail-chat', 'core', 'runner.py')
-    const python = spawn('python3.11', [pythonPath], {
+    const python = spawn(pythonPath, [], {
       env: {
         ...process.env,
         HGC_CONTEXT: JSON.stringify(context)
