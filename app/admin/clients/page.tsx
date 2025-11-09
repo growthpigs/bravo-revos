@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -80,9 +81,11 @@ export default async function AdminClientsPage() {
                     <p className="text-xs text-slate-600">Campaigns</p>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full">
-                  View Details
-                </Button>
+                <Link href={`/admin/clients/${client.id}/integrations`}>
+                  <Button variant="outline" className="w-full">
+                    Configuration
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ))}

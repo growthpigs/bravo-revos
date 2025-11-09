@@ -3,6 +3,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 interface ClientIntegrations {
   id: string;
@@ -39,28 +41,43 @@ export default function ClientIntegrationsPage() {
   const loadClientIntegrations = async () => {
     try {
       setLoading(true);
+      console.log('[LOAD_DEBUG] Starting load for clientId:', clientId);
+
       const { data, error } = await supabase
         .from('clients')
         .select('id, name, unipile_api_key, unipile_dsn, unipile_enabled, unipile_configured_at')
         .eq('id', clientId)
         .single();
 
+      console.log('[LOAD_DEBUG] Query result - data:', data);
+      console.log('[LOAD_DEBUG] Query result - error:', error);
+
       if (error) {
-        setError('Failed to load client integrations');
+        console.error('[LOAD_DEBUG] Failed to load - Full error:', JSON.stringify(error, null, 2));
+        setError(`Failed to load client integrations: ${error.message} (${error.code})`);
         return;
       }
 
       if (data) {
+        console.log('[LOAD_DEBUG] Setting state with data:', {
+          apiKey: data.unipile_api_key ? '***EXISTS***' : 'null',
+          dsn: data.unipile_dsn,
+          enabled: data.unipile_enabled
+        });
         setClient(data);
         setApiKey(data.unipile_api_key || '');
         setDsn(data.unipile_dsn || 'https://api3.unipile.com:13344');
         setEnabled(data.unipile_enabled || false);
+      } else {
+        console.warn('[LOAD_DEBUG] No data returned from query');
       }
     } catch (err) {
+      console.error('[LOAD_DEBUG] Exception caught:', err);
       setError('Error loading client data');
       console.error(err);
     } finally {
       setLoading(false);
+      console.log('[LOAD_DEBUG] Load complete');
     }
   };
 
@@ -70,38 +87,46 @@ export default function ClientIntegrationsPage() {
     setError(null);
     setSuccess(null);
 
-    try {
-      // Validate inputs
-      if (enabled && !apiKey) {
-        setError('API Key is required when Unipile is enabled');
-        setSaving(false);
-        return;
-      }
+    console.log('[SAVE_DEBUG] Starting save with:', {
+      clientId,
+      hasApiKey: !!apiKey,
+      hasDsn: !!dsn,
+      enabled
+    });
 
-      const { error } = await supabase
+    try {
+      // Save credentials if provided (regardless of enabled state)
+      const { data: updateData, error } = await supabase
         .from('clients')
         .update({
-          unipile_api_key: enabled ? apiKey : null,
-          unipile_dsn: enabled ? dsn : null,
+          unipile_api_key: apiKey || null,
+          unipile_dsn: dsn || null,
           unipile_enabled: enabled,
-          unipile_configured_at: enabled ? new Date().toISOString() : null,
+          unipile_configured_at: new Date().toISOString(),
         })
-        .eq('id', clientId);
+        .eq('id', clientId)
+        .select();
+
+      console.log('[SAVE_DEBUG] Update result - data:', updateData);
+      console.log('[SAVE_DEBUG] Update result - error:', error);
 
       if (error) {
-        setError('Failed to save integrations');
-        console.error(error);
+        console.error('[SAVE_DEBUG] Failed to save - Full error:', JSON.stringify(error, null, 2));
+        setError(`Failed to save configuration: ${error.message} (${error.code})`);
         return;
       }
 
-      setSuccess('Unipile integration settings saved successfully');
-      // Reload data
-      await loadClientIntegrations();
+      console.log('[SAVE_DEBUG] Save succeeded, redirecting to clients page');
+
+      // Redirect back to clients page after successful save
+      router.push('/admin/clients');
     } catch (err) {
+      console.error('[SAVE_DEBUG] Exception caught:', err);
       setError('Error saving settings');
       console.error(err);
     } finally {
       setSaving(false);
+      console.log('[SAVE_DEBUG] Save complete');
     }
   };
 
@@ -160,7 +185,14 @@ export default function ClientIntegrationsPage() {
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Integrations Settings</h1>
+        <Link
+          href="/admin/clients"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span>Back to Clients</span>
+        </Link>
+        <h1 className="text-3xl font-bold text-gray-900">Configuration</h1>
         {client && <p className="text-gray-600 mt-2">Client: {client.name}</p>}
       </div>
 
@@ -184,7 +216,7 @@ export default function ClientIntegrationsPage() {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-6" autoComplete="off">
         {/* Enable/Disable Toggle */}
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
@@ -221,9 +253,9 @@ export default function ClientIntegrationsPage() {
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            disabled={!enabled}
             placeholder="Enter your Unipile API Key"
-            className="mt-3 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+            autoComplete="new-password"
+            className="mt-3 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
           {apiKey && (
             <p className="text-xs text-gray-500 mt-2">
@@ -245,37 +277,35 @@ export default function ClientIntegrationsPage() {
             type="text"
             value={dsn}
             onChange={(e) => setDsn(e.target.value)}
-            disabled={!enabled}
             placeholder="https://api3.unipile.com:13344"
-            className="mt-3 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+            autoComplete="off"
+            className="mt-3 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         {/* Test Connection Button */}
-        {enabled && (
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <button
-              type="button"
-              onClick={handleTestConnection}
-              disabled={testing || !apiKey}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-            >
-              {testing ? 'Testing...' : 'Test Connection'}
-            </button>
-            <p className="text-sm text-gray-600 mt-2">
-              Test your Unipile API credentials before saving
-            </p>
-          </div>
-        )}
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <button
+            type="button"
+            onClick={handleTestConnection}
+            disabled={testing || !apiKey}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+          >
+            {testing ? 'Testing...' : 'Test Connection'}
+          </button>
+          <p className="text-sm text-gray-600 mt-2">
+            Test your Unipile API credentials (enter API key first)
+          </p>
+        </div>
 
         {/* Save Button */}
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <button
             type="submit"
             disabled={saving}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition font-medium"
+            className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
           >
-            {saving ? 'Saving...' : 'Save Integration Settings'}
+            {saving ? 'Saving...' : 'Save Configuration'}
           </button>
         </div>
 

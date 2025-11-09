@@ -1,4 +1,5 @@
 import DashboardSidebar from '@/components/dashboard/dashboard-sidebar'
+import { HGCChat } from '@/components/hgc-chat'
 
 export default function DashboardLayout({
   children,
@@ -22,6 +23,9 @@ export default function DashboardLayout({
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
+
+      {/* Holy Grail Chat - AI Co-founder */}
+      <HGCChat />
     </div>
   )
 }

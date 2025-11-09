@@ -9,6 +9,26 @@ export async function createClient(options?: { isServiceRole?: boolean }) {
     ? process.env.SUPABASE_SERVICE_ROLE_KEY!
     : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+  // CRITICAL: When using service role, do NOT send cookies
+  // Cookies contain user auth tokens that override the service role key
+  if (options?.isServiceRole) {
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      apiKey,
+      {
+        cookies: {
+          getAll() {
+            return [] // No cookies for service role
+          },
+          setAll() {
+            // No-op for service role
+          },
+        },
+      }
+    )
+  }
+
+  // For regular authenticated requests, use cookies
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     apiKey,

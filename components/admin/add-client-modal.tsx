@@ -41,25 +41,33 @@ export function AddClientModal() {
     setLoading(true)
 
     try {
+      console.log('[CLIENT_CREATION] Submitting request:', { name, slug })
       const response = await fetch('/api/clients', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',  // CRITICAL: Include auth cookies in request
         body: JSON.stringify({ name, slug }),
       })
 
+      console.log('[CLIENT_CREATION] Response status:', response.status)
+
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to create client')
+        console.error('[CLIENT_CREATION] Error response:', { status: response.status, data })
+        throw new Error(data.error || `Failed to create client (${response.status})`)
       }
 
+      console.log('[CLIENT_CREATION] Success! Client created.')
       setOpen(false)
       setName('')
       setSlug('')
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred'
+      console.error('[CLIENT_CREATION] Caught error:', errorMsg)
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
