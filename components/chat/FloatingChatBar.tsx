@@ -331,7 +331,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         <div className="bg-white border border-gray-200 rounded-xl shadow-md">
           {/* Show last message if exists */}
           {messages.length > 0 && (
-            <div className="px-4 pt-3 pb-2 border-b border-gray-100">
+            <div className="px-4 pt-3 pb-2">
               {messages[messages.length - 1].role === 'user' && (
                 <div className="text-xs text-gray-500 mb-1">You</div>
               )}
