@@ -45,8 +45,8 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
   }
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r border-slate-200">
-      <div className="flex items-center gap-3 p-6 border-b border-slate-200">
+    <div className="flex flex-col w-64 bg-white border-r border-gray-200">
+      <div className="flex items-center gap-3 p-6 border-b border-gray-200">
         {agency?.logo_url ? (
           <Image
             src={agency.logo_url}
@@ -62,8 +62,8 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-slate-900 truncate">{agency?.name}</h2>
-          <p className="text-xs text-slate-500">Agency Portal</p>
+          <h2 className="text-sm font-semibold text-gray-900 truncate">{agency?.name}</h2>
+          <p className="text-xs text-gray-500">Agency Portal</p>
         </div>
       </div>
 
@@ -79,7 +79,7 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
                   'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                   isActive
                     ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-700 hover:bg-slate-50'
+                    : 'text-gray-700 hover:bg-gray-50'
                 )}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -90,7 +90,7 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
         </nav>
       </ScrollArea>
 
-      <div className="p-4 border-t border-slate-200">
+      <div className="p-4 border-t border-gray-200">
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user?.avatar_url} />
@@ -99,10 +99,10 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">
+            <p className="text-sm font-medium text-gray-900 truncate">
               {user?.full_name || user?.email}
             </p>
-            <p className="text-xs text-slate-500 capitalize">
+            <p className="text-xs text-gray-500 capitalize">
               {user?.role?.replace('_', ' ')}
             </p>
           </div>

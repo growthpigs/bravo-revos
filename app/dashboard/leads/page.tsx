@@ -193,8 +193,8 @@ export default function LeadsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Leads</h1>
-          <p className="text-slate-600 mt-2">
+          <h1 className="text-3xl font-bold text-gray-900">Leads</h1>
+          <p className="text-gray-600 mt-2">
             View and manage all your captured leads ({filteredLeads.length} of {leads.length})
           </p>
         </div>
@@ -215,14 +215,14 @@ export default function LeadsPage() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <Card className="mb-6 bg-slate-50 border-slate-200">
+        <Card className="mb-6 bg-gray-50 border-gray-200">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Search */}
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">Search</Label>
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                   <Input
                     placeholder="Name, email, company..."
                     className="pl-8"
@@ -236,7 +236,7 @@ export default function LeadsPage() {
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">Status</Label>
                 <select
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                   value={filters.status}
                   onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                 >
@@ -251,7 +251,7 @@ export default function LeadsPage() {
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">Campaign</Label>
                 <select
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                   value={filters.campaign}
                   onChange={(e) => setFilters({ ...filters, campaign: e.target.value })}
                 >
@@ -309,29 +309,29 @@ export default function LeadsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left py-3 px-4 font-medium text-slate-600">Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-slate-600">Email</th>
-                    <th className="text-left py-3 px-4 font-medium text-slate-600">Campaign</th>
-                    <th className="text-left py-3 px-4 font-medium text-slate-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-slate-600">Company</th>
-                    <th className="text-left py-3 px-4 font-medium text-slate-600">Date</th>
-                    <th className="text-right py-3 px-4 font-medium text-slate-600">Actions</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Email</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Campaign</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Company</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLeads.map((lead) => (
-                    <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="py-3 px-4 text-slate-900 font-medium">{`${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown'}</td>
-                      <td className="py-3 px-4 text-slate-600">{lead.email || '-'}</td>
-                      <td className="py-3 px-4 text-slate-600">{(lead.campaigns as any)?.name || '-'}</td>
+                    <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 text-gray-900 font-medium">{`${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown'}</td>
+                      <td className="py-3 px-4 text-gray-600">{lead.email || '-'}</td>
+                      <td className="py-3 px-4 text-gray-600">{(lead.campaigns as any)?.name || '-'}</td>
                       <td className="py-3 px-4">
                         <Badge className={statusColors[lead.status]} variant="secondary">
                           {statusLabels[lead.status]}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-slate-600">{lead.company || '-'}</td>
-                      <td className="py-3 px-4 text-slate-600 text-xs">
+                      <td className="py-3 px-4 text-gray-600">{lead.company || '-'}</td>
+                      <td className="py-3 px-4 text-gray-600 text-xs">
                         {new Date(lead.created_at).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -353,17 +353,17 @@ export default function LeadsPage() {
       ) : leads.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
-            <Users2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No leads yet</h3>
-            <p className="text-slate-600">Leads will appear here once your campaigns are active</p>
+            <Users2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No leads yet</h3>
+            <p className="text-gray-600">Leads will appear here once your campaigns are active</p>
           </CardContent>
         </Card>
       ) : (
         <Card className="text-center py-12">
           <CardContent>
-            <Users2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No results</h3>
-            <p className="text-slate-600">No leads match your filters. Try adjusting your search.</p>
+            <Users2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No results</h3>
+            <p className="text-gray-600">No leads match your filters. Try adjusting your search.</p>
           </CardContent>
         </Card>
       )}
@@ -373,7 +373,7 @@ export default function LeadsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between sticky top-0 bg-white border-b p-6">
-              <h2 className="text-xl font-bold text-slate-900">Lead Details</h2>
+              <h2 className="text-xl font-bold text-gray-900">Lead Details</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -386,22 +386,22 @@ export default function LeadsPage() {
             <CardContent className="p-6 space-y-6">
               {/* Profile Section */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-slate-900">Profile Information</h3>
+                <h3 className="font-semibold text-gray-900">Profile Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-600 uppercase">Full Name</Label>
-                    <p className="text-slate-900 font-medium mt-1">{`${selectedLead.first_name || ''} ${selectedLead.last_name || ''}`.trim() || 'Unknown'}</p>
+                    <Label className="text-xs text-gray-600 uppercase">Full Name</Label>
+                    <p className="text-gray-900 font-medium mt-1">{`${selectedLead.first_name || ''} ${selectedLead.last_name || ''}`.trim() || 'Unknown'}</p>
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-600 uppercase">Email</Label>
+                    <Label className="text-xs text-gray-600 uppercase">Email</Label>
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="text-slate-900 font-medium break-all">{selectedLead.email || '-'}</p>
+                      <p className="text-gray-900 font-medium break-all">{selectedLead.email || '-'}</p>
                       {selectedLead.email && (
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(selectedLead.email)
                           }}
-                          className="text-slate-500 hover:text-slate-700"
+                          className="text-gray-500 hover:text-gray-700"
                         >
                           <Copy className="h-4 w-4" />
                         </button>
@@ -409,26 +409,26 @@ export default function LeadsPage() {
                     </div>
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-600 uppercase">Company</Label>
-                    <p className="text-slate-900 font-medium mt-1">{selectedLead.company || '-'}</p>
+                    <Label className="text-xs text-gray-600 uppercase">Company</Label>
+                    <p className="text-gray-900 font-medium mt-1">{selectedLead.company || '-'}</p>
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-600 uppercase">Title</Label>
-                    <p className="text-slate-900 font-medium mt-1">{selectedLead.title || '-'}</p>
+                    <Label className="text-xs text-gray-600 uppercase">Title</Label>
+                    <p className="text-gray-900 font-medium mt-1">{selectedLead.title || '-'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Campaign & Status */}
               <div className="space-y-4 border-t pt-6">
-                <h3 className="font-semibold text-slate-900">Campaign & Status</h3>
+                <h3 className="font-semibold text-gray-900">Campaign & Status</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-600 uppercase">Campaign</Label>
-                    <p className="text-slate-900 font-medium mt-1">{(selectedLead.campaigns as any)?.name || '-'}</p>
+                    <Label className="text-xs text-gray-600 uppercase">Campaign</Label>
+                    <p className="text-gray-900 font-medium mt-1">{(selectedLead.campaigns as any)?.name || '-'}</p>
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-600 uppercase">Status</Label>
+                    <Label className="text-xs text-gray-600 uppercase">Status</Label>
                     <Badge className={`${statusColors[selectedLead.status]} mt-1`} variant="secondary">
                       {statusLabels[selectedLead.status]}
                     </Badge>
@@ -439,7 +439,7 @@ export default function LeadsPage() {
               {/* LinkedIn Profile */}
               {selectedLead.linkedin_url && (
                 <div className="space-y-4 border-t pt-6">
-                  <h3 className="font-semibold text-slate-900">LinkedIn Profile</h3>
+                  <h3 className="font-semibold text-gray-900">LinkedIn Profile</h3>
                   <a
                     href={selectedLead.linkedin_url}
                     target="_blank"
@@ -453,8 +453,8 @@ export default function LeadsPage() {
 
               {/* Timeline */}
               <div className="space-y-4 border-t pt-6">
-                <h3 className="font-semibold text-slate-900">Timeline</h3>
-                <div className="text-sm text-slate-600">
+                <h3 className="font-semibold text-gray-900">Timeline</h3>
+                <div className="text-sm text-gray-600">
                   <p>Captured on {new Date(selectedLead.created_at).toLocaleString()}</p>
                 </div>
               </div>

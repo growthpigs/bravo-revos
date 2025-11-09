@@ -217,36 +217,36 @@ export default function CartridgesPage() {
         {/* Quick Guide Tab */}
         <TabsContent value="guide" className="space-y-4">
           <div className="grid gap-4">
-            <div className="rounded-lg border p-6 bg-blue-50 border-blue-200">
-              <h3 className="font-semibold text-blue-900 mb-2">What is a Voice Cartridge?</h3>
-              <p className="text-sm text-blue-800">
+            <div className="rounded-lg border p-6 bg-gray-50 border-gray-200">
+              <h3 className="font-semibold text-gray-900 mb-2">What is a Voice Cartridge?</h3>
+              <p className="text-sm text-gray-700">
                 A voice cartridge defines the personality, tone, and style of your AI-generated messages.
                 It includes parameters like formality level, enthusiasm, vocabulary preferences, and content style.
               </p>
             </div>
 
-            <div className="rounded-lg border p-6 bg-purple-50 border-purple-200">
-              <h3 className="font-semibold text-purple-900 mb-2">Hierarchical Inheritance</h3>
-              <p className="text-sm text-purple-800 mb-3">
+            <div className="rounded-lg border p-6 bg-gray-50 border-gray-200">
+              <h3 className="font-semibold text-gray-900 mb-2">Hierarchical Inheritance</h3>
+              <p className="text-sm text-gray-700 mb-3">
                 Cartridges follow a 4-tier hierarchy:
               </p>
-              <ul className="text-sm text-purple-800 space-y-1">
+              <ul className="text-sm text-gray-700 space-y-1">
                 <li><strong>System</strong> - Default voice for entire platform</li>
                 <li><strong>Agency</strong> - Custom voice for each agency</li>
                 <li><strong>Client</strong> - Custom voice for each client within agency</li>
                 <li><strong>User</strong> - Personal voice overrides</li>
               </ul>
-              <p className="text-xs text-purple-700 mt-3">
+              <p className="text-xs text-gray-600 mt-3">
                 Child cartridges inherit from parents and can override specific settings.
               </p>
             </div>
 
-            <div className="rounded-lg border p-6 bg-green-50 border-green-200">
-              <h3 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+            <div className="rounded-lg border p-6 bg-gray-50 border-gray-200">
+              <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                 <Zap className="h-4 w-4" />
                 Quick Start
               </h3>
-              <ol className="text-sm text-green-800 space-y-2 ml-4 list-decimal">
+              <ol className="text-sm text-gray-700 space-y-2 ml-4 list-decimal">
                 <li>Click &quot;New Cartridge&quot; to create a voice profile</li>
                 <li>Set the basic tone: formality, enthusiasm, empathy (0-10)</li>
                 <li>Customize writing style: sentence length, emojis, hashtags</li>
@@ -256,12 +256,12 @@ export default function CartridgesPage() {
               </ol>
             </div>
 
-            <div className="rounded-lg border p-6 bg-amber-50 border-amber-200">
-              <h3 className="font-semibold text-amber-900 mb-2">Progressive Disclosure</h3>
-              <p className="text-sm text-amber-800">
+            <div className="rounded-lg border p-6 bg-gray-50 border-gray-200">
+              <h3 className="font-semibold text-gray-900 mb-2">Progressive Disclosure</h3>
+              <p className="text-sm text-gray-700">
                 Complex options are hidden by default. Click section headers to expand and customize:
               </p>
-              <ul className="text-sm text-amber-800 mt-2 space-y-1">
+              <ul className="text-sm text-gray-700 mt-2 space-y-1">
                 <li>• <strong>Tone & Attitude</strong> - Core personality traits</li>
                 <li>• <strong>Writing Style</strong> - Format and presentation</li>
                 <li>• <strong>Personality</strong> - Voice description and traits</li>

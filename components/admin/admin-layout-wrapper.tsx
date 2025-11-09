@@ -1,33 +1,24 @@
 'use client';
 
-import DashboardSidebar from '@/components/dashboard/dashboard-sidebar'
-import { TopBar } from '@/components/TopBar'
-import { useState } from 'react'
+import { useState } from 'react';
+import { TopBar } from '@/components/TopBar';
+import AdminSidebar from '@/components/admin/admin-sidebar';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+interface AdminLayoutWrapperProps {
+  user: any;
+  agency: any;
+  children: React.ReactNode;
+}
+
+export default function AdminLayoutWrapper({ user, agency, children }: AdminLayoutWrapperProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Mock user data for development
-  const mockUser = {
-    id: '1',
-    email: 'user@example.com',
-    role: 'client_admin',
-    clients: {
-      id: '1',
-      name: 'Example Client',
-    },
-  }
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar - Toggle with screen size */}
       {sidebarOpen && (
         <div className="w-64 flex-shrink-0 hidden md:block">
-          <DashboardSidebar user={mockUser} client={mockUser.clients} />
+          <AdminSidebar user={user} agency={agency} />
         </div>
       )}
 
@@ -46,5 +37,5 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
-  )
+  );
 }

@@ -67,8 +67,8 @@ export default function SettingsPage() {
     <div className="space-y-8 p-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-        <p className="text-slate-600 mt-2">Manage your account and preferences</p>
+        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-600 mt-2">Manage your account and preferences</p>
       </div>
 
       {/* Settings Tabs */}
@@ -104,7 +104,7 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <Input id="email" type="email" value={email} disabled />
-                  <p className="text-xs text-slate-500">Email cannot be changed</p>
+                  <p className="text-xs text-gray-500">Email cannot be changed</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
@@ -145,9 +145,9 @@ export default function SettingsPage() {
               <CardDescription>Manage your account security</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="p-4 border rounded-lg bg-slate-50">
+              <div className="p-4 border rounded-lg bg-gray-50">
                 <p className="font-medium mb-2">Password Management</p>
-                <p className="text-sm text-slate-600 mb-4">
+                <p className="text-sm text-gray-600 mb-4">
                   Use your email address to reset your password through authentication email
                 </p>
                 <Button variant="outline" disabled>

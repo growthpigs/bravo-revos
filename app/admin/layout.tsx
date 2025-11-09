@@ -1,4 +1,5 @@
 import AdminSidebar from '@/components/admin/admin-sidebar'
+import AdminLayoutWrapper from '@/components/admin/admin-layout-wrapper'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -41,11 +42,8 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <AdminSidebar user={mockUser} agency={mockUser.agencies} />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+    <AdminLayoutWrapper user={mockUser} agency={mockUser.agencies}>
+      {children}
+    </AdminLayoutWrapper>
   )
 }

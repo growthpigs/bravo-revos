@@ -264,7 +264,7 @@ export default function LinkedInPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">LinkedIn Integration</h1>
-        <p className="text-slate-500 mt-2">
+        <p className="text-gray-500 mt-2">
           Connect and manage your LinkedIn accounts for lead generation
         </p>
       </div>
@@ -280,14 +280,14 @@ export default function LinkedInPage() {
         <TabsContent value="connected" className="space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
             </div>
           ) : accounts.length === 0 ? (
             <Card>
               <CardContent className="py-8">
-                <Link2 className="w-12 h-12 text-slate-300 mb-4" />
+                <Link2 className="w-12 h-12 text-gray-300 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No Accounts Connected</h3>
-                <p className="text-slate-500 mb-4">
+                <p className="text-gray-500 mb-4">
                   Connect your first LinkedIn account to get started
                 </p>
               </CardContent>
@@ -310,15 +310,15 @@ export default function LinkedInPage() {
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="text-slate-500">Account Name</p>
+                        <p className="text-gray-500">Account Name</p>
                         <p className="font-medium">{account.account_name}</p>
                       </div>
                       <div>
-                        <p className="text-slate-500">Unipile ID</p>
+                        <p className="text-gray-500">Unipile ID</p>
                         <p className="font-mono text-xs">{account.unipile_account_id.slice(0, 12)}...</p>
                       </div>
                       <div>
-                        <p className="text-slate-500">Expires</p>
+                        <p className="text-gray-500">Expires</p>
                         <p className="font-medium">
                           {formatDistanceToNow(new Date(account.session_expires_at), {
                             addSuffix: true,
@@ -326,7 +326,7 @@ export default function LinkedInPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-slate-500">Connected</p>
+                        <p className="text-gray-500">Connected</p>
                         <p className="font-medium">
                           {formatDistanceToNow(new Date(account.created_at), {
                             addSuffix: true,
@@ -373,7 +373,7 @@ export default function LinkedInPage() {
                   onChange={(e) => setAccountName(e.target.value)}
                   disabled={authenticating}
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   A friendly name to identify this account in the system
                 </p>
               </div>
@@ -398,7 +398,7 @@ export default function LinkedInPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={authenticating}
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   Your password is encrypted and never stored in plain text
                 </p>
               </div>
@@ -468,7 +468,7 @@ export default function LinkedInPage() {
                   <Zap className="w-4 h-4 mr-2 text-blue-600" />
                   Automatic Monitoring
                 </h4>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-gray-600">
                   Your sessions are automatically monitored for expiry. If a session expires, we&apos;ll
                   notify you to reconnect.
                 </p>
@@ -479,7 +479,7 @@ export default function LinkedInPage() {
                   <Clock className="w-4 h-4 mr-2 text-yellow-600" />
                   Session Expiry
                 </h4>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-gray-600">
                   Sessions typically last 90 days. You&apos;ll be notified 7 days before expiry to reconnect.
                 </p>
               </div>
@@ -489,7 +489,7 @@ export default function LinkedInPage() {
                   <AlertCircle className="w-4 h-4 mr-2 text-red-600" />
                   What Happens If Session Expires
                 </h4>
-                <ul className="text-sm text-slate-600 space-y-2 ml-6 list-disc">
+                <ul className="text-sm text-gray-600 space-y-2 ml-6 list-disc">
                   <li>We&apos;ll notify you to reconnect</li>
                   <li>Lead generation will pause temporarily</li>
                   <li>You can reconnect anytime using the &quot;Connect&quot; tab</li>
@@ -501,7 +501,7 @@ export default function LinkedInPage() {
                   <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
                   Security
                 </h4>
-                <ul className="text-sm text-slate-600 space-y-2 ml-6 list-disc">
+                <ul className="text-sm text-gray-600 space-y-2 ml-6 list-disc">
                   <li>Passwords are never stored - only encrypted session tokens</li>
                   <li>All communication with LinkedIn is through Unipile&apos;s secure API</li>
                   <li>You can disconnect any account at any time</li>

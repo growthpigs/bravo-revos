@@ -196,7 +196,7 @@ export default function ClientIntegrationsPage() {
       <div className="mb-8">
         <Link
           href="/admin/clients"
-          className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 transition-colors"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
           <span>Back to Clients</span>
@@ -236,7 +236,7 @@ export default function ClientIntegrationsPage() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Unipile Integration</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Configure this client's Unipile account for LinkedIn automation
+                Configure this client&apos;s Unipile account for LinkedIn automation
               </p>
             </div>
             <label className="flex items-center cursor-pointer">
@@ -347,11 +347,11 @@ export default function ClientIntegrationsPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Connected LinkedIn Accounts</h2>
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <p className="text-gray-600">
-            LinkedIn accounts connected via this client's Unipile account will appear here.
+            LinkedIn accounts connected via this client&apos;s Unipile account will appear here.
           </p>
           <p className="text-sm text-gray-500 mt-4">
             Users will authenticate their LinkedIn accounts from their dashboard, and they will
-            automatically be associated with this client's Unipile account.
+            automatically be associated with this client&apos;s Unipile account.
           </p>
         </div>
       </div>

@@ -75,8 +75,8 @@ export default async function AdminDashboardPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Agency Dashboard</h1>
-        <p className="text-slate-600 mt-2">
+        <h1 className="text-3xl font-bold text-gray-900">Agency Dashboard</h1>
+        <p className="text-gray-600 mt-2">
           Monitor and manage all your clients and campaigns
         </p>
       </div>
@@ -87,7 +87,7 @@ export default async function AdminDashboardPage() {
           return (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">
+                <CardTitle className="text-sm font-medium text-gray-600">
                   {stat.title}
                 </CardTitle>
                 <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -95,8 +95,8 @@ export default async function AdminDashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-                <p className="text-xs text-slate-500 mt-1">{stat.description}</p>
+                <div className="text-3xl font-bold text-gray-900">{stat.value}</div>
+                <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
               </CardContent>
             </Card>
           )
@@ -110,7 +110,7 @@ export default async function AdminDashboardPage() {
             <CardDescription>Latest updates from your clients</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-slate-500">No recent activity</p>
+            <p className="text-sm text-gray-500">No recent activity</p>
           </CardContent>
         </Card>
 
@@ -122,15 +122,15 @@ export default async function AdminDashboardPage() {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">API Status</span>
+                <span className="text-sm text-gray-600">API Status</span>
                 <span className="text-sm font-medium text-emerald-600">Operational</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Database</span>
+                <span className="text-sm text-gray-600">Database</span>
                 <span className="text-sm font-medium text-emerald-600">Connected</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Storage</span>
+                <span className="text-sm text-gray-600">Storage</span>
                 <span className="text-sm font-medium text-emerald-600">Available</span>
               </div>
             </div>

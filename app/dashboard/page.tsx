@@ -44,41 +44,41 @@ export default async function DashboardPage() {
       value: campaignsCount || 0,
       icon: Megaphone,
       description: 'Currently running',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-gray-700',
+      bgColor: 'bg-gray-100',
     },
     {
       title: 'Total Leads',
       value: leadsCount || 0,
       icon: Users2,
       description: 'All time',
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
+      color: 'text-gray-700',
+      bgColor: 'bg-gray-100',
     },
     {
       title: 'Conversions',
       value: conversionsCount || 0,
       icon: TrendingUp,
       description: 'Delivered to webhook',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      color: 'text-gray-700',
+      bgColor: 'bg-gray-100',
     },
     {
       title: 'Conversion Rate',
       value: `${conversionRate}%`,
       icon: Zap,
       description: 'Lead to conversion',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      color: 'text-gray-700',
+      bgColor: 'bg-gray-100',
     },
   ]
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-600 mt-2">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">
             Welcome back! Here is an overview of your campaigns
           </p>
         </div>
@@ -90,13 +90,13 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-slate-600">
+                <CardTitle className="text-sm font-medium text-gray-600">
                   {stat.title}
                 </CardTitle>
                 <div className={`p-2 rounded-lg ${stat.bgColor}`}>
@@ -104,8 +104,8 @@ export default async function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-                <p className="text-xs text-slate-500 mt-1">{stat.description}</p>
+                <div className="text-3xl font-bold text-gray-900">{stat.value}</div>
+                <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
               </CardContent>
             </Card>
           )
@@ -146,7 +146,7 @@ export default async function DashboardPage() {
             <CardDescription>Latest lead activity</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-slate-500">No leads yet</p>
+            <p className="text-sm text-gray-500">No leads yet</p>
           </CardContent>
         </Card>
       </div>

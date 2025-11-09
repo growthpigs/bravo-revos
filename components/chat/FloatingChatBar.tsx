@@ -355,8 +355,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         {/* Input Area - Part of same container */}
         <form onSubmit={handleSubmit}>
-          <div>
-          {/* Input area - clickable to focus */}
           <div
             className="p-5 cursor-text"
             onClick={() => textareaRef.current?.focus()}

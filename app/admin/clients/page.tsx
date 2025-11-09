@@ -28,8 +28,8 @@ export default async function AdminClientsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Clients</h1>
-          <p className="text-slate-600 mt-2">
+          <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
+          <p className="text-gray-600 mt-2">
             Manage all clients in your agency
           </p>
         </div>
@@ -59,26 +59,26 @@ export default async function AdminClientsPage() {
                     )}
                     <div>
                       <CardTitle className="text-lg">{client.name}</CardTitle>
-                      <p className="text-sm text-slate-500">@{client.slug}</p>
+                      <p className="text-sm text-gray-500">@{client.slug}</p>
                     </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-slate-50 rounded-lg">
-                    <Users className="h-4 w-4 text-slate-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-slate-900">
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <Users className="h-4 w-4 text-gray-600 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-gray-900">
                       {(client as any).users?.[0]?.count || 0}
                     </p>
-                    <p className="text-xs text-slate-600">Users</p>
+                    <p className="text-xs text-gray-600">Users</p>
                   </div>
-                  <div className="text-center p-3 bg-slate-50 rounded-lg">
-                    <Megaphone className="h-4 w-4 text-slate-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-slate-900">
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <Megaphone className="h-4 w-4 text-gray-600 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-gray-900">
                       {(client as any).campaigns?.[0]?.count || 0}
                     </p>
-                    <p className="text-xs text-slate-600">Campaigns</p>
+                    <p className="text-xs text-gray-600">Campaigns</p>
                   </div>
                 </div>
                 <Link href={`/admin/clients/${client.id}/integrations`}>
@@ -93,11 +93,11 @@ export default async function AdminClientsPage() {
       ) : (
         <Card className="text-center py-12">
           <CardContent>
-            <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No clients yet
             </h3>
-            <p className="text-slate-600 mb-6">
+            <p className="text-gray-600 mb-6">
               Add your first client to get started
             </p>
             <AddClientModal />

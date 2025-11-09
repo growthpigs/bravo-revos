@@ -125,11 +125,11 @@ export default function EmailReviewPage() {
     <div className="space-y-8 p-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
           <Mail className="h-8 w-8" />
           Email Review Queue
         </h1>
-        <p className="text-slate-600 mt-2">
+        <p className="text-gray-600 mt-2">
           Review and approve email extractions from DM replies
         </p>
       </div>
@@ -140,7 +140,7 @@ export default function EmailReviewPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600">{reviews.length}</div>
-              <p className="text-sm text-slate-600">Pending Review</p>
+              <p className="text-sm text-gray-600">Pending Review</p>
             </div>
           </CardContent>
         </Card>
@@ -150,7 +150,7 @@ export default function EmailReviewPage() {
               <div className="text-3xl font-bold text-emerald-600">
                 {reviews.filter((r) => r.confidence_score >= 90).length}
               </div>
-              <p className="text-sm text-slate-600">High Confidence</p>
+              <p className="text-sm text-gray-600">High Confidence</p>
             </div>
           </CardContent>
         </Card>
@@ -160,7 +160,7 @@ export default function EmailReviewPage() {
               <div className="text-3xl font-bold text-amber-600">
                 {reviews.filter((r) => r.confidence_score < 90).length}
               </div>
-              <p className="text-sm text-slate-600">Needs Review</p>
+              <p className="text-sm text-gray-600">Needs Review</p>
             </div>
           </CardContent>
         </Card>
@@ -198,15 +198,15 @@ export default function EmailReviewPage() {
 
               <CardContent className="space-y-4">
                 {/* Original message snippet */}
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-sm font-semibold text-slate-700 mb-2">Original DM Reply:</p>
-                  <p className="text-sm text-slate-600 italic">&quot;{review.original_text.substring(0, 200)}{review.original_text.length > 200 ? '...' : ''}&quot;</p>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Original DM Reply:</p>
+                  <p className="text-sm text-gray-600 italic">&quot;{review.original_text.substring(0, 200)}{review.original_text.length > 200 ? '...' : ''}&quot;</p>
                 </div>
 
                 {/* Extracted email display */}
                 {review.extracted_email ? (
                   <div className="space-y-3">
-                    <p className="text-sm font-semibold text-slate-700">Extracted Email:</p>
+                    <p className="text-sm font-semibold text-gray-700">Extracted Email:</p>
                     <div className="flex gap-2">
                       <Input
                         type="email"

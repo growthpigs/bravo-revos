@@ -85,11 +85,11 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
   }
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-slate-100 text-slate-700',
+    draft: 'bg-gray-100 text-gray-700',
     active: 'bg-emerald-100 text-emerald-700',
     paused: 'bg-amber-100 text-amber-700',
     completed: 'bg-blue-100 text-blue-700',
-    archived: 'bg-slate-100 text-slate-500',
+    archived: 'bg-gray-100 text-gray-500',
   }
 
   // Parse trigger words if stored as comma-separated string
@@ -116,11 +116,11 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
               <Megaphone className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">{campaign.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{campaign.name}</h1>
               {campaign.description && (
-                <p className="text-slate-600 mt-1">{campaign.description}</p>
+                <p className="text-gray-600 mt-1">{campaign.description}</p>
               )}
-              <p className="text-sm text-slate-500 mt-2">
+              <p className="text-sm text-gray-500 mt-2">
                 Created {new Date(campaign.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -143,29 +143,29 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-            <Users2 className="h-4 w-4 text-slate-600" />
+            <Users2 className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{campaign.total_leads || 0}</div>
-            <p className="text-xs text-slate-600 mt-1">People who engaged</p>
+            <p className="text-xs text-gray-600 mt-1">People who engaged</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversions</CardTitle>
-            <Target className="h-4 w-4 text-slate-600" />
+            <Target className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{campaign.total_conversions || 0}</div>
-            <p className="text-xs text-slate-600 mt-1">Emails collected</p>
+            <p className="text-xs text-gray-600 mt-1">Emails collected</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-slate-600" />
+            <TrendingUp className="h-4 w-4 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -174,7 +174,7 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
                 : '0%'
               }
             </div>
-            <p className="text-xs text-slate-600 mt-1">Lead to conversion</p>
+            <p className="text-xs text-gray-600 mt-1">Lead to conversion</p>
           </CardContent>
         </Card>
       </div>
@@ -199,24 +199,24 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             {campaign.lead_magnet_source === 'library' && libraryMagnet && (
               <>
                 <div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">Title</p>
-                  <p className="text-slate-900">{libraryMagnet.title}</p>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Title</p>
+                  <p className="text-gray-900">{libraryMagnet.title}</p>
                 </div>
                 {libraryMagnet.category && (
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-1">Category</p>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Category</p>
                     <Badge variant="secondary">{libraryMagnet.category}</Badge>
                   </div>
                 )}
                 {libraryMagnet.description && (
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-1">Description</p>
-                    <p className="text-sm text-slate-600">{libraryMagnet.description}</p>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Description</p>
+                    <p className="text-sm text-gray-600">{libraryMagnet.description}</p>
                   </div>
                 )}
                 {libraryMagnet.url && (
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-1">Resource URL</p>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Resource URL</p>
                     <a
                       href={libraryMagnet.url}
                       target="_blank"
@@ -232,12 +232,12 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             )}
             {campaign.lead_magnet_source === 'custom' && (
               <div>
-                <p className="text-sm text-slate-600">Custom lead magnet details</p>
+                <p className="text-sm text-gray-600">Custom lead magnet details</p>
               </div>
             )}
             {campaign.lead_magnet_source === 'none' && (
               <div>
-                <p className="text-sm text-slate-600">No lead magnet configured for this campaign</p>
+                <p className="text-sm text-gray-600">No lead magnet configured for this campaign</p>
               </div>
             )}
           </CardContent>
@@ -254,14 +254,14 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-slate-700 mb-2">Post Template</p>
-              <div className="bg-slate-50 p-4 rounded-lg text-sm whitespace-pre-wrap">
+              <p className="text-sm font-medium text-gray-700 mb-2">Post Template</p>
+              <div className="bg-gray-50 p-4 rounded-lg text-sm whitespace-pre-wrap">
                 {campaign.post_template || 'No post content configured'}
               </div>
             </div>
             {triggerWords.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-2">Trigger Words</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">Trigger Words</p>
                 <div className="flex flex-wrap gap-2">
                   {triggerWords.map((word: string, index: number) => (
                     <Badge key={index} variant="secondary">
@@ -285,15 +285,15 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-slate-700 mb-2">DM 1 - Email Request</p>
-              <div className="bg-slate-50 p-4 rounded-lg text-sm whitespace-pre-wrap">
+              <p className="text-sm font-medium text-gray-700 mb-2">DM 1 - Email Request</p>
+              <div className="bg-gray-50 p-4 rounded-lg text-sm whitespace-pre-wrap">
                 {campaign.dm_template_step1 || 'No DM template configured'}
               </div>
             </div>
             {campaign.dm_template_step2 && (
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-2">DM 2 - 5-min Fallback</p>
-                <div className="bg-slate-50 p-4 rounded-lg text-sm whitespace-pre-wrap">
+                <p className="text-sm font-medium text-gray-700 mb-2">DM 2 - 5-min Fallback</p>
+                <div className="bg-gray-50 p-4 rounded-lg text-sm whitespace-pre-wrap">
                   {campaign.dm_template_step2}
                 </div>
               </div>
@@ -320,19 +320,19 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
                   <Badge variant="outline">{webhookConfig.esp_type}</Badge>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">Webhook Name</p>
-                  <p className="text-sm text-slate-900">{webhookConfig.name}</p>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Webhook Name</p>
+                  <p className="text-sm text-gray-900">{webhookConfig.name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">Endpoint URL</p>
-                  <p className="text-sm text-slate-600 font-mono break-all">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Endpoint URL</p>
+                  <p className="text-sm text-gray-600 font-mono break-all">
                     {webhookConfig.url.substring(0, 40)}...
                   </p>
                 </div>
               </>
             ) : (
               <div>
-                <p className="text-sm text-slate-600">No webhook configured for this campaign</p>
+                <p className="text-sm text-gray-600">No webhook configured for this campaign</p>
               </div>
             )}
           </CardContent>

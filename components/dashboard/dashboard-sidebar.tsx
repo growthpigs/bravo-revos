@@ -51,8 +51,8 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
   }
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r border-slate-200">
-      <div className="flex items-center gap-3 p-6 border-b border-slate-200">
+    <div className="flex flex-col w-64 bg-white border-r border-gray-200 h-screen sticky top-0 pt-16">
+      <div className="flex items-center gap-3 p-6 border-b border-gray-200">
         {client?.logo_url ? (
           <Image
             src={client.logo_url}
@@ -63,13 +63,12 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
             unoptimized
           />
         ) : (
-          <div className="h-8 w-8 rounded bg-emerald-600 flex items-center justify-center">
+          <div className="h-8 w-8 rounded bg-black flex items-center justify-center">
             <Megaphone className="h-5 w-5 text-white" />
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-slate-900 truncate">{client?.name}</h2>
-          <p className="text-xs text-slate-500">Client Dashboard</p>
+          <h2 className="text-sm font-semibold text-gray-900 truncate">{client?.name}</h2>
         </div>
       </div>
 
@@ -84,8 +83,8 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                   isActive
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'text-slate-700 hover:bg-slate-50'
+                    ? 'bg-gray-100 text-gray-900 font-semibold'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 )}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -96,7 +95,7 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
         </nav>
       </ScrollArea>
 
-      <div className="p-4 border-t border-slate-200">
+      <div className="p-4 border-t border-gray-200">
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user?.avatar_url} />
@@ -105,10 +104,10 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">
+            <p className="text-sm font-medium text-gray-900 truncate">
               {user?.full_name || user?.email}
             </p>
-            <p className="text-xs text-slate-500 capitalize">
+            <p className="text-xs text-gray-500 capitalize">
               {user?.role?.replace('_', ' ')}
             </p>
           </div>

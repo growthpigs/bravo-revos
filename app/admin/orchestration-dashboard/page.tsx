@@ -116,7 +116,7 @@ export default function OrchestrationDashboard() {
   };
 
   return (
-    <div className="min-h-screen p-8 bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen p-8 bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="max-w-4xl mx-auto space-y-6">
         <Card>
           <CardHeader>
@@ -127,7 +127,7 @@ export default function OrchestrationDashboard() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Common Parameters */}
-            <div className="space-y-4 p-4 border rounded-lg bg-slate-50">
+            <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
               <h3 className="font-semibold">Campaign & Pod Setup</h3>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -244,7 +244,7 @@ export default function OrchestrationDashboard() {
                       <p className="text-sm">Activities Scheduled: {result.activitiesScheduled}</p>
                     )}
                     {result.strategy && (
-                      <pre className="text-xs overflow-auto p-2 bg-slate-100 rounded max-h-64">
+                      <pre className="text-xs overflow-auto p-2 bg-gray-100 rounded max-h-64">
                         {JSON.stringify(result.strategy, null, 2)}
                       </pre>
                     )}
@@ -267,12 +267,12 @@ export default function OrchestrationDashboard() {
                       </div>
                     )}
                     {result.analysis && (
-                      <pre className="text-xs overflow-auto p-2 bg-slate-100 rounded max-h-64">
+                      <pre className="text-xs overflow-auto p-2 bg-gray-100 rounded max-h-64">
                         {JSON.stringify(result.analysis, null, 2)}
                       </pre>
                     )}
                     {result.postContent && (
-                      <pre className="text-xs overflow-auto p-2 bg-slate-100 rounded max-h-64">
+                      <pre className="text-xs overflow-auto p-2 bg-gray-100 rounded max-h-64">
                         {JSON.stringify(result.postContent, null, 2)}
                       </pre>
                     )}

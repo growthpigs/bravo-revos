@@ -108,12 +108,12 @@ export default function DemoPostCreationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2 mb-8">
-          <h1 className="text-4xl font-bold text-slate-900">LinkedIn Post Creator</h1>
-          <p className="text-slate-600">Create engaging posts with AI-powered voice cartridges</p>
+          <h1 className="text-4xl font-bold text-gray-900">LinkedIn Post Creator</h1>
+          <p className="text-gray-600">Create engaging posts with AI-powered voice cartridges</p>
         </div>
 
         {/* Progress Steps */}
@@ -133,7 +133,7 @@ export default function DemoPostCreationPage() {
                   ? 'bg-blue-500 text-white font-bold'
                   : ['account', 'mode', 'content'].includes(s.id) && step > s.id
                     ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-slate-200 text-slate-600'
+                    : 'bg-gray-200 text-gray-600'
               }`}
             >
               <span className="text-sm">{s.label}</span>
@@ -192,24 +192,24 @@ export default function DemoPostCreationPage() {
               <div
                 onClick={() => setWriteMode('human')}
                 className={`p-6 border-2 rounded-lg cursor-pointer transition ${
-                  writeMode === 'human' ? 'border-blue-500 bg-blue-50' : 'border-slate-200'
+                  writeMode === 'human' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                 }`}
               >
                 <h3 className="font-semibold mb-2">👤 Human Written</h3>
-                <p className="text-sm text-slate-600">You write it manually. Full creative control.</p>
+                <p className="text-sm text-gray-600">You write it manually. Full creative control.</p>
               </div>
 
               <div
                 onClick={() => setWriteMode('ai')}
                 className={`p-6 border-2 rounded-lg cursor-pointer transition ${
-                  writeMode === 'ai' ? 'border-blue-500 bg-blue-50' : 'border-slate-200'
+                  writeMode === 'ai' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                 }`}
               >
                 <h3 className="font-semibold mb-2">
                   <Sparkles className="inline h-4 w-4 mr-2" />
                   AI Generated
                 </h3>
-                <p className="text-sm text-slate-600">AI writes it using your voice cartridge. Fast & consistent.</p>
+                <p className="text-sm text-gray-600">AI writes it using your voice cartridge. Fast & consistent.</p>
               </div>
 
               <Button
@@ -300,7 +300,7 @@ export default function DemoPostCreationPage() {
                         <SelectItem key={c.id} value={c.id}>
                           {c.name}
                           {c.voice_params?.tone?.formality && (
-                            <span className="ml-2 text-xs text-slate-500">
+                            <span className="ml-2 text-xs text-gray-500">
                               ({c.voice_params.tone.formality})
                             </span>
                           )}
@@ -311,10 +311,10 @@ export default function DemoPostCreationPage() {
                 </>
               )}
 
-              <div className="p-4 bg-slate-100 rounded-lg">
+              <div className="p-4 bg-gray-100 rounded-lg">
                 <p className="text-sm font-medium mb-2">Selected Cartridge Settings:</p>
                 {selectedCartridge && cartridges.find((c) => c.id === selectedCartridge) ? (
-                  <div className="text-sm text-slate-700 space-y-1">
+                  <div className="text-sm text-gray-700 space-y-1">
                     <p>
                       • Style:{' '}
                       {cartridges.find((c) => c.id === selectedCartridge)?.voice_params?.style
@@ -327,7 +327,7 @@ export default function DemoPostCreationPage() {
                     </p>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-600">Default AI voice settings</p>
+                  <p className="text-sm text-gray-600">Default AI voice settings</p>
                 )}
               </div>
 
@@ -346,7 +346,7 @@ export default function DemoPostCreationPage() {
               <CardDescription>Review and generate your AI post</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-slate-50 rounded-lg space-y-2">
+              <div className="p-4 bg-gray-50 rounded-lg space-y-2">
                 <p className="text-sm">
                   <strong>Topic:</strong> {postTopic}
                 </p>
@@ -395,16 +395,16 @@ export default function DemoPostCreationPage() {
               <CardDescription>Preview and post to LinkedIn</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-6 bg-white border-2 border-slate-200 rounded-lg">
+              <div className="p-6 bg-white border-2 border-gray-200 rounded-lg">
                 <div className="flex items-center gap-3 mb-4 pb-4 border-b">
                   <div className="w-10 h-10 bg-blue-200 rounded-full" />
                   <div>
                     <p className="font-semibold text-sm">Demo User</p>
-                    <p className="text-xs text-slate-500">Just now</p>
+                    <p className="text-xs text-gray-500">Just now</p>
                   </div>
                 </div>
-                <p className="text-slate-900 whitespace-pre-wrap">{generatedPost}</p>
-                <div className="mt-4 pt-4 border-t flex gap-2 text-slate-500 text-sm">
+                <p className="text-gray-900 whitespace-pre-wrap">{generatedPost}</p>
+                <div className="mt-4 pt-4 border-t flex gap-2 text-gray-500 text-sm">
                   <span>👍 Like</span>
                   <span>💬 Comment</span>
                   <span>🔄 Share</span>

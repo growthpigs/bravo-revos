@@ -24,19 +24,19 @@ export default async function CampaignsPage() {
     .order('created_at', { ascending: false })
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-slate-100 text-slate-700',
+    draft: 'bg-gray-100 text-gray-700',
     active: 'bg-emerald-100 text-emerald-700',
     paused: 'bg-amber-100 text-amber-700',
     completed: 'bg-blue-100 text-blue-700',
-    archived: 'bg-slate-100 text-slate-500',
+    archived: 'bg-gray-100 text-gray-500',
   }
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Campaigns</h1>
-          <p className="text-slate-600 mt-2">
+          <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
+          <p className="text-gray-600 mt-2">
             Manage your LinkedIn lead generation campaigns
           </p>
         </div>
@@ -70,19 +70,19 @@ export default async function CampaignsPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-slate-50 rounded-lg">
-                    <Users2 className="h-4 w-4 text-slate-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-slate-900">
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <Users2 className="h-4 w-4 text-gray-600 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-gray-900">
                       {campaign.total_leads || 0}
                     </p>
-                    <p className="text-xs text-slate-600">Leads</p>
+                    <p className="text-xs text-gray-600">Leads</p>
                   </div>
-                  <div className="text-center p-3 bg-slate-50 rounded-lg">
-                    <TrendingUp className="h-4 w-4 text-slate-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-slate-900">
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <TrendingUp className="h-4 w-4 text-gray-600 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-gray-900">
                       {campaign.total_conversions || 0}
                     </p>
-                    <p className="text-xs text-slate-600">Conversions</p>
+                    <p className="text-xs text-gray-600">Conversions</p>
                   </div>
                 </div>
                 <Link href={`/dashboard/campaigns/${campaign.id}`}>
@@ -97,11 +97,11 @@ export default async function CampaignsPage() {
       ) : (
         <Card className="text-center py-12">
           <CardContent>
-            <Megaphone className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            <Megaphone className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
               No campaigns yet
             </h3>
-            <p className="text-slate-600 mb-6">
+            <p className="text-gray-600 mb-6">
               Create your first campaign to start generating leads
             </p>
             <Link href="/dashboard/campaigns/new">
