@@ -238,7 +238,7 @@ async function processDMJob(job: Job<DMJobData>): Promise<void> {
     // Increment counter after successful send
     await incrementDMCount(accountId);
 
-    // TODO: Update dm_sequences table with success status (Phase D)
+    // FUTURE: Update dm_sequences table with success status (Phase D)
     // await supabase.from('dm_sequences').update({ status: 'sent', sent_at: new Date() })
 
     return;
@@ -284,7 +284,7 @@ function createWorker(): Worker<DMJobData> {
 
   worker.on('failed', (job, error) => {
     console.error(`${LOG_PREFIX} Job ${job?.id} failed permanently:`, error.message);
-    // TODO: Mark as failed in database (Phase D)
+    // FUTURE: Mark as failed in database (Phase D)
   });
 
   worker.on('error', (error) => {

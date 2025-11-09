@@ -1,0 +1,230 @@
+# Render.com Configuration for Bravo revOS
+# Last Updated: 2025-11-09
+#
+# This file defines 3 services:
+# 1. Web Service (Next.js + API routes)
+# 2. Background Worker (webhook-delivery)
+# 3. Background Worker (pod-automation)
+#
+# IMPORTANT: Set all environment variables in Render Dashboard
+# See ENVIRONMENT_VARIABLES.md for complete reference
+
+services:
+  # ===================================================================
+  # Web Service - Next.js Application with API Routes
+  # ===================================================================
+  - type: web
+    name: bravo-revos-web
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+
+    envVars:
+      # Supabase (REQUIRED)
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://kvjcidxbyimoswntpjcp.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false  # Set manually in dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # Set manually in dashboard (CRITICAL SECRET)
+
+      # App Configuration (REQUIRED)
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false  # Set to your Render URL (e.g., https://bravo-revos-web.onrender.com)
+
+      # Security (REQUIRED)
+      - key: ENCRYPTION_KEY
+        sync: false  # Generate with: openssl rand -hex 32
+      - key: CRON_SECRET
+        sync: false  # Generate with: openssl rand -hex 32
+
+      # Redis (REQUIRED for workers)
+      - key: REDIS_URL
+        sync: false  # Upstash Redis connection URL (rediss://...)
+
+      # OpenAI (REQUIRED)
+      - key: OPENAI_API_KEY
+        sync: false  # sk-...
+
+      # Unipile (OPTIONAL - feature-specific)
+      - key: UNIPILE_DSN
+        value: https://api3.unipile.com:13344
+      - key: UNIPILE_API_KEY
+        sync: false  # Optional global key
+      - key: UNIPILE_MOCK_MODE
+        value: false  # Set to 'true' for testing
+
+      # Email (OPTIONAL - feature-specific)
+      - key: RESEND_API_KEY
+        sync: false  # Optional for email notifications
+
+      # Node Environment
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 18
+
+  # ===================================================================
+  # Background Worker - Webhook Delivery Queue
+  # ===================================================================
+  - type: worker
+    name: bravo-revos-webhook-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: main
+    buildCommand: npm install
+    startCommand: npm run worker:webhook
+
+    envVars:
+      # Supabase (REQUIRED)
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://kvjcidxbyimoswntpjcp.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # CRITICAL SECRET
+
+      # App Configuration
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+
+      # Security (REQUIRED)
+      - key: ENCRYPTION_KEY
+        sync: false  # Must match web service
+      - key: CRON_SECRET
+        sync: false  # Must match web service
+
+      # Redis (REQUIRED)
+      - key: REDIS_URL
+        sync: false  # Upstash Redis connection URL
+
+      # OpenAI (REQUIRED)
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # Unipile (OPTIONAL)
+      - key: UNIPILE_DSN
+        value: https://api3.unipile.com:13344
+      - key: UNIPILE_API_KEY
+        sync: false
+      - key: UNIPILE_MOCK_MODE
+        value: false
+
+      # Email (OPTIONAL)
+      - key: RESEND_API_KEY
+        sync: false
+
+      # Node Environment
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 18
+
+  # ===================================================================
+  # Background Worker - Pod Automation Queue
+  # ===================================================================
+  - type: worker
+    name: bravo-revos-pod-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: main
+    buildCommand: npm install
+    startCommand: npm run worker:pod-automation
+
+    envVars:
+      # Supabase (REQUIRED)
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://kvjcidxbyimoswntpjcp.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # CRITICAL SECRET
+
+      # App Configuration
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+
+      # Security (REQUIRED)
+      - key: ENCRYPTION_KEY
+        sync: false  # Must match web service
+      - key: CRON_SECRET
+        sync: false  # Must match web service
+
+      # Redis (REQUIRED)
+      - key: REDIS_URL
+        sync: false  # Upstash Redis connection URL
+
+      # OpenAI (REQUIRED)
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # Unipile (OPTIONAL)
+      - key: UNIPILE_DSN
+        value: https://api3.unipile.com:13344
+      - key: UNIPILE_API_KEY
+        sync: false
+      - key: UNIPILE_MOCK_MODE
+        value: false
+
+      # Email (OPTIONAL)
+      - key: RESEND_API_KEY
+        sync: false
+
+      # Node Environment
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 18
+
+# ===================================================================
+# Deployment Notes
+# ===================================================================
+#
+# SETUP INSTRUCTIONS:
+# 1. Push this file to GitHub main branch
+# 2. In Render Dashboard, create "New Blueprint Instance"
+# 3. Connect GitHub repository
+# 4. Render will detect this file and create all 3 services
+# 5. Set environment variables marked with "sync: false" in each service dashboard
+# 6. Deploy all services
+#
+# CRITICAL ENVIRONMENT VARIABLES TO SET MANUALLY:
+# - NEXT_PUBLIC_SUPABASE_ANON_KEY (get from Supabase dashboard)
+# - SUPABASE_SERVICE_ROLE_KEY (get from Supabase dashboard)
+# - ENCRYPTION_KEY (generate: openssl rand -hex 32)
+# - CRON_SECRET (generate: openssl rand -hex 32)
+# - REDIS_URL (get from Upstash dashboard)
+# - OPENAI_API_KEY (get from OpenAI dashboard)
+# - NEXT_PUBLIC_APP_URL (set to Render web service URL after first deploy)
+#
+# OPTIONAL VARIABLES (feature-specific):
+# - UNIPILE_API_KEY (global key, or use per-client keys)
+# - RESEND_API_KEY (email notifications)
+#
+# MONITORING:
+# - Each service has automatic health checks
+# - View logs in Render Dashboard
+# - Set up email/Slack alerts in service settings
+#
+# SCALING:
+# - Web service: Can scale horizontally if needed
+# - Workers: Adjust concurrency in queue configuration, not instance count
+#
+# COST OPTIMIZATION:
+# - Start with 'starter' plan for all services
+# - Upgrade to 'standard' for zero-downtime deploys
+# - Monitor Redis usage (Upstash free tier: 10k commands/day)
+#
+# TROUBLESHOOTING:
+# - If workers don't start: Check REDIS_URL format (rediss:// for TLS)
+# - If RLS errors: Verify SUPABASE_SERVICE_ROLE_KEY is set
+# - If health check fails: Check Next.js build succeeded
+#
+# See DEPLOYMENT.md for complete deployment guide
+# See ENVIRONMENT_VARIABLES.md for variable reference

@@ -220,7 +220,7 @@ async function processPodAutomationJob(
       case 'execute-engagement':
         if (activityId) {
           console.log(`${LOG_PREFIX} Processing: Execute engagement for activity ${activityId}`);
-          // TODO: E-05 will implement actual engagement execution
+          // FUTURE: E-05 will implement actual engagement execution
           // For now, mark as executed
           await markActivityExecuted(activityId, true);
           console.log(`${LOG_PREFIX} ✅ Marked activity ${activityId} as executed`);

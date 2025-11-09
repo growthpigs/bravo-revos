@@ -197,8 +197,8 @@ async function sendNotification(alert: SessionAlert, supabase: any) {
       user_name: `${user.first_name} ${user.last_name}`,
     });
 
-    // TODO: Add Slack notification if configured
-    // TODO: Add SMS notification if configured
+    // FUTURE: Add Slack notification if configured
+    // FUTURE: Add SMS notification if configured
 
     // Update alert with sent status
     const { error: updateError } = await supabase

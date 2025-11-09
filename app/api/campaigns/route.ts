@@ -171,8 +171,8 @@ export async function POST(request: NextRequest) {
 
     console.log('[CAMPAIGNS_API] Campaign created successfully:', campaign.id)
 
-    // TODO: If custom magnet with file upload, handle file storage
-    // TODO: If webhook enabled, create webhook_config record
+    // FUTURE: If custom magnet with file upload, handle file storage
+    // FUTURE: If webhook enabled, create webhook_config record
 
     // If webhook enabled, create webhook config
     if (validatedData.webhookEnabled && validatedData.webhookUrl) {

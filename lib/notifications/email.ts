@@ -26,7 +26,7 @@ export async function sendSessionExpiryEmail(params: SessionExpiryEmailParams) {
   }
 
   try {
-    // TODO: Implement Resend email sending
+    // FUTURE: Implement Resend email sending
     // For now, just log the email
     const emailHtml = generateSessionExpiryHTML(params);
 
@@ -126,7 +126,7 @@ export async function sendPodInvitationEmail(params: {
   }
 
   try {
-    // TODO: Implement Resend email sending with pod invitation template
+    // FUTURE: Implement Resend email sending with pod invitation template
     console.log('[EMAIL] Would send pod invitation to:', to);
 
     return {

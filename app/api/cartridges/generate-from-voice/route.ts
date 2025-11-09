@@ -78,12 +78,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[API_CARTRIDGES_GEN] Voice cartridge created successfully:', {
-      name,
-      tier,
-      userId: user.id,
-    })
-
     return NextResponse.json({
       success: true,
       message: `Cartridge "${name}" created successfully`,

@@ -95,7 +95,7 @@ function calculateNextDelay(): number {
 function isWithinWorkingHours(timezone?: string): boolean {
   const now = new Date();
 
-  // TODO: Implement timezone conversion when timezone provided
+  // FUTURE: Implement timezone conversion when timezone provided
   // For now, use local time
   const hour = now.getHours();
 

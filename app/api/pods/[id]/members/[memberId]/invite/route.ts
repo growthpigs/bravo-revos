@@ -82,7 +82,7 @@ export async function POST(
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const invitationUrl = `${baseUrl}/pod-member/auth?token=${invitationToken}`;
 
-    // TODO: Send email to member with invitation link
+    // FUTURE: Send email to member with invitation link
     // For now, just return the URL
 
     return NextResponse.json({

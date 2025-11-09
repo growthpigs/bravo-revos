@@ -223,7 +223,7 @@ export async function scheduleCommentActivities(
         `${LOG_PREFIX} ✅ Scheduled comment for member ${activity.member_id} in ${delayMs}ms`
       );
 
-      // TODO: E-05 will fetch comment template and apply voice cartridge
+      // FUTURE: E-05 will fetch comment template and apply voice cartridge
       scheduledJobs.push({
         activityId: activity.id,
         memberId: activity.member_id,
