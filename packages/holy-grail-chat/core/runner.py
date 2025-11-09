@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/opt/homebrew/bin/python3.11
 """
 HGC Runner - Subprocess wrapper for orchestrator
 Called by Next.js API route with context in environment variable
@@ -27,14 +27,14 @@ def main():
         # Extract required fields
         user_id = context['user_id']
         pod_id = context['pod_id']
-        message = context['message']
+        messages = context.get('messages', [])
         api_base_url = context['api_base_url']
         mem0_key = context['mem0_key']
         openai_key = context['openai_key']
         auth_token = context['auth_token']
 
         # Validate required fields
-        if not all([user_id, pod_id, message, api_base_url, mem0_key, openai_key, auth_token]):
+        if not all([user_id, pod_id, messages, api_base_url, mem0_key, openai_key, auth_token]):
             raise ValueError('Missing required context fields')
 
         # Initialize orchestrator
@@ -45,9 +45,9 @@ def main():
             auth_token=auth_token
         )
 
-        # Process message
+        # Process conversation with full history
         response_content = orchestrator.process(
-            message=message,
+            messages=messages,
             user_id=user_id,
             pod_id=pod_id
         )

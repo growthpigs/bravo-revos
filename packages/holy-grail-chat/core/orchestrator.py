@@ -3,7 +3,7 @@ Holy Grail Chat - Core Orchestrator
 MVP with tool-based integration (AgentKit + Mem0 + RevOS Data Tools)
 """
 
-from openai_agents import Agent, function_tool
+from agents import Agent, function_tool
 from mem0 import MemoryClient
 from typing import Optional, Dict, Any
 import sys
@@ -24,16 +24,68 @@ class HGCOrchestrator:
         # Initialize RevOS data tools
         self.revos_tools = RevOSTools(api_base_url, auth_token)
 
+        # Memory key will be set during process() call
+        self.current_memory_key = None
+
         # Define memory tools (agent decides when to use)
+        # CRITICAL: Tools capture memory_key from orchestrator, NOT from agent parameters
         @function_tool
-        def search_memory(query: str, user_id: str) -> list:
-            """Search past conversations and stored memories"""
-            return self.memory.search(query, user_id=user_id, limit=5)
+        def search_memory(query: str) -> list:
+            """Search past conversations and stored memories.
+
+            Args:
+                query: What to search for (e.g., "posting time", "preferences")
+
+            Returns:
+                List of relevant memories
+            """
+            import sys
+            print(f"[MEM0_TOOL] search_memory called: query='{query}', using memory_key='{self.current_memory_key}'", file=sys.stderr)
+
+            if not self.current_memory_key:
+                print(f"[MEM0_TOOL] ERROR: No memory_key set!", file=sys.stderr)
+                return []
+
+            try:
+                # CRITICAL: Mem0 v2 API requires filters parameter, not user_id
+                result = self.memory.search(
+                    query,
+                    filters={"user_id": self.current_memory_key},
+                    limit=5
+                )
+                print(f"[MEM0_TOOL] search_memory returned: {result}", file=sys.stderr)
+                # Extract results from response
+                if isinstance(result, dict) and 'results' in result:
+                    return result['results']
+                return result
+            except Exception as e:
+                print(f"[MEM0_TOOL] search_memory error: {e}", file=sys.stderr)
+                return []
 
         @function_tool
-        def save_memory(content: str, user_id: str) -> dict:
-            """Save important information for future reference"""
-            return self.memory.add(content, user_id=user_id)
+        def save_memory(content: str) -> dict:
+            """Save important information for future reference.
+
+            Args:
+                content: What to remember (preferences, goals, important info)
+
+            Returns:
+                Confirmation of what was saved
+            """
+            import sys
+            print(f"[MEM0_TOOL] save_memory called: content='{content[:100]}...', using memory_key='{self.current_memory_key}'", file=sys.stderr)
+
+            if not self.current_memory_key:
+                print(f"[MEM0_TOOL] ERROR: No memory_key set!", file=sys.stderr)
+                return {"success": False, "error": "No memory key"}
+
+            try:
+                result = self.memory.add(content, user_id=self.current_memory_key)
+                print(f"[MEM0_TOOL] save_memory returned: {result}", file=sys.stderr)
+                return {"success": True, "saved": content, "result": result}
+            except Exception as e:
+                print(f"[MEM0_TOOL] save_memory error: {e}", file=sys.stderr)
+                return {"success": False, "error": str(e)}
 
         # Collect all tools
         all_tools = [
@@ -45,32 +97,97 @@ class HGCOrchestrator:
         # Initialize agent with all tools
         self.agent = Agent(
             name="RevOS Intelligence",
-            instructions="""You are an AI co-founder helping with LinkedIn growth strategy.
+            instructions="""You are RevOS Intelligence, an AI co-founder helping with LinkedIn growth strategy.
 
-            You have access to:
-            - Memory tools: search_memory, save_memory
-            - Campaign tools: get_campaign_metrics
-            - Pod tools: analyze_pod_engagement
-            - Performance tools: get_linkedin_performance
+            CRITICAL MEMORY INSTRUCTIONS:
+            1. You have access to conversation_history in context - check it FIRST before saying you don't know something
+            2. When user shares preferences, goals, or important information → IMMEDIATELY call save_memory(content) for long-term storage
+            3. When user asks about preferences from PREVIOUS conversations (not current chat) → call search_memory(query)
+            4. For questions about the CURRENT conversation → use conversation_history, NOT search_memory
+            5. Memory is automatically scoped to the current user - you don't need to provide user_id
 
-            Use search_memory to recall previous discussions.
-            Use save_memory to store goals, preferences, and insights.
-            Use campaign/pod/performance tools to answer questions about user's LinkedIn strategy.
+            AVAILABLE TOOLS:
+            Memory:
+            - search_memory(query) - Search past conversations. Example: search_memory("posting time")
+            - save_memory(content) - Store important info. Example: save_memory("User prefers posting at 2pm EST")
 
-            Always provide specific, actionable advice based on real data.""",
+            Campaign Data:
+            - get_campaign_metrics(campaign_id) - View campaign performance
+            - analyze_campaign_performance(campaign_id) - Deep analytics with recommendations
+            - create_campaign(name, voice_id, description) - Create DRAFT campaign (safe)
+
+            Pod & Performance:
+            - analyze_pod_engagement(pod_id) - Pod performance metrics
+            - get_linkedin_performance(date_range) - LinkedIn metrics over time
+
+            Posting:
+            - schedule_post(content, schedule_time, campaign_id) - Queue post for review (safe)
+
+            WORKFLOW:
+            1. User shares preference → save_memory() immediately
+            2. User asks question → search_memory() first, then answer
+            3. Provide specific, actionable advice based on real data
+
+            Be helpful, remember everything, and use tools proactively.""",
             tools=all_tools,
             model="gpt-4"
         )
 
-    def process(self, message: str, user_id: str, pod_id: str) -> str:
-        """Process user message with memory context"""
+    def process(self, messages: list, user_id: str, pod_id: str) -> str:
+        """Process conversation with full message history"""
+        import sys
+        from agents import Runner
+
         # Format memory key (pod::user scoping)
         memory_key = f"{pod_id}::{user_id}"
 
-        # Run agent (it decides when to use memory tools)
-        response = self.agent.run(
-            messages=[{"role": "user", "content": message}],
-            context={"user_id": memory_key}
-        )
+        # CRITICAL: Set memory key so tools can access it
+        self.current_memory_key = memory_key
 
-        return response.content
+        print(f"[ORCHESTRATOR] Processing {len(messages)} messages", file=sys.stderr)
+        print(f"[ORCHESTRATOR] Memory key: {memory_key}", file=sys.stderr)
+
+        # Convert frontend messages to AgentKit format
+        # Frontend: [{"role": "user"|"assistant", "content": "..."}]
+        # AgentKit: expects list of messages for context
+
+        # For now, just pass the last user message as input
+        # The agent will use memory tools to recall context
+        last_user_message = None
+        for msg in reversed(messages):
+            if msg.get('role') == 'user':
+                last_user_message = msg.get('content', '')
+                break
+
+        if not last_user_message:
+            return "I didn't receive a message. Please try again."
+
+        print(f"[ORCHESTRATOR] Last user message: '{last_user_message}'", file=sys.stderr)
+
+        try:
+            # Create runner and run agent
+            runner = Runner()
+            print(f"[ORCHESTRATOR] Running agent...", file=sys.stderr)
+            result = runner.run_sync(
+                starting_agent=self.agent,
+                input=last_user_message,
+                context={"user_id": memory_key, "conversation_history": messages}
+            )
+            print(f"[ORCHESTRATOR] Agent completed", file=sys.stderr)
+
+            # Extract text from result
+            if hasattr(result, 'final_output'):
+                response = result.final_output
+            elif hasattr(result, 'content'):
+                response = result.content
+            else:
+                # Fallback: convert result to string
+                response = str(result)
+
+            print(f"[ORCHESTRATOR] Response: '{response[:100]}...'", file=sys.stderr)
+            return response
+        except Exception as e:
+            print(f"[ORCHESTRATOR] Error: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            raise

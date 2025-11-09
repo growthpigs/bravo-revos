@@ -1,21 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { spawn } from 'child_process'
+import path from 'path'
 
 /**
  * POST /api/hgc
- * Chat endpoint using direct OpenAI SDK with streaming
+ * Holy Grail Chat - Phase 2 with Python orchestrator
  *
- * For MVP: Bypasses Python orchestrator, calls OpenAI directly
- * Phase 2: Will integrate full AgentKit + Mem0 + RevOS tools via Python
+ * Uses Python orchestrator with AgentKit + Mem0 + RevOS tools
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('[HGC_API] Request received')
+    console.log('[HGC_API] Phase 2 request received')
     const supabase = await createClient()
 
     // Get authenticated user
@@ -26,6 +22,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[HGC_API] User authenticated:', user.id)
+
+    // Get session token for API calls
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return new Response('No session', { status: 401 })
+    }
 
     // Get user context
     const { data: userData } = await supabase
@@ -54,59 +56,97 @@ export async function POST(request: NextRequest) {
     const { messages } = await request.json()
     console.log('[HGC_API] Messages received:', messages.length, 'messages')
 
-    // MVP: Direct OpenAI call with streaming
-    console.log('[HGC_API] Calling OpenAI streaming API...')
+    if (!messages || messages.length === 0) {
+      return new Response('No messages provided', { status: 400 })
+    }
 
-    const stream = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: `You are RevOS Intelligence, an AI co-founder helping with LinkedIn growth strategy.
+    // Prepare context for Python orchestrator with FULL conversation history
+    const context = {
+      user_id: user.id,
+      pod_id: podId,
+      client_id: userData.client_id,
+      messages: messages, // Pass ALL messages for conversation history
+      api_base_url: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000',
+      mem0_key: process.env.MEM0_API_KEY || '',
+      openai_key: process.env.OPENAI_API_KEY || '',
+      auth_token: session.access_token
+    }
 
-Context:
-- User ID: ${user.id}
-- Client ID: ${userData.client_id}
-- Pod ID: ${podId}
+    console.log('[HGC_API] Calling Python orchestrator...')
 
-For this MVP, provide general LinkedIn strategy advice.
-
-Phase 2 capabilities (coming soon):
-- Access real campaign metrics
-- Analyze pod engagement
-- Get LinkedIn performance data
-- Remember past conversations via Mem0
-
-Be helpful, specific, and actionable.`,
-        },
-        ...messages,
-      ],
-      stream: true,
+    // Call Python runner
+    const pythonPath = path.join(process.cwd(), 'packages', 'holy-grail-chat', 'core', 'runner.py')
+    const python = spawn(pythonPath, [], {
+      env: {
+        ...process.env,
+        HGC_CONTEXT: JSON.stringify(context)
+      }
     })
 
-    console.log('[HGC_API] OpenAI stream created, starting to read chunks...')
-
-    // Create ReadableStream from OpenAI stream
+    // Collect response
     const encoder = new TextEncoder()
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          let chunkCount = 0
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content
-            if (content) {
-              chunkCount++
-              console.log('[HGC_API] Chunk', chunkCount, ':', content.substring(0, 50))
-              controller.enqueue(encoder.encode(content))
+          let buffer = ''
+          let errorBuffer = ''
+
+          python.stdout.on('data', (data) => {
+            buffer += data.toString()
+          })
+
+          python.stderr.on('data', (data) => {
+            errorBuffer += data.toString()
+          })
+
+          python.on('close', (code) => {
+            console.log('[HGC_API] Python process closed with code:', code)
+
+            // ALWAYS log stderr (debug logs go here)
+            if (errorBuffer) {
+              console.log('[HGC_API] Python stderr:', errorBuffer)
             }
-          }
-          console.log('[HGC_API] Stream complete. Total chunks:', chunkCount)
-          controller.close()
+
+            if (code !== 0) {
+              console.error('[HGC_API] Python error:', errorBuffer)
+              controller.error(new Error(`Python error: ${errorBuffer}`))
+              return
+            }
+
+            try {
+              console.log('[HGC_API] Attempting to parse buffer, length:', buffer.length)
+              const result = JSON.parse(buffer)
+              console.log('[HGC_API] Parse successful, result:', result)
+
+              if (result.error) {
+                console.error('[HGC_API] Python returned error:', result.error)
+                controller.enqueue(encoder.encode(`Error: ${result.error}`))
+              } else if (result.content) {
+                console.log('[HGC_API] Streaming content, length:', result.content.length)
+                // Stream the content word by word for better UX
+                const words = result.content.split(' ')
+                for (let i = 0; i < words.length; i++) {
+                  controller.enqueue(encoder.encode(words[i] + ' '))
+                }
+              }
+              controller.close()
+              console.log('[HGC_API] Controller closed successfully')
+            } catch (e) {
+              console.error('[HGC_API] Error in streaming:', e)
+              console.error('[HGC_API] Buffer contents:', buffer)
+              controller.error(new Error('Failed to process Python response'))
+            }
+          })
+
+          python.on('error', (error) => {
+            console.error('[HGC_API] Python spawn error:', error)
+            controller.error(error)
+          })
         } catch (error) {
           console.error('[HGC_API] Stream error:', error)
           controller.error(error)
         }
-      },
+      }
     })
 
     return new Response(readable, {
@@ -130,7 +170,8 @@ export async function GET() {
   return Response.json({
     status: 'ok',
     service: 'Holy Grail Chat',
-    version: '1.0.0-mvp',
-    mode: 'direct-openai-sdk',
+    version: '2.0.0-phase2',
+    mode: 'python-orchestrator',
+    features: ['AgentKit', 'Mem0', 'RevOS Tools'],
   })
 }
