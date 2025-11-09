@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -34,14 +34,16 @@ export default function ClientIntegrationsPage() {
   const [dsn, setDsn] = useState('https://api3.unipile.com:13344');
   const [enabled, setEnabled] = useState(false);
 
-  useEffect(() => {
-    loadClientIntegrations();
-  }, [clientId]);
+  // Clear error/success messages when user starts editing
+  const handleFieldChange = () => {
+    if (error) setError(null);
+    if (success) setSuccess(null);
+  };
 
-  const loadClientIntegrations = async () => {
+  const loadClientIntegrations = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('[LOAD_DEBUG] Starting load for clientId:', clientId);
+      setError(null);
 
       const { data, error } = await supabase
         .from('clients')
@@ -49,54 +51,50 @@ export default function ClientIntegrationsPage() {
         .eq('id', clientId)
         .single();
 
-      console.log('[LOAD_DEBUG] Query result - data:', data);
-      console.log('[LOAD_DEBUG] Query result - error:', error);
-
       if (error) {
-        console.error('[LOAD_DEBUG] Failed to load - Full error:', JSON.stringify(error, null, 2));
-        setError(`Failed to load client integrations: ${error.message} (${error.code})`);
+        setError(`Failed to load client: ${error.message}`);
         return;
       }
 
       if (data) {
-        console.log('[LOAD_DEBUG] Setting state with data:', {
-          apiKey: data.unipile_api_key ? '***EXISTS***' : 'null',
-          dsn: data.unipile_dsn,
-          enabled: data.unipile_enabled
-        });
         setClient(data);
         setApiKey(data.unipile_api_key || '');
         setDsn(data.unipile_dsn || 'https://api3.unipile.com:13344');
         setEnabled(data.unipile_enabled || false);
-      } else {
-        console.warn('[LOAD_DEBUG] No data returned from query');
       }
     } catch (err) {
-      console.error('[LOAD_DEBUG] Exception caught:', err);
-      setError('Error loading client data');
-      console.error(err);
+      setError('An unexpected error occurred');
+      console.error('Error loading client:', err);
     } finally {
       setLoading(false);
-      console.log('[LOAD_DEBUG] Load complete');
     }
-  };
+  }, [clientId, supabase]);
+
+  useEffect(() => {
+    loadClientIntegrations();
+  }, [loadClientIntegrations]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     setSuccess(null);
-
-    console.log('[SAVE_DEBUG] Starting save with:', {
-      clientId,
-      hasApiKey: !!apiKey,
-      hasDsn: !!dsn,
-      enabled
-    });
+    setTestResult(null);
 
     try {
-      // Save credentials if provided (regardless of enabled state)
-      const { data: updateData, error } = await supabase
+      // Validate DSN format if provided
+      if (dsn && dsn.trim()) {
+        try {
+          new URL(dsn);
+        } catch {
+          setError('Invalid DSN format. Please enter a valid URL (e.g., https://api3.unipile.com:13344)');
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Save credentials (regardless of enabled state)
+      const { error } = await supabase
         .from('clients')
         .update({
           unipile_api_key: apiKey || null,
@@ -104,29 +102,25 @@ export default function ClientIntegrationsPage() {
           unipile_enabled: enabled,
           unipile_configured_at: new Date().toISOString(),
         })
-        .eq('id', clientId)
-        .select();
-
-      console.log('[SAVE_DEBUG] Update result - data:', updateData);
-      console.log('[SAVE_DEBUG] Update result - error:', error);
+        .eq('id', clientId);
 
       if (error) {
-        console.error('[SAVE_DEBUG] Failed to save - Full error:', JSON.stringify(error, null, 2));
-        setError(`Failed to save configuration: ${error.message} (${error.code})`);
+        setError(`Failed to save: ${error.message}`);
         return;
       }
 
-      console.log('[SAVE_DEBUG] Save succeeded, redirecting to clients page');
+      // Show brief success message before redirect
+      setSuccess('Configuration saved successfully');
 
-      // Redirect back to clients page after successful save
-      router.push('/admin/clients');
+      // Redirect after short delay for user to see success message
+      setTimeout(() => {
+        router.push('/admin/clients');
+      }, 800);
     } catch (err) {
-      console.error('[SAVE_DEBUG] Exception caught:', err);
-      setError('Error saving settings');
-      console.error(err);
+      setError('An unexpected error occurred while saving');
+      console.error('Save error:', err);
     } finally {
       setSaving(false);
-      console.log('[SAVE_DEBUG] Save complete');
     }
   };
 
@@ -136,11 +130,27 @@ export default function ClientIntegrationsPage() {
       return;
     }
 
+    if (!dsn) {
+      setTestResult({ success: false, message: 'Please enter a DSN first' });
+      return;
+    }
+
+    // Validate DSN format
+    try {
+      new URL(dsn);
+    } catch {
+      setTestResult({ success: false, message: 'Invalid DSN format. Please enter a valid URL.' });
+      return;
+    }
+
     setTesting(true);
     setTestResult(null);
+    setError(null);
 
     try {
-      // Test the connection by trying to list accounts
+      // Test connection via direct fetch to Unipile API
+      // Note: This may fail with CORS in some browsers. If issues persist,
+      // consider proxying through /api/unipile/test-connection
       const response = await fetch(
         `${dsn}/api/v1/accounts`,
         {
@@ -158,7 +168,6 @@ export default function ClientIntegrationsPage() {
           message: 'Connection successful! Unipile API is reachable.',
         });
       } else {
-        const errorData = await response.text();
         setTestResult({
           success: false,
           message: `Connection failed: ${response.status} ${response.statusText}`,
@@ -167,7 +176,7 @@ export default function ClientIntegrationsPage() {
     } catch (err) {
       setTestResult({
         success: false,
-        message: `Connection error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        message: `Connection error: ${err instanceof Error ? err.message : 'Network error'}`,
       });
     } finally {
       setTesting(false);
@@ -197,19 +206,23 @@ export default function ClientIntegrationsPage() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+        <div role="alert" aria-live="polite" className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+        <div role="status" aria-live="polite" className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
           <p className="text-sm text-green-700">{success}</p>
         </div>
       )}
 
       {testResult && (
-        <div className={`mb-6 p-4 rounded-md border ${testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+        <div
+          role={testResult.success ? "status" : "alert"}
+          aria-live="polite"
+          className={`mb-6 p-4 rounded-md border ${testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
+        >
           <p className={`text-sm ${testResult.success ? 'text-green-700' : 'text-red-700'}`}>
             {testResult.message}
           </p>
@@ -252,9 +265,14 @@ export default function ClientIntegrationsPage() {
             id="apiKey"
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              handleFieldChange();
+            }}
             placeholder="Enter your Unipile API Key"
             autoComplete="new-password"
+            aria-required={enabled ? "true" : "false"}
+            aria-invalid={error ? "true" : "false"}
             className="mt-3 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
           {apiKey && (
@@ -274,11 +292,16 @@ export default function ClientIntegrationsPage() {
           </p>
           <input
             id="dsn"
-            type="text"
+            type="url"
             value={dsn}
-            onChange={(e) => setDsn(e.target.value)}
+            onChange={(e) => {
+              setDsn(e.target.value);
+              handleFieldChange();
+            }}
             placeholder="https://api3.unipile.com:13344"
             autoComplete="off"
+            aria-required={enabled ? "true" : "false"}
+            aria-invalid={error ? "true" : "false"}
             className="mt-3 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
