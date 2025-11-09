@@ -333,27 +333,29 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       "fixed bottom-8 left-1/2 -translate-x-1/2 w-4/5 max-w-5xl z-50",
       className
     )}>
-      {/* Messages Panel - Shows full conversation history */}
-      {messages.length > 0 && (
-        <div
-          ref={messagesPanelRef}
-          className="bg-white border border-gray-200 rounded-xl shadow-sm mb-2 max-h-[400px] overflow-y-auto"
-        >
-          <div className="p-4 space-y-3">
-            {messages.map((message, index) => (
-              <ChatMessage
-                key={message.id}
-                message={convertToUIMessage(message)}
-                isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-              />
-            ))}
+      {/* Single cohesive container */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+        {/* Messages Panel - Slides up from behind input */}
+        {messages.length > 0 && (
+          <div
+            ref={messagesPanelRef}
+            className="max-h-[400px] overflow-y-auto border-b border-gray-200"
+          >
+            <div className="p-4 space-y-3">
+              {messages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  message={convertToUIMessage(message)}
+                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Input Container - Separate from messages */}
-      <form onSubmit={handleSubmit}>
-        <div className="bg-white border border-gray-200 rounded-xl shadow-md">
+        {/* Input Area - Part of same container */}
+        <form onSubmit={handleSubmit}>
+          <div>
           {/* Input area - clickable to focus */}
           <div
             className="p-5 cursor-text"
@@ -425,8 +427,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               </button>
             </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
 
       {/* Error display */}
       {error && (
