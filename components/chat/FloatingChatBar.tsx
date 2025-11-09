@@ -26,6 +26,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesPanelRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Auto-resize textarea
@@ -39,8 +40,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Scroll to bottom when messages update
   useEffect(() => {
+    // Scroll sidebar when expanded
     if (scrollAreaRef.current && isExpanded) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+    // Scroll floating messages panel when NOT expanded
+    if (messagesPanelRef.current && !isExpanded && messages.length > 0) {
+      messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
     }
   }, [messages, isExpanded]);
 
@@ -327,20 +333,27 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       "fixed bottom-8 left-1/2 -translate-x-1/2 w-4/5 max-w-5xl z-50",
       className
     )}>
+      {/* Messages Panel - Shows full conversation history */}
+      {messages.length > 0 && (
+        <div
+          ref={messagesPanelRef}
+          className="bg-white border border-gray-200 rounded-xl shadow-sm mb-2 max-h-[400px] overflow-y-auto"
+        >
+          <div className="p-4 space-y-3">
+            {messages.map((message, index) => (
+              <ChatMessage
+                key={message.id}
+                message={convertToUIMessage(message)}
+                isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input Container - Separate from messages */}
       <form onSubmit={handleSubmit}>
         <div className="bg-white border border-gray-200 rounded-xl shadow-md">
-          {/* Show last message if exists */}
-          {messages.length > 0 && (
-            <div className="px-4 pt-3 pb-2">
-              {messages[messages.length - 1].role === 'user' && (
-                <div className="text-xs text-gray-500 mb-1">You</div>
-              )}
-              <div className="text-base text-gray-700 line-clamp-2">
-                {messages[messages.length - 1].content}
-              </div>
-            </div>
-          )}
-
           {/* Input area - clickable to focus */}
           <div
             className="p-5 cursor-text"
