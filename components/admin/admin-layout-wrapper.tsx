@@ -19,8 +19,8 @@ export default function AdminLayoutWrapper({ user, agency, children }: AdminLayo
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <TopBar />
+        {/* Top Bar - no logo for admin area */}
+        <TopBar showLogo={false} />
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto pt-16 px-6 py-6">
