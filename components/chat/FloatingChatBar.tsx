@@ -794,7 +794,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
           className
         )}
-        onClick={(e) => e.stopPropagation()}
+        onClickCapture={(e) => e.stopPropagation()}
       >
         {/* Single cohesive container */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
@@ -803,7 +803,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           <div
             ref={messagesPanelRef}
             className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
-            onClick={(e) => e.stopPropagation()}
+            onClickCapture={(e) => e.stopPropagation()}
           >
             <div className="p-4 space-y-3">
               {messages.map((message, index) => (
