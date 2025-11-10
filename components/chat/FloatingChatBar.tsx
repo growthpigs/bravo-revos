@@ -49,46 +49,25 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
-    console.log('[LISTENER_EFFECT] showMessages:', showMessages, 'ref:', floatingChatContainerRef.current ? 'SET' : 'NULL');
-
-    if (!showMessages) {
-      console.log('[LISTENER_EFFECT] showMessages is false, not attaching listener');
-      return;
-    }
-
-    console.log('[LISTENER_EFFECT] Attaching document click listener');
+    if (!showMessages) return;
 
     const handleDocumentClick = (event: MouseEvent) => {
       const target = event.target as Node;
-      const refExists = !!floatingChatContainerRef.current;
-      const isInside = refExists ? floatingChatContainerRef.current!.contains(target) : false;
-
-      console.log('[DOCUMENT_CLICK]', {
-        refExists,
-        isInside,
-        targetTag: (target as HTMLElement).tagName,
-        targetClass: (target as HTMLElement).className,
-        containerTag: floatingChatContainerRef.current?.tagName,
-      });
 
       // Check if click is inside the floating chat container
       if (floatingChatContainerRef.current && floatingChatContainerRef.current.contains(target)) {
         // Click is inside chat - keep panel open
-        console.log('[DOCUMENT_CLICK] Click is INSIDE chat, not closing');
         return;
       }
 
       // Click is outside chat - close the panel
-      console.log('[DOCUMENT_CLICK] Click is OUTSIDE chat, closing panel');
       setShowMessages(false);
     };
 
-    // Attach listener to document
-    document.addEventListener('click', handleDocumentClick, true); // Use capture phase for reliability
-    console.log('[LISTENER_EFFECT] Listener attached successfully');
+    // Attach listener to document using capture phase for reliability
+    document.addEventListener('click', handleDocumentClick, true);
 
     return () => {
-      console.log('[LISTENER_EFFECT] Removing listener');
       document.removeEventListener('click', handleDocumentClick, true);
     };
   }, [showMessages]);
@@ -166,21 +145,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       saveCurrentConversation();
     }
   }, [messages]);
-
-  // Click outside to close message panel in floating bar
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Only handle if in floating bar mode (not expanded or minimized) and messages are showing
-      if (!isExpanded && !isMinimized && showMessages && floatingBarRef.current) {
-        if (!floatingBarRef.current.contains(event.target as Node)) {
-          setShowMessages(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isExpanded, isMinimized, showMessages]);
 
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
