@@ -481,3 +481,65 @@ Your Bravo revOS platform is now live in production.
 - Check Supabase database size
 - Update dependencies monthly
 - Review security policies quarterly
+
+---
+
+## Background Workers (Vercel Cron)
+
+The application includes 3 background workers that run via Vercel Cron:
+
+| Worker | Schedule | Function |
+|--------|----------|----------|
+| `/api/cron/dm-scraper` | Every 5 minutes | Poll Unipile for comments, send auto-DMs, collect emails |
+| `/api/cron/webhook-retry` | Every 10 minutes | Retry failed webhook deliveries with exponential backoff |
+| `/api/cron/pod-notifications` | Every 15 minutes | Send pod repost notifications via email |
+
+### Authentication
+
+All cron endpoints require `Authorization: Bearer $CRON_SECRET` header.
+
+### Testing Locally
+
+```bash
+# Set CRON_SECRET in .env.local
+export CRON_SECRET=$(grep CRON_SECRET .env.local | cut -d= -f2)
+
+# Test each worker
+curl -X POST http://localhost:3000/api/cron/dm-scraper -H "Authorization: Bearer $CRON_SECRET"
+curl -X POST http://localhost:3000/api/cron/webhook-retry -H "Authorization: Bearer $CRON_SECRET"
+curl -X POST http://localhost:3000/api/cron/pod-notifications -H "Authorization: Bearer $CRON_SECRET"
+```
+
+### Production Verification
+
+After deployment:
+
+1. Check Vercel Dashboard → Cron Jobs
+2. Verify all 3 jobs appear in list
+3. Wait for first execution (5-15 minutes)
+4. Check logs in Vercel Dashboard
+5. Verify database metrics are updating
+
+### Monitoring
+
+Check worker health with these database queries:
+
+```sql
+-- Check recent scrape job activity
+SELECT id, status, comments_scanned, dms_sent, last_checked
+FROM scrape_jobs
+WHERE last_checked > NOW() - INTERVAL '1 hour';
+
+-- Check webhook delivery rate
+SELECT status, COUNT(*)
+FROM webhook_logs
+WHERE created_at > NOW() - INTERVAL '1 day'
+GROUP BY status;
+
+-- Check notification delivery
+SELECT status, COUNT(*)
+FROM notifications
+WHERE created_at > NOW() - INTERVAL '1 day'
+GROUP BY status;
+```
+
