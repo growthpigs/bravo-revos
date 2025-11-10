@@ -61,6 +61,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [documentContent, setDocumentContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('Working Document');
   const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedContent, setEditedContent] = useState<string>('');
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
@@ -581,6 +583,25 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // Enter edit mode - copy current content to editor
+  const handleEditClick = () => {
+    setEditedContent(documentContent);
+    setIsEditMode(true);
+  };
+
+  // Save edited content and exit edit mode
+  const handleSaveEdit = () => {
+    setDocumentContent(editedContent);
+    setIsEditMode(false);
+    setEditedContent('');
+  };
+
+  // Cancel edit mode without saving
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedContent('');
+  };
+
   // Don't render if minimized
   if (isMinimized) {
     return (
@@ -697,56 +718,98 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {/* RIGHT PANEL: Document Viewer - Full width when maximized */}
         <div className={cn("overflow-hidden bg-white flex flex-col", isDocumentMaximized ? "flex-1" : "flex-1")}>
           {/* Document Header */}
-          <div className="h-14 px-6 bg-gray-50 flex items-center flex-shrink-0">
+          <div className="h-14 px-6 bg-gray-50 flex items-center justify-between flex-shrink-0">
             <h2 className="text-sm font-semibold text-gray-900">{documentTitle}</h2>
-          </div>
-          {/* Document Content Area */}
-          <div className="flex-1 overflow-y-auto px-16 py-12">
-            <div className="max-w-4xl mx-auto">
-              {documentContent ? (
-                <div className="prose prose-lg max-w-none">
-                  <ReactMarkdown
-                    components={{
-                    strong: ({ children }) => (
-                      <strong className="font-bold text-gray-900">{children}</strong>
-                    ),
-                    p: ({ children }) => (
-                      <p className="mb-4 last:mb-0 text-gray-700 leading-relaxed">{children}</p>
-                    ),
-                    h1: ({ children }) => (
-                      <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-5xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">{children}</ol>
-                    ),
-                    li: ({ children }) => (
-                      <li className="text-gray-700">{children}</li>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
-                    ),
-                    hr: () => null,
-                  }}
-                >
-                  {documentContent}
-                </ReactMarkdown>
-                </div>
+            <div className="flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-3 py-1 text-xs font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+                    aria-label="Save changes"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                    aria-label="Cancel editing"
+                  >
+                    Cancel
+                  </button>
+                </>
               ) : (
-                <div className="text-gray-400 text-center py-12">
-                  <p className="text-sm">Document content will appear here</p>
-                  <p className="text-xs mt-2">Ask me to write a post, article, or document</p>
-                </div>
+                <button
+                  onClick={handleEditClick}
+                  className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                  aria-label="Edit document"
+                >
+                  Edit
+                </button>
               )}
             </div>
+          </div>
+          {/* Document Content Area */}
+          <div className="flex-1 overflow-y-auto">
+            {isEditMode ? (
+              // Edit mode - show textarea with markdown
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full h-full p-6 text-sm text-gray-700 font-mono border-0 rounded-none focus:outline-none resize-none bg-white"
+                placeholder="Enter your markdown content here..."
+                spellCheck="false"
+              />
+            ) : (
+              // View mode - show formatted markdown
+              <div className="px-16 py-12">
+                <div className="max-w-4xl mx-auto">
+                  {documentContent ? (
+                    <div className="prose prose-lg max-w-none">
+                      <ReactMarkdown
+                        components={{
+                        strong: ({ children }) => (
+                          <strong className="font-bold text-gray-900">{children}</strong>
+                        ),
+                        p: ({ children }) => (
+                          <p className="mb-4 last:mb-0 text-gray-700 leading-relaxed">{children}</p>
+                        ),
+                        h1: ({ children }) => (
+                          <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-5xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">{children}</ol>
+                        ),
+                        li: ({ children }) => (
+                          <li className="text-gray-700">{children}</li>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
+                        ),
+                        hr: () => null,
+                      }}
+                      >
+                        {documentContent}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="text-gray-400 text-center py-12">
+                      <p className="text-sm">Document content will appear here</p>
+                      <p className="text-xs mt-2">Ask me to write a post, article, or document</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
