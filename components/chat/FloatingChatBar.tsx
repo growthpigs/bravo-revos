@@ -680,20 +680,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {/* RIGHT PANEL: Document Viewer - Full width when maximized */}
         <div className={cn("overflow-hidden bg-white flex flex-col", isDocumentMaximized ? "flex-1" : "flex-1")}>
           {/* Document Header - with title and expand button */}
-          <div className="h-14 px-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+          <div className="h-14 px-6 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
             <h2 className="text-sm font-semibold text-gray-900">{documentTitle}</h2>
             <button
               onClick={() => setIsDocumentMaximized(!isDocumentMaximized)}
-              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+              className="p-2 hover:bg-gray-200 rounded border border-gray-300 transition-colors flex-shrink-0"
               aria-label="Expand document"
-              title={isDocumentMaximized ? "Collapse" : "Expand"}
+              title={isDocumentMaximized ? "Collapse to split view" : "Expand to full width"}
             >
               <svg
-                className="w-5 h-5 text-gray-600"
+                className="w-4 h-4 text-gray-700"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
               </svg>
