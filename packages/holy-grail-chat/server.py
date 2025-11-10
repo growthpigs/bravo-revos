@@ -85,8 +85,8 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
         # Build messages array (orchestrator expects this format)
         messages = [{"role": "user", "content": request.message}]
 
-        # Call real orchestrator with Supabase queries
-        response = orchestrator.process(
+        # Call real orchestrator with Supabase queries (async)
+        response = await orchestrator.process(
             messages=messages,
             user_id=request.user_id,
             pod_id=request.pod_id

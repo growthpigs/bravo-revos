@@ -318,7 +318,7 @@ class HGCOrchestrator:
             model="gpt-4"
         )
 
-    def process(self, messages: List[Dict[str, str]], user_id: str, pod_id: str) -> str:
+    async def process(self, messages: List[Dict[str, str]], user_id: str, pod_id: str) -> str:
         """Process conversation with full message history.
 
         Args:
@@ -394,7 +394,7 @@ class HGCOrchestrator:
             print(f"[ORCHESTRATOR] Agent has {len(self.agent.tools)} tools available", file=sys.stderr)
             print(f"[ORCHESTRATOR] Tool names: {[tool.name for tool in self.agent.tools]}", file=sys.stderr)
 
-            result = runner.run_sync(
+            result = await runner.run(
                 starting_agent=self.agent,
                 input=last_user_message,
                 context={"user_id": memory_key, "conversation_history": messages}
