@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
 import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
