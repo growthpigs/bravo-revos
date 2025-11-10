@@ -789,6 +789,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           className="fixed inset-0 left-64 bg-black/0 backdrop-blur-lg z-40 transition-all duration-200"
           onClick={(e) => {
             console.log('[BLUR_OVERLAY_CLICK] Blur overlay clicked! Target:', e.target, 'CurrentTarget:', e.currentTarget);
+            console.log('[BLUR_OVERLAY_CLICK] Click target is inside chat?', messagesPanelRef.current?.contains(e.target as Node));
+            setShowMessages(false);
+          }}
+          style={{
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
+      {/* Clickable area outside chat to close panel */}
+      {showMessages && (
+        <div
+          className="fixed inset-0 left-64 z-40 transition-all duration-200"
+          onClick={(e) => {
+            console.log('[CLOSE_OVERLAY_CLICK] User clicked outside chat, closing panel');
             setShowMessages(false);
           }}
           style={{
