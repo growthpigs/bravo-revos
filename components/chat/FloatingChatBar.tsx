@@ -441,9 +441,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           setMessages(prev => [...prev, assistantMessage]);
           console.log('[HGC_STREAM] JSON response added to messages. Length:', cleanContent.length);
 
-          // Auto-fullscreen if content > 500 chars
-          if (cleanContent.length > 500 && !isFullscreen) {
-            console.log('[HGC_STREAM] Auto-fullscreen triggered for JSON response');
+          // Auto-fullscreen if content > 500 chars AND user triggered document creation
+          if (cleanContent.length > 500 && !isFullscreen && hasDocumentCreationTrigger()) {
+            console.log('[HGC_STREAM] Auto-fullscreen triggered for JSON response (trigger words matched)');
             setIsFullscreen(true);
             setDocumentContent(cleanContent);
             extractDocumentTitle(cleanContent);
@@ -491,8 +491,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         assistantContent += chunk;
 
-        // Auto-fullscreen when document content starts (>500 chars = actual document)
-        if (assistantContent.length > 500 && !isFullscreen) {
+        // Auto-fullscreen when document content starts (>500 chars = actual document) AND trigger keywords matched
+        if (assistantContent.length > 500 && !isFullscreen && hasDocumentCreationTrigger()) {
           setIsFullscreen(true);
           const cleanContent = stripIntroText(assistantContent);
           setDocumentContent(cleanContent);
@@ -570,13 +570,38 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   });
 
   // Handle expand button click - find last long message and show in fullscreen
+  // Check if user's last message contains trigger keywords for document creation
+  const hasDocumentCreationTrigger = () => {
+    if (messages.length === 0) return false;
+
+    // Find the last user message
+    const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
+    if (!lastUserMessage) return false;
+
+    const text = lastUserMessage.content.toLowerCase();
+
+    // Trigger keywords that indicate creative/document writing
+    const triggerKeywords = ['write', 'compose', 'draft', 'create a post', 'create an article', 'create a document', 'post', 'article', 'blog', 'newsletter', 'email'];
+
+    // Block keywords that should NOT trigger fullscreen
+    const blockKeywords = ['create a campaign', 'create a cartridge', 'explain', 'tell me', 'analyze', 'help me', 'what is', 'how to', 'describe', 'summarize', 'list', 'show me'];
+
+    // Check if any block keyword is present
+    if (blockKeywords.some(keyword => text.includes(keyword))) {
+      return false;
+    }
+
+    // Check if any trigger keyword is present
+    return triggerKeywords.some(keyword => text.includes(keyword));
+  };
+
   const handleMessageExpand = () => {
     // Find the last assistant message with content > 500 chars
     const longMessage = [...messages].reverse().find(
       msg => msg.role === 'assistant' && msg.content.length > 500
     );
 
-    if (longMessage) {
+    if (longMessage && hasDocumentCreationTrigger()) {
       setIsFullscreen(true);
       setDocumentContent(longMessage.content);
       extractDocumentTitle(longMessage.content);
