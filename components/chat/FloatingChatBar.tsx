@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
-import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X } from 'lucide-react';
+import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 
@@ -20,6 +20,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showChatHistory, setShowChatHistory] = useState(true);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +29,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesPanelRef = useRef<HTMLDivElement>(null);
+  const floatingBarRef = useRef<HTMLFormElement>(null);
+  const [showMessages, setShowMessages] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Auto-resize textarea
@@ -51,6 +54,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [messages, isExpanded]);
 
+  // Click outside to close message panel in floating bar
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Only handle if in floating bar mode (not expanded or minimized) and messages are showing
+      if (!isExpanded && !isMinimized && showMessages && floatingBarRef.current) {
+        if (!floatingBarRef.current.contains(event.target as Node)) {
+          setShowMessages(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isExpanded, isMinimized, showMessages]);
+
   // Handle form submission
   const handleSubmit = async (e: FormEvent) => {
     console.log('[HGC_STREAM] ========================================');
@@ -73,6 +91,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     console.log('[HGC_STREAM] User message created:', userMessage.content);
 
     setMessages(prev => [...prev, userMessage]);
+    setShowMessages(true); // Show message panel when user sends a message
     setInput('');
     setIsLoading(true);
     setError(null);
@@ -222,34 +241,83 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl h-[90vh] bg-white rounded-lg shadow-2xl flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-            <h2 className="text-lg font-semibold text-gray-900">Holy Grail Chat</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setIsFullscreen(false);
-                  setIsExpanded(true);
-                }}
-                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                aria-label="Exit fullscreen"
-              >
-                <Minimize2 className="w-4 h-4 text-gray-600" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsFullscreen(false);
-                  setIsExpanded(false);
-                  setIsMinimized(false);
-                }}
-                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4 text-gray-600" />
-              </button>
+        <div className="w-full max-w-7xl h-[90vh] bg-white rounded-lg shadow-2xl flex">
+          {/* Chat History Sidebar */}
+          {showChatHistory && (
+            <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
+              {/* History Header */}
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900">Chat History</h3>
+              </div>
+
+              {/* New Conversation Button */}
+              <div className="p-3">
+                <button className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-colors">
+                  + New Conversation
+                </button>
+              </div>
+
+              {/* Conversation List */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {/* Placeholder conversations */}
+                <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition-colors">
+                  <p className="text-sm text-gray-900 font-medium truncate">Current conversation</p>
+                  <p className="text-xs text-gray-500 mt-1">Just now</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition-colors">
+                  <p className="text-sm text-gray-700 truncate">LinkedIn campaign help</p>
+                  <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition-colors">
+                  <p className="text-sm text-gray-700 truncate">Pod engagement analysis</p>
+                  <p className="text-xs text-gray-500 mt-1">Yesterday</p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col">
+            {/* Top Banner */}
+            <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-gray-700" />
+                <h2 className="text-base font-semibold text-gray-900">Holy Grail Chat</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowChatHistory(!showChatHistory)}
+                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                  aria-label="Toggle chat history"
+                  title="Toggle chat history"
+                >
+                  <Menu className="w-4 h-4 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => {
+                    setIsFullscreen(false);
+                    setIsExpanded(true);
+                  }}
+                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                  aria-label="Exit fullscreen"
+                  title="Exit fullscreen"
+                >
+                  <Minimize2 className="w-4 h-4 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => {
+                    setIsFullscreen(false);
+                    setIsExpanded(false);
+                    setIsMinimized(false);
+                  }}
+                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                  aria-label="Close"
+                  title="Close"
+                >
+                  <X className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+            </div>
 
           {/* Messages */}
           <div
@@ -285,16 +353,24 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           {/* Input */}
           <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
             <div className="bg-white border border-gray-200 rounded-xl">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Revy wants to help! Type..."
-                className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
-                rows={1}
-                disabled={isLoading}
-              />
+              {isLoading ? (
+                <div className="flex items-center gap-1.5 px-4 py-3 h-[38px]">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Revy wants to help! Type..."
+                  className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
+                  rows={1}
+                  disabled={isLoading}
+                />
+              )}
               <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
                 <div className="flex gap-1">
                   <button
@@ -330,6 +406,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               </div>
             </div>
           </form>
+          </div>
         </div>
       </div>
     );
@@ -338,14 +415,19 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Expanded sidebar view (RIGHT side, embedded)
   if (isExpanded) {
     return (
-      <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col shadow-xl">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex justify-end bg-gray-50">
+      <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col">
+        {/* Top Banner */}
+        <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-gray-700" />
+            <h2 className="text-base font-semibold text-gray-900">Holy Grail Chat</h2>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsFullscreen(true)}
               className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
               aria-label="Fullscreen"
+              title="Fullscreen"
             >
               <Maximize2 className="w-4 h-4 text-gray-600" />
             </button>
@@ -356,15 +438,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               }}
               className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
               aria-label="Collapse to floating bar"
+              title="Collapse"
             >
               <Minimize2 className="w-4 h-4 text-gray-600" />
-            </button>
-            <button
-              onClick={() => setIsMinimized(true)}
-              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-              aria-label="Close chat"
-            >
-              <X className="w-4 h-4 text-gray-600" />
             </button>
           </div>
         </div>
@@ -403,16 +479,24 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {/* Input */}
         <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
           <div className="bg-white border border-gray-200 rounded-xl">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Revy wants to help! Type..."
-              className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
-              rows={1}
-              disabled={isLoading}
-            />
+            {isLoading ? (
+              <div className="flex items-center gap-1.5 px-4 py-3 h-[38px]">
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+              </div>
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Revy wants to help! Type..."
+                className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
+                rows={1}
+                disabled={isLoading}
+              />
+            )}
             <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
               <div className="flex gap-1">
                 <button
@@ -461,10 +545,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       {/* Single cohesive container */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
         {/* Messages Panel - Slides up from behind input */}
-        {messages.length > 0 && (
+        {messages.length > 0 && showMessages && (
           <div
             ref={messagesPanelRef}
-            className="max-h-[400px] overflow-y-auto border-b border-gray-200"
+            className="max-h-[280px] overflow-y-auto border-b border-gray-200"
           >
             <div className="p-4 space-y-3">
               {messages.map((message, index) => (
@@ -479,16 +563,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         )}
 
         {/* Input Area - Part of same container */}
-        <form onSubmit={handleSubmit}>
+        <form ref={floatingBarRef} onSubmit={handleSubmit} className="relative">
           <div
-            className="p-5 cursor-text"
+            className="px-5 py-3 cursor-text"
             onClick={() => textareaRef.current?.focus()}
           >
             {isLoading ? (
               <div className="flex items-center gap-1 h-6">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.2s' }} />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce-dot" style={{ animationDelay: '0.4s' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
               </div>
             ) : (
               <textarea
@@ -505,7 +589,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between px-3 pb-3 pt-1">
+          <div className="flex items-center justify-between px-3 pb-3 pt-2">
             <div className="flex gap-1">
               <button
                 type="button"
