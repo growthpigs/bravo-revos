@@ -47,11 +47,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Draggable sidebar resizer
+  // Draggable sidebar resizers
+  const [sidebarWidth, setSidebarWidth] = useState(600); // Total sidebar width
   const [chatWidth, setChatWidth] = useState(408); // Default chat width in pixels
   const isDraggingRef = useRef(false);
   const dragStartXRef = useRef(0);
   const dragStartWidthRef = useRef(0);
+  const resizerTypeRef = useRef<'left' | 'middle' | null>(null);
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
@@ -78,14 +80,19 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     };
   }, [showMessages]);
 
-  // Initialize conversations and sidebar width from localStorage
+  // Initialize conversations and sidebar widths from localStorage
   useEffect(() => {
     setIsMounted(true);
 
-    // Load saved sidebar width
-    const savedWidth = localStorage.getItem('chat_sidebar_width');
-    if (savedWidth) {
-      setChatWidth(parseInt(savedWidth, 10));
+    // Load saved sidebar widths
+    const savedSidebarWidth = localStorage.getItem('chat_sidebar_width_total');
+    if (savedSidebarWidth) {
+      setSidebarWidth(parseInt(savedSidebarWidth, 10));
+    }
+
+    const savedChatWidth = localStorage.getItem('chat_sidebar_width_chat');
+    if (savedChatWidth) {
+      setChatWidth(parseInt(savedChatWidth, 10));
     }
 
     // Load conversations
@@ -121,22 +128,36 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [conversations, isMounted]);
 
-  // Handle resizer drag events
+  // Handle resizer drag events (both left and middle resizers)
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current) return;
+      if (!isDraggingRef.current || !resizerTypeRef.current) return;
 
       const delta = e.clientX - dragStartXRef.current;
-      const newWidth = dragStartWidthRef.current + delta;
 
-      // Min chat width: 250px, Max: 500px
-      const constrainedWidth = Math.max(250, Math.min(500, newWidth));
-      setChatWidth(constrainedWidth);
-      localStorage.setItem('chat_sidebar_width', constrainedWidth.toString());
+      if (resizerTypeRef.current === 'left') {
+        // Left resizer: expand/shrink entire sidebar, chat grows, history stays fixed at 192px
+        const newSidebarWidth = dragStartWidthRef.current + delta;
+
+        // Min total: 350px (150 chat + 192 history + 1 divider), Max: 800px
+        const constrainedWidth = Math.max(343, Math.min(800, newSidebarWidth));
+        setSidebarWidth(constrainedWidth);
+        localStorage.setItem('chat_sidebar_width_total', constrainedWidth.toString());
+      } else if (resizerTypeRef.current === 'middle') {
+        // Middle resizer: redistribute fixed total width between chat and history
+        const newChatWidth = dragStartWidthRef.current + delta;
+
+        // Min chat width: 150px, Max: depends on sidebar - historyWidth (192)
+        const maxChat = sidebarWidth - 192 - 1; // -1 for divider
+        const constrainedWidth = Math.max(150, Math.min(maxChat, newChatWidth));
+        setChatWidth(constrainedWidth);
+        localStorage.setItem('chat_sidebar_width_chat', constrainedWidth.toString());
+      }
     };
 
     const handleMouseUp = () => {
       isDraggingRef.current = false;
+      resizerTypeRef.current = null;
       document.body.style.userSelect = 'auto';
       document.body.style.cursor = 'auto';
     };
@@ -148,7 +169,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, []);
+  }, [sidebarWidth]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -600,10 +621,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     );
   }
 
-  // Handle resizer mousedown
-  const handleResizerMouseDown = (e: React.MouseEvent) => {
+  // Handle left resizer mousedown (expand/shrink entire sidebar)
+  const handleLeftResizerMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     isDraggingRef.current = true;
+    resizerTypeRef.current = 'left';
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = sidebarWidth;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  };
+
+  // Handle middle resizer mousedown (redistribute chat/history within fixed total)
+  const handleMiddleResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    resizerTypeRef.current = 'middle';
     dragStartXRef.current = e.clientX;
     dragStartWidthRef.current = chatWidth;
     document.body.style.userSelect = 'none';
@@ -617,16 +650,24 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
 
     const historyWidth = showChatHistory && hasAnyConversations ? 192 : 0;
-    const totalWidth = chatWidth + historyWidth;
 
     return (
       <div
         className="fixed right-0 top-16 bottom-0 flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200"
-        style={{ width: `${totalWidth}px` }}
+        style={{ width: `${sidebarWidth}px` }}
       >
+        {/* Left resizer - expand/shrink entire sidebar */}
+        <div
+          onMouseDown={handleLeftResizerMouseDown}
+          className="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize transition-colors"
+          style={{
+            userSelect: 'none',
+          }}
+        />
+
         {/* Main Chat Area */}
         <div
-          className="flex flex-col bg-white relative"
+          className="flex flex-col bg-white relative flex-1"
           style={{ width: `${chatWidth}px` }}
         >
           {/* Minimal Top Banner with icon navigation - match history banner height */}
@@ -761,10 +802,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </form>
         </div>
 
-        {/* Resizer divider */}
+        {/* Middle resizer divider */}
         {showChatHistory && hasAnyConversations && (
           <div
-            onMouseDown={handleResizerMouseDown}
+            onMouseDown={handleMiddleResizerMouseDown}
             className="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize transition-colors"
             style={{
               userSelect: 'none',
