@@ -417,7 +417,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return (
       <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col">
         {/* Top Banner */}
-        <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+        <div className="px-4 py-2.5 border-b border-gray-300 flex justify-between items-center bg-gray-100">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-gray-700" />
             <h2 className="text-base font-semibold text-gray-900">Holy Grail Chat</h2>
@@ -548,7 +548,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {messages.length > 0 && showMessages && (
           <div
             ref={messagesPanelRef}
-            className="max-h-[280px] overflow-y-auto border-b border-gray-200"
+            className="max-h-[480px] overflow-y-auto border-b border-gray-200"
           >
             <div className="p-4 space-y-3">
               {messages.map((message, index) => (

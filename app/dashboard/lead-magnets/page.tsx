@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,8 @@ import {
 } from '@/components/ui/dialog'
 import { Plus, Edit, Trash2, Download, FileText, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { LibraryTab } from '@/components/dashboard/lead-magnet-library-tab'
+import { LeadMagnetAnalytics } from '@/components/dashboard/lead-magnet-analytics'
 
 interface LeadMagnet {
   id: string
@@ -37,6 +40,7 @@ export default function LeadMagnetsPage() {
   const [filteredMagnets, setFilteredMagnets] = useState<LeadMagnet[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [campaignUsageMap, setCampaignUsageMap] = useState<Record<string, number>>({})
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -350,157 +354,190 @@ export default function LeadMagnetsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Lead Magnets</h1>
           <p className="text-gray-600 mt-2">
-            Create and manage lead magnet files to capture leads
+            Browse library templates or manage your custom uploads
           </p>
         </div>
-        <Button onClick={handleOpenCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Lead Magnet
-        </Button>
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search by name, description, or tags..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+      {/* Analytics */}
+      <LeadMagnetAnalytics
+        onDataLoaded={(data) => setCampaignUsageMap(data.campaignUsageMap)}
+      />
+
+      {/* Tabs */}
+      <Tabs defaultValue="library" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="library">Library</TabsTrigger>
+          <TabsTrigger value="custom">My Custom Magnets</TabsTrigger>
+        </TabsList>
+
+        {/* Library Tab */}
+        <TabsContent value="library">
+          <LibraryTab />
+        </TabsContent>
+
+        {/* Custom Magnets Tab */}
+        <TabsContent value="custom" className="space-y-6">
+          {/* New Lead Magnet Button */}
+          <div className="flex justify-end">
+            <Button onClick={handleOpenCreate} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Lead Magnet
+            </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Lead Magnets Count */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <span>
-          Showing {filteredMagnets.length} of {leadMagnets.length} lead magnets
-        </span>
-      </div>
+          {/* Search */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by name, description, or tags..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Lead Magnets Grid */}
-      {isLoading ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-gray-500">Loading lead magnets...</p>
-          </CardContent>
-        </Card>
-      ) : filteredMagnets.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {searchTerm ? 'No lead magnets found' : 'No lead magnets yet'}
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {searchTerm
-                ? 'Try adjusting your search'
-                : 'Create your first lead magnet to start capturing leads'}
-            </p>
-            {!searchTerm && (
-              <Button onClick={handleOpenCreate} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create Lead Magnet
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredMagnets.map((magnet) => (
-            <Card key={magnet.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex flex-col h-full">
-                  {/* File Icon */}
-                  <div className="flex items-center justify-center h-24 bg-gray-50 rounded-lg mb-4">
-                    {getFileIcon(magnet.file_type)}
-                  </div>
+          {/* Lead Magnets Count */}
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              Showing {filteredMagnets.length} of {leadMagnets.length} lead magnets
+            </span>
+          </div>
 
-                  {/* Info */}
-                  <div className="flex-1 mb-4">
-                    <h3 className="font-semibold text-lg text-gray-900 mb-1 line-clamp-2">
-                      {magnet.name}
-                    </h3>
-                    {magnet.description && (
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                        {magnet.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span>{formatFileSize(magnet.file_size)}</span>
-                      <span>•</span>
-                      <span>{magnet.download_count} downloads</span>
-                    </div>
-                    {magnet.tags && magnet.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {magnet.tags.slice(0, 3).map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {magnet.tags.length > 3 && (
-                          <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full">
-                            +{magnet.tags.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownload(magnet)}
-                      className="flex-1"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenEdit(magnet)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(magnet)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+          {/* Lead Magnets Grid */}
+          {isLoading ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <p className="text-gray-500">Loading lead magnets...</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          ) : filteredMagnets.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {searchTerm ? 'No lead magnets found' : 'No lead magnets yet'}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {searchTerm
+                    ? 'Try adjusting your search'
+                    : 'Create your first lead magnet to start capturing leads'}
+                </p>
+                {!searchTerm && (
+                  <Button onClick={handleOpenCreate} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create Lead Magnet
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredMagnets.map((magnet) => (
+                <Card key={magnet.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col h-full">
+                      {/* File Icon */}
+                      <div className="flex items-center justify-center h-24 bg-gray-50 rounded-lg mb-4">
+                        {getFileIcon(magnet.file_type)}
+                      </div>
 
-      {/* Info Section */}
-      <Card className="bg-green-50 border-green-200">
-        <CardContent className="p-6">
-          <h3 className="font-semibold text-green-900 mb-2">What are Lead Magnets?</h3>
-          <p className="text-sm text-green-800 mb-3">
-            Lead magnets are valuable resources (PDFs, documents, templates, or guides) that you
-            offer in exchange for contact information. They help you build your email list and
-            nurture leads.
-          </p>
-          <p className="text-sm text-green-800">
-            <strong>Supported formats:</strong> PDF, DOCX, PPTX, ZIP (max 10MB)
-          </p>
-        </CardContent>
-      </Card>
+                      {/* Info */}
+                      <div className="flex-1 mb-4">
+                        <h3 className="font-semibold text-lg text-gray-900 mb-1 line-clamp-2">
+                          {magnet.name}
+                        </h3>
+                        {magnet.description && (
+                          <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                            {magnet.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>{formatFileSize(magnet.file_size)}</span>
+                          <span>•</span>
+                          <span>{magnet.download_count} downloads</span>
+                          {campaignUsageMap[magnet.id] && (
+                            <>
+                              <span>•</span>
+                              <span className="text-blue-600 font-medium">
+                                Used in {campaignUsageMap[magnet.id]} campaign{campaignUsageMap[magnet.id] > 1 ? 's' : ''}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {magnet.tags && magnet.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {magnet.tags.slice(0, 3).map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {magnet.tags.length > 3 && (
+                              <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full">
+                                +{magnet.tags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(magnet)}
+                          className="flex-1"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(magnet)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(magnet)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Info Section */}
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-green-900 mb-2">What are Lead Magnets?</h3>
+              <p className="text-sm text-green-800 mb-3">
+                Lead magnets are valuable resources (PDFs, documents, templates, or guides) that you
+                offer in exchange for contact information. They help you build your email list and
+                nurture leads.
+              </p>
+              <p className="text-sm text-green-800">
+                <strong>Supported formats:</strong> PDF, DOCX, PPTX, ZIP (max 10MB)
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Create/Edit Modal */}
       <Dialog
