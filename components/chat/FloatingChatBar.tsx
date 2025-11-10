@@ -415,7 +415,27 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         if (response.status === 401) {
           throw new Error('Please log in to use the chat');
         }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        // Try to get detailed error message from response body
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error || errorData.message || errorData.detail) {
+            errorMessage = errorData.error || errorData.message || errorData.detail;
+          }
+        } catch (e) {
+          // If response isn't JSON, try text
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = errorText.substring(0, 200); // Limit length
+            }
+          } catch (e2) {
+            // Keep default error message
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       // Detect response type by Content-Type header
