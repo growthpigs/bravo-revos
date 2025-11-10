@@ -41,7 +41,7 @@ class HGCOrchestrator:
         Get or create Supabase client with authentication.
 
         Args:
-            auth_token: User's session token
+            auth_token: User's session JWT token
 
         Returns:
             Authenticated Supabase client
@@ -49,9 +49,12 @@ class HGCOrchestrator:
         supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
         supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
 
-        # Create new client (reusing clients with different auth tokens is not safe)
+        # Create client with anon key
         client = create_client(supabase_url, supabase_key)
-        client.auth.set_session(auth_token, auth_token)
+
+        # Set Authorization header with user's JWT token for authenticated queries
+        # This allows RLS policies to see auth.uid() correctly
+        client.postgrest.auth(auth_token)
 
         return client
 
