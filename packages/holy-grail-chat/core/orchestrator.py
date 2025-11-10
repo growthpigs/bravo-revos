@@ -99,58 +99,51 @@ class HGCOrchestrator:
                 print(f"[MEM0_TOOL] save_memory error: {e}", file=sys.stderr)
                 return {"success": False, "error": str(e)}
 
-        # Collect all tools
-        all_tools = [
-            search_memory,
-            save_memory,
-            *self.revos_tools.get_all_tools()
-        ]
+        # Collect all tools upfront (lazy loading added overhead, not savings)
+        all_tools = [search_memory, save_memory] + self.revos_tools.get_all_tools()
 
         # Initialize agent with all tools
         self.agent = Agent(
             name="RevOS Intelligence",
-            instructions="""You are RevOS Intelligence, an AI co-founder helping with LinkedIn growth strategy.
+            instructions="""You are RevOS Intelligence, helping with LinkedIn growth and campaign management.
 
-            🚨 CRITICAL MEMORY RULES (FOLLOW EXACTLY):
+            🎯 TOOL SELECTION RULES (FOLLOW EXACTLY):
 
-            RULE 1: When user asks "what is my X?" or "remember my X?" → ALWAYS call search_memory("X") FIRST
-            Examples:
-            - "what's my lucky number?" → search_memory("lucky number")
-            - "what's my favorite time?" → search_memory("favorite time")
-            - "remember my goal?" → search_memory("goal")
+            When user asks about CAMPAIGNS/BUSINESS DATA:
+            → ALWAYS use business tools, NOT memory
+            - "show me campaigns" / "list campaigns" → get_all_campaigns()
+            - "how is campaign X doing?" → get_campaign_by_id(campaign_id="...")
+            - "pod performance" → analyze_pod_engagement(pod_id)
+            - "LinkedIn stats" → get_linkedin_performance()
 
-            RULE 2: When user says "remember X is Y" or "my X is Y" → IMMEDIATELY call save_memory("User's X is Y")
-            Examples:
-            - "remember my lucky number is 73" → save_memory("User's lucky number is 73")
-            - "my favorite time is 2pm" → save_memory("User's favorite posting time is 2pm EST")
+            When user asks about PERSONAL PREFERENCES:
+            → ALWAYS use search_memory() or save_memory()
+            - "what's my favorite X?" → search_memory("favorite X")
+            - "remember my X is Y" → save_memory("User's X is Y")
+            - "what's my goal?" → search_memory("goal")
 
-            RULE 3: If search_memory returns NOTHING, then say "I don't have that information yet"
+            🔧 YOUR TOOLS:
 
-            RULE 4: NEVER say "I don't have access to..." WITHOUT calling search_memory first!
+            BUSINESS DATA (campaigns, pods, LinkedIn):
+            - get_all_campaigns() - Get ALL user campaigns (NO parameters)
+            - get_campaign_by_id(campaign_id) - Get ONE specific campaign (ID required)
+            - analyze_campaign_performance(campaign_id) - Deep campaign analytics
+            - analyze_pod_engagement(pod_id) - Pod metrics
+            - get_linkedin_performance(date_range) - LinkedIn stats
+            - create_campaign(name, voice_id, description) - Create DRAFT
+            - schedule_post(content, time, campaign_id) - Queue post
 
-            AVAILABLE TOOLS:
-            Memory (USE THESE PROACTIVELY):
-            - search_memory(query) - Search past conversations for ANY user question
-            - save_memory(content) - Store important info immediately when user shares
+            MEMORY (user preferences only):
+            - search_memory(query) - Find user preferences
+            - save_memory(content) - Store user info
 
-            Campaign Data:
-            - get_campaign_metrics(campaign_id) - View campaign performance
-            - analyze_campaign_performance(campaign_id) - Deep analytics with recommendations
-            - create_campaign(name, voice_id, description) - Create DRAFT campaign (safe)
+            ⚡ IMPORTANT:
+            1. ALWAYS call the appropriate tool - NEVER respond without using tools
+            2. Campaigns = database, NOT memory
+            3. Preferences = memory, NOT database
+            4. Use tools PROACTIVELY - don't apologize, call the tool!
 
-            Pod & Performance:
-            - analyze_pod_engagement(pod_id) - Pod performance metrics
-            - get_linkedin_performance(date_range) - LinkedIn metrics over time
-
-            Posting:
-            - schedule_post(content, schedule_time, campaign_id) - Queue post for review (safe)
-
-            WORKFLOW:
-            1. User asks "what's my X?" → search_memory("X") FIRST
-            2. User says "remember X is Y" → save_memory("X is Y") IMMEDIATELY
-            3. Always check tools before saying you don't know something
-
-            Be helpful, remember EVERYTHING, and use search_memory/save_memory for ALL user preferences.""",
+            Be helpful and ALWAYS use your tools to fetch real data.""",
             tools=all_tools,
             model="gpt-4"
         )
@@ -216,6 +209,81 @@ class HGCOrchestrator:
         last_user_message = InputValidator.sanitize_message(last_user_message)
 
         print(f"[ORCHESTRATOR] Last user message: '{last_user_message[:100]}'", file=sys.stderr)
+
+        # CRITICAL FIX: Agent stopped calling ALL tools (AgentKit bug)
+        # Force direct tool execution for known patterns to bypass broken agent
+        campaign_keywords = ['campaign', 'campaigns']
+        if any(keyword in last_user_message.lower() for keyword in campaign_keywords):
+            print(f"[ORCHESTRATOR] FORCING direct tool call (agent broken)", file=sys.stderr)
+            try:
+                # Query Supabase directly - simpler than calling API with cookie auth
+                from supabase import create_client
+                import os
+
+                supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
+                supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
+                auth_token = self.revos_tools.headers.get('Authorization', '').replace('Bearer ', '')
+
+                print(f"[ORCHESTRATOR] Creating Supabase client", file=sys.stderr)
+                supabase = create_client(supabase_url, supabase_key)
+
+                # Set the auth token
+                supabase.auth.set_session(auth_token, auth_token)
+
+                # Get user info
+                user_response = supabase.auth.get_user(auth_token)
+                if not user_response or not user_response.user:
+                    return "I couldn't authenticate your session. Please refresh and try again."
+
+                user_id = user_response.user.id
+                print(f"[ORCHESTRATOR] User authenticated: {user_id}", file=sys.stderr)
+
+                # Get user's client_id
+                user_data = supabase.table('users').select('client_id').eq('id', user_id).maybe_single().execute()
+                if not user_data.data:
+                    return "I couldn't find your user data. Please contact support."
+
+                client_id = user_data.data['client_id']
+
+                # Query campaigns
+                campaigns_response = supabase.table('campaigns').select('id, name, description, status, created_at').eq('client_id', client_id).execute()
+                campaigns = campaigns_response.data if campaigns_response.data else []
+
+                print(f"[ORCHESTRATOR] Found {len(campaigns)} campaigns", file=sys.stderr)
+
+                if len(campaigns) == 0:
+                    return "You don't have any campaigns yet. Would you like to create one?"
+
+                # Get metrics for each campaign
+                campaigns_with_metrics = []
+                for campaign in campaigns:
+                    # Count leads
+                    leads_response = supabase.table('leads').select('*', count='exact').eq('campaign_id', campaign['id']).execute()
+                    leads_count = leads_response.count if leads_response.count else 0
+
+                    # Count posts
+                    posts_response = supabase.table('posts').select('*', count='exact').eq('campaign_id', campaign['id']).execute()
+                    posts_count = posts_response.count if posts_response.count else 0
+
+                    campaigns_with_metrics.append({
+                        'name': campaign.get('name', 'Unnamed'),
+                        'status': campaign.get('status', 'unknown'),
+                        'leads': leads_count,
+                        'posts': posts_count
+                    })
+
+                # Format response
+                response_text = f"You have {len(campaigns_with_metrics)} campaign(s):\n\n"
+                for i, campaign in enumerate(campaigns_with_metrics, 1):
+                    response_text += f"{i}. **{campaign['name']}** ({campaign['status']})\n"
+                    response_text += f"   - Leads: {campaign['leads']}, Posts: {campaign['posts']}\n"
+
+                return response_text
+            except Exception as e:
+                print(f"[ORCHESTRATOR] Direct Supabase query failed: {e}", file=sys.stderr)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                return f"Error fetching campaigns: {str(e)}"
 
         try:
             # Create runner and run agent

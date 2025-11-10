@@ -35,25 +35,23 @@ class RevOSTools:
             List of function_tool decorated standalone functions
         """
         @function_tool
-        def get_campaign_metrics(campaign_id: Optional[str] = None) -> Dict[str, Any]:
+        def get_all_campaigns() -> Dict[str, Any]:
             """
-            Get campaign metrics and performance data.
+            Get ALL campaigns for current user with basic metrics.
 
-            Args:
-                campaign_id: Optional specific campaign ID. If not provided, returns all campaigns.
+            Returns all user's campaigns. NO parameters needed.
+
+            Use when user asks:
+            - "show me my campaigns"
+            - "list all campaigns"
+            - "what campaigns do I have?"
+            - "give me my campaigns"
 
             Returns:
-                Dictionary with campaign data including leads generated, posts created, and status.
-
-            Example usage by agent:
-                "Show me all my campaigns" -> get_campaign_metrics()
-                "How is my AI Leadership campaign doing?" -> get_campaign_metrics(campaign_id="abc-123")
+                Dictionary with list of all campaigns including names, status, and basic metrics.
             """
             try:
                 url = f"{self.api_base_url}/api/hgc/campaigns"
-                if campaign_id:
-                    url += f"?campaign_id={campaign_id}"
-
                 response = requests.get(url, headers=self.headers, timeout=10)
                 response.raise_for_status()
 
@@ -66,7 +64,41 @@ class RevOSTools:
             except requests.RequestException as e:
                 return {
                     "success": False,
-                    "error": f"Failed to fetch campaign metrics: {str(e)}"
+                    "error": f"Failed to fetch campaigns: {str(e)}"
+                }
+
+        @function_tool
+        def get_campaign_by_id(campaign_id: str) -> Dict[str, Any]:
+            """
+            Get detailed metrics for ONE specific campaign.
+
+            Args:
+                campaign_id: The campaign UUID (REQUIRED)
+
+            Use when user mentions a specific campaign name or asks for campaign details.
+
+            Example usage:
+                "How is my AI Leadership campaign doing?" -> get_campaign_by_id(campaign_id="abc-123")
+                "Show metrics for campaign XYZ" -> get_campaign_by_id(campaign_id="xyz-456")
+
+            Returns:
+                Dictionary with detailed campaign metrics including leads, posts, and performance.
+            """
+            try:
+                url = f"{self.api_base_url}/api/hgc/campaigns?campaign_id={campaign_id}"
+                response = requests.get(url, headers=self.headers, timeout=10)
+                response.raise_for_status()
+
+                data = response.json()
+                return {
+                    "success": True,
+                    "campaigns": data.get("campaigns", []),
+                    "count": data.get("count", 0)
+                }
+            except requests.RequestException as e:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch campaign: {str(e)}"
                 }
 
         @function_tool
@@ -253,7 +285,8 @@ class RevOSTools:
 
         return [
             # Read tools
-            get_campaign_metrics,
+            get_all_campaigns,           # NEW: Get all campaigns (no parameters)
+            get_campaign_by_id,          # NEW: Get specific campaign (required parameter)
             analyze_pod_engagement,
             get_linkedin_performance,
             # Write tools (with safety controls)

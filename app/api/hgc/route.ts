@@ -10,6 +10,8 @@ import path from 'path'
  * Uses Python orchestrator with AgentKit + Mem0 + RevOS tools
  */
 export async function POST(request: NextRequest) {
+  const requestStartTime = Date.now()
+
   try {
     console.log('[HGC_API] Phase 2 request received')
     const supabase = await createClient()
@@ -66,13 +68,14 @@ export async function POST(request: NextRequest) {
       pod_id: podId,
       client_id: userData.client_id,
       messages: messages, // Pass ALL messages for conversation history
-      api_base_url: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000',
+      api_base_url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
       mem0_key: process.env.MEM0_API_KEY || '',
       openai_key: process.env.OPENAI_API_KEY || '',
       auth_token: session.access_token
     }
 
     console.log('[HGC_API] Calling Python orchestrator...')
+    const subprocessStartTime = Date.now()
 
     // Call Python runner with Python 3.11 explicitly (requires 3.10+)
     const pythonPath = path.join(process.cwd(), 'packages', 'holy-grail-chat', 'core', 'runner.py')
@@ -119,7 +122,9 @@ export async function POST(request: NextRequest) {
           }
 
           const handleClose = (code: number | null) => {
+            const subprocessDuration = Date.now() - subprocessStartTime
             console.log('[HGC_API] Python process closed with code:', code)
+            console.log(`[HGC_TIMING] Subprocess completed in ${subprocessDuration}ms`)
 
             // ALWAYS log stderr (debug logs go here)
             if (errorBuffer) {
@@ -150,7 +155,10 @@ export async function POST(request: NextRequest) {
                 }
               }
               controller.close()
+
+              const totalDuration = Date.now() - requestStartTime
               console.log('[HGC_API] Controller closed successfully')
+              console.log(`[HGC_TIMING] Total request: ${totalDuration}ms (subprocess: ${subprocessDuration}ms)`)
             } catch (e) {
               console.error('[HGC_API] Error in streaming:', e)
               console.error('[HGC_API] Buffer contents:', buffer)
