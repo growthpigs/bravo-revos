@@ -29,9 +29,7 @@ export default async function PostsPage() {
       id,
       content,
       status,
-      likes_count,
-      comments_count,
-      shares_count,
+      metrics,
       created_at,
       campaign_id,
       campaigns(name)
@@ -88,15 +86,15 @@ export default async function PostsPage() {
                 <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
                   <div className="flex items-center gap-1">
                     <Heart className="h-4 w-4" />
-                    <span>{post.likes_count || 0}</span>
+                    <span>{post.metrics?.likes || 0}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <MessageSquare className="h-4 w-4" />
-                    <span>{post.comments_count || 0}</span>
+                    <span>{post.metrics?.comments || 0}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Share2 className="h-4 w-4" />
-                    <span>{post.shares_count || 0}</span>
+                    <span>{post.metrics?.shares || 0}</span>
                   </div>
                   <div className="text-xs text-gray-500 ml-auto">
                     {new Date(post.created_at).toLocaleDateString()}
