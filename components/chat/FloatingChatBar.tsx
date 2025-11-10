@@ -783,26 +783,27 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Floating bar view (default)
   return (
     <>
-      {/* Blur overlay for canvas when chat is active */}
+      {/* Blur overlay for canvas when chat is active - visual only, pointer-events none */}
       {showMessages && (
         <div
           className="fixed inset-0 left-64 bg-black/0 backdrop-blur-lg z-40 transition-all duration-200"
-          onClick={(e) => {
-            console.log('[BLUR_OVERLAY_CLICK] Blur overlay clicked! Target:', e.target, 'CurrentTarget:', e.currentTarget);
-            console.log('[BLUR_OVERLAY_CLICK] Click target is inside chat?', messagesPanelRef.current?.contains(e.target as Node));
-            setShowMessages(false);
-          }}
           style={{
             pointerEvents: 'none',
           }}
         />
       )}
 
-      {/* Clickable area outside chat to close panel */}
+      {/* Clickable area outside chat to close panel - covers canvas area but NOT the chat */}
       {showMessages && (
         <div
           className="fixed inset-0 left-64 z-40 transition-all duration-200"
           onClick={(e) => {
+            console.log('[CLOSE_OVERLAY_CLICK] Checking if click is inside chat...');
+            const floatingChatContainer = document.querySelector('[data-floating-chat-container]');
+            if (floatingChatContainer && floatingChatContainer.contains(e.target as Node)) {
+              console.log('[CLOSE_OVERLAY_CLICK] Click was inside floating chat, ignoring');
+              return;
+            }
             console.log('[CLOSE_OVERLAY_CLICK] User clicked outside chat, closing panel');
             setShowMessages(false);
           }}
@@ -817,6 +818,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
           className
         )}
+        data-floating-chat-container="true"
         onClickCapture={(e) => {
           console.log('[FLOATING_CHAT_CONTAINER] Click captured on container. Target:', (e.target as HTMLElement).tagName, 'Stopping propagation');
           e.stopPropagation();
