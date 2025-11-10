@@ -10,10 +10,22 @@ require('@testing-library/jest-dom');
 if (typeof Request === 'undefined') {
   global.Request = class Request {
     constructor(url, init = {}) {
-      this.url = url;
-      this.method = init.method || 'GET';
-      this.headers = new Map(Object.entries(init.headers || {}));
+      this._url = url;
+      this._method = init.method || 'GET';
+      this._headers = new Map(Object.entries(init.headers || {}));
       this._bodyInit = init.body;
+    }
+
+    get url() {
+      return this._url;
+    }
+
+    get method() {
+      return this._method;
+    }
+
+    get headers() {
+      return this._headers;
     }
 
     async json() {
@@ -33,9 +45,18 @@ if (typeof Response === 'undefined') {
   global.Response = class Response {
     constructor(body, init = {}) {
       this.body = body;
-      this.status = init.status || 200;
+      this._status = init.status || 200;
       this.statusText = init.statusText || '';
-      this.headers = new Map(Object.entries(init.headers || {}));
+      this._headers = new Map(Object.entries(init.headers || {}));
+      this._init = init;
+    }
+
+    get status() {
+      return this._status;
+    }
+
+    get headers() {
+      return this._headers;
     }
 
     async json() {
@@ -47,6 +68,18 @@ if (typeof Response === 'undefined') {
 
     async text() {
       return this.body;
+    }
+
+    // Static method for Response.json() (Node 18+ feature)
+    static json(data, init = {}) {
+      const body = JSON.stringify(data);
+      return new Response(body, {
+        ...init,
+        headers: {
+          'Content-Type': 'application/json',
+          ...init.headers,
+        },
+      });
     }
   };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
+import { hgcRequestSchema } from '@/lib/validations/hgc'
 
 /**
  * POST /api/hgc
@@ -272,11 +273,19 @@ async function handleCreateCampaign(name: string, voice_id: string, description?
   }
 
   // Get user's client_id
-  const { data: userData } = await supabase
+  const { data: userData, error: userError } = await supabase
     .from('users')
     .select('client_id')
     .eq('id', user.id)
     .single()
+
+  if (userError || !userData?.client_id) {
+    console.error('[HGC_TS] User client_id not found:', userError?.message)
+    return {
+      success: false,
+      error: 'User client not found. Please ensure your account is properly configured.'
+    }
+  }
 
   const { data, error } = await supabase
     .from('campaigns')
@@ -285,7 +294,7 @@ async function handleCreateCampaign(name: string, voice_id: string, description?
       voice_id,
       description,
       status: 'draft',
-      client_id: userData?.client_id,
+      client_id: userData.client_id,
       created_by: user.id
     })
     .select()
@@ -513,15 +522,23 @@ export async function POST(request: NextRequest) {
 
     console.log('[HGC_TS] User authenticated:', user.id)
 
-    // Parse request
-    const { messages } = await request.json()
+    // Parse and validate request
+    const body = await request.json()
+    const validationResult = hgcRequestSchema.safeParse(body)
+
+    if (!validationResult.success) {
+      console.log('[HGC_TS] Invalid request:', validationResult.error.message)
+      return NextResponse.json(
+        { error: 'Invalid request format', details: validationResult.error.format() },
+        { status: 400 }
+      )
+    }
+
+    const { messages } = validationResult.data
     console.log('[HGC_TS] Messages received:', messages.length)
 
-    // Convert messages to OpenAI format
-    const formattedMessages = messages.map((msg: any) => ({
-      role: msg.role || 'user',
-      content: msg.content || msg.message || msg
-    }))
+    // Messages are already validated, use them directly
+    const formattedMessages = messages
 
     console.log('[HGC_TS] Calling OpenAI with function calling...')
     const aiStartTime = Date.now()
@@ -593,7 +610,25 @@ IMPORTANT:
         if (toolCall.type !== 'function') continue
 
         const functionName = toolCall.function.name
-        const functionArgs = JSON.parse(toolCall.function.arguments)
+
+        // Parse function arguments with error handling
+        let functionArgs
+        try {
+          functionArgs = JSON.parse(toolCall.function.arguments)
+        } catch (e) {
+          console.error('[HGC_TS] Invalid function arguments JSON:', e)
+          toolResults.push({
+            tool_call_id: toolCall.id,
+            role: 'tool' as const,
+            name: functionName,
+            content: JSON.stringify({
+              success: false,
+              error: 'Invalid tool arguments format'
+            })
+          })
+          continue
+        }
+
         console.log(`[HGC_TS] Tool call: ${functionName}`, functionArgs)
 
         let result
