@@ -28,6 +28,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global orchestrator instance (cached for performance)
+_orchestrator_instance: Optional[HGCOrchestrator] = None
+
+def get_orchestrator() -> HGCOrchestrator:
+    """Get or create cached orchestrator instance"""
+    global _orchestrator_instance
+
+    if _orchestrator_instance is None:
+        mem0_key = os.getenv("MEM0_API_KEY")
+        openai_key = os.getenv("OPENAI_API_KEY")
+        api_base_url = os.getenv("NEXT_PUBLIC_API_URL", "http://localhost:3000/api")
+
+        if not mem0_key or not openai_key:
+            raise ValueError("MEM0_API_KEY and OPENAI_API_KEY must be set")
+
+        # Initialize once and cache
+        _orchestrator_instance = HGCOrchestrator(
+            mem0_key=mem0_key,
+            openai_key=openai_key,
+            api_base_url=api_base_url,
+            auth_token=""  # Not used with service role key
+        )
+        print("[FASTAPI] Orchestrator initialized and cached", file=sys.stderr)
+
+    return _orchestrator_instance
+
 class ChatRequest(BaseModel):
     message: str
     user_id: str
@@ -52,33 +78,8 @@ async def chat(request: ChatRequest, authorization: Optional[str] = Header(None)
     Expects Authorization header with Bearer token for Supabase auth
     """
     try:
-
-        # Get environment variables
-        mem0_key = os.getenv("MEM0_API_KEY")
-        openai_key = os.getenv("OPENAI_API_KEY")
-        api_base_url = os.getenv("NEXT_PUBLIC_API_URL", "http://localhost:3000/api")
-
-        if not mem0_key or not openai_key:
-            raise HTTPException(
-                status_code=500,
-                detail="MEM0_API_KEY and OPENAI_API_KEY must be set"
-            )
-
-        # Extract auth token from Authorization header
-        # API proxy sends: "Bearer <token>"
-        auth_token = ""
-        if authorization and authorization.startswith("Bearer "):
-            auth_token = authorization.replace("Bearer ", "")
-            print(f"[FASTAPI] Auth token received: {auth_token[:20]}...", file=sys.stderr)
-
-        # Initialize orchestrator with auth token
-        # This allows RevOSTools to make authenticated Supabase queries
-        orchestrator = HGCOrchestrator(
-            mem0_key=mem0_key,
-            openai_key=openai_key,
-            api_base_url=api_base_url,
-            auth_token=auth_token
-        )
+        # Get cached orchestrator (massive performance improvement)
+        orchestrator = get_orchestrator()
 
         print(f"[FASTAPI] Processing message for user {request.user_id}")
 
