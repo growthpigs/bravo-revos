@@ -42,13 +42,35 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesPanelRef = useRef<HTMLDivElement>(null);
   const floatingBarRef = useRef<HTMLFormElement>(null);
+  const floatingChatContainerRef = useRef<HTMLDivElement>(null);
   const [showMessages, setShowMessages] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Debug: Log when showMessages changes
+  // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
-    console.log('[STATE_CHANGE] showMessages changed to:', showMessages);
+    if (!showMessages) return; // Only listen when panel is open
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      // Check if click is inside the floating chat container
+      if (floatingChatContainerRef.current && floatingChatContainerRef.current.contains(target)) {
+        // Click is inside chat - keep panel open
+        return;
+      }
+
+      // Click is outside chat - close the panel
+      console.log('[CLICK_OUTSIDE] Click outside chat detected, closing panel');
+      setShowMessages(false);
+    };
+
+    // Attach listener to document
+    document.addEventListener('click', handleDocumentClick, true); // Use capture phase for reliability
+
+    return () => {
+      document.removeEventListener('click', handleDocumentClick, true);
+    };
   }, [showMessages]);
 
   // Initialize conversations from localStorage
