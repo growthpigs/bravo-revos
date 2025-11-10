@@ -1,9 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { embedDocument } from '@/lib/embeddings/generate';
 import { NextResponse } from 'next/server';
-import { Database } from '@/types/supabase';
-
-type KnowledgeBaseDocument = Database['public']['Tables']['knowledge_base_documents']['Row'];
 
 export async function GET(request: Request) {
   try {
