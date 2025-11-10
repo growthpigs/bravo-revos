@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
-import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock, Copy } from 'lucide-react';
+import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock, Copy, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
+import { SaveToCampaignModal } from '../SaveToCampaignModal';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
@@ -65,6 +66,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedContent, setEditedContent] = useState<string>('');
   const [copiedFeedback, setCopiedFeedback] = useState(false);
+  const [showSaveToCampaignModal, setShowSaveToCampaignModal] = useState(false);
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
@@ -802,6 +804,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   >
                     <Copy className="w-4 h-4 text-gray-600" />
                   </button>
+                  <button
+                    onClick={() => setShowSaveToCampaignModal(true)}
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    aria-label="Save to campaign"
+                    title="Save document to campaign"
+                  >
+                    <Save className="w-4 h-4 text-gray-600" />
+                  </button>
                 </>
               )}
             </div>
@@ -869,6 +879,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             )}
           </div>
         </div>
+
+        {/* Save to Campaign Modal */}
+        <SaveToCampaignModal
+          isOpen={showSaveToCampaignModal}
+          onClose={() => setShowSaveToCampaignModal(false)}
+          documentContent={documentContent}
+          documentTitle={documentTitle}
+        />
       </div>
     );
   }
