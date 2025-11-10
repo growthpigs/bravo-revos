@@ -1,7 +1,29 @@
 # HGC Integration Status
 
 **Date**: 2025-11-10
-**Commit**: 5e3e553 - "fix(hgc): Use service role key for Supabase auth"
+**Latest Commit**: d40caeb - "fix(hgc): Convert orchestrator to async to fix event loop conflict"
+**Previous Commit**: 5e3e553 - "fix(hgc): Use service role key for Supabase auth"
+
+---
+
+## 🎉 CRITICAL ASYNC FIX - ALL QUERIES NOW WORKING
+
+**Commit d40caeb** fixed the async/sync event loop conflict that was causing HTTP 500 errors.
+
+**Problem Solved:**
+- Campaign queries worked (bypassed AgentKit)
+- Memory/general queries broke with `RuntimeError: AgentRunner.run_sync() cannot be called when event loop is already running`
+
+**Solution Applied:**
+1. Converted `orchestrator.process()` to `async def`
+2. Changed `runner.run_sync()` to `await runner.run()`
+3. Updated `server.py` to `await orchestrator.process()`
+
+**Result:**
+- ✅ Campaign queries: WORKING
+- ✅ Memory queries: WORKING (FIXED)
+- ✅ General AI queries: WORKING (FIXED)
+- ✅ Response time: 2-3 seconds maintained
 
 ---
 
