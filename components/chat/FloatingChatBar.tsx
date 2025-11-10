@@ -699,9 +699,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </form>
         </div>
 
-        {/* Chat History Sidebar - ChatSDK Style (on the RIGHT, thinner) */}
+        {/* Chat History Sidebar - ChatSDK Style (on the RIGHT) */}
         {showChatHistory && hasAnyConversations && (
-          <div className="w-24 border-l border-gray-200 flex flex-col bg-gray-50">
+          <div className="w-48 border-l border-gray-200 flex flex-col bg-gray-50">
             {/* ChatSDK-style Header - same height as main banner */}
             <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
