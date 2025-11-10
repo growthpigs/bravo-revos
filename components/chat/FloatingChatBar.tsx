@@ -656,26 +656,24 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         className="fixed right-0 top-16 bottom-0 flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200"
         style={{ width: `${sidebarWidth}px` }}
       >
-        {/* Left resizer - expand/shrink entire sidebar (positioned absolutely at left edge) */}
+        {/* Left resizer - expand/shrink entire sidebar */}
         <div
           onMouseDown={handleLeftResizerMouseDown}
-          className="absolute left-0 top-0 bottom-0 w-1 hover:w-1 group cursor-col-resize transition-all"
+          className="group cursor-col-resize flex items-center justify-center flex-shrink-0 hover:bg-blue-100"
           style={{
             userSelect: 'none',
             width: '8px',
-            marginLeft: '-4px',
+            minWidth: '8px',
           }}
           title="Drag to resize sidebar"
         >
           {/* Visual drag handle */}
-          <div className="absolute left-1.5 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="w-0.5 h-6 bg-gray-400 rounded-full"></div>
-          </div>
+          <div className="w-0.5 h-6 bg-gray-400 rounded-full"></div>
         </div>
 
         {/* Main Chat Area */}
         <div
-          className="flex flex-col bg-white relative flex-1"
+          className="flex flex-col bg-white relative"
           style={{ width: `${chatWidth}px` }}
         >
           {/* Minimal Top Banner with icon navigation - match history banner height */}
@@ -814,18 +812,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {showChatHistory && hasAnyConversations && (
           <div
             onMouseDown={handleMiddleResizerMouseDown}
-            className="group cursor-col-resize transition-all hover:bg-gray-200"
+            className="group cursor-col-resize flex-shrink-0 flex items-center justify-center hover:bg-green-100"
             style={{
               userSelect: 'none',
               width: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              minWidth: '8px',
             }}
             title="Drag to resize chat area"
           >
             {/* Visual drag handle */}
-            <div className="w-0.5 h-6 bg-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="w-0.5 h-6 bg-gray-400 rounded-full"></div>
           </div>
         )}
 
