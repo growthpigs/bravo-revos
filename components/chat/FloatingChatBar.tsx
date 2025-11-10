@@ -19,6 +19,7 @@ interface FloatingChatBarProps {
 export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -217,17 +218,141 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     );
   }
 
-  // Expanded sidebar view
+  // Fullscreen modal view
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl h-[90vh] bg-white rounded-lg shadow-2xl flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <h2 className="text-lg font-semibold text-gray-900">Holy Grail Chat</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setIsFullscreen(false);
+                  setIsExpanded(true);
+                }}
+                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                aria-label="Exit fullscreen"
+              >
+                <Minimize2 className="w-4 h-4 text-gray-600" />
+              </button>
+              <button
+                onClick={() => {
+                  setIsFullscreen(false);
+                  setIsExpanded(false);
+                  setIsMinimized(false);
+                }}
+                className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div
+            ref={scrollAreaRef}
+            className="flex-1 overflow-y-auto p-6 space-y-4"
+          >
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-500 mt-8">
+                <p className="text-sm">Start a conversation with your AI assistant</p>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  message={convertToUIMessage(message)}
+                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+                />
+              ))
+            )}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                {error}
+                <button
+                  onClick={clearError}
+                  className="ml-2 text-xs underline hover:no-underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="bg-white border border-gray-200 rounded-xl">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Revy wants to help! Type..."
+                className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
+                rows={1}
+                disabled={isLoading}
+              />
+              <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Attach file"
+                    disabled
+                  >
+                    <Paperclip className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Voice input"
+                    disabled
+                  >
+                    <Mic className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                    input.trim() && !isLoading
+                      ? "bg-gray-900 text-white hover:bg-gray-800"
+                      : "bg-gray-200 text-gray-400"
+                  )}
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Expanded sidebar view (RIGHT side, embedded)
   if (isExpanded) {
     return (
-      <div className="fixed left-0 top-0 bottom-0 w-96 bg-white border-r border-gray-200 z-40 flex flex-col shadow-xl">
+      <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col shadow-xl">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex justify-end bg-gray-50">
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setIsFullscreen(true)}
+              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+              aria-label="Fullscreen"
+            >
+              <Maximize2 className="w-4 h-4 text-gray-600" />
+            </button>
+            <button
               onClick={() => {
                 setIsExpanded(false);
-                setIsMinimized(false); // Ensure floating bar returns
+                setIsMinimized(false); // Return to floating bar
               }}
               className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
               aria-label="Collapse to floating bar"
@@ -237,7 +362,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             <button
               onClick={() => setIsMinimized(true)}
               className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-              aria-label="Minimize chat"
+              aria-label="Close chat"
             >
               <X className="w-4 h-4 text-gray-600" />
             </button>
