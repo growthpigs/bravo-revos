@@ -49,26 +49,46 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
-    if (!showMessages) return; // Only listen when panel is open
+    console.log('[LISTENER_EFFECT] showMessages:', showMessages, 'ref:', floatingChatContainerRef.current ? 'SET' : 'NULL');
+
+    if (!showMessages) {
+      console.log('[LISTENER_EFFECT] showMessages is false, not attaching listener');
+      return;
+    }
+
+    console.log('[LISTENER_EFFECT] Attaching document click listener');
 
     const handleDocumentClick = (event: MouseEvent) => {
       const target = event.target as Node;
+      const refExists = !!floatingChatContainerRef.current;
+      const isInside = refExists ? floatingChatContainerRef.current!.contains(target) : false;
+
+      console.log('[DOCUMENT_CLICK]', {
+        refExists,
+        isInside,
+        targetTag: (target as HTMLElement).tagName,
+        targetClass: (target as HTMLElement).className,
+        containerTag: floatingChatContainerRef.current?.tagName,
+      });
 
       // Check if click is inside the floating chat container
       if (floatingChatContainerRef.current && floatingChatContainerRef.current.contains(target)) {
         // Click is inside chat - keep panel open
+        console.log('[DOCUMENT_CLICK] Click is INSIDE chat, not closing');
         return;
       }
 
       // Click is outside chat - close the panel
-      console.log('[CLICK_OUTSIDE] Click outside chat detected, closing panel');
+      console.log('[DOCUMENT_CLICK] Click is OUTSIDE chat, closing panel');
       setShowMessages(false);
     };
 
     // Attach listener to document
     document.addEventListener('click', handleDocumentClick, true); // Use capture phase for reliability
+    console.log('[LISTENER_EFFECT] Listener attached successfully');
 
     return () => {
+      console.log('[LISTENER_EFFECT] Removing listener');
       document.removeEventListener('click', handleDocumentClick, true);
     };
   }, [showMessages]);
