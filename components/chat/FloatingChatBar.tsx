@@ -46,6 +46,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Debug: Log when showMessages changes
+  useEffect(() => {
+    console.log('[STATE_CHANGE] showMessages changed to:', showMessages);
+  }, [showMessages]);
+
   // Initialize conversations from localStorage
   useEffect(() => {
     setIsMounted(true);
@@ -782,7 +787,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       {showMessages && (
         <div
           className="fixed inset-0 left-64 bg-black/0 backdrop-blur-lg z-40 transition-all duration-200"
-          onClick={() => setShowMessages(false)}
+          onClick={(e) => {
+            console.log('[BLUR_OVERLAY_CLICK] Blur overlay clicked! Target:', e.target, 'CurrentTarget:', e.currentTarget);
+            setShowMessages(false);
+          }}
           style={{
             pointerEvents: 'auto',
           }}
@@ -794,7 +802,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
           className
         )}
-        onClickCapture={(e) => e.stopPropagation()}
+        onClickCapture={(e) => {
+          console.log('[FLOATING_CHAT_CONTAINER] Click captured on container. Target:', (e.target as HTMLElement).tagName, 'Stopping propagation');
+          e.stopPropagation();
+        }}
       >
         {/* Single cohesive container */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
@@ -803,7 +814,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           <div
             ref={messagesPanelRef}
             className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
-            onClickCapture={(e) => e.stopPropagation()}
+            onClickCapture={(e) => {
+              console.log('[MESSAGES_PANEL] Click captured on panel. Target:', (e.target as HTMLElement).tagName, 'Stopping propagation');
+              e.stopPropagation();
+            }}
           >
             <div className="p-4 space-y-3">
               {messages.map((message, index) => (
