@@ -259,11 +259,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     );
   }
 
-  // Fullscreen modal view
+  // Fullscreen embedded view (takes full width, overlays content)
   if (isFullscreen) {
+    console.log('[FloatingChatBar] FULLSCREEN VIEW RENDERING!');
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-7xl h-[90vh] bg-white rounded-lg shadow-2xl flex">
+      <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white border-l border-gray-200 flex z-30 animate-in fade-in slide-in-from-right duration-200">
           {/* Chat History Sidebar */}
           {showChatHistory && (
             <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
@@ -300,45 +300,49 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col">
-            {/* Top Banner */}
-            <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-gray-700" />
-                <h2 className="text-base font-semibold text-gray-900">Holy Grail Chat</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowChatHistory(!showChatHistory)}
-                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                  aria-label="Toggle chat history"
-                  title="Toggle chat history"
-                >
-                  <Menu className="w-4 h-4 text-gray-600" />
-                </button>
-                <button
-                  onClick={() => {
-                    setIsFullscreen(false);
-                    setIsExpanded(true);
-                  }}
-                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                  aria-label="Exit fullscreen"
-                  title="Exit fullscreen"
-                >
-                  <Minimize2 className="w-4 h-4 text-gray-600" />
-                </button>
-                <button
-                  onClick={() => {
-                    setIsFullscreen(false);
-                    setIsExpanded(false);
-                    setIsMinimized(false);
-                  }}
-                  className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                  aria-label="Close"
-                  title="Close"
-                >
-                  <X className="w-4 h-4 text-gray-600" />
-                </button>
-              </div>
+            {/* Minimal Top Banner with icon navigation */}
+            <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
+              {/* Sidebar icon (vertical rectangle) */}
+              <button
+                onClick={() => {
+                  console.log('[FULLSCREEN->SIDEBAR] Clicked!');
+                  setIsFullscreen(false);
+                  setIsExpanded(true);
+                }}
+                className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
+                aria-label="Sidebar view"
+                title="Switch to sidebar"
+              >
+                <div className="w-2 h-4 border-2 border-gray-400 rounded-sm"></div>
+              </button>
+
+              {/* Floating bar icon (horizontal rectangle) */}
+              <button
+                onClick={() => {
+                  console.log('[FULLSCREEN->FLOATING] Clicked!');
+                  setIsFullscreen(false);
+                  setIsExpanded(false);
+                  setIsMinimized(false);
+                }}
+                className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
+                aria-label="Floating bar"
+                title="Switch to floating bar"
+              >
+                <div className="w-4 h-2 border-2 border-gray-400 rounded-sm"></div>
+              </button>
+
+              {/* Spacer */}
+              <div className="flex-1"></div>
+
+              {/* Chat history toggle */}
+              <button
+                onClick={() => setShowChatHistory(!showChatHistory)}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                aria-label="Toggle chat history"
+                title="Toggle chat history"
+              >
+                <Menu className="w-4 h-4 text-gray-400" />
+              </button>
             </div>
 
           {/* Messages */}
@@ -429,7 +433,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </div>
           </form>
           </div>
-        </div>
       </div>
     );
   }
@@ -438,34 +441,35 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   if (isExpanded) {
     console.log('[FloatingChatBar] EXPANDED VIEW RENDERING - Banner should be visible!');
     return (
-      <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col">
-        {/* Top Banner */}
-        <div className="px-4 py-3 border-b-2 border-blue-500 flex justify-between items-center bg-blue-50 min-h-[48px]" data-testid="chat-banner">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-gray-700" />
-            <h2 className="text-base font-semibold text-gray-900">Holy Grail Chat</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsFullscreen(true)}
-              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-              aria-label="Fullscreen"
-              title="Fullscreen"
-            >
-              <Maximize2 className="w-4 h-4 text-gray-600" />
-            </button>
-            <button
-              onClick={() => {
-                setIsExpanded(false);
-                setIsMinimized(false); // Return to floating bar
-              }}
-              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-              aria-label="Collapse to floating bar"
-              title="Collapse"
-            >
-              <Minimize2 className="w-4 h-4 text-gray-600" />
-            </button>
-          </div>
+      <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col pt-16 animate-in slide-in-from-right duration-200">
+        {/* Minimal Top Banner with icon navigation */}
+        <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
+          {/* Fullscreen icon (square with rounded corners) */}
+          <button
+            onClick={() => {
+              console.log('[SIDEBAR->FULLSCREEN] Clicked!');
+              setIsFullscreen(true);
+            }}
+            className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
+            aria-label="Fullscreen"
+            title="Switch to fullscreen"
+          >
+            <div className="w-3 h-3 border-2 border-gray-400 rounded"></div>
+          </button>
+
+          {/* Floating bar icon (horizontal rectangle) */}
+          <button
+            onClick={() => {
+              console.log('[SIDEBAR->FLOATING] Clicked!');
+              setIsExpanded(false);
+              setIsMinimized(false);
+            }}
+            className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
+            aria-label="Floating bar"
+            title="Switch to floating bar"
+          >
+            <div className="w-4 h-2 border-2 border-gray-400 rounded-sm"></div>
+          </button>
         </div>
 
         {/* Messages */}
@@ -571,7 +575,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {messages.length > 0 && showMessages && (
           <div
             ref={messagesPanelRef}
-            className="max-h-[480px] overflow-y-auto border-b border-gray-200"
+            className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
           >
             <div className="p-4 space-y-3">
               {messages.map((message, index) => (
@@ -622,18 +626,35 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               >
                 <Paperclip className="w-4 h-4 text-gray-400" />
               </button>
+
+              {/* Sidebar icon (vertical rectangle) */}
               <button
                 type="button"
                 onClick={() => {
-                  console.log('[EXPAND BUTTON] Clicked! Setting isExpanded to true');
+                  console.log('[SIDEBAR BUTTON] Clicked! Setting isExpanded to true');
                   setIsExpanded(true);
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors bg-yellow-200"
-                aria-label="Expand to sidebar"
-                title="Click to expand chat"
+                className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
+                aria-label="Sidebar view"
+                title="Switch to sidebar"
               >
-                <Maximize2 className="w-4 h-4 text-gray-600" />
+                <div className="w-2 h-4 border-2 border-gray-400 rounded-sm"></div>
               </button>
+
+              {/* Fullscreen icon (square with rounded corners) */}
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('[FULLSCREEN BUTTON] Clicked! Setting isFullscreen to true');
+                  setIsFullscreen(true);
+                }}
+                className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
+                aria-label="Fullscreen"
+                title="Switch to fullscreen"
+              >
+                <div className="w-3 h-3 border-2 border-gray-400 rounded"></div>
+              </button>
+
               <button
                 type="button"
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
