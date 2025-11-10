@@ -5,15 +5,19 @@ MVP with tool-based integration (AgentKit + Mem0 + RevOS Data Tools)
 
 from agents import Agent, function_tool
 from mem0 import MemoryClient
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 import sys
 import os
 import threading
+from supabase import create_client, Client
 
 # Add tools directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
 from revos_tools import RevOSTools
 from validation import InputValidator
+
+# Constants for direct query bypass patterns
+CAMPAIGN_KEYWORDS = ['campaign', 'campaigns']
 
 
 class HGCOrchestrator:
@@ -28,6 +32,160 @@ class HGCOrchestrator:
 
         # Thread-local storage for memory key (prevents race conditions)
         self._memory_key_storage = threading.local()
+
+        # Cache for Supabase client (avoid recreation on every request)
+        self._supabase_client: Optional[Client] = None
+
+    def _get_supabase_client(self, auth_token: str) -> Client:
+        """
+        Get or create Supabase client with authentication.
+
+        Args:
+            auth_token: User's session token
+
+        Returns:
+            Authenticated Supabase client
+        """
+        supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
+        supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
+
+        # Create new client (reusing clients with different auth tokens is not safe)
+        client = create_client(supabase_url, supabase_key)
+        client.auth.set_session(auth_token, auth_token)
+
+        return client
+
+    def _get_user_context(self, supabase: Client, auth_token: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Get user ID and client ID from authenticated session.
+
+        Args:
+            supabase: Authenticated Supabase client
+            auth_token: User's session token
+
+        Returns:
+            Tuple of (user_id, client_id) or (None, None) if authentication fails
+        """
+        try:
+            # Get user info
+            user_response = supabase.auth.get_user(auth_token)
+            if not user_response or not user_response.user:
+                return None, None
+
+            user_id = user_response.user.id
+
+            # Get user's client_id
+            user_data = supabase.table('users').select('client_id').eq('id', user_id).maybe_single().execute()
+            if not user_data.data:
+                return user_id, None
+
+            client_id = user_data.data.get('client_id')
+            return user_id, client_id
+        except Exception as e:
+            print(f"[ORCHESTRATOR] User context retrieval failed: {e}", file=sys.stderr)
+            return None, None
+
+    def _fetch_campaigns_with_metrics(self, supabase: Client, client_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch all campaigns for a client with associated metrics.
+
+        Args:
+            supabase: Authenticated Supabase client
+            client_id: Client UUID to filter campaigns
+
+        Returns:
+            List of campaigns with leads and posts counts
+        """
+        # Query campaigns
+        campaigns_response = supabase.table('campaigns').select(
+            'id, name, description, status, created_at'
+        ).eq('client_id', client_id).execute()
+
+        campaigns = campaigns_response.data if campaigns_response.data else []
+
+        # Get metrics for each campaign
+        campaigns_with_metrics = []
+        for campaign in campaigns:
+            # Count leads
+            leads_response = supabase.table('leads').select('*', count='exact').eq(
+                'campaign_id', campaign['id']
+            ).execute()
+            leads_count = leads_response.count if leads_response.count else 0
+
+            # Count posts
+            posts_response = supabase.table('posts').select('*', count='exact').eq(
+                'campaign_id', campaign['id']
+            ).execute()
+            posts_count = posts_response.count if posts_response.count else 0
+
+            campaigns_with_metrics.append({
+                'name': campaign.get('name', 'Unnamed'),
+                'status': campaign.get('status', 'unknown'),
+                'leads': leads_count,
+                'posts': posts_count
+            })
+
+        return campaigns_with_metrics
+
+    def _format_campaigns_response(self, campaigns: List[Dict[str, Any]]) -> str:
+        """
+        Format campaigns data as user-friendly markdown.
+
+        Args:
+            campaigns: List of campaigns with metrics
+
+        Returns:
+            Formatted markdown string
+        """
+        if len(campaigns) == 0:
+            return "You don't have any campaigns yet. Would you like to create one?"
+
+        response_text = f"You have {len(campaigns)} campaign(s):\n\n"
+        for i, campaign in enumerate(campaigns, 1):
+            response_text += f"{i}. **{campaign['name']}** ({campaign['status']})\n"
+            response_text += f"   - Leads: {campaign['leads']}, Posts: {campaign['posts']}\n"
+
+        return response_text
+
+    def _handle_campaign_query(self, auth_token: str) -> str:
+        """
+        Handle campaign-related queries with direct Supabase access.
+
+        This bypasses the broken AgentKit tool calling system and directly
+        queries campaign data with metrics.
+
+        Args:
+            auth_token: User's Bearer token from session
+
+        Returns:
+            Formatted response with campaign information or error message
+        """
+        try:
+            # Create authenticated Supabase client
+            supabase = self._get_supabase_client(auth_token)
+
+            # Get user context
+            user_id, client_id = self._get_user_context(supabase, auth_token)
+            if not user_id:
+                return "I couldn't authenticate your session. Please refresh the page and try again."
+            if not client_id:
+                return "I couldn't find your account information. Please contact support."
+
+            print(f"[ORCHESTRATOR] Fetching campaigns for user {user_id}, client {client_id}", file=sys.stderr)
+
+            # Fetch campaigns with metrics
+            campaigns = self._fetch_campaigns_with_metrics(supabase, client_id)
+
+            print(f"[ORCHESTRATOR] Found {len(campaigns)} campaigns", file=sys.stderr)
+
+            # Format and return response
+            return self._format_campaigns_response(campaigns)
+
+        except Exception as e:
+            print(f"[ORCHESTRATOR] Campaign query failed: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return "I encountered an issue while fetching your campaigns. Please try again or contact support if the problem persists."
 
     @property
     def current_memory_key(self) -> Optional[str]:
@@ -212,78 +370,11 @@ class HGCOrchestrator:
 
         # CRITICAL FIX: Agent stopped calling ALL tools (AgentKit bug)
         # Force direct tool execution for known patterns to bypass broken agent
-        campaign_keywords = ['campaign', 'campaigns']
-        if any(keyword in last_user_message.lower() for keyword in campaign_keywords):
+        if any(keyword in last_user_message.lower() for keyword in CAMPAIGN_KEYWORDS):
             print(f"[ORCHESTRATOR] FORCING direct tool call (agent broken)", file=sys.stderr)
-            try:
-                # Query Supabase directly - simpler than calling API with cookie auth
-                from supabase import create_client
-                import os
-
-                supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-                supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
-                auth_token = self.revos_tools.headers.get('Authorization', '').replace('Bearer ', '')
-
-                print(f"[ORCHESTRATOR] Creating Supabase client", file=sys.stderr)
-                supabase = create_client(supabase_url, supabase_key)
-
-                # Set the auth token
-                supabase.auth.set_session(auth_token, auth_token)
-
-                # Get user info
-                user_response = supabase.auth.get_user(auth_token)
-                if not user_response or not user_response.user:
-                    return "I couldn't authenticate your session. Please refresh and try again."
-
-                user_id = user_response.user.id
-                print(f"[ORCHESTRATOR] User authenticated: {user_id}", file=sys.stderr)
-
-                # Get user's client_id
-                user_data = supabase.table('users').select('client_id').eq('id', user_id).maybe_single().execute()
-                if not user_data.data:
-                    return "I couldn't find your user data. Please contact support."
-
-                client_id = user_data.data['client_id']
-
-                # Query campaigns
-                campaigns_response = supabase.table('campaigns').select('id, name, description, status, created_at').eq('client_id', client_id).execute()
-                campaigns = campaigns_response.data if campaigns_response.data else []
-
-                print(f"[ORCHESTRATOR] Found {len(campaigns)} campaigns", file=sys.stderr)
-
-                if len(campaigns) == 0:
-                    return "You don't have any campaigns yet. Would you like to create one?"
-
-                # Get metrics for each campaign
-                campaigns_with_metrics = []
-                for campaign in campaigns:
-                    # Count leads
-                    leads_response = supabase.table('leads').select('*', count='exact').eq('campaign_id', campaign['id']).execute()
-                    leads_count = leads_response.count if leads_response.count else 0
-
-                    # Count posts
-                    posts_response = supabase.table('posts').select('*', count='exact').eq('campaign_id', campaign['id']).execute()
-                    posts_count = posts_response.count if posts_response.count else 0
-
-                    campaigns_with_metrics.append({
-                        'name': campaign.get('name', 'Unnamed'),
-                        'status': campaign.get('status', 'unknown'),
-                        'leads': leads_count,
-                        'posts': posts_count
-                    })
-
-                # Format response
-                response_text = f"You have {len(campaigns_with_metrics)} campaign(s):\n\n"
-                for i, campaign in enumerate(campaigns_with_metrics, 1):
-                    response_text += f"{i}. **{campaign['name']}** ({campaign['status']})\n"
-                    response_text += f"   - Leads: {campaign['leads']}, Posts: {campaign['posts']}\n"
-
-                return response_text
-            except Exception as e:
-                print(f"[ORCHESTRATOR] Direct Supabase query failed: {e}", file=sys.stderr)
-                import traceback
-                traceback.print_exc(file=sys.stderr)
-                return f"Error fetching campaigns: {str(e)}"
+            # Extract auth token and handle campaign query
+            auth_token = self.revos_tools.headers.get('Authorization', '').replace('Bearer ', '')
+            return self._handle_campaign_query(auth_token)
 
         try:
             # Create runner and run agent
