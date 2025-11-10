@@ -564,7 +564,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
 
     return (
-      <div className="h-full w-full flex bg-white border-l border-gray-200 pt-16 animate-in slide-in-from-right duration-200">
+      <div className="fixed right-0 top-16 bottom-0 w-[600px] flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200">
         {/* Chat History Sidebar - ChatSDK Style */}
         {showChatHistory && hasAnyConversations && (
           <div className="w-64 border-r border-gray-200 flex flex-col bg-gray-50">
