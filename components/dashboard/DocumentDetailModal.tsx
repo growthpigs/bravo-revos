@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Edit2, Save, Copy, ChevronDown } from 'lucide-react';
+import { X, Edit2, Save, Copy, ChevronDown, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,7 @@ export function DocumentDetailModal({
   const [document, setDocument] = useState(initialDocument);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -176,6 +177,38 @@ export function DocumentDetailModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/knowledge-base/${document.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to delete document');
+      }
+
+      setSuccessMessage('Document deleted successfully!');
+      setTimeout(() => {
+        onClose();
+        if (onDocumentUpdated) {
+          onDocumentUpdated();
+        }
+      }, 1000);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to delete document';
+      setError(errorMsg);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formattedDate = new Date(document.created_at).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -212,14 +245,26 @@ export function DocumentDetailModal({
               {fileTypeLabel} • Created {formattedDate}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X className="h-5 w-5" />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDelete}
+              disabled={isDeleting || isEditing}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              title="Delete document"
+            >
+              <Trash2 className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* Error and Success Messages */}
