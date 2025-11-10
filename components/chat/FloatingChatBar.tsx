@@ -419,31 +419,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     );
   }
 
-  // Fullscreen embedded view (takes full width, overlays content)
-  // NO CHAT HISTORY IN FULLSCREEN - matches ChatSDK design
+  // Fullscreen embedded view - ChatSDK-style two-panel layout
+  // Left: Chat panel | Right: Document viewer
   if (isFullscreen) {
     console.log('[FloatingChatBar] FULLSCREEN VIEW RENDERING!');
     return (
-      <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white border-l border-gray-200 flex z-30 animate-in fade-in slide-in-from-right duration-200">
-          {/* Main Chat Area - No history sidebar in fullscreen */}
-          <div className="flex-1 flex flex-col">
-            {/* Minimal Top Banner with icon navigation */}
-            <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
-              {/* Sidebar icon (vertical rectangle) */}
-              <button
-                onClick={() => {
-                  console.log('[FULLSCREEN->SIDEBAR] Clicked!');
-                  setIsFullscreen(false);
-                  setIsExpanded(true);
-                }}
-                className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
-                aria-label="Sidebar view"
-                title="Switch to sidebar"
-              >
-                <div className="w-2 h-4 border-2 border-gray-400 rounded-sm"></div>
-              </button>
+      <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
 
-              {/* Floating bar icon (horizontal rectangle) */}
+        {/* LEFT PANEL: Chat */}
+        <div className="w-96 border-r border-gray-200 flex flex-col bg-white">
+          {/* Top Navigation Bar - Document Title & Actions */}
+          <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <h2 className="text-sm font-semibold text-gray-900 truncate">Working Document</h2>
+            </div>
+            <div className="flex items-center gap-1 ml-2">
+              {/* Close/Back to floating */}
               <button
                 onClick={() => {
                   console.log('[FULLSCREEN->FLOATING] Clicked!');
@@ -451,31 +442,19 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   setIsExpanded(false);
                   setIsMinimized(false);
                 }}
-                className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
-                aria-label="Floating bar"
-                title="Switch to floating bar"
+                className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                aria-label="Close fullscreen"
+                title="Back to floating"
               >
-                <div className="w-4 h-2 border-2 border-gray-400 rounded-sm"></div>
-              </button>
-
-              {/* Spacer */}
-              <div className="flex-1"></div>
-
-              {/* Chat history toggle */}
-              <button
-                onClick={() => setShowChatHistory(!showChatHistory)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                aria-label="Toggle chat history"
-                title="Toggle chat history"
-              >
-                <Menu className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>
+          </div>
 
-          {/* Messages */}
+          {/* Messages Area */}
           <div
             ref={scrollAreaRef}
-            className="flex-1 overflow-y-auto p-6 space-y-4"
+            className="flex-1 overflow-y-auto p-4 space-y-3"
           >
             {messages.length === 0 ? (
               <div className="text-center text-gray-500 mt-8">
@@ -491,7 +470,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               ))
             )}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
                 {error}
                 <button
                   onClick={clearError}
@@ -503,63 +482,55 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             )}
           </div>
 
-          {/* Input */}
-          <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="bg-white border border-gray-200 rounded-xl">
-              {isLoading ? (
-                <div className="flex items-center gap-1.5 px-4 py-3 h-[38px]">
+          {/* Input Area */}
+          <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 bg-white">
+            <div className="flex gap-2 items-flex-end">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Send a message..."
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none resize-none text-gray-700 placeholder-gray-500"
+                rows={1}
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center transition-colors flex-shrink-0",
+                  input.trim() && !isLoading
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
+                    : "bg-gray-200 text-gray-400"
+                )}
+                aria-label="Send message"
+              >
+                {isLoading ? (
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
-                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
-                </div>
-              ) : (
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Revy wants to help! Type..."
-                  className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
-                  rows={1}
-                  disabled={isLoading}
-                />
-              )}
-              <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Attach file"
-                    disabled
-                  >
-                    <Paperclip className="w-4 h-4 text-gray-400" />
-                  </button>
-                  <button
-                    type="button"
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    aria-label="Voice input"
-                    disabled
-                  >
-                    <Mic className="w-4 h-4 text-gray-400" />
-                  </button>
-                </div>
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
-                    input.trim() && !isLoading
-                      ? "bg-gray-900 text-white hover:bg-gray-800"
-                      : "bg-gray-200 text-gray-400"
-                  )}
-                  aria-label="Send message"
-                >
+                ) : (
                   <ArrowUp className="w-4 h-4" />
-                </button>
-              </div>
+                )}
+              </button>
             </div>
           </form>
+        </div>
+
+        {/* RIGHT PANEL: Document Viewer */}
+        <div className="flex-1 overflow-hidden bg-gray-50 flex flex-col">
+          {/* Document Content Area */}
+          <div className="flex-1 overflow-y-auto p-12">
+            <div className="max-w-3xl mx-auto text-gray-600">
+              <div className="prose prose-sm max-w-none">
+                <p className="text-sm text-gray-500 mb-4">Document content will appear here</p>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  When you ask me to "write a post", "draft an article", or create content,
+                  the document will display here on the right while you chat with me on the left.
+                </p>
+              </div>
+            </div>
           </div>
+        </div>
       </div>
     );
   }
