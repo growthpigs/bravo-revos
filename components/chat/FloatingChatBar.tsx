@@ -565,94 +565,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     return (
       <div className="fixed right-0 top-16 bottom-0 w-[600px] flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200">
-        {/* Chat History Sidebar - ChatSDK Style */}
-        {showChatHistory && hasAnyConversations && (
-          <div className="w-64 border-r border-gray-200 flex flex-col bg-gray-50">
-            {/* ChatSDK-style Header - same height as main banner */}
-            <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
-              <div className="flex gap-2">
-                  {/* New conversation button */}
-                  <button
-                    onClick={createNewConversation}
-                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-                    aria-label="New conversation"
-                    title="New conversation"
-                  >
-                    <Plus className="w-4 h-4 text-gray-600" />
-                  </button>
-                  {/* Delete all conversations button */}
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to delete all conversations?')) {
-                        setConversations([]);
-                        setCurrentConversationId(null);
-                        setMessages([]);
-                      }
-                    }}
-                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-                    aria-label="Delete all"
-                    title="Delete all conversations"
-                  >
-                    <Trash2 className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-
-            {/* Conversations List - Time grouped */}
-            <div className="flex-1 overflow-y-auto">
-              {Object.entries(groupedConversations).map(([timeGroup, convs]) =>
-                convs.length > 0 ? (
-                  <div key={timeGroup}>
-                    {/* Time Group Label */}
-                    <div className="px-4 pt-3 pb-2">
-                      <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {timeGroup}
-                      </h4>
-                    </div>
-
-                    {/* Conversations in this group */}
-                    {convs.map(conv => (
-                      <button
-                        key={conv.id}
-                        onClick={() => loadConversation(conv.id)}
-                        className={cn(
-                          "w-full text-left px-4 py-2 text-sm hover:bg-gray-200 transition-colors group flex items-center justify-between",
-                          currentConversationId === conv.id ? "bg-gray-200 text-gray-900 font-medium" : "text-gray-700"
-                        )}
-                      >
-                        <span className="truncate flex-1">{conv.title}</span>
-                        {/* Delete button appears on hover */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteConversation(conv.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-300 rounded ml-2"
-                          aria-label="Delete conversation"
-                        >
-                          <X className="w-3 h-3 text-gray-600" />
-                        </button>
-                      </button>
-                    ))}
-                  </div>
-                ) : null
-              )}
-
-              {/* End of history message */}
-              {hasAnyConversations && (
-                <div className="px-4 py-4 mt-4 text-center">
-                  <p className="text-xs text-gray-500">You have reached the end of your chat history</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col bg-white">
-          {/* Minimal Top Banner with icon navigation */}
-          <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
+          {/* Minimal Top Banner with icon navigation - match history banner height */}
+          <div className="h-16 px-2 border-b border-gray-200 flex items-center gap-1">
             {/* Fullscreen icon (square with rounded corners) */}
             <button
               onClick={() => {
@@ -782,6 +698,90 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </div>
           </form>
         </div>
+
+        {/* Chat History Sidebar - ChatSDK Style (on the RIGHT, thinner) */}
+        {showChatHistory && hasAnyConversations && (
+          <div className="w-24 border-l border-gray-200 flex flex-col bg-gray-50">
+            {/* ChatSDK-style Header - same height as main banner */}
+            <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
+              <div className="flex gap-2">
+                  {/* New conversation button */}
+                  <button
+                    onClick={createNewConversation}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    aria-label="New conversation"
+                    title="New conversation"
+                  >
+                    <Plus className="w-4 h-4 text-gray-600" />
+                  </button>
+                  {/* Delete all conversations button */}
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete all conversations?')) {
+                        setConversations([]);
+                        setCurrentConversationId(null);
+                        setMessages([]);
+                      }
+                    }}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    aria-label="Delete all"
+                    title="Delete all conversations"
+                  >
+                    <Trash2 className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+              </div>
+
+            {/* Conversations List - Time grouped */}
+            <div className="flex-1 overflow-y-auto">
+              {Object.entries(groupedConversations).map(([timeGroup, convs]) =>
+                convs.length > 0 ? (
+                  <div key={timeGroup}>
+                    {/* Time Group Label */}
+                    <div className="px-4 pt-3 pb-2">
+                      <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {timeGroup}
+                      </h4>
+                    </div>
+
+                    {/* Conversations in this group */}
+                    {convs.map(conv => (
+                      <button
+                        key={conv.id}
+                        onClick={() => loadConversation(conv.id)}
+                        className={cn(
+                          "w-full text-left px-4 py-2 text-sm hover:bg-gray-200 transition-colors group flex items-center justify-between",
+                          currentConversationId === conv.id ? "bg-gray-200 text-gray-900 font-medium" : "text-gray-700"
+                        )}
+                      >
+                        <span className="truncate flex-1">{conv.title}</span>
+                        {/* Delete button appears on hover */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteConversation(conv.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-300 rounded ml-2"
+                          aria-label="Delete conversation"
+                        >
+                          <X className="w-3 h-3 text-gray-600" />
+                        </button>
+                      </button>
+                    ))}
+                  </div>
+                ) : null
+              )}
+
+              {/* End of history message */}
+              {hasAnyConversations && (
+                <div className="px-4 py-4 mt-4 text-center">
+                  <p className="text-xs text-gray-500">You have reached the end of your chat history</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
