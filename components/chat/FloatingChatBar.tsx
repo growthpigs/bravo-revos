@@ -339,6 +339,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // Strip intro explanation text before the actual content
+  const stripIntroText = (content: string) => {
+    // Remove common intro patterns like "Here's a...", "Sure, here's...", etc.
+    // Strip everything before the first markdown heading or real content
+    const cleanContent = content
+      .replace(/^(Here's|Sure,\s+here's|I've\s+created|I'll\s+create)[^#\n]*[\n]+/i, '')
+      .replace(/^.*?(?=^#{1,6}\s)/m, '');
+
+    return cleanContent.trim() || content;
+  };
+
   // Handle form submission
   const handleSubmit = async (e: FormEvent) => {
     console.log('[HGC_STREAM] ========================================');
@@ -429,9 +440,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           // Auto-fullscreen if content > 500 chars
           if (assistantContent.length > 500 && !isFullscreen) {
             console.log('[HGC_STREAM] Auto-fullscreen triggered for JSON response');
+            const cleanContent = stripIntroText(assistantContent);
             setIsFullscreen(true);
-            setDocumentContent(assistantContent);
-            extractDocumentTitle(assistantContent);
+            setDocumentContent(cleanContent);
+            extractDocumentTitle(cleanContent);
           }
         }
         setIsLoading(false);
@@ -479,14 +491,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         // Auto-fullscreen when document content starts (>500 chars = actual document)
         if (assistantContent.length > 500 && !isFullscreen) {
           setIsFullscreen(true);
-          setDocumentContent(assistantContent);
-          extractDocumentTitle(assistantContent);
+          const cleanContent = stripIntroText(assistantContent);
+          setDocumentContent(cleanContent);
+          extractDocumentTitle(cleanContent);
         }
 
         // Keep document in sync if already in fullscreen
         if (isFullscreen && assistantContent.length > 500) {
-          setDocumentContent(assistantContent);
-          extractDocumentTitle(assistantContent);
+          const cleanContent = stripIntroText(assistantContent);
+          setDocumentContent(cleanContent);
+          extractDocumentTitle(cleanContent);
         }
 
         // Update the assistant message in place
