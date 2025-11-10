@@ -55,6 +55,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const dragStartWidthRef = useRef(0);
   const resizerTypeRef = useRef<'left' | 'middle' | null>(null);
 
+  // Document viewer state
+  const [documentContent, setDocumentContent] = useState<string>('');
+  const [documentTitle, setDocumentTitle] = useState<string>('Working Document');
+
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
     if (!showMessages) return;
@@ -236,6 +240,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setCurrentConversationId(newConv.id);
     setMessages([]);
     setInput('');
+    // Clear document state for new conversation
+    setDocumentContent('');
+    setDocumentTitle('Working Document');
   };
 
   // Helper: Save current messages to conversation
@@ -265,6 +272,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       setCurrentConversationId(conversationId);
       setMessages(conv.messages);
       setInput('');
+      // Clear document state when switching conversations
+      setDocumentContent('');
+      setDocumentTitle('Working Document');
     }
   };
 
@@ -318,19 +328,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return groups;
   };
 
-  // Auto-fullscreen detection
-  const shouldGoFullscreen = (message: string) => {
-    const keywords = [
-      'write a post',
-      'write a linkedin post',
-      'create a post',
-      'draft a post',
-      'write an article',
-      'write an essay',
-      'create a document',
-      'draft',
-    ];
-    return keywords.some(k => message.toLowerCase().includes(k));
+  // Extract document title from HTML content
+  const extractDocumentTitle = (html: string) => {
+    const h1Match = html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+    if (h1Match && h1Match[1]) {
+      setDocumentTitle(h1Match[1].trim());
+    }
   };
 
   // Handle form submission
@@ -361,12 +364,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
-
-    // Check if should auto-expand to fullscreen
-    if (shouldGoFullscreen(userMessage.content)) {
-      console.log('[AUTO-FULLSCREEN] Triggered by keywords in:', userMessage.content);
-      setIsFullscreen(true);
-    }
 
     setInput('');
     setIsLoading(true);
@@ -436,6 +433,19 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         console.log('[HGC_STREAM] Chunk', chunkCount, '- Length:', chunk.length, 'Raw:', JSON.stringify(chunk));
 
         assistantContent += chunk;
+
+        // Auto-fullscreen when document content starts (>500 chars = actual document)
+        if (assistantContent.length > 500 && !isFullscreen) {
+          setIsFullscreen(true);
+          setDocumentContent(assistantContent);
+          extractDocumentTitle(assistantContent);
+        }
+
+        // Keep document in sync if already in fullscreen
+        if (isFullscreen && assistantContent.length > 500) {
+          setDocumentContent(assistantContent);
+          extractDocumentTitle(assistantContent);
+        }
 
         // Update the assistant message in place
         setMessages(prev => {
@@ -524,7 +534,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           {/* Top Navigation Bar - Document Title & Actions */}
           <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <h2 className="text-sm font-semibold text-gray-900 truncate">Working Document</h2>
+              <h2 className="text-sm font-semibold text-gray-900 truncate">{documentTitle}</h2>
             </div>
             <div className="flex items-center gap-1 ml-2">
               {/* Close/Back to floating */}
@@ -609,17 +619,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         </div>
 
         {/* RIGHT PANEL: Document Viewer */}
-        <div className="flex-1 overflow-hidden bg-gray-50 flex flex-col">
+        <div className="flex-1 overflow-hidden bg-white flex flex-col">
           {/* Document Content Area */}
           <div className="flex-1 overflow-y-auto p-12">
-            <div className="max-w-3xl mx-auto text-gray-600">
-              <div className="prose prose-sm max-w-none">
-                <p className="text-sm text-gray-500 mb-4">Document content will appear here</p>
-                <p className="text-sm text-gray-400 leading-relaxed">
-                  When you ask me to "write a post", "draft an article", or create content,
-                  the document will display here on the right while you chat with me on the left.
-                </p>
-              </div>
+            <div className="max-w-3xl mx-auto">
+              {documentContent ? (
+                <div
+                  className="prose prose-lg max-w-none"
+                  dangerouslySetInnerHTML={{ __html: documentContent }}
+                />
+              ) : (
+                <div className="text-gray-400 text-center py-12">
+                  <p className="text-sm">Document content will appear here</p>
+                  <p className="text-xs mt-2">Ask me to write a post, article, or document</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
