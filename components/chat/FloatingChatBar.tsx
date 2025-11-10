@@ -626,9 +626,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           <div className="flex-1 overflow-y-auto p-12">
             <div className="max-w-3xl mx-auto">
               {documentContent ? (
-                <ReactMarkdown
-                  className="prose prose-lg max-w-none"
-                  components={{
+                <div className="prose prose-lg max-w-none">
+                  <ReactMarkdown
+                    components={{
                     strong: ({ children }) => (
                       <strong className="font-bold text-gray-900">{children}</strong>
                     ),
@@ -660,6 +660,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 >
                   {documentContent}
                 </ReactMarkdown>
+                </div>
               ) : (
                 <div className="text-gray-400 text-center py-12">
                   <p className="text-sm">Document content will appear here</p>
