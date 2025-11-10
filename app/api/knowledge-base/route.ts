@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const fileType = searchParams.get('file_type');
     const search = searchParams.get('search');
+    const campaignId = searchParams.get('campaign_id');
 
     const supabase = await createClient();
 
@@ -29,6 +30,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // If filtering by campaign, get document IDs linked to that campaign
+    let documentIds: string[] | null = null;
+    if (campaignId) {
+      const { data: linkedDocs, error: linkError } = await supabase
+        .from('campaign_documents')
+        .select('document_id')
+        .eq('campaign_id', campaignId);
+
+      if (linkError) {
+        console.error('[KB] Error fetching campaign documents:', linkError);
+        return NextResponse.json({ error: 'Failed to filter by campaign' }, { status: 500 });
+      }
+
+      documentIds = linkedDocs?.map((link) => link.document_id) || [];
+    }
+
     // Base query
     let query = supabase
       .from('knowledge_base_documents')
@@ -43,6 +60,19 @@ export async function GET(request: Request) {
 
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,content.ilike.%${search}%`);
+    }
+
+    // Filter by campaign if specified
+    if (campaignId && documentIds && documentIds.length > 0) {
+      query = query.in('id', documentIds);
+    } else if (campaignId && (!documentIds || documentIds.length === 0)) {
+      // Campaign has no linked documents
+      return NextResponse.json({
+        documents: [],
+        count: 0,
+        limit,
+        offset,
+      });
     }
 
     // Apply pagination

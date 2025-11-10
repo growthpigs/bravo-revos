@@ -391,18 +391,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setError(null);
 
     try {
+      const requestPayload = {
+        messages: [...messages, userMessage].map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+      };
+
       console.log('[HGC_STREAM] Starting fetch request to /api/hgc');
+      console.log('[HGC_STREAM] Request payload:', JSON.stringify(requestPayload, null, 2));
+
       const response = await fetch('/api/hgc', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       console.log('[HGC_STREAM] Response received:', {

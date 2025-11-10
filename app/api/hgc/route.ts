@@ -543,8 +543,26 @@ export async function POST(request: NextRequest) {
     const { messages } = validationResult.data
     console.log('[HGC_TS] Messages received:', messages.length)
 
-    // Messages are already validated, use them directly
-    const formattedMessages = messages
+    // Ensure messages alternate between user and assistant roles
+    // OpenAI requires strict alternation, so merge consecutive messages with same role
+    const formattedMessages = messages.reduce((acc, msg, idx) => {
+      if (idx === 0) {
+        return [msg]
+      }
+
+      const lastMsg = acc[acc.length - 1]
+
+      // If same role as previous message, merge content
+      if (lastMsg.role === msg.role) {
+        console.log(`[HGC_TS] Merging consecutive ${msg.role} messages`)
+        lastMsg.content = lastMsg.content + '\n\n' + msg.content
+        return acc
+      }
+
+      return [...acc, msg]
+    }, [] as typeof messages)
+
+    console.log('[HGC_TS] Formatted to', formattedMessages.length, 'alternating messages')
 
     console.log('[HGC_TS] Calling OpenAI with function calling...')
     const aiStartTime = Date.now()
