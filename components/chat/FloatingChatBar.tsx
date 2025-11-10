@@ -214,15 +214,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   }, [showMessages, isExpanded]);
 
   useEffect(() => {
-    // Scroll sidebar when expanded
-    if (scrollAreaRef.current && isExpanded) {
+    // Scroll sidebar when expanded OR fullscreen
+    if (scrollAreaRef.current && (isExpanded || isFullscreen)) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
     // Scroll floating messages panel when NOT expanded
     if (messagesPanelRef.current && !isExpanded && messages.length > 0) {
       messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
     }
-  }, [messages, isExpanded]);
+  }, [messages, isExpanded, isFullscreen]);
 
   // Save current conversation when messages change
   useEffect(() => {
