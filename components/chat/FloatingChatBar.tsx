@@ -90,7 +90,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [input]);
 
-  // Scroll to bottom when messages update
+  // Scroll to bottom when messages update or panel opens
+  useEffect(() => {
+    // Scroll to bottom when panel opens (showMessages changes)
+    if (messagesPanelRef.current && showMessages && !isExpanded) {
+      setTimeout(() => {
+        if (messagesPanelRef.current) {
+          messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
+        }
+      }, 0);
+    }
+  }, [showMessages, isExpanded]);
+
   useEffect(() => {
     // Scroll sidebar when expanded
     if (scrollAreaRef.current && isExpanded) {
@@ -789,6 +800,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           <div
             ref={messagesPanelRef}
             className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 space-y-3">
               {messages.map((message, index) => (

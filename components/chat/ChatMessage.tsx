@@ -33,10 +33,10 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[66%] px-4 py-2.5 rounded-xl text-sm',
+          'px-4 py-2.5 rounded-xl text-sm',
           isUser
-            ? 'bg-gray-900 text-white'
-            : 'bg-gray-100 text-gray-900'
+            ? 'bg-gray-900 text-white max-w-[90%]'
+            : 'bg-gray-100 text-gray-900 max-w-[80%]'
         )}
       >
         {isLoading && !messageText ? (
