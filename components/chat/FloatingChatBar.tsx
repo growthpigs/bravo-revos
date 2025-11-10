@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
-import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock } from 'lucide-react';
+import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 import ReactMarkdown from 'react-markdown';
@@ -63,6 +63,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedContent, setEditedContent] = useState<string>('');
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
@@ -627,6 +628,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setEditedContent('');
   };
 
+  // Copy document content to clipboard
+  const handleCopyContent = async () => {
+    try {
+      await navigator.clipboard.writeText(documentContent);
+      setCopiedFeedback(true);
+      setTimeout(() => setCopiedFeedback(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   // Don't render if minimized
   if (isMinimized) {
     return (
@@ -764,13 +776,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={handleEditClick}
-                  className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
-                  aria-label="Edit document"
-                >
-                  Edit
-                </button>
+                <>
+                  <button
+                    onClick={handleEditClick}
+                    className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                    aria-label="Edit document"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={handleCopyContent}
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    aria-label={copiedFeedback ? "Copied!" : "Copy document"}
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="w-4 h-4 text-gray-600" />
+                  </button>
+                </>
               )}
             </div>
           </div>

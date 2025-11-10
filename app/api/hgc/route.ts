@@ -291,7 +291,7 @@ async function handleCreateCampaign(name: string, voice_id: string, description?
     .from('campaigns')
     .insert({
       name,
-      voice_id,
+      voice_id: voice_id || null,
       description,
       status: 'draft',
       client_id: userData.client_id,
@@ -304,10 +304,16 @@ async function handleCreateCampaign(name: string, voice_id: string, description?
     return { success: false, error: error.message }
   }
 
+  // Warning if no voice cartridge
+  let message = 'Campaign created in DRAFT status. Review in dashboard to activate.'
+  if (!voice_id) {
+    message += '\n\n⚠️ WARNING: This campaign is not using a voice cartridge. We recommend adding one for better content generation quality.'
+  }
+
   return {
     success: true,
     campaign: data,
-    message: 'Campaign created in DRAFT status. Review in dashboard to activate.'
+    message
   }
 }
 
