@@ -17,7 +17,8 @@ import {
   Upload,
   MessageSquare,
   LogOut,
-  Zap
+  Zap,
+  BookOpen
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -35,6 +36,7 @@ const navigation = [
   { name: 'LinkedIn Posts', href: '/dashboard/posts', icon: Linkedin },
   { name: 'DM Sequences', href: '/dashboard/dm-sequences', icon: MessageSquare },
   { name: 'Lead Magnets', href: '/dashboard/lead-magnets', icon: Upload },
+  { name: 'Knowledge Base', href: '/dashboard/knowledge-base', icon: BookOpen },
   { name: 'Webhooks', href: '/dashboard/webhooks', icon: Webhook },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
