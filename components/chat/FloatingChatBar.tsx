@@ -6,6 +6,7 @@ import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, 
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 import ReactMarkdown from 'react-markdown';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
@@ -520,9 +521,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('[HGC_STREAM] Request was aborted');
+        toast.info('Request cancelled');
       } else {
         console.error('[HGC_STREAM] Error:', error);
-        setError(error.message || 'An error occurred');
+        const errorMessage = error.message || 'An error occurred';
+        setError(errorMessage);
+
+        // Show error toast with system context
+        toast.error('Chat Error', {
+          description: errorMessage,
+          duration: 5000,
+        });
+
         // Remove the empty assistant message if there was an error
         setMessages(prev => {
           const newMessages = [...prev];
