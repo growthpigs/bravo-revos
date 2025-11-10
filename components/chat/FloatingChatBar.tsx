@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
 import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   id: string;
@@ -328,9 +329,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return groups;
   };
 
-  // Extract document title from HTML content
-  const extractDocumentTitle = (html: string) => {
-    const h1Match = html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+  // Extract document title from markdown content
+  const extractDocumentTitle = (markdown: string) => {
+    // Look for markdown heading: # Title
+    const h1Match = markdown.match(/^#\s+(.+)$/m);
     if (h1Match && h1Match[1]) {
       setDocumentTitle(h1Match[1].trim());
     }
@@ -624,10 +626,40 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           <div className="flex-1 overflow-y-auto p-12">
             <div className="max-w-3xl mx-auto">
               {documentContent ? (
-                <div
+                <ReactMarkdown
                   className="prose prose-lg max-w-none"
-                  dangerouslySetInnerHTML={{ __html: documentContent }}
-                />
+                  components={{
+                    strong: ({ children }) => (
+                      <strong className="font-bold text-gray-900">{children}</strong>
+                    ),
+                    p: ({ children }) => (
+                      <p className="mb-4 last:mb-0 text-gray-700 leading-relaxed">{children}</p>
+                    ),
+                    h1: ({ children }) => (
+                      <h1 className="text-3xl font-bold mb-6 text-gray-900">{children}</h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-2xl font-semibold mb-4 mt-8 text-gray-900">{children}</h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-xl font-semibold mb-3 mt-6 text-gray-900">{children}</h3>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">{children}</ol>
+                    ),
+                    li: ({ children }) => (
+                      <li className="text-gray-700">{children}</li>
+                    ),
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
+                    ),
+                  }}
+                >
+                  {documentContent}
+                </ReactMarkdown>
               ) : (
                 <div className="text-gray-400 text-center py-12">
                   <p className="text-sm">Document content will appear here</p>
