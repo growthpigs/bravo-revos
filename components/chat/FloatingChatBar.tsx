@@ -134,10 +134,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       if (!isDraggingRef.current || !resizerTypeRef.current) return;
 
       const delta = e.clientX - dragStartXRef.current;
+      console.log('[RESIZER_DRAG]', resizerTypeRef.current, 'delta:', delta, 'dragStart:', dragStartXRef.current, 'current X:', e.clientX);
 
       if (resizerTypeRef.current === 'left') {
         // Left resizer: expand/shrink entire sidebar, chat grows, history stays fixed at 192px
         const newSidebarWidth = dragStartWidthRef.current + delta;
+        console.log('[LEFT_RESIZER] dragStartWidth:', dragStartWidthRef.current, 'newWidth:', newSidebarWidth);
 
         // Min total: 350px (150 chat + 192 history + 1 divider), Max: 800px
         const constrainedWidth = Math.max(343, Math.min(800, newSidebarWidth));
@@ -146,6 +148,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       } else if (resizerTypeRef.current === 'middle') {
         // Middle resizer: redistribute fixed total width between chat and history
         const newChatWidth = dragStartWidthRef.current + delta;
+        console.log('[MIDDLE_RESIZER] dragStartWidth:', dragStartWidthRef.current, 'newWidth:', newChatWidth);
 
         // Min chat width: 150px, Max: depends on sidebar - historyWidth (192)
         const maxChat = sidebarWidth - 192 - 1; // -1 for divider
@@ -156,6 +159,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     };
 
     const handleMouseUp = () => {
+      console.log('[RESIZER] mouseup - stopped dragging');
       isDraggingRef.current = false;
       resizerTypeRef.current = null;
       document.body.style.userSelect = 'auto';
@@ -623,6 +627,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle left resizer mousedown (expand/shrink entire sidebar)
   const handleLeftResizerMouseDown = (e: React.MouseEvent) => {
+    console.log('[LEFT_RESIZER] mousedown at X:', e.clientX, 'sidebarWidth:', sidebarWidth);
     e.preventDefault();
     isDraggingRef.current = true;
     resizerTypeRef.current = 'left';
@@ -634,6 +639,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle middle resizer mousedown (redistribute chat/history within fixed total)
   const handleMiddleResizerMouseDown = (e: React.MouseEvent) => {
+    console.log('[MIDDLE_RESIZER] mousedown at X:', e.clientX, 'chatWidth:', chatWidth);
     e.preventDefault();
     isDraggingRef.current = true;
     resizerTypeRef.current = 'middle';
