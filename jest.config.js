@@ -5,6 +5,8 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}'], // Added .tsx support
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    // Mock react-markdown to avoid ESM issues
+    '^react-markdown$': '<rootDir>/__mocks__/react-markdown.tsx',
   },
   collectCoverageFrom: [
     'lib/**/*.{ts,tsx}',
@@ -21,4 +23,7 @@ module.exports = {
       },
     }],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-markdown)/)',
+  ],
 };

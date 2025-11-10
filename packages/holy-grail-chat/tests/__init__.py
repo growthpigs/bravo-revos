@@ -1,1 +1,0 @@
-# Holy Grail Chat Tests

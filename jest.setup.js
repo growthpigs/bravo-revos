@@ -6,6 +6,9 @@ process.env.REDIS_URL = 'redis://localhost:6379';
 // Import @testing-library/jest-dom for extended matchers
 require('@testing-library/jest-dom');
 
+// Make React available globally for JSX (Next.js 13+ uses automatic JSX runtime)
+global.React = require('react');
+
 // Polyfill Next.js server environment for API route tests
 if (typeof Request === 'undefined') {
   global.Request = class Request {

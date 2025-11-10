@@ -42,13 +42,24 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesPanelRef = useRef<HTMLDivElement>(null);
   const floatingBarRef = useRef<HTMLFormElement>(null);
+  const floatingBarContainerRef = useRef<HTMLDivElement>(null);
   const [showMessages, setShowMessages] = useState(false);
+  const [chatWidth, setChatWidth] = useState(240); // Resizable chat width in expanded view
+  const [isResizing, setIsResizing] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
   // Initialize conversations from localStorage
   useEffect(() => {
     setIsMounted(true);
+
+    // Restore expanded state from localStorage
+    const savedExpanded = localStorage.getItem('chat_expanded');
+    if (savedExpanded === 'true') {
+      setIsExpanded(true);
+      console.log('[FloatingChatBar] Restored expanded state from localStorage');
+    }
+
     const stored = localStorage.getItem('chat_conversations');
     if (stored) {
       try {
@@ -81,6 +92,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [conversations, isMounted]);
 
+  // Persist expanded state to localStorage
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('chat_expanded', isExpanded.toString());
+      console.log('[FloatingChatBar] Saved expanded state:', isExpanded);
+    }
+  }, [isExpanded, isMounted]);
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -90,17 +109,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [input]);
 
-  // Scroll to bottom when messages update
+  // Scroll to bottom when messages update or panel opens
   useEffect(() => {
     // Scroll sidebar when expanded
-    if (scrollAreaRef.current && isExpanded) {
+    if (scrollAreaRef.current && isExpanded && messages.length > 0) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-    // Scroll floating messages panel when NOT expanded
-    if (messagesPanelRef.current && !isExpanded && messages.length > 0) {
+    // Scroll floating messages panel when NOT expanded and messages are showing
+    if (messagesPanelRef.current && !isExpanded && showMessages && messages.length > 0) {
       messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
     }
-  }, [messages, isExpanded]);
+  }, [messages, isExpanded, showMessages]);
 
   // Save current conversation when messages change
   useEffect(() => {
@@ -113,8 +132,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // Only handle if in floating bar mode (not expanded or minimized) and messages are showing
-      if (!isExpanded && !isMinimized && showMessages && floatingBarRef.current) {
-        if (!floatingBarRef.current.contains(event.target as Node)) {
+      if (!isExpanded && !isMinimized && showMessages && floatingBarContainerRef.current) {
+        if (!floatingBarContainerRef.current.contains(event.target as Node)) {
           setShowMessages(false);
         }
       }
@@ -123,6 +142,28 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isExpanded, isMinimized, showMessages]);
+
+  // Handle resizing the chat width in expanded view
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Calculate new chat width based on mouse movement
+      const newWidth = Math.max(200, Math.min(e.clientX, 400)); // Min 200px, max 400px
+      setChatWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
@@ -536,99 +577,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   }
 
   // Expanded sidebar view (RIGHT side, embedded) - with ChatSDK-style history
+  // This is a sidebar that sits on the right WITHOUT covering the main app content
   if (isExpanded) {
     console.log('[FloatingChatBar] EXPANDED VIEW RENDERING - Banner should be visible!');
     const groupedConversations = getGroupedConversations();
     const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
+    const historyWidth = 384 - chatWidth - 4; // Total 384px (w-96), minus chat width, minus divider
 
     return (
-      <div className="h-full w-full flex bg-white border-l border-gray-200 pt-16 animate-in slide-in-from-right duration-200">
-        {/* Chat History Sidebar - ChatSDK Style */}
-        {showChatHistory && hasAnyConversations && (
-          <div className="w-64 border-r border-gray-200 flex flex-col bg-gray-50">
-            {/* ChatSDK-style Header - same height as main banner */}
-            <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
-              <div className="flex gap-2">
-                  {/* New conversation button */}
-                  <button
-                    onClick={createNewConversation}
-                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-                    aria-label="New conversation"
-                    title="New conversation"
-                  >
-                    <Plus className="w-4 h-4 text-gray-600" />
-                  </button>
-                  {/* Delete all conversations button */}
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to delete all conversations?')) {
-                        setConversations([]);
-                        setCurrentConversationId(null);
-                        setMessages([]);
-                      }
-                    }}
-                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
-                    aria-label="Delete all"
-                    title="Delete all conversations"
-                  >
-                    <Trash2 className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-
-            {/* Conversations List - Time grouped */}
-            <div className="flex-1 overflow-y-auto">
-              {Object.entries(groupedConversations).map(([timeGroup, convs]) =>
-                convs.length > 0 ? (
-                  <div key={timeGroup}>
-                    {/* Time Group Label */}
-                    <div className="px-4 pt-3 pb-2">
-                      <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {timeGroup}
-                      </h4>
-                    </div>
-
-                    {/* Conversations in this group */}
-                    {convs.map(conv => (
-                      <button
-                        key={conv.id}
-                        onClick={() => loadConversation(conv.id)}
-                        className={cn(
-                          "w-full text-left px-4 py-2 text-sm hover:bg-gray-200 transition-colors group flex items-center justify-between",
-                          currentConversationId === conv.id ? "bg-gray-200 text-gray-900 font-medium" : "text-gray-700"
-                        )}
-                      >
-                        <span className="truncate flex-1">{conv.title}</span>
-                        {/* Delete button appears on hover */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteConversation(conv.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-300 rounded ml-2"
-                          aria-label="Delete conversation"
-                        >
-                          <X className="w-3 h-3 text-gray-600" />
-                        </button>
-                      </button>
-                    ))}
-                  </div>
-                ) : null
-              )}
-
-              {/* End of history message */}
-              {hasAnyConversations && (
-                <div className="px-4 py-4 mt-4 text-center">
-                  <p className="text-xs text-gray-500">You have reached the end of your chat history</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col bg-white">
+      <div className="fixed right-0 top-16 bottom-0 flex gap-0 bg-white animate-in slide-in-from-right duration-200 z-20 border-l-2 border-gray-300" style={{ width: '384px' }}>
+        {/* Main Chat Area - LEFT side (resizable) */}
+        <div style={{ width: `${chatWidth}px` }} className="flex flex-col bg-white">
           {/* Minimal Top Banner with icon navigation */}
           <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
             {/* Fullscreen icon (square with rounded corners) */}
@@ -704,10 +663,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="bg-white border border-gray-200 rounded-xl">
+          <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 bg-gray-50">
+            <div className="bg-white border border-gray-200 rounded-lg">
               {isLoading ? (
-                <div className="flex items-center gap-1.5 px-4 py-3 h-[38px]">
+                <div className="flex items-center gap-1.5 px-3 py-2 h-[34px]">
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
@@ -724,42 +683,133 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   disabled={isLoading}
                 />
               )}
-              <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
-                <div className="flex gap-1">
+              <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-gray-100">
+                <div className="flex gap-0.5">
                   <button
                     type="button"
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                     aria-label="Attach file"
                     disabled
                   >
-                    <Paperclip className="w-4 h-4 text-gray-400" />
+                    <Paperclip className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                   <button
                     type="button"
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                     aria-label="Voice input"
                     disabled
                   >
-                    <Mic className="w-4 h-4 text-gray-400" />
+                    <Mic className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                 </div>
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                    "w-7 h-7 rounded-full flex items-center justify-center transition-colors",
                     input.trim() && !isLoading
                       ? "bg-gray-900 text-white hover:bg-gray-800"
                       : "bg-gray-200 text-gray-400"
                   )}
                   aria-label="Send message"
                 >
-                  <ArrowUp className="w-4 h-4" />
+                  <ArrowUp className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           </form>
         </div>
+
+        {/* Resize Divider Handle - MIDDLE */}
+        <div
+          onMouseDown={() => setIsResizing(true)}
+          className="w-1 bg-gray-300 hover:bg-blue-500 hover:shadow-sm cursor-col-resize transition-all duration-200 group"
+          style={{
+            cursor: 'col-resize',
+          }}
+          aria-label="Resize chat width"
+          title="Drag to resize chat area"
+        />
+
+        {/* Chat History Sidebar - RIGHT side (dynamic width) */}
+        {showChatHistory && hasAnyConversations && (
+          <div style={{ width: `${historyWidth}px` }} className="flex flex-col bg-gray-50 overflow-hidden">
+            {/* Header */}
+            <div className="px-3 py-2.5 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
+              <div className="flex gap-1">
+                <button
+                  onClick={createNewConversation}
+                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                  aria-label="New conversation"
+                  title="Start new conversation"
+                >
+                  <Plus className="w-4 h-4 text-gray-600" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (conversations.length > 0) {
+                      const confirmDelete = window.confirm('Delete all conversations? This cannot be undone.');
+                      if (confirmDelete) {
+                        setConversations([]);
+                        setCurrentConversationId(null);
+                        setMessages([]);
+                      }
+                    }
+                  }}
+                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                  aria-label="Delete all conversations"
+                  title="Delete all conversations"
+                >
+                  <Trash2 className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+            </div>
+
+            {/* Conversations List */}
+            <div className="flex-1 overflow-y-auto">
+              {Object.entries(groupedConversations).map(([group, convs]) => (
+                <div key={group}>
+                  <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">
+                    {group}
+                  </div>
+                  {convs.map((conv) => (
+                    <div
+                      key={conv.id}
+                      onClick={() => loadConversation(conv.id)}
+                      className={cn(
+                        'px-3 py-1.5 text-xs cursor-pointer group hover:bg-gray-200 transition-colors',
+                        currentConversationId === conv.id ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-700'
+                      )}
+                      title={conv.title}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate flex-1">{conv.title}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteConversation(conv.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-300 rounded"
+                          aria-label="Delete conversation"
+                        >
+                          <X className="w-3 h-3 text-gray-600" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="px-3 py-2 border-t border-gray-200 text-center">
+              <p className="text-xs text-gray-500">
+                You have reached the end of your chat history
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -771,7 +821,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       className
     )}>
       {/* Single cohesive container */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+      <div ref={floatingBarContainerRef} className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
         {/* Messages Panel - Slides up from behind input */}
         {messages.length > 0 && showMessages && (
           <div
@@ -794,7 +844,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         <form ref={floatingBarRef} onSubmit={handleSubmit} className="relative">
           <div
             className="px-4 py-2 cursor-text"
-            onClick={() => textareaRef.current?.focus()}
+            onClick={() => {
+              textareaRef.current?.focus();
+              if (messages.length > 0) {
+                setShowMessages(true);
+              }
+            }}
           >
             {isLoading ? (
               <div className="flex items-center gap-1 h-6">
