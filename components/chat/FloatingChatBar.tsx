@@ -59,6 +59,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Document viewer state
   const [documentContent, setDocumentContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('Working Document');
+  const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
@@ -570,7 +571,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return (
       <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
 
-        {/* LEFT PANEL: Chat */}
+        {/* LEFT PANEL: Chat - Hidden when document is maximized */}
+        {!isDocumentMaximized && (
         <div className="w-96 border-r border-gray-200 flex flex-col bg-white">
           {/* Top Navigation Bar - Document Title & Actions */}
           <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
@@ -584,6 +586,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   setIsFullscreen(false);
                   setIsExpanded(false);
                   setIsMinimized(false);
+                  setIsDocumentMaximized(false);
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                 aria-label="Close fullscreen"
@@ -658,9 +661,30 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </div>
           </form>
         </div>
+        )}
 
-        {/* RIGHT PANEL: Document Viewer */}
-        <div className="flex-1 overflow-hidden bg-white flex flex-col">
+        {/* RIGHT PANEL: Document Viewer - Full width when maximized */}
+        <div className={cn("overflow-hidden bg-white flex flex-col", isDocumentMaximized ? "flex-1" : "flex-1")}>
+          {/* Document Header - with title and expand button */}
+          <div className="h-14 px-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <h2 className="text-sm font-semibold text-gray-900">{documentTitle}</h2>
+            <button
+              onClick={() => setIsDocumentMaximized(!isDocumentMaximized)}
+              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Expand document"
+              title={isDocumentMaximized ? "Collapse" : "Expand"}
+            >
+              <svg
+                className="w-5 h-5 text-gray-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+              </svg>
+            </button>
+          </div>
           {/* Document Content Area */}
           <div className="flex-1 overflow-y-auto p-12">
             <div className="max-w-3xl mx-auto">
