@@ -61,20 +61,12 @@ export async function POST(request: NextRequest) {
       return new Response('No messages provided', { status: 400 })
     }
 
-    // Prepare context for Python orchestrator with FULL conversation history
-    const context = {
-      user_id: user.id,
-      pod_id: podId,
-      client_id: userData.client_id,
-      messages: messages, // Pass ALL messages for conversation history
-      api_base_url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      mem0_key: process.env.MEM0_API_KEY || '',
-      openai_key: process.env.OPENAI_API_KEY || '',
-      auth_token: session.access_token
-    }
-
     console.log('[HGC_API] Proxying to HGCR backend...')
     const hgcrStartTime = Date.now()
+
+    // Extract last user message (HGCR expects single message, not array)
+    const lastMessage = messages[messages.length - 1]?.content || ''
+    console.log('[HGC_API] Last message:', lastMessage.substring(0, 100))
 
     // Proxy to fast HGCR server
     const hgcrResponse = await fetch('http://localhost:8000/chat', {
@@ -84,34 +76,48 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({
-        messages,
-        context: {
-          user_id: user.id,
-          client_id: userData.client_id,
-          pod_id: podId,
-          api_base_url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-          mem0_key: process.env.MEM0_API_KEY || '',
-          openai_key: process.env.OPENAI_API_KEY || '',
-          auth_token: session.access_token
-        }
+        message: lastMessage,  // HGCR expects "message" (singular)
+        user_id: user.id,
+        client_id: userData.client_id,
+        pod_id: podId
       })
     })
 
     if (!hgcrResponse.ok) {
-      const error = await hgcrResponse.text()
-      console.error('[HGC_API] HGCR error:', error)
-      return new Response(`HGCR error: ${error}`, { status: hgcrResponse.status })
+      const errorText = await hgcrResponse.text()
+      console.error('[HGC_API] HGCR error:', errorText)
+      return new Response(`HGCR error: ${errorText}`, { status: hgcrResponse.status })
     }
+
+    // Parse HGCR JSON response
+    const result = await hgcrResponse.json()
 
     const hgcrDuration = Date.now() - hgcrStartTime
     const totalDuration = Date.now() - requestStartTime
     console.log(`[HGC_TIMING] HGCR response: ${hgcrDuration}ms`)
     console.log(`[HGC_TIMING] Total request: ${totalDuration}ms`)
 
-    // Stream response from HGCR
-    return new Response(hgcrResponse.body, {
+    if (!result.success) {
+      return new Response(`HGCR error: ${result.error || 'Unknown error'}`, { status: 500 })
+    }
+
+    // Stream response word-by-word for better UX
+    const encoder = new TextEncoder()
+    const words = result.response.split(' ')
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < words.length; i++) {
+          controller.enqueue(encoder.encode(words[i] + ' '))
+          await new Promise(resolve => setTimeout(resolve, 10))
+        }
+        controller.close()
+      }
+    })
+
+    return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
       }
