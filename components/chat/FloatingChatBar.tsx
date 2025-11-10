@@ -592,7 +592,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {/* Input Area - Part of same container */}
         <form ref={floatingBarRef} onSubmit={handleSubmit} className="relative">
           <div
-            className="px-5 py-3 cursor-text"
+            className="px-4 py-2 cursor-text"
             onClick={() => textareaRef.current?.focus()}
           >
             {isLoading ? (
@@ -616,7 +616,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between px-3 pb-3 pt-2">
+          <div className="flex items-center justify-between px-4 pb-2 pt-1">
             <div className="flex gap-1">
               <button
                 type="button"

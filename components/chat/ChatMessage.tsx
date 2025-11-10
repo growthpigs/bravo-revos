@@ -50,33 +50,33 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
           messageText && (
             <ReactMarkdown
               components={{
-                // Bold text
+                // Bold text - inherits color
                 strong: ({ children }) => (
-                  <strong className="font-bold">{children}</strong>
+                  <strong className="font-bold text-inherit">{children}</strong>
                 ),
-                // Paragraphs - proper spacing
+                // Paragraphs - proper spacing, inherits color
                 p: ({ children }) => (
-                  <p className="mb-2 last:mb-0">{children}</p>
+                  <p className="mb-2 last:mb-0 text-inherit">{children}</p>
                 ),
-                // Unordered lists
+                // Unordered lists - inherits color
                 ul: ({ children }) => (
-                  <ul className="list-disc ml-4 my-2 space-y-1">{children}</ul>
+                  <ul className="list-disc ml-4 my-2 space-y-1 text-inherit">{children}</ul>
                 ),
-                // Ordered lists
+                // Ordered lists - inherits color
                 ol: ({ children }) => (
-                  <ol className="list-decimal ml-4 my-2 space-y-1">{children}</ol>
+                  <ol className="list-decimal ml-4 my-2 space-y-1 text-inherit">{children}</ol>
                 ),
-                // List items
+                // List items - inherits color
                 li: ({ children }) => (
-                  <li className="mb-0.5">{children}</li>
+                  <li className="mb-0.5 text-inherit">{children}</li>
                 ),
-                // Links
+                // Links - inherits color with underline
                 a: ({ href, children }) => (
                   <a
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline hover:no-underline"
+                    className="underline hover:no-underline text-inherit"
                   >
                     {children}
                   </a>
