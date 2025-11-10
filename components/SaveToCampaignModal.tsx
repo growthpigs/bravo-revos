@@ -45,22 +45,56 @@ export function SaveToCampaignModal({
       setIsLoading(true);
       setError('');
 
+      console.log('[SAVE_TO_CAMPAIGN] Starting fetchCampaigns...');
+      console.log('[SAVE_TO_CAMPAIGN] Fetching from: /api/campaigns?limit=100');
+
       const response = await fetch('/api/campaigns?limit=100');
+
+      console.log('[SAVE_TO_CAMPAIGN] Response status:', response.status);
+      console.log('[SAVE_TO_CAMPAIGN] Response ok:', response.ok);
+      console.log('[SAVE_TO_CAMPAIGN] Response headers:', {
+        contentType: response.headers.get('content-type'),
+      });
+
       if (!response.ok) {
-        throw new Error('Failed to fetch campaigns');
+        const errorText = await response.text();
+        console.error('[SAVE_TO_CAMPAIGN] Error response body:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText.substring(0, 100)}`);
       }
 
       const data = await response.json();
-      setCampaigns(data.campaigns || []);
+      console.log('[SAVE_TO_CAMPAIGN] Full response data:', data);
+      console.log('[SAVE_TO_CAMPAIGN] Response keys:', Object.keys(data));
+      console.log('[SAVE_TO_CAMPAIGN] data.campaigns:', data.campaigns);
+      console.log('[SAVE_TO_CAMPAIGN] data.data:', data.data);
 
-      if (data.campaigns && data.campaigns.length > 0) {
-        setSelectedCampaignId(data.campaigns[0].id);
+      // Try multiple possible response structures
+      const campaigns = data.campaigns || data.data || data || [];
+      console.log('[SAVE_TO_CAMPAIGN] Extracted campaigns:', campaigns);
+      console.log('[SAVE_TO_CAMPAIGN] Campaigns count:', Array.isArray(campaigns) ? campaigns.length : 'NOT AN ARRAY');
+
+      if (Array.isArray(campaigns)) {
+        setCampaigns(campaigns);
+        console.log('[SAVE_TO_CAMPAIGN] Set campaigns to:', campaigns);
+
+        if (campaigns.length > 0) {
+          setSelectedCampaignId(campaigns[0].id);
+          console.log('[SAVE_TO_CAMPAIGN] Set initial selected campaign to:', campaigns[0].id);
+        } else {
+          console.warn('[SAVE_TO_CAMPAIGN] No campaigns returned from API');
+        }
+      } else {
+        console.error('[SAVE_TO_CAMPAIGN] Campaigns is not an array:', campaigns);
+        setError('Invalid response format from campaigns API');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load campaigns');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load campaigns';
+      setError(errorMsg);
       console.error('[SAVE_TO_CAMPAIGN] Error fetching campaigns:', err);
+      console.error('[SAVE_TO_CAMPAIGN] Error stack:', err instanceof Error ? err.stack : 'No stack');
     } finally {
       setIsLoading(false);
+      console.log('[SAVE_TO_CAMPAIGN] fetchCampaigns complete');
     }
   };
 
@@ -75,7 +109,14 @@ export function SaveToCampaignModal({
       setIsSaving(true);
       setError('');
 
+      console.log('[SAVE_TO_CAMPAIGN] Starting save...');
+      console.log('[SAVE_TO_CAMPAIGN] linkToCampaign:', linkToCampaign);
+      console.log('[SAVE_TO_CAMPAIGN] selectedCampaignId:', selectedCampaignId);
+      console.log('[SAVE_TO_CAMPAIGN] documentTitle:', documentTitle);
+      console.log('[SAVE_TO_CAMPAIGN] contentLength:', documentContent.length);
+
       // First, create the document in the knowledge base
+      console.log('[SAVE_TO_CAMPAIGN] Calling POST /api/knowledge-base...');
       const docResponse = await fetch('/api/knowledge-base', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,29 +130,44 @@ export function SaveToCampaignModal({
         }),
       });
 
+      console.log('[SAVE_TO_CAMPAIGN] Document save response status:', docResponse.status);
+
       if (!docResponse.ok) {
-        throw new Error('Failed to save document');
+        const errorText = await docResponse.text();
+        console.error('[SAVE_TO_CAMPAIGN] Error response:', errorText);
+        throw new Error(`Failed to save document: ${docResponse.status} ${errorText}`);
       }
 
       const docData = await docResponse.json();
+      console.log('[SAVE_TO_CAMPAIGN] Document saved successfully:', docData);
       const documentId = docData.document.id;
+      console.log('[SAVE_TO_CAMPAIGN] Document ID:', documentId);
 
       // Optionally link it to the selected campaign
       if (linkToCampaign && selectedCampaignId) {
+        console.log('[SAVE_TO_CAMPAIGN] Linking document to campaign...');
         const linkResponse = await fetch(`/api/campaigns/${selectedCampaignId}/documents`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ document_id: documentId }),
         });
 
+        console.log('[SAVE_TO_CAMPAIGN] Link response status:', linkResponse.status);
+
         if (!linkResponse.ok) {
-          throw new Error('Failed to link document to campaign');
+          const errorText = await linkResponse.text();
+          console.error('[SAVE_TO_CAMPAIGN] Link error response:', errorText);
+          throw new Error(`Failed to link document to campaign: ${linkResponse.status} ${errorText}`);
         }
 
         const campaignName = campaigns.find((c) => c.id === selectedCampaignId)?.name;
-        setSuccessMessage(`Document saved to knowledge base and linked to "${campaignName}" successfully!`);
+        const successMsg = `Document saved to knowledge base and linked to "${campaignName}" successfully!`;
+        console.log('[SAVE_TO_CAMPAIGN] Success:', successMsg);
+        setSuccessMessage(successMsg);
       } else {
-        setSuccessMessage('Document saved to knowledge base successfully!');
+        const successMsg = 'Document saved to knowledge base successfully!';
+        console.log('[SAVE_TO_CAMPAIGN] Success:', successMsg);
+        setSuccessMessage(successMsg);
       }
 
       // Call optional callback
@@ -125,8 +181,10 @@ export function SaveToCampaignModal({
         setSuccessMessage('');
       }, 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save document');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to save document';
+      setError(errorMsg);
       console.error('[SAVE_TO_CAMPAIGN] Error saving:', err);
+      console.error('[SAVE_TO_CAMPAIGN] Error details:', err);
     } finally {
       setIsSaving(false);
     }
