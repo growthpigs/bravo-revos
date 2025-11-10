@@ -52,21 +52,6 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
 
   return (
     <div className="flex flex-col w-64 bg-white border-r border-gray-200 h-screen sticky top-0 pt-16">
-      <div className="flex items-center gap-3 p-6 border-b border-gray-200">
-        {client?.logo_url ? (
-          <Image
-            src={client.logo_url}
-            alt={client.name}
-            width={32}
-            height={32}
-            className="h-8 w-8 rounded object-cover"
-            unoptimized
-          />
-        ) : null}
-        <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-gray-900 truncate">{client?.name}</h2>
-        </div>
-      </div>
 
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
@@ -93,30 +78,22 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
           <div className="my-4 border-t border-gray-200"></div>
 
           {/* User Profile Section */}
-          <div className="px-3 py-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-3 mb-3">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.avatar_url} />
-                <AvatarFallback>
-                  {user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-900 truncate">
-                  {user?.full_name || user?.email}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">
-                  {user?.role?.replace('_', ' ')}
-                </p>
-              </div>
+          <div className="px-3 py-4 mt-12">
+            <div className="flex flex-col gap-2 mb-3">
+              <p className="text-xs font-medium text-gray-500 truncate">
+                {user?.full_name || user?.email}
+              </p>
+              <p className="text-xs text-gray-400 capitalize">
+                {user?.role?.replace('_', ' ')}
+              </p>
             </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="w-full"
+              className="w-auto text-gray-500 hover:text-gray-600 hover:bg-gray-100 h-8 px-3"
               onClick={handleSignOut}
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              <LogOut className="h-3 w-3 mr-2" />
               Sign Out
             </Button>
           </div>

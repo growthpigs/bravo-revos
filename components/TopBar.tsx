@@ -19,7 +19,7 @@ export function TopBar({ showLogo = true }: TopBarProps) {
             alt="RevOS"
             width={260}
             height={50}
-            className="h-6 w-auto"
+            className="h-4 w-auto"
             priority
           />
         </Link>
