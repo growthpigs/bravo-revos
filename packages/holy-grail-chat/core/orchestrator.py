@@ -5,19 +5,16 @@ MVP with tool-based integration (AgentKit + Mem0 + RevOS Data Tools)
 
 from agents import Agent, function_tool
 from mem0 import MemoryClient
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List
 import sys
 import os
 import threading
-from supabase import create_client, Client
 
 # Add tools directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
 from revos_tools import RevOSTools
 from validation import InputValidator
 
-# Constants for direct query bypass patterns
-CAMPAIGN_KEYWORDS = ['campaign', 'campaigns']
 
 
 class HGCOrchestrator:
@@ -33,171 +30,7 @@ class HGCOrchestrator:
         # Thread-local storage for memory key (prevents race conditions)
         self._memory_key_storage = threading.local()
 
-        # Cache for Supabase client (avoid recreation on every request)
-        self._supabase_client: Optional[Client] = None
 
-    def _get_supabase_client(self) -> Client:
-        """
-        Get Supabase client with service role key.
-
-        Service role key has full database access and bypasses RLS.
-        This is the standard pattern for server-side operations.
-
-        Returns:
-            Supabase client with service role access
-        """
-        supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-        service_role_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
-
-        # Use service role key - bypasses RLS, full access
-        client = create_client(supabase_url, service_role_key)
-
-        return client
-
-    def _get_user_context(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get user context using service role key.
-        No JWT auth needed - service key bypasses RLS.
-
-        Args:
-            user_id: User UUID from Next.js session
-
-        Returns:
-            User data dict with id, email, client_id or None if not found
-        """
-        try:
-            # Get service role client (bypasses RLS)
-            client = self._get_supabase_client()
-
-            # Direct query - service key bypasses RLS
-            response = client.table('users')\
-                .select('id, email, client_id')\
-                .eq('id', user_id)\
-                .maybe_single()\
-                .execute()
-
-            if not response.data:
-                print(f"[ORCHESTRATOR] User not found: {user_id}", file=sys.stderr)
-                return None
-
-            print(f"[ORCHESTRATOR] User context retrieved: {response.data.get('email')}", file=sys.stderr)
-            return response.data
-        except Exception as e:
-            print(f"[ORCHESTRATOR] User context retrieval failed: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            return None
-
-    def _fetch_campaigns_with_metrics(self, client_id: str) -> List[Dict[str, Any]]:
-        """
-        Fetch all campaigns for a client with associated metrics.
-        Uses service role key for direct database access.
-
-        Args:
-            client_id: Client UUID to filter campaigns
-
-        Returns:
-            List of campaigns with leads and posts counts
-        """
-        try:
-            # Get service role client (bypasses RLS)
-            supabase = self._get_supabase_client()
-
-            # Query campaigns
-            campaigns_response = supabase.table('campaigns').select(
-                'id, name, description, status, created_at'
-            ).eq('client_id', client_id).execute()
-
-            campaigns = campaigns_response.data if campaigns_response.data else []
-            print(f"[ORCHESTRATOR] Found {len(campaigns)} campaigns for client {client_id}", file=sys.stderr)
-
-            # Get metrics for each campaign
-            campaigns_with_metrics = []
-            for campaign in campaigns:
-                # Count leads
-                leads_response = supabase.table('leads').select('*', count='exact').eq(
-                    'campaign_id', campaign['id']
-                ).execute()
-                leads_count = leads_response.count if leads_response.count else 0
-
-                # Count posts
-                posts_response = supabase.table('posts').select('*', count='exact').eq(
-                    'campaign_id', campaign['id']
-                ).execute()
-                posts_count = posts_response.count if posts_response.count else 0
-
-                campaigns_with_metrics.append({
-                    'name': campaign.get('name', 'Unnamed'),
-                    'status': campaign.get('status', 'unknown'),
-                    'leads': leads_count,
-                    'posts': posts_count
-                })
-
-            return campaigns_with_metrics
-        except Exception as e:
-            print(f"[ORCHESTRATOR] Campaign fetch failed: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            return []
-
-    def _format_campaigns_response(self, campaigns: List[Dict[str, Any]]) -> str:
-        """
-        Format campaigns data as user-friendly markdown.
-
-        Args:
-            campaigns: List of campaigns with metrics
-
-        Returns:
-            Formatted markdown string
-        """
-        if len(campaigns) == 0:
-            return "You don't have any campaigns yet. Would you like to create one?"
-
-        response_text = f"You have {len(campaigns)} campaign(s):\n\n"
-        for i, campaign in enumerate(campaigns, 1):
-            response_text += f"{i}. **{campaign['name']}** ({campaign['status']})\n"
-            response_text += f"   - Leads: {campaign['leads']}, Posts: {campaign['posts']}\n"
-
-        return response_text
-
-    def _handle_campaign_query(self, user_id: str) -> str:
-        """
-        Handle campaign-related queries with service role key access.
-
-        Uses service role key for direct database access, bypassing JWT auth.
-        This is the standard pattern for server-side operations.
-
-        Args:
-            user_id: User UUID from Next.js session
-
-        Returns:
-            Formatted response with campaign information or error message
-        """
-        try:
-            # Get user context (service role key bypasses RLS)
-            user_data = self._get_user_context(user_id)
-            if not user_data:
-                return "I couldn't find your account information. Please refresh the page and try again."
-
-            client_id = user_data.get('client_id')
-            if not client_id:
-                return "I couldn't find your client association. Please contact support."
-
-            print(f"[ORCHESTRATOR] Fetching campaigns for user {user_id}, client {client_id}", file=sys.stderr)
-
-            # Fetch campaigns with metrics (service role key bypasses RLS)
-            campaigns = self._fetch_campaigns_with_metrics(client_id)
-
-            print(f"[ORCHESTRATOR] Found {len(campaigns)} campaigns", file=sys.stderr)
-
-            # Format and return response
-            return self._format_campaigns_response(campaigns)
-
-        except Exception as e:
-            print(f"[ORCHESTRATOR] Campaign query failed: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            return "I encountered an issue while fetching your campaigns. Please try again or contact support if the problem persists."
 
     @property
     def current_memory_key(self) -> Optional[str]:
@@ -315,7 +148,7 @@ class HGCOrchestrator:
 
             Be helpful and ALWAYS use your tools to fetch real data.""",
             tools=all_tools,
-            model="gpt-4"
+            model="gpt-4o"
         )
 
     async def process(self, messages: List[Dict[str, str]], user_id: str, pod_id: str) -> str:
@@ -379,13 +212,6 @@ class HGCOrchestrator:
         last_user_message = InputValidator.sanitize_message(last_user_message)
 
         print(f"[ORCHESTRATOR] Last user message: '{last_user_message[:100]}'", file=sys.stderr)
-
-        # CRITICAL FIX: Agent stopped calling ALL tools (AgentKit bug)
-        # Force direct tool execution for known patterns to bypass broken agent
-        if any(keyword in last_user_message.lower() for keyword in CAMPAIGN_KEYWORDS):
-            print(f"[ORCHESTRATOR] FORCING direct tool call (agent broken)", file=sys.stderr)
-            # Handle campaign query with service role key (no auth token needed)
-            return self._handle_campaign_query(user_id)
 
         try:
             # Create runner and run agent
