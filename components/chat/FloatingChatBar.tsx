@@ -827,8 +827,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   <button
                     onClick={() => setShowSaveToCampaignModal(true)}
                     className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                    aria-label="Save to campaign"
-                    title="Save document to campaign"
+                    aria-label="Save document"
+                    title="Save to knowledge base (optionally link to campaign)"
                   >
                     <Save className="w-4 h-4 text-gray-600" />
                   </button>
