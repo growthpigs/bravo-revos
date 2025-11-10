@@ -399,6 +399,45 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
+      // Detect response type by Content-Type header
+      const contentType = response.headers.get('content-type') || '';
+      const isJsonResponse = contentType.includes('application/json');
+
+      console.log('[HGC_STREAM] Response Content-Type:', contentType, 'Is JSON:', isJsonResponse);
+
+      // HANDLE JSON RESPONSES (no tool calls)
+      if (isJsonResponse) {
+        console.log('[HGC_STREAM] Handling JSON response');
+        const data = await response.json();
+        console.log('[HGC_STREAM] JSON data:', { response: data.response?.substring(0, 100), success: data.success });
+
+        if (data.response) {
+          const assistantContent = data.response;
+
+          // Create assistant message with response content
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: assistantContent,
+            createdAt: new Date(),
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+          console.log('[HGC_STREAM] JSON response added to messages. Length:', assistantContent.length);
+
+          // Auto-fullscreen if content > 500 chars
+          if (assistantContent.length > 500 && !isFullscreen) {
+            console.log('[HGC_STREAM] Auto-fullscreen triggered for JSON response');
+            setIsFullscreen(true);
+            setDocumentContent(assistantContent);
+            extractDocumentTitle(assistantContent);
+          }
+        }
+        setIsLoading(false);
+        return; // Exit early - JSON response is complete
+      }
+
+      // HANDLE STREAMING RESPONSES (with tool calls)
       if (!response.body) {
         throw new Error('No response body');
       }
