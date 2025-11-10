@@ -414,10 +414,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Expanded sidebar view (RIGHT side, embedded)
   if (isExpanded) {
+    console.log('[FloatingChatBar] EXPANDED VIEW RENDERING - Banner should be visible!');
     return (
       <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col">
         {/* Top Banner */}
-        <div className="px-4 py-2.5 border-b border-gray-300 flex justify-between items-center bg-gray-100">
+        <div className="px-4 py-3 border-b-2 border-blue-500 flex justify-between items-center bg-blue-50 min-h-[48px]" data-testid="chat-banner">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-gray-700" />
             <h2 className="text-base font-semibold text-gray-900">Holy Grail Chat</h2>
