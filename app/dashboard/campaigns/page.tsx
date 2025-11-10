@@ -1,35 +1,70 @@
-import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+'use client'
+
+import React, { useEffect, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Megaphone, TrendingUp, Users2 } from 'lucide-react'
+import { Plus, Megaphone, Grid3x3, List, Loader } from 'lucide-react'
+import { CampaignCardView } from '@/components/dashboard/CampaignCardView'
+import { CampaignTableView } from '@/components/dashboard/CampaignTableView'
 import Link from 'next/link'
 
-export const dynamic = 'force-dynamic'
+interface Campaign {
+  id: string
+  name: string
+  description?: string
+  status: string
+  total_leads: number
+  total_conversions: number
+  created_at: string
+  document_count?: number
+}
 
-export default async function CampaignsPage() {
-  const supabase = await createClient()
+export default function CampaignsPage() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userData } = await supabase
-    .from('users')
-    .select('client_id')
-    .eq('id', user?.id || '')
-    .single()
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      try {
+        setIsLoading(true)
+        const res = await fetch('/api/campaigns?limit=100')
+        if (res.ok) {
+          const data = await res.json()
+          const campaignList = data.campaigns || data.data || []
 
-  const { data: campaigns } = await supabase
-    .from('campaigns')
-    .select('*')
-    .eq('client_id', userData?.client_id || '')
-    .order('created_at', { ascending: false })
+          // Fetch document counts for each campaign
+          const campaignsWithDocs = await Promise.all(
+            campaignList.map(async (campaign: Campaign) => {
+              try {
+                const docRes = await fetch(
+                  `/api/campaigns/${campaign.id}/documents?limit=1`
+                )
+                if (docRes.ok) {
+                  const docData = await docRes.json()
+                  return {
+                    ...campaign,
+                    document_count: docData.count || 0,
+                  }
+                }
+              } catch (error) {
+                console.error('[CAMPAIGNS] Error fetching docs for campaign:', error)
+              }
+              return campaign
+            })
+          )
 
-  const statusColors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-700',
-    active: 'bg-emerald-100 text-emerald-700',
-    paused: 'bg-amber-100 text-amber-700',
-    completed: 'bg-blue-100 text-blue-700',
-    archived: 'bg-gray-100 text-gray-500',
-  }
+          setCampaigns(campaignsWithDocs)
+        }
+      } catch (error) {
+        console.error('[CAMPAIGNS] Error fetching campaigns:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCampaigns()
+  }, [])
 
   return (
     <div className="p-8">
@@ -48,52 +83,49 @@ export default async function CampaignsPage() {
         </Link>
       </div>
 
-      {campaigns && campaigns.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {campaigns.map((campaign) => (
-            <Card key={campaign.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <Megaphone className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-lg">{campaign.name}</CardTitle>
-                  </div>
-                  <Badge className={statusColors[campaign.status]} variant="secondary">
-                    {campaign.status}
-                  </Badge>
-                </div>
-                {campaign.description && (
-                  <CardDescription className="line-clamp-2">
-                    {campaign.description}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <Users2 className="h-4 w-4 text-gray-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-gray-900">
-                      {campaign.total_leads || 0}
-                    </p>
-                    <p className="text-xs text-gray-600">Leads</p>
-                  </div>
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <TrendingUp className="h-4 w-4 text-gray-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-gray-900">
-                      {campaign.total_conversions || 0}
-                    </p>
-                    <p className="text-xs text-gray-600">Conversions</p>
-                  </div>
-                </div>
-                <Link href={`/dashboard/campaigns/${campaign.id}`}>
-                  <Button variant="outline" className="w-full">
-                    View Details
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
+      {/* View Toggle */}
+      {campaigns.length > 0 && (
+        <div className="mb-6 flex items-center gap-2">
+          <div className="flex gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="Grid view"
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          <span className="text-sm text-gray-600">
+            {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''}
+          </span>
         </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      ) : campaigns && campaigns.length > 0 ? (
+        viewMode === 'grid' ? (
+          <CampaignCardView campaigns={campaigns} />
+        ) : (
+          <CampaignTableView campaigns={campaigns} />
+        )
       ) : (
         <Card className="text-center py-12">
           <CardContent>
