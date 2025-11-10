@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
-import { spawn } from 'child_process'
-import path from 'path'
 
 /**
  * POST /api/hgc
- * Holy Grail Chat - Phase 2 with Python orchestrator
+ * Holy Grail Chat - Proxying to HGCR backend
  *
- * Uses Python orchestrator with AgentKit + Mem0 + RevOS tools
+ * Proxies requests to fast HGCR server (http://localhost:8000)
+ * HGCR handles AgentKit + Mem0 + RevOS tools
  */
 export async function POST(request: NextRequest) {
   const requestStartTime = Date.now()
@@ -74,131 +73,48 @@ export async function POST(request: NextRequest) {
       auth_token: session.access_token
     }
 
-    console.log('[HGC_API] Calling Python orchestrator...')
-    const subprocessStartTime = Date.now()
+    console.log('[HGC_API] Proxying to HGCR backend...')
+    const hgcrStartTime = Date.now()
 
-    // Call Python runner with Python 3.11 explicitly (requires 3.10+)
-    const pythonPath = path.join(process.cwd(), 'packages', 'holy-grail-chat', 'core', 'runner.py')
-    const python = spawn('python3.11', [pythonPath], {
-      env: {
-        ...process.env,
-        HGC_CONTEXT: JSON.stringify(context)
-      }
-    })
-
-    // Collect response
-    const encoder = new TextEncoder()
-    const readable = new ReadableStream({
-      async start(controller) {
-        let buffer = ''
-        let errorBuffer = ''
-        let cleanedUp = false
-
-        const cleanup = () => {
-          if (cleanedUp) return
-          cleanedUp = true
-
-          try {
-            python.stdout.removeAllListeners()
-            python.stderr.removeAllListeners()
-            python.removeAllListeners()
-
-            // Kill process if still running
-            if (!python.killed) {
-              python.kill('SIGTERM')
-            }
-          } catch (e) {
-            console.error('[HGC_API] Cleanup error:', e)
-          }
-        }
-
-        try {
-          const handleStdout = (data: Buffer) => {
-            buffer += data.toString()
-          }
-
-          const handleStderr = (data: Buffer) => {
-            errorBuffer += data.toString()
-          }
-
-          const handleClose = (code: number | null) => {
-            const subprocessDuration = Date.now() - subprocessStartTime
-            console.log('[HGC_API] Python process closed with code:', code)
-            console.log(`[HGC_TIMING] Subprocess completed in ${subprocessDuration}ms`)
-
-            // ALWAYS log stderr (debug logs go here)
-            if (errorBuffer) {
-              console.log('[HGC_API] Python stderr:', errorBuffer)
-            }
-
-            if (code !== 0) {
-              console.error('[HGC_API] Python error:', errorBuffer)
-              controller.error(new Error(`Python error: ${errorBuffer}`))
-              cleanup()
-              return
-            }
-
-            try {
-              console.log('[HGC_API] Attempting to parse buffer, length:', buffer.length)
-              const result = JSON.parse(buffer)
-              console.log('[HGC_API] Parse successful, result:', result)
-
-              if (result.error) {
-                console.error('[HGC_API] Python returned error:', result.error)
-                controller.enqueue(encoder.encode(`Error: ${result.error}`))
-              } else if (result.content) {
-                console.log('[HGC_API] Streaming content, length:', result.content.length)
-                // Stream the content word by word for better UX
-                const words = result.content.split(' ')
-                for (let i = 0; i < words.length; i++) {
-                  controller.enqueue(encoder.encode(words[i] + ' '))
-                }
-              }
-              controller.close()
-
-              const totalDuration = Date.now() - requestStartTime
-              console.log('[HGC_API] Controller closed successfully')
-              console.log(`[HGC_TIMING] Total request: ${totalDuration}ms (subprocess: ${subprocessDuration}ms)`)
-            } catch (e) {
-              console.error('[HGC_API] Error in streaming:', e)
-              console.error('[HGC_API] Buffer contents:', buffer)
-              controller.error(new Error('Failed to process Python response'))
-            } finally {
-              cleanup()
-            }
-          }
-
-          const handleError = (error: Error) => {
-            console.error('[HGC_API] Python spawn error:', error)
-            controller.error(error)
-            cleanup()
-          }
-
-          python.stdout.on('data', handleStdout)
-          python.stderr.on('data', handleStderr)
-          python.on('close', handleClose)
-          python.on('error', handleError)
-        } catch (error) {
-          console.error('[HGC_API] Stream error:', error)
-          controller.error(error instanceof Error ? error : new Error(String(error)))
-          cleanup()
-        }
-      },
-      cancel() {
-        // Called when stream is cancelled (user navigates away)
-        console.log('[HGC_API] Stream cancelled by client')
-        if (!python.killed) {
-          python.kill('SIGTERM')
-        }
-      }
-    })
-
-    return new Response(readable, {
+    // Proxy to fast HGCR server
+    const hgcrResponse = await fetch('http://localhost:8000/chat', {
+      method: 'POST',
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        messages,
+        context: {
+          user_id: user.id,
+          client_id: userData.client_id,
+          pod_id: podId,
+          api_base_url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          mem0_key: process.env.MEM0_API_KEY || '',
+          openai_key: process.env.OPENAI_API_KEY || '',
+          auth_token: session.access_token
+        }
+      })
+    })
+
+    if (!hgcrResponse.ok) {
+      const error = await hgcrResponse.text()
+      console.error('[HGC_API] HGCR error:', error)
+      return new Response(`HGCR error: ${error}`, { status: hgcrResponse.status })
+    }
+
+    const hgcrDuration = Date.now() - hgcrStartTime
+    const totalDuration = Date.now() - requestStartTime
+    console.log(`[HGC_TIMING] HGCR response: ${hgcrDuration}ms`)
+    console.log(`[HGC_TIMING] Total request: ${totalDuration}ms`)
+
+    // Stream response from HGCR
+    return new Response(hgcrResponse.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-      },
+      }
     })
   } catch (error) {
     console.error('[HGC_API] Error:', error)
@@ -214,8 +130,9 @@ export async function GET() {
   return Response.json({
     status: 'ok',
     service: 'Holy Grail Chat',
-    version: '2.0.0-phase2',
-    mode: 'python-orchestrator',
-    features: ['AgentKit', 'Mem0', 'RevOS Tools'],
+    version: '3.0.0-hgcr',
+    mode: 'hgcr-proxy',
+    backend: 'http://localhost:8000',
+    features: ['AgentKit', 'Mem0', 'RevOS Tools', 'Fast Response'],
   })
 }
