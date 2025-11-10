@@ -47,6 +47,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  // Draggable sidebar resizer
+  const [chatWidth, setChatWidth] = useState(408); // Default chat width in pixels
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartWidthRef = useRef(0);
+
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
     if (!showMessages) return;
@@ -72,9 +78,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     };
   }, [showMessages]);
 
-  // Initialize conversations from localStorage
+  // Initialize conversations and sidebar width from localStorage
   useEffect(() => {
     setIsMounted(true);
+
+    // Load saved sidebar width
+    const savedWidth = localStorage.getItem('chat_sidebar_width');
+    if (savedWidth) {
+      setChatWidth(parseInt(savedWidth, 10));
+    }
+
+    // Load conversations
     const stored = localStorage.getItem('chat_conversations');
     if (stored) {
       try {
@@ -106,6 +120,35 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       localStorage.setItem('chat_conversations', JSON.stringify(conversations));
     }
   }, [conversations, isMounted]);
+
+  // Handle resizer drag events
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+
+      const delta = e.clientX - dragStartXRef.current;
+      const newWidth = dragStartWidthRef.current + delta;
+
+      // Min chat width: 250px, Max: 500px
+      const constrainedWidth = Math.max(250, Math.min(500, newWidth));
+      setChatWidth(constrainedWidth);
+      localStorage.setItem('chat_sidebar_width', constrainedWidth.toString());
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      document.body.style.userSelect = 'auto';
+      document.body.style.cursor = 'auto';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -557,16 +600,35 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     );
   }
 
+  // Handle resizer mousedown
+  const handleResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = chatWidth;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  };
+
   // Expanded sidebar view (RIGHT side, embedded) - with ChatSDK-style history
   if (isExpanded) {
     console.log('[FloatingChatBar] EXPANDED VIEW RENDERING - Banner should be visible!');
     const groupedConversations = getGroupedConversations();
     const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
 
+    const historyWidth = showChatHistory && hasAnyConversations ? 192 : 0;
+    const totalWidth = chatWidth + historyWidth;
+
     return (
-      <div className="fixed right-0 top-16 bottom-0 w-[600px] flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200">
+      <div
+        className="fixed right-0 top-16 bottom-0 flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200"
+        style={{ width: `${totalWidth}px` }}
+      >
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div
+          className="flex flex-col bg-white relative"
+          style={{ width: `${chatWidth}px` }}
+        >
           {/* Minimal Top Banner with icon navigation - match history banner height */}
           <div className="h-16 px-2 border-b border-gray-200 flex items-center gap-1">
             {/* Fullscreen icon (square with rounded corners) */}
@@ -699,9 +761,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </form>
         </div>
 
+        {/* Resizer divider */}
+        {showChatHistory && hasAnyConversations && (
+          <div
+            onMouseDown={handleResizerMouseDown}
+            className="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize transition-colors"
+            style={{
+              userSelect: 'none',
+            }}
+          />
+        )}
+
         {/* Chat History Sidebar - ChatSDK Style (on the RIGHT) */}
         {showChatHistory && hasAnyConversations && (
-          <div className="w-48 border-l border-gray-200 flex flex-col bg-gray-50">
+          <div
+            className="flex flex-col bg-gray-50 border-l border-gray-200"
+            style={{ width: `${historyWidth}px` }}
+          >
             {/* ChatSDK-style Header - same height as main banner */}
             <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
