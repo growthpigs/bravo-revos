@@ -675,13 +675,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                       <p className="mb-4 last:mb-0 text-gray-700 leading-relaxed">{children}</p>
                     ),
                     h1: ({ children }) => (
-                      <h1 className="text-3xl font-bold mb-6 text-gray-900">{children}</h1>
+                      <h1 className="text-5xl font-bold mb-8 text-gray-900">{children}</h1>
                     ),
                     h2: ({ children }) => (
-                      <h2 className="text-2xl font-semibold mb-4 mt-8 text-gray-900">{children}</h2>
+                      <h2 className="text-4xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
                     ),
                     h3: ({ children }) => (
-                      <h3 className="text-xl font-semibold mb-3 mt-6 text-gray-900">{children}</h3>
+                      <h3 className="text-3xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
                     ),
                     ul: ({ children }) => (
                       <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
