@@ -574,12 +574,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       <div className="h-full w-full flex bg-white border-l border-gray-200 pt-16 animate-in slide-in-from-right duration-200">
         {/* Chat History Sidebar - ChatSDK Style */}
         {showChatHistory && hasAnyConversations && (
-          <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
-            {/* ChatSDK-style Header */}
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
-                <div className="flex gap-2">
+          <div className="w-64 border-r border-gray-200 flex flex-col bg-gray-50">
+            {/* ChatSDK-style Header - same height as main banner */}
+            <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
+              <div className="flex gap-2">
                   {/* New conversation button */}
                   <button
                     onClick={createNewConversation}
@@ -606,7 +605,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   </button>
                 </div>
               </div>
-            </div>
 
             {/* Conversations List - Time grouped */}
             <div className="flex-1 overflow-y-auto">
