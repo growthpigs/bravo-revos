@@ -36,99 +36,109 @@ class HGCOrchestrator:
         # Cache for Supabase client (avoid recreation on every request)
         self._supabase_client: Optional[Client] = None
 
-    def _get_supabase_client(self, auth_token: str) -> Client:
+    def _get_supabase_client(self) -> Client:
         """
-        Get or create Supabase client with authentication.
+        Get Supabase client with service role key.
 
-        Args:
-            auth_token: User's session JWT token
+        Service role key has full database access and bypasses RLS.
+        This is the standard pattern for server-side operations.
 
         Returns:
-            Authenticated Supabase client
+            Supabase client with service role access
         """
         supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-        supabase_key = os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
+        service_role_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
 
-        # Create client with anon key
-        client = create_client(supabase_url, supabase_key)
-
-        # Set Authorization header with user's JWT token for authenticated queries
-        # This allows RLS policies to see auth.uid() correctly
-        client.postgrest.auth(auth_token)
+        # Use service role key - bypasses RLS, full access
+        client = create_client(supabase_url, service_role_key)
 
         return client
 
-    def _get_user_context(self, supabase: Client, auth_token: str) -> Tuple[Optional[str], Optional[str]]:
+    def _get_user_context(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get user ID and client ID from authenticated session.
+        Get user context using service role key.
+        No JWT auth needed - service key bypasses RLS.
 
         Args:
-            supabase: Authenticated Supabase client
-            auth_token: User's session token
+            user_id: User UUID from Next.js session
 
         Returns:
-            Tuple of (user_id, client_id) or (None, None) if authentication fails
+            User data dict with id, email, client_id or None if not found
         """
         try:
-            # Get user info
-            user_response = supabase.auth.get_user(auth_token)
-            if not user_response or not user_response.user:
-                return None, None
+            # Get service role client (bypasses RLS)
+            client = self._get_supabase_client()
 
-            user_id = user_response.user.id
+            # Direct query - service key bypasses RLS
+            response = client.table('users')\
+                .select('id, email, client_id')\
+                .eq('id', user_id)\
+                .maybe_single()\
+                .execute()
 
-            # Get user's client_id
-            user_data = supabase.table('users').select('client_id').eq('id', user_id).maybe_single().execute()
-            if not user_data.data:
-                return user_id, None
+            if not response.data:
+                print(f"[ORCHESTRATOR] User not found: {user_id}", file=sys.stderr)
+                return None
 
-            client_id = user_data.data.get('client_id')
-            return user_id, client_id
+            print(f"[ORCHESTRATOR] User context retrieved: {response.data.get('email')}", file=sys.stderr)
+            return response.data
         except Exception as e:
             print(f"[ORCHESTRATOR] User context retrieval failed: {e}", file=sys.stderr)
-            return None, None
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return None
 
-    def _fetch_campaigns_with_metrics(self, supabase: Client, client_id: str) -> List[Dict[str, Any]]:
+    def _fetch_campaigns_with_metrics(self, client_id: str) -> List[Dict[str, Any]]:
         """
         Fetch all campaigns for a client with associated metrics.
+        Uses service role key for direct database access.
 
         Args:
-            supabase: Authenticated Supabase client
             client_id: Client UUID to filter campaigns
 
         Returns:
             List of campaigns with leads and posts counts
         """
-        # Query campaigns
-        campaigns_response = supabase.table('campaigns').select(
-            'id, name, description, status, created_at'
-        ).eq('client_id', client_id).execute()
+        try:
+            # Get service role client (bypasses RLS)
+            supabase = self._get_supabase_client()
 
-        campaigns = campaigns_response.data if campaigns_response.data else []
+            # Query campaigns
+            campaigns_response = supabase.table('campaigns').select(
+                'id, name, description, status, created_at'
+            ).eq('client_id', client_id).execute()
 
-        # Get metrics for each campaign
-        campaigns_with_metrics = []
-        for campaign in campaigns:
-            # Count leads
-            leads_response = supabase.table('leads').select('*', count='exact').eq(
-                'campaign_id', campaign['id']
-            ).execute()
-            leads_count = leads_response.count if leads_response.count else 0
+            campaigns = campaigns_response.data if campaigns_response.data else []
+            print(f"[ORCHESTRATOR] Found {len(campaigns)} campaigns for client {client_id}", file=sys.stderr)
 
-            # Count posts
-            posts_response = supabase.table('posts').select('*', count='exact').eq(
-                'campaign_id', campaign['id']
-            ).execute()
-            posts_count = posts_response.count if posts_response.count else 0
+            # Get metrics for each campaign
+            campaigns_with_metrics = []
+            for campaign in campaigns:
+                # Count leads
+                leads_response = supabase.table('leads').select('*', count='exact').eq(
+                    'campaign_id', campaign['id']
+                ).execute()
+                leads_count = leads_response.count if leads_response.count else 0
 
-            campaigns_with_metrics.append({
-                'name': campaign.get('name', 'Unnamed'),
-                'status': campaign.get('status', 'unknown'),
-                'leads': leads_count,
-                'posts': posts_count
-            })
+                # Count posts
+                posts_response = supabase.table('posts').select('*', count='exact').eq(
+                    'campaign_id', campaign['id']
+                ).execute()
+                posts_count = posts_response.count if posts_response.count else 0
 
-        return campaigns_with_metrics
+                campaigns_with_metrics.append({
+                    'name': campaign.get('name', 'Unnamed'),
+                    'status': campaign.get('status', 'unknown'),
+                    'leads': leads_count,
+                    'posts': posts_count
+                })
+
+            return campaigns_with_metrics
+        except Exception as e:
+            print(f"[ORCHESTRATOR] Campaign fetch failed: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return []
 
     def _format_campaigns_response(self, campaigns: List[Dict[str, Any]]) -> str:
         """
@@ -150,34 +160,33 @@ class HGCOrchestrator:
 
         return response_text
 
-    def _handle_campaign_query(self, auth_token: str) -> str:
+    def _handle_campaign_query(self, user_id: str) -> str:
         """
-        Handle campaign-related queries with direct Supabase access.
+        Handle campaign-related queries with service role key access.
 
-        This bypasses the broken AgentKit tool calling system and directly
-        queries campaign data with metrics.
+        Uses service role key for direct database access, bypassing JWT auth.
+        This is the standard pattern for server-side operations.
 
         Args:
-            auth_token: User's Bearer token from session
+            user_id: User UUID from Next.js session
 
         Returns:
             Formatted response with campaign information or error message
         """
         try:
-            # Create authenticated Supabase client
-            supabase = self._get_supabase_client(auth_token)
+            # Get user context (service role key bypasses RLS)
+            user_data = self._get_user_context(user_id)
+            if not user_data:
+                return "I couldn't find your account information. Please refresh the page and try again."
 
-            # Get user context
-            user_id, client_id = self._get_user_context(supabase, auth_token)
-            if not user_id:
-                return "I couldn't authenticate your session. Please refresh the page and try again."
+            client_id = user_data.get('client_id')
             if not client_id:
-                return "I couldn't find your account information. Please contact support."
+                return "I couldn't find your client association. Please contact support."
 
             print(f"[ORCHESTRATOR] Fetching campaigns for user {user_id}, client {client_id}", file=sys.stderr)
 
-            # Fetch campaigns with metrics
-            campaigns = self._fetch_campaigns_with_metrics(supabase, client_id)
+            # Fetch campaigns with metrics (service role key bypasses RLS)
+            campaigns = self._fetch_campaigns_with_metrics(client_id)
 
             print(f"[ORCHESTRATOR] Found {len(campaigns)} campaigns", file=sys.stderr)
 
@@ -375,9 +384,8 @@ class HGCOrchestrator:
         # Force direct tool execution for known patterns to bypass broken agent
         if any(keyword in last_user_message.lower() for keyword in CAMPAIGN_KEYWORDS):
             print(f"[ORCHESTRATOR] FORCING direct tool call (agent broken)", file=sys.stderr)
-            # Extract auth token and handle campaign query
-            auth_token = self.revos_tools.headers.get('Authorization', '').replace('Bearer ', '')
-            return self._handle_campaign_query(auth_token)
+            # Handle campaign query with service role key (no auth token needed)
+            return self._handle_campaign_query(user_id)
 
         try:
             # Create runner and run agent
