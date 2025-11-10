@@ -25,13 +25,6 @@ interface FloatingChatBarProps {
 }
 
 export function FloatingChatBar({ className }: FloatingChatBarProps) {
-  // Diagnostic: render counter
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  if (renderCountRef.current % 5 === 0) {
-    console.log('[DIAG_RESIZER] Component rendered', renderCountRef.current, 'times');
-  }
-
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -137,14 +130,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle resizer drag events (both left and middle resizers)
   useEffect(() => {
-    console.log('[DIAG_RESIZER] useEffect mounted - listeners being attached');
-
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingRef.current || !resizerTypeRef.current) {
         return;
       }
-
-      console.log('[DIAG_RESIZER] mousemove fired! isDragging:', isDraggingRef.current, 'type:', resizerTypeRef.current, 'clientX:', e.clientX);
 
       const delta = e.clientX - dragStartXRef.current;
 
@@ -175,7 +164,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     };
 
     const handleMouseUp = () => {
-      console.log('[DIAG_RESIZER] mouseup fired - drag ended');
       isDraggingRef.current = false;
       resizerTypeRef.current = null;
       document.body.style.userSelect = 'auto';
@@ -184,10 +172,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-    console.log('[DIAG_RESIZER] listeners attached to document');
 
     return () => {
-      console.log('[DIAG_RESIZER] useEffect cleanup - removing listeners (isDragging was:', isDraggingRef.current, ')');
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -642,27 +628,25 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   }
 
   // Handle left resizer mousedown (expand/shrink entire sidebar)
+  // NOTE: Direction may feel backwards - user drags right to expand left side, etc
   const handleLeftResizerMouseDown = (e: React.MouseEvent) => {
-    console.log('[DIAG_RESIZER] LEFT mousedown at X:', e.clientX, 'setting isDragging to true');
     e.preventDefault();
     isDraggingRef.current = true;
     resizerTypeRef.current = 'left';
     dragStartXRef.current = e.clientX;
     dragStartWidthRef.current = sidebarWidth;
-    console.log('[DIAG_RESIZER] Refs set - isDragging:', isDraggingRef.current, 'type:', resizerTypeRef.current);
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'col-resize';
   };
 
   // Handle middle resizer mousedown (redistribute chat/history within fixed total)
+  // NOTE: Direction may feel backwards - user drags right to shrink chat area, etc
   const handleMiddleResizerMouseDown = (e: React.MouseEvent) => {
-    console.log('[DIAG_RESIZER] MIDDLE mousedown at X:', e.clientX, 'setting isDragging to true');
     e.preventDefault();
     isDraggingRef.current = true;
     resizerTypeRef.current = 'middle';
     dragStartXRef.current = e.clientX;
     dragStartWidthRef.current = chatWidth;
-    console.log('[DIAG_RESIZER] Refs set - isDragging:', isDraggingRef.current, 'type:', resizerTypeRef.current);
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'col-resize';
   };
