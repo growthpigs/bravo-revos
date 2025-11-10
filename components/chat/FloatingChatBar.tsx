@@ -425,22 +425,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         if (data.response) {
           const assistantContent = data.response;
+          const cleanContent = stripIntroText(assistantContent);
 
-          // Create assistant message with response content
+          // Create assistant message with cleaned content (intro text removed)
           const assistantMessage: Message = {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
-            content: assistantContent,
+            content: cleanContent,
             createdAt: new Date(),
           };
 
           setMessages(prev => [...prev, assistantMessage]);
-          console.log('[HGC_STREAM] JSON response added to messages. Length:', assistantContent.length);
+          console.log('[HGC_STREAM] JSON response added to messages. Length:', cleanContent.length);
 
           // Auto-fullscreen if content > 500 chars
-          if (assistantContent.length > 500 && !isFullscreen) {
+          if (cleanContent.length > 500 && !isFullscreen) {
             console.log('[HGC_STREAM] Auto-fullscreen triggered for JSON response');
-            const cleanContent = stripIntroText(assistantContent);
             setIsFullscreen(true);
             setDocumentContent(cleanContent);
             extractDocumentTitle(cleanContent);
@@ -566,6 +566,20 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     parts: [{ type: 'text' as const, text: msg.content }],
   });
 
+  // Handle expand button click - find last long message and show in fullscreen
+  const handleMessageExpand = () => {
+    // Find the last assistant message with content > 500 chars
+    const longMessage = [...messages].reverse().find(
+      msg => msg.role === 'assistant' && msg.content.length > 500
+    );
+
+    if (longMessage) {
+      setIsFullscreen(true);
+      setDocumentContent(longMessage.content);
+      extractDocumentTitle(longMessage.content);
+    }
+  };
+
   // Don't render if minimized
   if (isMinimized) {
     return (
@@ -589,7 +603,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {!isDocumentMaximized && (
         <div className="w-96 border-r border-gray-200 flex flex-col bg-white">
           {/* Top Navigation Bar - Document Title & Actions */}
-          <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <h2 className="text-sm font-semibold text-gray-900 truncate">{documentTitle}</h2>
             </div>
@@ -601,6 +615,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   setIsExpanded(false);
                   setIsMinimized(false);
                   setIsDocumentMaximized(false);
+                  setShowMessages(true);  // Auto-open message panel
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                 aria-label="Close fullscreen"
@@ -626,6 +641,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   key={message.id}
                   message={convertToUIMessage(message)}
                   isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+                  onExpand={handleMessageExpand}
                 />
               ))
             )}
@@ -643,7 +659,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 bg-white">
+          <form onSubmit={handleSubmit} className="p-3 bg-white">
             <div className="flex gap-2 items-flex-end">
               <textarea
                 ref={textareaRef}
@@ -679,31 +695,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         {/* RIGHT PANEL: Document Viewer - Full width when maximized */}
         <div className={cn("overflow-hidden bg-white flex flex-col", isDocumentMaximized ? "flex-1" : "flex-1")}>
-          {/* Document Header - with title and expand button */}
-          <div className="h-14 px-6 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
+          {/* Document Header */}
+          <div className="h-14 px-6 bg-gray-50 flex items-center flex-shrink-0">
             <h2 className="text-sm font-semibold text-gray-900">{documentTitle}</h2>
-            <button
-              onClick={() => setIsDocumentMaximized(!isDocumentMaximized)}
-              className="p-2 hover:bg-gray-200 rounded border border-gray-300 transition-colors flex-shrink-0"
-              aria-label="Expand document"
-              title={isDocumentMaximized ? "Collapse to split view" : "Expand to full width"}
-            >
-              <svg
-                className="w-4 h-4 text-gray-700"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-              </svg>
-            </button>
           </div>
           {/* Document Content Area */}
-          <div className="flex-1 overflow-y-auto p-12">
-            <div className="max-w-3xl mx-auto">
+          <div className="flex-1 overflow-y-auto px-16 py-12">
+            <div className="max-w-4xl mx-auto">
               {documentContent ? (
                 <div className="prose prose-lg max-w-none">
                   <ReactMarkdown
@@ -715,13 +713,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                       <p className="mb-4 last:mb-0 text-gray-700 leading-relaxed">{children}</p>
                     ),
                     h1: ({ children }) => (
-                      <h1 className="text-5xl font-bold mb-8 text-gray-900">{children}</h1>
+                      <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
                     ),
                     h2: ({ children }) => (
-                      <h2 className="text-4xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
+                      <h2 className="text-5xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
                     ),
                     h3: ({ children }) => (
-                      <h3 className="text-3xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
+                      <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
                     ),
                     ul: ({ children }) => (
                       <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
@@ -735,6 +733,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                     blockquote: ({ children }) => (
                       <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
                     ),
+                    hr: () => null,
                   }}
                 >
                   {documentContent}
@@ -865,6 +864,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   key={message.id}
                   message={convertToUIMessage(message)}
                   isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+                  onExpand={handleMessageExpand}
                 />
               ))
             )}
@@ -1080,6 +1080,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   key={message.id}
                   message={convertToUIMessage(message)}
                   isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+                  onExpand={handleMessageExpand}
                 />
               ))}
             </div>

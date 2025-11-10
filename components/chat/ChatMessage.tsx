@@ -7,9 +7,10 @@ import ReactMarkdown from 'react-markdown';
 interface ChatMessageProps {
   message: UIMessage;
   isLoading?: boolean;
+  onExpand?: () => void;
 }
 
-export function ChatMessage({ message, isLoading }: ChatMessageProps) {
+export function ChatMessage({ message, isLoading, onExpand }: ChatMessageProps) {
   const isUser = message.role === 'user';
 
   // Extract text from message parts
@@ -29,11 +30,14 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
     console.log('[ChatMessage] Loading state:', { isLoading, messageText: messageText.substring(0, 50), hasText: !!messageText });
   }
 
+  // Check if message is long enough to show expand button
+  const showExpandButton = !isUser && onExpand && messageText.length > 500;
+
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'px-4 py-2.5 rounded-xl text-sm',
+          'relative px-6 py-4 rounded-xl text-sm',
           isUser
             ? 'bg-gray-900 text-white max-w-[90%]'
             : 'bg-gray-100 text-gray-900 max-w-[80%]'
@@ -81,11 +85,23 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
                     {children}
                   </a>
                 ),
+                // Remove horizontal rules
+                hr: () => null,
               }}
             >
               {messageText}
             </ReactMarkdown>
           )
+        )}
+
+        {/* Expand button - small dashed square in top-right corner of message */}
+        {showExpandButton && (
+          <button
+            onClick={onExpand}
+            className="absolute top-2 right-2 w-4 h-4 border-2 border-dashed border-gray-400 rounded hover:border-gray-600 transition-colors"
+            aria-label="Expand document"
+            title="Click to expand and view full document"
+          />
         )}
       </div>
     </div>
