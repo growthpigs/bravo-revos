@@ -2,6 +2,7 @@
 
 import type { UIMessage } from 'ai';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 interface ChatMessageProps {
   message: UIMessage;
@@ -47,9 +48,43 @@ export function ChatMessage({ message, isLoading }: ChatMessageProps) {
           </div>
         ) : (
           messageText && (
-            <div className="whitespace-pre-wrap break-words">
+            <ReactMarkdown
+              components={{
+                // Bold text
+                strong: ({ children }) => (
+                  <strong className="font-bold">{children}</strong>
+                ),
+                // Paragraphs - proper spacing
+                p: ({ children }) => (
+                  <p className="mb-2 last:mb-0">{children}</p>
+                ),
+                // Unordered lists
+                ul: ({ children }) => (
+                  <ul className="list-disc ml-4 my-2 space-y-1">{children}</ul>
+                ),
+                // Ordered lists
+                ol: ({ children }) => (
+                  <ol className="list-decimal ml-4 my-2 space-y-1">{children}</ol>
+                ),
+                // List items
+                li: ({ children }) => (
+                  <li className="mb-0.5">{children}</li>
+                ),
+                // Links
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:no-underline"
+                  >
+                    {children}
+                  </a>
+                ),
+              }}
+            >
               {messageText}
-            </div>
+            </ReactMarkdown>
           )
         )}
       </div>

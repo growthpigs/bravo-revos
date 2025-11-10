@@ -69,6 +69,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isExpanded, isMinimized, showMessages]);
 
+  // Auto-fullscreen detection
+  const shouldGoFullscreen = (message: string) => {
+    const keywords = [
+      'write a post',
+      'write a linkedin post',
+      'create a post',
+      'draft a post',
+      'write an article',
+      'write an essay',
+      'create a document',
+      'draft',
+    ];
+    return keywords.some(k => message.toLowerCase().includes(k));
+  };
+
   // Handle form submission
   const handleSubmit = async (e: FormEvent) => {
     console.log('[HGC_STREAM] ========================================');
@@ -92,6 +107,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
+
+    // Check if should auto-expand to fullscreen
+    if (shouldGoFullscreen(userMessage.content)) {
+      console.log('[AUTO-FULLSCREEN] Triggered by keywords in:', userMessage.content);
+      setIsFullscreen(true);
+    }
+
     setInput('');
     setIsLoading(true);
     setError(null);
@@ -602,9 +624,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setIsExpanded(true)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                onClick={() => {
+                  console.log('[EXPAND BUTTON] Clicked! Setting isExpanded to true');
+                  setIsExpanded(true);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors bg-yellow-200"
                 aria-label="Expand to sidebar"
+                title="Click to expand chat"
               >
                 <Maximize2 className="w-4 h-4 text-gray-600" />
               </button>
