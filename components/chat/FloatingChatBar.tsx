@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
-import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu } from 'lucide-react';
+import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 
@@ -10,6 +10,14 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   createdAt: Date;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface FloatingChatBarProps {
@@ -26,12 +34,52 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Conversation management
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesPanelRef = useRef<HTMLDivElement>(null);
   const floatingBarRef = useRef<HTMLFormElement>(null);
   const [showMessages, setShowMessages] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Initialize conversations from localStorage
+  useEffect(() => {
+    setIsMounted(true);
+    const stored = localStorage.getItem('chat_conversations');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Convert date strings back to Date objects
+        const restored = parsed.map((conv: any) => ({
+          ...conv,
+          createdAt: new Date(conv.createdAt),
+          updatedAt: new Date(conv.updatedAt),
+          messages: conv.messages.map((msg: any) => ({
+            ...msg,
+            createdAt: new Date(msg.createdAt),
+          })),
+        }));
+        setConversations(restored);
+        if (restored.length > 0 && !currentConversationId) {
+          setCurrentConversationId(restored[0].id);
+          setMessages(restored[0].messages);
+        }
+      } catch (error) {
+        console.error('Failed to load conversations:', error);
+      }
+    }
+  }, []);
+
+  // Save conversations to localStorage
+  useEffect(() => {
+    if (isMounted && conversations.length > 0) {
+      localStorage.setItem('chat_conversations', JSON.stringify(conversations));
+    }
+  }, [conversations, isMounted]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -54,6 +102,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [messages, isExpanded]);
 
+  // Save current conversation when messages change
+  useEffect(() => {
+    if (isMounted && currentConversationId) {
+      saveCurrentConversation();
+    }
+  }, [messages]);
+
   // Click outside to close message panel in floating bar
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -68,6 +123,106 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isExpanded, isMinimized, showMessages]);
+
+  // Helper: Generate conversation title from first message
+  const generateTitle = (content: string) => {
+    return content.substring(0, 30) + (content.length > 30 ? '...' : '');
+  };
+
+  // Helper: Create new conversation
+  const createNewConversation = () => {
+    const newConv: Conversation = {
+      id: Date.now().toString(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setConversations(prev => [newConv, ...prev]);
+    setCurrentConversationId(newConv.id);
+    setMessages([]);
+    setInput('');
+  };
+
+  // Helper: Save current messages to conversation
+  const saveCurrentConversation = () => {
+    if (currentConversationId && messages.length > 0) {
+      setConversations(prev =>
+        prev.map(conv =>
+          conv.id === currentConversationId
+            ? {
+                ...conv,
+                messages,
+                title: conv.title === 'New Chat' && messages.length > 0
+                  ? generateTitle(messages[0].content)
+                  : conv.title,
+                updatedAt: new Date(),
+              }
+            : conv
+        )
+      );
+    }
+  };
+
+  // Helper: Load conversation
+  const loadConversation = (conversationId: string) => {
+    const conv = conversations.find(c => c.id === conversationId);
+    if (conv) {
+      setCurrentConversationId(conversationId);
+      setMessages(conv.messages);
+      setInput('');
+    }
+  };
+
+  // Helper: Delete conversation
+  const deleteConversation = (conversationId: string) => {
+    setConversations(prev => prev.filter(c => c.id !== conversationId));
+    if (currentConversationId === conversationId) {
+      if (conversations.length > 1) {
+        const nextConv = conversations.find(c => c.id !== conversationId);
+        if (nextConv) {
+          loadConversation(nextConv.id);
+        }
+      } else {
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+    }
+  };
+
+  // Helper: Get conversations grouped by time
+  const getGroupedConversations = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const groups: Record<string, Conversation[]> = {
+      'Today': [],
+      'Yesterday': [],
+      'Last 7 days': [],
+      'Older': [],
+    };
+
+    conversations.forEach(conv => {
+      const convDate = new Date(conv.updatedAt);
+      const convDateOnly = new Date(convDate.getFullYear(), convDate.getMonth(), convDate.getDate());
+
+      if (convDateOnly.getTime() === today.getTime()) {
+        groups['Today'].push(conv);
+      } else if (convDateOnly.getTime() === yesterday.getTime()) {
+        groups['Yesterday'].push(conv);
+      } else if (convDateOnly.getTime() >= weekAgo.getTime()) {
+        groups['Last 7 days'].push(conv);
+      } else {
+        groups['Older'].push(conv);
+      }
+    });
+
+    return groups;
+  };
 
   // Auto-fullscreen detection
   const shouldGoFullscreen = (message: string) => {
@@ -94,6 +249,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     if (!input.trim() || isLoading) {
       console.log('[HGC_STREAM] Early return - input empty or already loading');
       return;
+    }
+
+    // Create new conversation if needed
+    if (!currentConversationId) {
+      createNewConversation();
     }
 
     const userMessage: Message = {
@@ -260,45 +420,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   }
 
   // Fullscreen embedded view (takes full width, overlays content)
+  // NO CHAT HISTORY IN FULLSCREEN - matches ChatSDK design
   if (isFullscreen) {
     console.log('[FloatingChatBar] FULLSCREEN VIEW RENDERING!');
     return (
       <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white border-l border-gray-200 flex z-30 animate-in fade-in slide-in-from-right duration-200">
-          {/* Chat History Sidebar */}
-          {showChatHistory && (
-            <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
-              {/* History Header */}
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900">Chat History</h3>
-              </div>
-
-              {/* New Conversation Button */}
-              <div className="p-3">
-                <button className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-colors">
-                  + New Conversation
-                </button>
-              </div>
-
-              {/* Conversation List */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                {/* Placeholder conversations */}
-                <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition-colors">
-                  <p className="text-sm text-gray-900 font-medium truncate">Current conversation</p>
-                  <p className="text-xs text-gray-500 mt-1">Just now</p>
-                </div>
-                <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition-colors">
-                  <p className="text-sm text-gray-700 truncate">LinkedIn campaign help</p>
-                  <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
-                </div>
-                <div className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 cursor-pointer transition-colors">
-                  <p className="text-sm text-gray-700 truncate">Pod engagement analysis</p>
-                  <p className="text-xs text-gray-500 mt-1">Yesterday</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Main Chat Area */}
+          {/* Main Chat Area - No history sidebar in fullscreen */}
           <div className="flex-1 flex flex-col">
             {/* Minimal Top Banner with icon navigation */}
             <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
@@ -437,128 +564,233 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     );
   }
 
-  // Expanded sidebar view (RIGHT side, embedded)
+  // Expanded sidebar view (RIGHT side, embedded) - with ChatSDK-style history
   if (isExpanded) {
     console.log('[FloatingChatBar] EXPANDED VIEW RENDERING - Banner should be visible!');
+    const groupedConversations = getGroupedConversations();
+    const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
+
     return (
-      <div className="h-full w-96 bg-white border-l border-gray-200 flex flex-col pt-16 animate-in slide-in-from-right duration-200">
-        {/* Minimal Top Banner with icon navigation */}
-        <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
-          {/* Fullscreen icon (square with rounded corners) */}
-          <button
-            onClick={() => {
-              console.log('[SIDEBAR->FULLSCREEN] Clicked!');
-              setIsFullscreen(true);
-            }}
-            className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
-            aria-label="Fullscreen"
-            title="Switch to fullscreen"
-          >
-            <div className="w-3 h-3 border-2 border-gray-400 rounded"></div>
-          </button>
-
-          {/* Floating bar icon (horizontal rectangle) */}
-          <button
-            onClick={() => {
-              console.log('[SIDEBAR->FLOATING] Clicked!');
-              setIsExpanded(false);
-              setIsMinimized(false);
-            }}
-            className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
-            aria-label="Floating bar"
-            title="Switch to floating bar"
-          >
-            <div className="w-4 h-2 border-2 border-gray-400 rounded-sm"></div>
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div
-          ref={scrollAreaRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4"
-        >
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-500 mt-8">
-              <p className="text-sm">Start a conversation with your AI assistant</p>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <ChatMessage
-                key={message.id}
-                message={convertToUIMessage(message)}
-                isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-              />
-            ))
-          )}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
-              {error}
-              <button
-                onClick={clearError}
-                className="ml-2 text-xs underline hover:no-underline"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Input */}
-        <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
-          <div className="bg-white border border-gray-200 rounded-xl">
-            {isLoading ? (
-              <div className="flex items-center gap-1.5 px-4 py-3 h-[38px]">
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+      <div className="h-full w-full flex bg-white border-l border-gray-200 pt-16 animate-in slide-in-from-right duration-200">
+        {/* Chat History Sidebar - ChatSDK Style */}
+        {showChatHistory && hasAnyConversations && (
+          <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
+            {/* ChatSDK-style Header */}
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
+                <div className="flex gap-2">
+                  {/* New conversation button */}
+                  <button
+                    onClick={createNewConversation}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    aria-label="New conversation"
+                    title="New conversation"
+                  >
+                    <Plus className="w-4 h-4 text-gray-600" />
+                  </button>
+                  {/* Delete all conversations button */}
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete all conversations?')) {
+                        setConversations([]);
+                        setCurrentConversationId(null);
+                        setMessages([]);
+                      }
+                    }}
+                    className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                    aria-label="Delete all"
+                    title="Delete all conversations"
+                  >
+                    <Trash2 className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
               </div>
-            ) : (
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Revy wants to help! Type..."
-                className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
-                rows={1}
-                disabled={isLoading}
-              />
-            )}
-            <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Attach file"
-                  disabled
-                >
-                  <Paperclip className="w-4 h-4 text-gray-400" />
-                </button>
-                <button
-                  type="button"
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Voice input"
-                  disabled
-                >
-                  <Mic className="w-4 h-4 text-gray-400" />
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
-                  input.trim() && !isLoading
-                    ? "bg-gray-900 text-white hover:bg-gray-800"
-                    : "bg-gray-200 text-gray-400"
-                )}
-                aria-label="Send message"
-              >
-                <ArrowUp className="w-4 h-4" />
-              </button>
+            </div>
+
+            {/* Conversations List - Time grouped */}
+            <div className="flex-1 overflow-y-auto">
+              {Object.entries(groupedConversations).map(([timeGroup, convs]) =>
+                convs.length > 0 ? (
+                  <div key={timeGroup}>
+                    {/* Time Group Label */}
+                    <div className="px-4 pt-3 pb-2">
+                      <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {timeGroup}
+                      </h4>
+                    </div>
+
+                    {/* Conversations in this group */}
+                    {convs.map(conv => (
+                      <button
+                        key={conv.id}
+                        onClick={() => loadConversation(conv.id)}
+                        className={cn(
+                          "w-full text-left px-4 py-2 text-sm hover:bg-gray-200 transition-colors group flex items-center justify-between",
+                          currentConversationId === conv.id ? "bg-gray-200 text-gray-900 font-medium" : "text-gray-700"
+                        )}
+                      >
+                        <span className="truncate flex-1">{conv.title}</span>
+                        {/* Delete button appears on hover */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteConversation(conv.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-300 rounded ml-2"
+                          aria-label="Delete conversation"
+                        >
+                          <X className="w-3 h-3 text-gray-600" />
+                        </button>
+                      </button>
+                    ))}
+                  </div>
+                ) : null
+              )}
+
+              {/* End of history message */}
+              {hasAnyConversations && (
+                <div className="px-4 py-4 mt-4 text-center">
+                  <p className="text-xs text-gray-500">You have reached the end of your chat history</p>
+                </div>
+              )}
             </div>
           </div>
-        </form>
+        )}
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col bg-white">
+          {/* Minimal Top Banner with icon navigation */}
+          <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
+            {/* Fullscreen icon (square with rounded corners) */}
+            <button
+              onClick={() => {
+                console.log('[SIDEBAR->FULLSCREEN] Clicked!');
+                setIsFullscreen(true);
+              }}
+              className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
+              aria-label="Fullscreen"
+              title="Switch to fullscreen"
+            >
+              <div className="w-3 h-3 border-2 border-gray-400 rounded"></div>
+            </button>
+
+            {/* Floating bar icon (horizontal rectangle) */}
+            <button
+              onClick={() => {
+                console.log('[SIDEBAR->FLOATING] Clicked!');
+                setIsExpanded(false);
+                setIsMinimized(false);
+              }}
+              className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
+              aria-label="Floating bar"
+              title="Switch to floating bar"
+            >
+              <div className="w-4 h-2 border-2 border-gray-400 rounded-sm"></div>
+            </button>
+
+            {/* Spacer */}
+            <div className="flex-1"></div>
+
+            {/* Toggle chat history */}
+            <button
+              onClick={() => setShowChatHistory(!showChatHistory)}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Toggle chat history"
+              title="Toggle chat history"
+            >
+              <Menu className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div
+            ref={scrollAreaRef}
+            className="flex-1 overflow-y-auto p-4 space-y-4"
+          >
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-500 mt-8">
+                <p className="text-sm">Start a conversation with your AI assistant</p>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  message={convertToUIMessage(message)}
+                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+                />
+              ))
+            )}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                {error}
+                <button
+                  onClick={clearError}
+                  className="ml-2 text-xs underline hover:no-underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="bg-white border border-gray-200 rounded-xl">
+              {isLoading ? (
+                <div className="flex items-center gap-1.5 px-4 py-3 h-[38px]">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Revy wants to help! Type..."
+                  className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
+                  rows={1}
+                  disabled={isLoading}
+                />
+              )}
+              <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Attach file"
+                    disabled
+                  >
+                    <Paperclip className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Voice input"
+                    disabled
+                  >
+                    <Mic className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                    input.trim() && !isLoading
+                      ? "bg-gray-900 text-white hover:bg-gray-800"
+                      : "bg-gray-200 text-gray-400"
+                  )}
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
