@@ -264,7 +264,7 @@ async function handleGetCampaignById(campaign_id: string) {
   }
 }
 
-async function handleCreateCampaign(name: string, voice_id: string, description?: string) {
+async function handleCreateCampaign(name: string, voice_id?: string, description?: string) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()

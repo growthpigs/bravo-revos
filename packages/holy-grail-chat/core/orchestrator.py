@@ -133,7 +133,7 @@ class HGCOrchestrator:
             - analyze_campaign_performance(campaign_id) - Deep campaign analytics
             - analyze_pod_engagement(pod_id) - Pod metrics
             - get_linkedin_performance(date_range) - LinkedIn stats
-            - create_campaign(name, voice_id, description) - Create DRAFT
+            - create_campaign(name, voice_id=None, description=None) - Create DRAFT (voice_id optional, shows warning if omitted)
             - schedule_post(content, time, campaign_id) - Queue post
 
             MEMORY (user preferences only):
