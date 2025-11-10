@@ -766,12 +766,24 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Floating bar view (default)
   return (
-    <div className={cn(
-      "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
-      className
-    )}>
-      {/* Single cohesive container */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+    <>
+      {/* Blur overlay for canvas when chat is active */}
+      {showMessages && (
+        <div
+          className="fixed inset-0 left-64 bg-black/0 backdrop-blur-lg z-40 transition-all duration-200"
+          onClick={() => setShowMessages(false)}
+          style={{
+            pointerEvents: 'auto',
+          }}
+        />
+      )}
+
+      <div className={cn(
+        "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
+        className
+      )}>
+        {/* Single cohesive container */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
         {/* Messages Panel - Slides up from behind input */}
         {messages.length > 0 && showMessages && (
           <div
@@ -794,7 +806,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         <form ref={floatingBarRef} onSubmit={handleSubmit} className="relative">
           <div
             className="px-4 py-2 cursor-text"
-            onClick={() => textareaRef.current?.focus()}
+            onClick={() => {
+              textareaRef.current?.focus();
+              if (messages.length > 0) {
+                setShowMessages(true);
+              }
+            }}
           >
             {isLoading ? (
               <div className="flex items-center gap-1 h-6">
@@ -808,6 +825,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  if (messages.length > 0) {
+                    setShowMessages(true);
+                  }
+                }}
                 placeholder={messages.length === 0 ? "Revvy wants to help! Type..." : ""}
                 className="w-full bg-white text-gray-700 text-base outline-none resize-none placeholder-gray-500"
                 rows={1}
@@ -906,6 +928,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
