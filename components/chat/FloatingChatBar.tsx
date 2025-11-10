@@ -789,10 +789,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         />
       )}
 
-      <div className={cn(
-        "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
-        className
-      )}>
+      <div
+        className={cn(
+          "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
+          className
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Single cohesive container */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
         {/* Messages Panel - Slides up from behind input */}
