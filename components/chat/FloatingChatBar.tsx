@@ -134,32 +134,34 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       if (!isDraggingRef.current || !resizerTypeRef.current) return;
 
       const delta = e.clientX - dragStartXRef.current;
-      console.log('[RESIZER_DRAG]', resizerTypeRef.current, 'delta:', delta, 'dragStart:', dragStartXRef.current, 'current X:', e.clientX);
 
       if (resizerTypeRef.current === 'left') {
         // Left resizer: expand/shrink entire sidebar, chat grows, history stays fixed at 192px
         const newSidebarWidth = dragStartWidthRef.current + delta;
-        console.log('[LEFT_RESIZER] dragStartWidth:', dragStartWidthRef.current, 'newWidth:', newSidebarWidth);
 
-        // Min total: 350px (150 chat + 192 history + 1 divider), Max: 800px
+        // Constraints: Min 343px (150 chat min + 192 history + 1px divider), Max 800px
         const constrainedWidth = Math.max(343, Math.min(800, newSidebarWidth));
         setSidebarWidth(constrainedWidth);
         localStorage.setItem('chat_sidebar_width_total', constrainedWidth.toString());
       } else if (resizerTypeRef.current === 'middle') {
         // Middle resizer: redistribute fixed total width between chat and history
         const newChatWidth = dragStartWidthRef.current + delta;
-        console.log('[MIDDLE_RESIZER] dragStartWidth:', dragStartWidthRef.current, 'newWidth:', newChatWidth);
 
-        // Min chat width: 150px, Max: depends on sidebar - historyWidth (192)
-        const maxChat = sidebarWidth - 192 - 1; // -1 for divider
-        const constrainedWidth = Math.max(150, Math.min(maxChat, newChatWidth));
+        // Constraints:
+        // - Chat history minimum: 150px
+        // - Chat minimum: 150px
+        // - Calculate max chat based on sidebar width: (sidebar - 150 history - 8px divider)
+        const minChatWidth = 150;
+        const minHistoryWidth = 150;
+        const maxChatWidth = sidebarWidth - minHistoryWidth - 8; // 8px for divider
+
+        const constrainedWidth = Math.max(minChatWidth, Math.min(maxChatWidth, newChatWidth));
         setChatWidth(constrainedWidth);
         localStorage.setItem('chat_sidebar_width_chat', constrainedWidth.toString());
       }
     };
 
     const handleMouseUp = () => {
-      console.log('[RESIZER] mouseup - stopped dragging');
       isDraggingRef.current = false;
       resizerTypeRef.current = null;
       document.body.style.userSelect = 'auto';
@@ -173,7 +175,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [sidebarWidth]);
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -512,7 +514,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Fullscreen embedded view - ChatSDK-style two-panel layout
   // Left: Chat panel | Right: Document viewer
   if (isFullscreen) {
-    console.log('[FloatingChatBar] FULLSCREEN VIEW RENDERING!');
     return (
       <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
 
@@ -527,7 +528,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               {/* Close/Back to floating */}
               <button
                 onClick={() => {
-                  console.log('[FULLSCREEN->FLOATING] Clicked!');
                   setIsFullscreen(false);
                   setIsExpanded(false);
                   setIsMinimized(false);
@@ -627,7 +627,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle left resizer mousedown (expand/shrink entire sidebar)
   const handleLeftResizerMouseDown = (e: React.MouseEvent) => {
-    console.log('[LEFT_RESIZER] mousedown at X:', e.clientX, 'sidebarWidth:', sidebarWidth);
     e.preventDefault();
     isDraggingRef.current = true;
     resizerTypeRef.current = 'left';
@@ -639,7 +638,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle middle resizer mousedown (redistribute chat/history within fixed total)
   const handleMiddleResizerMouseDown = (e: React.MouseEvent) => {
-    console.log('[MIDDLE_RESIZER] mousedown at X:', e.clientX, 'chatWidth:', chatWidth);
     e.preventDefault();
     isDraggingRef.current = true;
     resizerTypeRef.current = 'middle';
@@ -651,7 +649,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Expanded sidebar view (RIGHT side, embedded) - with ChatSDK-style history
   if (isExpanded) {
-    console.log('[FloatingChatBar] EXPANDED VIEW RENDERING - Banner should be visible!');
     const groupedConversations = getGroupedConversations();
     const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
 
@@ -665,7 +662,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {/* Left resizer - expand/shrink entire sidebar */}
         <div
           onMouseDown={handleLeftResizerMouseDown}
-          className="group cursor-col-resize flex items-center justify-center flex-shrink-0 hover:bg-blue-100"
+          className="group cursor-col-resize flex items-center justify-center flex-shrink-0 hover:bg-gray-100"
           style={{
             userSelect: 'none',
             width: '8px',
@@ -687,7 +684,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             {/* Fullscreen icon (square with rounded corners) */}
             <button
               onClick={() => {
-                console.log('[SIDEBAR->FULLSCREEN] Clicked!');
                 setIsFullscreen(true);
               }}
               className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
@@ -700,7 +696,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             {/* Floating bar icon (horizontal rectangle) */}
             <button
               onClick={() => {
-                console.log('[SIDEBAR->FLOATING] Clicked!');
                 setIsExpanded(false);
                 setIsMinimized(false);
               }}
@@ -818,7 +813,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {showChatHistory && hasAnyConversations && (
           <div
             onMouseDown={handleMiddleResizerMouseDown}
-            className="group cursor-col-resize flex-shrink-0 flex items-center justify-center hover:bg-green-100"
+            className="group cursor-col-resize flex-shrink-0 flex items-center justify-center hover:bg-gray-100"
             style={{
               userSelect: 'none',
               width: '8px',
@@ -1013,7 +1008,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <button
                 type="button"
                 onClick={() => {
-                  console.log('[SIDEBAR BUTTON] Clicked! Setting isExpanded to true');
                   setIsExpanded(true);
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
@@ -1027,7 +1021,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <button
                 type="button"
                 onClick={() => {
-                  console.log('[FULLSCREEN BUTTON] Clicked! Setting isFullscreen to true');
                   setIsFullscreen(true);
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
