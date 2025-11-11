@@ -458,6 +458,19 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     ];
   };
 
+  // Get background color for action button (different gray shades)
+  const getButtonColor = (index: number, isPrimary?: boolean): string => {
+    if (isPrimary) return 'bg-gray-800 text-white hover:bg-gray-900';
+    const colors = [
+      'bg-gray-200 text-gray-800 hover:bg-gray-300',
+      'bg-gray-300 text-gray-800 hover:bg-gray-400',
+      'bg-gray-250 text-gray-800 hover:bg-gray-350',
+      'bg-gray-200 text-gray-700 hover:bg-gray-300',
+      'bg-gray-300 text-gray-700 hover:bg-gray-400',
+    ];
+    return colors[index % colors.length];
+  };
+
   // Handle action button clicks
   const handleActionClick = async (action: string, messageId?: string) => {
     console.log('[FCB] Action clicked:', action, 'messageId:', messageId);
@@ -1275,12 +1288,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
           {/* Action buttons - show under interactive messages in fullscreen mode */}
           {isFullscreen && message.content.length > 100 && (
-            <div className="mt-2.5 flex flex-wrap gap-2 ml-0">
-              {getDefaultActions().map((action) => (
+            <div className="mt-2.5 flex flex-wrap gap-[7px]">
+              {getDefaultActions().map((action, idx) => (
                 <button
                   key={action.id}
                   onClick={() => handleActionClick(action.action, message.id)}
-                  className="font-mono text-[11px] uppercase tracking-wide text-gray-700 hover:text-gray-900 transition-colors px-0 py-0.5 border-0 bg-transparent"
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                    getButtonColor(idx, action.primary)
+                  )}
                 >
                   {action.label}
                 </button>
@@ -1302,12 +1318,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         {/* Action buttons - show under assistant messages in fullscreen mode */}
         {message.role === 'assistant' && isFullscreen && message.content.length > 100 && (
-          <div className="mt-2.5 flex flex-wrap gap-2 ml-0">
-            {getDefaultActions().map((action) => (
+          <div className="mt-2.5 flex flex-wrap gap-[7px]">
+            {getDefaultActions().map((action, idx) => (
               <button
                 key={action.id}
                 onClick={() => handleActionClick(action.action, message.id)}
-                className="font-mono text-[11px] uppercase tracking-wide text-gray-700 hover:text-gray-900 transition-colors px-0 py-0.5 border-0 bg-transparent"
+                className={cn(
+                  "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                  getButtonColor(idx, action.primary)
+                )}
               >
                 {action.label}
               </button>
@@ -1552,12 +1571,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
                   {/* Action Buttons - Always show when there's document content */}
                   {documentContent && (
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      {getDefaultActions().map((action) => (
+                    <div className="mt-2.5 flex flex-wrap gap-[7px]">
+                      {getDefaultActions().map((action, idx) => (
                         <button
                           key={action.id}
                           onClick={() => handleActionClick(action.action)}
-                          className="font-mono text-[11px] uppercase tracking-wide text-gray-700 hover:text-gray-900 transition-colors px-0 py-0.5 border-0 bg-transparent"
+                          className={cn(
+                            "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                            getButtonColor(idx, action.primary)
+                          )}
                         >
                           {action.label}
                         </button>
