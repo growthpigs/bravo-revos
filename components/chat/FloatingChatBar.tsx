@@ -248,6 +248,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [showMessages, isExpanded]);
 
+  // Auto-scroll expanded/fullscreen chat when messages change
+  useEffect(() => {
+    if (scrollAreaRef.current && (isExpanded || isFullscreen)) {
+      setTimeout(() => {
+        if (scrollAreaRef.current) {
+          scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [messages, isExpanded, isFullscreen]);
+
   useEffect(() => {
     // Scroll sidebar when expanded OR fullscreen
     if (scrollAreaRef.current && (isExpanded || isFullscreen)) {
@@ -726,6 +737,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         setMessages([]);
         setCurrentConversationId(null);
         toast.success('Conversation cleared');
+      },
+      clearDocument: () => {
+        setDocumentContent('');
+        setDocumentTitle('Working Document');
       },
     };
 
@@ -1530,7 +1545,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 <textarea
                   ref={textareaRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Revy wants to help! Type..."
                   className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"

@@ -18,6 +18,7 @@ export interface SlashCommandContext {
   clearInput: () => void;
   setFullscreen: (enabled: boolean) => void;
   clearMessages: () => void;
+  clearDocument: () => void;
 }
 
 /**
@@ -29,8 +30,9 @@ export const slashCommands: SlashCommand[] = [
     name: 'write',
     description: 'Start writing a post (shows campaign selector)',
     category: 'content',
-    icon: '✍️',
     handler: async (args, ctx) => {
+      ctx.clearDocument();
+      ctx.setFullscreen(true);
       await ctx.sendMessage('write a post');
       ctx.clearInput();
     },
@@ -40,7 +42,6 @@ export const slashCommands: SlashCommand[] = [
     description: 'Generate content about a specific topic',
     category: 'content',
     args: '[topic]',
-    icon: '✨',
     handler: async (args, ctx) => {
       const topic = args.trim();
       if (topic) {
@@ -55,7 +56,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'refine',
     description: 'Improve and polish the current draft',
     category: 'content',
-    icon: '💎',
     handler: async (args, ctx) => {
       await ctx.sendMessage('refine this draft and make it better');
       ctx.clearInput();
@@ -65,7 +65,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'continue',
     description: 'Continue writing from current draft',
     category: 'content',
-    icon: '➡️',
     handler: async (args, ctx) => {
       await ctx.sendMessage('continue writing');
       ctx.clearInput();
@@ -76,7 +75,6 @@ export const slashCommands: SlashCommand[] = [
     description: 'Rewrite content in different style',
     category: 'content',
     args: '[style]',
-    icon: '🔄',
     handler: async (args, ctx) => {
       const style = args.trim() || 'professional';
       await ctx.sendMessage(`rewrite this in a ${style} style`);
@@ -89,7 +87,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'li-campaign',
     description: 'Launch a LinkedIn campaign (select → pod → content → post)',
     category: 'campaign',
-    icon: '🚀',
     aliases: ['launch', 'campaign'],
     handler: async (args, ctx) => {
       await ctx.sendMessage('launch campaign');
@@ -100,7 +97,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'campaigns',
     description: 'Show all your campaigns with stats',
     category: 'campaign',
-    icon: '📊',
     handler: async (args, ctx) => {
       await ctx.sendMessage('show me my campaigns');
       ctx.clearInput();
@@ -112,7 +108,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'pod-members',
     description: 'Show who\'s in your engagement pod',
     category: 'pod',
-    icon: '👥',
     handler: async (args, ctx) => {
       await ctx.sendMessage('show pod members');
       ctx.clearInput();
@@ -122,7 +117,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'pod-share',
     description: 'Share your latest post with pod for reposts',
     category: 'pod',
-    icon: '🔗',
     handler: async (args, ctx) => {
       await ctx.sendMessage('share with pod');
       ctx.clearInput();
@@ -132,7 +126,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'pod-engage',
     description: 'Get repost links from pod to engage with',
     category: 'pod',
-    icon: '💬',
     handler: async (args, ctx) => {
       await ctx.sendMessage('show pod repost links');
       ctx.clearInput();
@@ -142,7 +135,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'pod-stats',
     description: 'Show pod engagement statistics',
     category: 'pod',
-    icon: '📈',
     handler: async (args, ctx) => {
       await ctx.sendMessage('show pod stats');
       ctx.clearInput();
@@ -154,7 +146,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'help',
     description: 'Show all available commands',
     category: 'utility',
-    icon: '❓',
     handler: (args, ctx) => {
       // Don't send message - will show help UI inline
       const helpText = generateHelpText();
@@ -166,7 +157,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'clear',
     description: 'Clear conversation history',
     category: 'utility',
-    icon: '🗑️',
     handler: (args, ctx) => {
       ctx.clearMessages();
       ctx.clearInput();
@@ -176,7 +166,6 @@ export const slashCommands: SlashCommand[] = [
     name: 'fullscreen',
     description: 'Toggle fullscreen working documents mode',
     category: 'utility',
-    icon: '⛶',
     aliases: ['fs'],
     handler: (args, ctx) => {
       // Toggle fullscreen - handled by FloatingChatBar
