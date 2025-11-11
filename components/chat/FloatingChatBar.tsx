@@ -38,11 +38,19 @@ interface InteractiveData {
   content?: string;
 }
 
+interface ActionButton {
+  id: string;
+  label: string;
+  action: 'post_linkedin' | 'regenerate' | 'change_voice' | 'try_copywriting' | 'save' | 'schedule';
+  primary?: boolean;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   interactive?: InteractiveData;
+  actions?: ActionButton[];
   createdAt: Date;
 }
 
@@ -299,6 +307,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [isLoading, isFullscreen, isExpanded]);
 
+  // ESC key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        console.log('[FCB] ESC pressed - exiting fullscreen');
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
+
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
     return content.substring(0, 30) + (content.length > 30 ? '...' : '');
@@ -423,6 +443,53 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const h1Match = markdown.match(/^#\s+(.+)$/m);
     if (h1Match && h1Match[1]) {
       setDocumentTitle(h1Match[1].trim());
+    }
+  };
+
+  // Generate default action buttons for document content
+  const getDefaultActions = (): ActionButton[] => {
+    return [
+      { id: 'post_linkedin', label: 'POST TO LINKEDIN', action: 'post_linkedin', primary: true },
+      { id: 'try_new_style', label: 'TRY NEW STYLE', action: 'regenerate' },
+      { id: 'change_voice', label: 'DIFFERENT VOICE', action: 'change_voice' },
+      { id: 'try_copywriting', label: 'TRY COPYWRITING', action: 'try_copywriting' },
+      { id: 'save', label: 'SAVE', action: 'save' },
+      { id: 'schedule', label: 'SCHEDULE POST', action: 'schedule' },
+    ];
+  };
+
+  // Handle action button clicks
+  const handleActionClick = async (action: string, messageId?: string) => {
+    console.log('[FCB] Action clicked:', action, 'messageId:', messageId);
+
+    switch (action) {
+      case 'post_linkedin':
+        // TODO: Implement post to LinkedIn
+        toast.success('Post to LinkedIn - Coming soon!');
+        break;
+      case 'regenerate':
+        // Send "try a new style" to HGC
+        setInput('Try a new style for this content');
+        handleSubmit(new Event('submit') as any);
+        break;
+      case 'change_voice':
+        // TODO: Show voice cartridge selector
+        toast.info('Voice cartridge selector - Coming soon!');
+        break;
+      case 'try_copywriting':
+        // TODO: Show copywriting cartridge selector (future feature)
+        toast.info('Copywriting cartridge - Coming soon!');
+        break;
+      case 'save':
+        // Open save to campaign modal
+        setShowSaveToCampaignModal(true);
+        break;
+      case 'schedule':
+        // TODO: Implement schedule post
+        toast.info('Schedule post - Coming soon!');
+        break;
+      default:
+        console.warn('[FCB] Unknown action:', action);
     }
   };
 
@@ -1205,18 +1272,49 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               onSelect={handleDateTimeSelect}
             />
           )}
+
+          {/* Action buttons - show under interactive messages in fullscreen mode */}
+          {isFullscreen && message.content.length > 100 && (
+            <div className="mt-2.5 flex flex-wrap gap-2 ml-0">
+              {getDefaultActions().map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => handleActionClick(action.action, message.id)}
+                  className="font-mono text-[11px] uppercase tracking-wide text-gray-700 hover:text-gray-900 transition-colors px-0 py-0.5 border-0 bg-transparent"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
 
     // Regular message without interactive elements
     return (
-      <ChatMessage
-        key={message.id}
-        message={convertToUIMessage(message)}
-        isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-        onExpand={handleMessageExpand}
-      />
+      <div key={message.id}>
+        <ChatMessage
+          message={convertToUIMessage(message)}
+          isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+          onExpand={handleMessageExpand}
+        />
+
+        {/* Action buttons - show under assistant messages in fullscreen mode */}
+        {message.role === 'assistant' && isFullscreen && message.content.length > 100 && (
+          <div className="mt-2.5 flex flex-wrap gap-2 ml-0">
+            {getDefaultActions().map((action) => (
+              <button
+                key={action.id}
+                onClick={() => handleActionClick(action.action, message.id)}
+                className="font-mono text-[11px] uppercase tracking-wide text-gray-700 hover:text-gray-900 transition-colors px-0 py-0.5 border-0 bg-transparent"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -1449,6 +1547,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                     <div className="text-gray-400 text-center py-12">
                       <p className="text-sm">Document content will appear here</p>
                       <p className="text-xs mt-2">Ask me to write a post, article, or document</p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons - Always show when there's document content */}
+                  {documentContent && (
+                    <div className="mt-2.5 flex flex-wrap gap-2">
+                      {getDefaultActions().map((action) => (
+                        <button
+                          key={action.id}
+                          onClick={() => handleActionClick(action.action)}
+                          className="font-mono text-[11px] uppercase tracking-wide text-gray-700 hover:text-gray-900 transition-colors px-0 py-0.5 border-0 bg-transparent"
+                        >
+                          {action.label}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
