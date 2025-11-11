@@ -4,6 +4,12 @@ import { cookies } from 'next/headers'
 export async function createClient(options?: { isServiceRole?: boolean }) {
   const cookieStore = await cookies()
 
+  console.log('[AUTH_DEBUG] createClient called', {
+    isServiceRole: options?.isServiceRole,
+    cookieCount: cookieStore.getAll().length,
+    cookies: cookieStore.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
+  });
+
   // Use service role key if requested, otherwise use anon key
   const apiKey = options?.isServiceRole
     ? process.env.SUPABASE_SERVICE_ROLE_KEY!

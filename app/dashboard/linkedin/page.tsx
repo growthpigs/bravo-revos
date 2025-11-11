@@ -64,17 +64,40 @@ export default function LinkedInPage() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch('/api/user');
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[DEBUG_LINKEDIN] User profile data:', data);
-        // Auto-fill form with user data
-        if (data.full_name) {
-          setAccountName(data.full_name);
+      // Fetch user profile data
+      const userResponse = await fetch('/api/user');
+      let userData = null;
+      if (userResponse.ok) {
+        userData = await userResponse.json();
+        console.log('[DEBUG_LINKEDIN] User profile data:', userData);
+
+        // Pre-populate email from user profile
+        if (userData.email) {
+          setUsername(userData.email);
         }
-        if (data.email) {
-          setUsername(data.email);
+      }
+
+      // Check if user has existing LinkedIn account - use that name as priority
+      const accountsResponse = await fetch('/api/linkedin/accounts');
+      if (accountsResponse.ok) {
+        const accountsData = await accountsResponse.json();
+        console.log('[DEBUG_LINKEDIN] Existing LinkedIn accounts:', accountsData);
+
+        // Priority 1: If user has an existing LinkedIn account, pre-populate with LinkedIn name
+        if (accountsData.accounts && accountsData.accounts.length > 0) {
+          const firstAccount = accountsData.accounts[0];
+          if (firstAccount.profile_data?.name) {
+            setAccountName(firstAccount.profile_data.name);
+            console.log('[DEBUG_LINKEDIN] Pre-populated Account Name from LinkedIn:', firstAccount.profile_data.name);
+            return; // Found LinkedIn name, we're done
+          }
         }
+      }
+
+      // Priority 2: If no LinkedIn account exists yet, fall back to users.full_name
+      if (userData && userData.full_name) {
+        setAccountName(userData.full_name);
+        console.log('[DEBUG_LINKEDIN] Pre-populated Account Name from user profile:', userData.full_name);
       }
     } catch (error) {
       console.error('[DEBUG_LINKEDIN] Error fetching user profile:', error);
@@ -395,8 +418,10 @@ export default function LinkedInPage() {
             {!checkpointMode ? (
               <form onSubmit={handleAuthenticate} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm text-slate-500 font-normal">Account Name</label>
+                  <label className="text-sm text-slate-500 font-normal">Your LinkedIn Name</label>
                   <Input
+                    name="name"
+                    autoComplete="name"
                     placeholder="e.g., John Doe"
                     value={accountName}
                     onChange={(e) => setAccountName(e.target.value)}
@@ -404,7 +429,7 @@ export default function LinkedInPage() {
                     className="h-11"
                   />
                   <p className="text-xs text-gray-400">
-                    A friendly name to identify this account in the system
+                    Your name as it appears on your LinkedIn profile
                   </p>
                 </div>
 
@@ -412,6 +437,8 @@ export default function LinkedInPage() {
                   <label className="text-sm text-slate-500 font-normal">LinkedIn Email</label>
                   <Input
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     placeholder="your.email@linkedin.com"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -425,6 +452,8 @@ export default function LinkedInPage() {
                   <div className="relative">
                     <Input
                       type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      autoComplete="current-password"
                       placeholder="Your LinkedIn password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

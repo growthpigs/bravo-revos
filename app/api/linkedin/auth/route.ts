@@ -31,8 +31,9 @@ export async function POST(request: NextRequest) {
 
     let userId: string;
     let clientId: string;
-    // Use service role to bypass RLS policies for LinkedIn account management
-    let supabase = await createClient({ isServiceRole: true });
+
+    // Use service role for database operations (bypasses RLS)
+    const supabaseAdmin = await createClient({ isServiceRole: true });
 
     if (isDevelopment) {
       // Use fixed test user IDs for development (created by migration 013)
@@ -43,7 +44,8 @@ export async function POST(request: NextRequest) {
       console.log('[DEBUG_LINKEDIN] Test clientId:', clientId);
     } else {
       console.log('[DEBUG_LINKEDIN] Production mode: Checking authenticated user...');
-      // Get authenticated user in production
+      // Use regular client to check authentication
+      const supabase = await createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -57,9 +59,9 @@ export async function POST(request: NextRequest) {
 
       console.log('[DEBUG_LINKEDIN] ✅ User authenticated:', user.email);
 
-      // Get user's client info
+      // Get user's client info using admin client
       console.log('[DEBUG_LINKEDIN] Looking up user in database:', user.email);
-      const { data: userData, error: userError } = await supabase
+      const { data: userData, error: userError } = await supabaseAdmin
         .from('users')
         .select('id, client_id, email, full_name')
         .eq('email', user.email)
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch client's Unipile credentials
     console.log('[DEBUG_LINKEDIN] Looking up client configuration:', clientId);
-    const { data: clientData, error: clientError } = await supabase
+    const { data: clientData, error: clientError } = await supabaseAdmin
       .from('clients')
       .select('unipile_api_key, unipile_dsn, unipile_enabled, name')
       .eq('id', clientId)
@@ -176,7 +178,7 @@ export async function POST(request: NextRequest) {
         unipileAccountId
       });
 
-      const { data: linkedinAccount, error: insertError } = await supabase
+      const { data: linkedinAccount, error: insertError } = await supabaseAdmin
         .from('linkedin_accounts')
         .insert({
           user_id: userId,
@@ -277,7 +279,7 @@ export async function POST(request: NextRequest) {
       const sessionExpiresAt = new Date();
       sessionExpiresAt.setDate(sessionExpiresAt.getDate() + 90);
 
-      const { data: linkedinAccount, error: updateError } = await supabase
+      const { data: linkedinAccount, error: updateError } = await supabaseAdmin
         .from('linkedin_accounts')
         .upsert({
           unipile_account_id: accountId,
