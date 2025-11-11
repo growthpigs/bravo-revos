@@ -135,12 +135,26 @@ const trigger_dm_scraper = {
   }
 }
 
-// Tool 6: Get pod members (NEW)
+// Tool 6: Get all pods (NEW)
+const get_all_pods = {
+  type: 'function' as const,
+  function: {
+    name: 'get_all_pods',
+    description: 'Get all engagement pods the user belongs to. Use this first when user asks about pods without specifying which pod.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
+  }
+}
+
+// Tool 7: Get pod members (NEW)
 const get_pod_members = {
   type: 'function' as const,
   function: {
     name: 'get_pod_members',
-    description: 'Get all active members in an engagement pod.',
+    description: 'Get all active members in a specific engagement pod.',
     parameters: {
       type: 'object',
       properties: {
@@ -154,7 +168,7 @@ const get_pod_members = {
   }
 }
 
-// Tool 7: Send pod repost links (NEW)
+// Tool 8: Send pod repost links (NEW)
 const send_pod_repost_links = {
   type: 'function' as const,
   function: {
@@ -428,6 +442,57 @@ async function handleTriggerDMScraper(post_id: string, trigger_word?: string, le
     success: true,
     job: data,
     message: `DM monitoring started. Checking every 5 minutes for trigger word "${trigger_word || 'guide'}".`
+  }
+}
+
+async function handleGetAllPods() {
+  const supabase = await createClient()
+
+  // Get authenticated user
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  // Get all pods where user is a member
+  const { data: pods, error } = await supabase
+    .from('pods')
+    .select(`
+      id,
+      name,
+      description,
+      status,
+      pod_members (
+        id,
+        status
+      )
+    `)
+    .eq('status', 'active')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  if (!pods || pods.length === 0) {
+    return {
+      success: true,
+      pods: [],
+      message: "You're not in any engagement pods yet. Pods help boost your LinkedIn posts through coordinated engagement."
+    }
+  }
+
+  // Format pods with member counts
+  const formattedPods = pods.map((pod: any) => ({
+    id: pod.id,
+    name: pod.name,
+    description: pod.description,
+    member_count: pod.pod_members?.length || 0,
+    active_members: pod.pod_members?.filter((m: any) => m.status === 'active').length || 0
+  }))
+
+  return {
+    success: true,
+    pods: formattedPods
   }
 }
 
@@ -1042,7 +1107,7 @@ export async function POST(request: NextRequest) {
       if (userMessage.match(/^\/pod-members|^\/pod-share|^\/pod-engage|^\/pod-stats/i)) {
         console.log('[HGC_INTENT] Detected pod slash command')
         // Let OpenAI handle these via function calling with clear instruction
-        conversationHistory.push({
+        formattedMessages.push({
           role: 'system',
           content: `User executed slash command: ${userMessage}. Use the appropriate pod-related tool (get_pod_members, share_with_pod, etc.) to fulfill this request immediately. Do not ask for clarification - execute the action.`,
         })
@@ -1051,7 +1116,7 @@ export async function POST(request: NextRequest) {
       // INTENT: Show campaigns (slash command)
       if (userMessage.match(/^\/campaigns|show.*campaigns|list.*campaigns|my campaigns/i)) {
         console.log('[HGC_INTENT] Detected campaigns slash command')
-        conversationHistory.push({
+        formattedMessages.push({
           role: 'system',
           content: `User wants to see all campaigns. Use get_all_campaigns() tool immediately and display them with stats.`,
         })
@@ -1130,8 +1195,29 @@ When user wants to CREATE or MANAGE:
 - "activate campaign" / "pause campaign" → update_campaign_status(campaign_id, status)
 
 When user wants POD ENGAGEMENT:
+
+🎯 What are Engagement Pods?
+- Pods = Private groups of LinkedIn creators who boost each other's content
+- Members commit to like/comment/repost each other's posts for algorithm visibility
+- RevOS manages pod coordination, tracking, and repost link distribution
+
+Pod Slash Commands (HANDLE THESE IMMEDIATELY):
+- /pod-members → Show all members in user's pod
+- /pod-share [post_url] → Share post URL with pod for engagement
+- /pod-engage → Get list of repost links from pod to engage with
+- /pod-stats → Show pod engagement metrics and participation rates
+
+Natural Language Pod Requests:
 - "who's in my pod?" → get_pod_members(pod_id)
+- "show pod members" / "list pod" → get_pod_members(pod_id)
 - "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
+- "what are my pod obligations?" / "pod links" → send_pod_repost_links (to get pending links)
+
+🚨 IMPORTANT: If pod_id is missing:
+1. User likely doesn't know their pod_id (it's a UUID)
+2. Say: "Let me check your pods..." (don't ask them for pod_id)
+3. Future: Call get_all_pods() to list their pods
+4. For now: Use default pod_id or explain they need to set up pods first
 
 🚨 POSTING TO LINKEDIN - WORKING DOCUMENT FLOW 🚨
 
@@ -1226,6 +1312,7 @@ IMPORTANT:
         create_campaign,
         schedule_post,
         trigger_dm_scraper,
+        get_all_pods,
         get_pod_members,
         send_pod_repost_links,
         update_campaign_status,
@@ -1336,6 +1423,9 @@ IMPORTANT:
               functionArgs.trigger_word,
               functionArgs.lead_magnet_url
             )
+            break
+          case 'get_all_pods':
+            result = await handleGetAllPods()
             break
           case 'get_pod_members':
             result = await handleGetPodMembers(functionArgs.pod_id)
@@ -1470,6 +1560,7 @@ export async function GET() {
       'create_campaign',
       'schedule_post',
       'trigger_dm_scraper',
+      'get_all_pods',
       'get_pod_members',
       'send_pod_repost_links',
       'update_campaign_status'
