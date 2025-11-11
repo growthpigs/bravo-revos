@@ -3,6 +3,9 @@
 -- Purpose: Track individual DM sends and delivery status
 -- Apply at: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
 
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- DM Deliveries Table (tracking individual sends)
 CREATE TABLE IF NOT EXISTS dm_deliveries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -3,6 +3,18 @@
 -- Purpose: Store automated DM sequence configurations for campaigns
 -- Apply at: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
 
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create update_updated_at_column function if not exists
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- DM Sequences Table
 CREATE TABLE IF NOT EXISTS dm_sequences (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
