@@ -522,11 +522,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           }
 
           // Auto-fullscreen if content > 500 chars AND user triggered document creation
-          if (cleanContent.length > 500 && !isFullscreen && hasDocumentCreationTrigger()) {
-            console.log('[HGC_STREAM] Auto-fullscreen triggered for JSON response (trigger words matched)');
-            setIsFullscreen(true);
-            setDocumentContent(cleanContent);
-            extractDocumentTitle(cleanContent);
+          console.log('[FULLSCREEN_DEBUG] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
+          if (cleanContent.length > 500 && !isFullscreen) {
+            const shouldTrigger = hasDocumentCreationTrigger();
+            console.log('[FULLSCREEN_DEBUG] Checking trigger for JSON response, result:', shouldTrigger);
+            if (shouldTrigger) {
+              console.log('[HGC_STREAM] ✅ Auto-fullscreen triggered for JSON response (trigger words matched)');
+              setIsFullscreen(true);
+              setDocumentContent(cleanContent);
+              extractDocumentTitle(cleanContent);
+            }
           }
         }
         setIsLoading(false);
@@ -572,11 +577,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         assistantContent += chunk;
 
         // Auto-fullscreen when document content starts (>500 chars = actual document) AND trigger keywords matched
-        if (assistantContent.length > 500 && !isFullscreen && hasDocumentCreationTrigger()) {
-          setIsFullscreen(true);
-          const cleanContent = stripIntroText(assistantContent);
-          setDocumentContent(cleanContent);
-          extractDocumentTitle(cleanContent);
+        if (assistantContent.length > 500 && !isFullscreen) {
+          const shouldTrigger = hasDocumentCreationTrigger();
+          console.log('[FULLSCREEN_DEBUG] Streaming - content length:', assistantContent.length, 'shouldTrigger:', shouldTrigger);
+          if (shouldTrigger) {
+            console.log('[HGC_STREAM] ✅ Auto-fullscreen triggered for streaming response');
+            setIsFullscreen(true);
+            const cleanContent = stripIntroText(assistantContent);
+            setDocumentContent(cleanContent);
+            extractDocumentTitle(cleanContent);
+          }
         }
 
         // Keep document in sync if already in fullscreen
@@ -661,13 +671,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Handle expand button click - find last long message and show in fullscreen
   // Check if user's last message contains trigger keywords for document creation
   const hasDocumentCreationTrigger = () => {
-    if (messages.length === 0) return false;
+    console.log('[FULLSCREEN_DEBUG] hasDocumentCreationTrigger called, messages.length:', messages.length);
+
+    if (messages.length === 0) {
+      console.log('[FULLSCREEN_DEBUG] No messages, returning false');
+      return false;
+    }
 
     // Find the last user message
     const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
-    if (!lastUserMessage) return false;
+    if (!lastUserMessage) {
+      console.log('[FULLSCREEN_DEBUG] No user message found, returning false');
+      return false;
+    }
 
     const text = lastUserMessage.content.toLowerCase();
+    console.log('[FULLSCREEN_DEBUG] Last user message:', text);
 
     // Trigger keywords that indicate creative/document writing
     const triggerKeywords = ['write', 'compose', 'draft', 'create a post', 'create an article', 'create a document', 'post', 'article', 'blog', 'newsletter', 'email'];
@@ -676,12 +695,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const blockKeywords = ['create a campaign', 'create a cartridge', 'explain', 'tell me', 'analyze', 'help me', 'what is', 'how to', 'describe', 'summarize', 'list', 'show me'];
 
     // Check if any block keyword is present
-    if (blockKeywords.some(keyword => text.includes(keyword))) {
+    const hasBlockKeyword = blockKeywords.some(keyword => text.includes(keyword));
+    if (hasBlockKeyword) {
+      console.log('[FULLSCREEN_DEBUG] Block keyword found, returning false');
       return false;
     }
 
     // Check if any trigger keyword is present
-    return triggerKeywords.some(keyword => text.includes(keyword));
+    const hasTriggerKeyword = triggerKeywords.some(keyword => text.includes(keyword));
+    console.log('[FULLSCREEN_DEBUG] Trigger keyword found:', hasTriggerKeyword);
+
+    return hasTriggerKeyword;
   };
 
   const handleMessageExpand = () => {
