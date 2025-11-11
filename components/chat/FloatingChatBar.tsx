@@ -259,6 +259,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [messages]);
 
+  // Maintain focus in textarea after sending message
+  useEffect(() => {
+    if (!isLoading && textareaRef.current && !isFullscreen && !isExpanded) {
+      // Small timeout to ensure DOM has updated after state changes
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
+    }
+  }, [isLoading, isFullscreen, isExpanded]);
+
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
     return content.substring(0, 30) + (content.length > 30 ? '...' : '');
