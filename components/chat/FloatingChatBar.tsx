@@ -236,39 +236,51 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [input]);
 
-  // Scroll to bottom when messages update or panel opens
+  // Unified scroll handler for all chat panels
   useEffect(() => {
-    // Scroll to bottom when panel opens (showMessages changes)
-    if (messagesPanelRef.current && showMessages && !isExpanded) {
-      setTimeout(() => {
-        if (messagesPanelRef.current) {
-          messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
-        }
-      }, 0);
-    }
-  }, [showMessages, isExpanded]);
-
-  // Auto-scroll expanded/fullscreen chat when messages change
-  useEffect(() => {
+    // Scroll fullscreen/expanded left panel to bottom
     if (scrollAreaRef.current && (isExpanded || isFullscreen)) {
-      setTimeout(() => {
+      // Use longer delay to ensure DOM fully rendered + animation complete
+      const timeout = setTimeout(() => {
         if (scrollAreaRef.current) {
-          scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+          const scrollElement = scrollAreaRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Fullscreen panel scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 200); // 200ms accounts for fullscreen animation duration
+
+      return () => clearTimeout(timeout);
+    }
+
+    // Scroll floating message panel to bottom
+    if (messagesPanelRef.current && !isExpanded && !isFullscreen && messages.length > 0) {
+      const timeout = setTimeout(() => {
+        if (messagesPanelRef.current) {
+          const scrollElement = messagesPanelRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Floating panel scrolled to:', scrollElement.scrollHeight);
         }
       }, 100);
+
+      return () => clearTimeout(timeout);
     }
   }, [messages, isExpanded, isFullscreen]);
 
+  // Special handler: When fullscreen opens, scroll after animation completes
   useEffect(() => {
-    // Scroll sidebar when expanded OR fullscreen
-    if (scrollAreaRef.current && (isExpanded || isFullscreen)) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    if (isFullscreen && scrollAreaRef.current && messages.length > 0) {
+      // Wait for fullscreen animation to complete (200ms CSS transition)
+      const timeout = setTimeout(() => {
+        if (scrollAreaRef.current) {
+          const scrollElement = scrollAreaRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Fullscreen opened, scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 250); // 250ms = 200ms animation + 50ms buffer
+
+      return () => clearTimeout(timeout);
     }
-    // Scroll floating messages panel when NOT expanded
-    if (messagesPanelRef.current && !isExpanded && messages.length > 0) {
-      messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
-    }
-  }, [messages, isExpanded, isFullscreen]);
+  }, [isFullscreen]); // Only re-run when isFullscreen changes (not on every message)
 
   // Save current conversation when messages change
   useEffect(() => {
@@ -442,6 +454,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
 
+    // Check if user's message contains trigger keywords
+    // Open fullscreen immediately BEFORE waiting for assistant response
+    const shouldTriggerFullscreen = hasDocumentCreationTrigger();
+    if (shouldTriggerFullscreen && !isFullscreen) {
+      console.log('[FCB] User message triggered fullscreen mode:', input.trim());
+      setIsFullscreen(true);
+      // Pre-populate document area with placeholder while assistant types
+      setDocumentContent('Generating your content...');
+    }
+
     setInput('');
     setIsLoading(true);
     setError(null);
@@ -558,12 +580,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           }
 
           // Auto-fullscreen if content > 500 chars AND user triggered document creation
-          console.log('[FULLSCREEN_DEBUG] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
+          console.log('[FCB] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
           if (cleanContent.length > 500 && !isFullscreen) {
             const shouldTrigger = hasDocumentCreationTrigger();
-            console.log('[FULLSCREEN_DEBUG] Checking trigger for JSON response, result:', shouldTrigger);
+            console.log('[FCB] Checking trigger for JSON response, result:', shouldTrigger);
             if (shouldTrigger) {
-              console.log('[HGC_STREAM] ✅ Auto-fullscreen triggered for JSON response (trigger words matched)');
+              console.log('[FCB] Assistant response triggered fullscreen (JSON mode)');
               setIsFullscreen(true);
               setDocumentContent(cleanContent);
               extractDocumentTitle(cleanContent);
@@ -615,9 +637,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         // Auto-fullscreen when document content starts (>500 chars = actual document) AND trigger keywords matched
         if (assistantContent.length > 500 && !isFullscreen) {
           const shouldTrigger = hasDocumentCreationTrigger();
-          console.log('[FULLSCREEN_DEBUG] Streaming - content length:', assistantContent.length, 'shouldTrigger:', shouldTrigger);
+          console.log('[FCB] Streaming - content length:', assistantContent.length, 'shouldTrigger:', shouldTrigger);
           if (shouldTrigger) {
-            console.log('[HGC_STREAM] ✅ Auto-fullscreen triggered for streaming response');
+            console.log('[FCB] Assistant response triggered fullscreen (streaming mode)');
             setIsFullscreen(true);
             const cleanContent = stripIntroText(assistantContent);
             setDocumentContent(cleanContent);
