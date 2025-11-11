@@ -575,11 +575,17 @@ export async function POST(request: NextRequest) {
     const selectedCampaignId = body.campaign_id as string | undefined
     const selectedScheduleTime = body.schedule_time as string | undefined
 
-    // STEP 1: User made a decision (create new vs select existing)
+    // STEP 1: User made a decision (just write, create new, or select existing)
     if (workflowId && decision) {
       console.log('[HGC_INLINE] Decision received:', decision, 'workflow:', workflowId)
 
-      if (decision === 'select_existing') {
+      if (decision === 'just_write') {
+        // User wants to write without campaign - handled on frontend
+        return NextResponse.json({
+          success: true,
+          response: 'Got it! Go ahead and write your post. You can save it and link it to a campaign anytime.',
+        })
+      } else if (decision === 'select_existing') {
         // Fetch user's campaigns
         const campaignsResult = await handleGetAllCampaigns()
 
@@ -726,6 +732,12 @@ export async function POST(request: NextRequest) {
             type: 'decision',
             workflow_id: workflowId,
             decision_options: [
+              {
+                label: 'Just Write',
+                value: 'just_write',
+                icon: 'edit',
+                variant: 'secondary',
+              },
               {
                 label: 'Create New Campaign',
                 value: 'create_new',
@@ -906,7 +918,7 @@ IMPORTANT:
           // Generate unique workflow ID
           const workflowId = `workflow-${Date.now()}`
 
-          // Return decision buttons: Create New or Select Existing
+          // Return decision buttons: Just Write, Create New, or Select Existing
           return NextResponse.json({
             success: true,
             response: 'Would you like to create a new campaign or use an existing one?',
@@ -914,6 +926,12 @@ IMPORTANT:
               type: 'decision',
               workflow_id: workflowId,
               decision_options: [
+                {
+                  label: 'Just Write',
+                  value: 'just_write',
+                  icon: 'edit',
+                  variant: 'secondary',
+                },
                 {
                   label: 'Create New Campaign',
                   value: 'create_new',
