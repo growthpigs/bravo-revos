@@ -988,13 +988,28 @@ When user wants POD ENGAGEMENT:
 - "who's in my pod?" → get_pod_members(pod_id)
 - "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
 
-When user wants FULL CAMPAIGN EXECUTION:
-- "launch campaign about X" → MULTI-STEP WORKFLOW:
-  1. First check if campaign exists (get_all_campaigns)
-  2. If not, create_campaign(name, description) with trigger_word in description
-  3. ASK USER which lead magnet to use (if campaign doesn't have one)
-  4. ASK USER for post content OR offer to generate it from campaign description
-  5. Finally execute_linkedin_campaign(content, campaign_id, trigger_word)
+When user wants FULL CAMPAIGN EXECUTION (POST TO LINKEDIN NOW):
+- "launch campaign" / "launch [campaign name]" → MANDATORY MULTI-STEP WORKFLOW:
+
+  IMPORTANT: "Launch" means POST TO LINKEDIN RIGHT NOW, not just activate campaign status!
+
+  Step 1: Get campaign
+    - If campaign name provided, find it with get_campaign_by_id() or get_all_campaigns()
+    - If no campaign exists, create_campaign(name, description)
+
+  Step 2: Check requirements
+    - Does campaign have lead_magnet? If NO → ASK USER to select one
+    - Get post content from user
+
+  Step 3: Ask user for content
+    You MUST ask: "What content should I post for this campaign? Or should I generate content based on the campaign description?"
+    Wait for user response before proceeding.
+
+  Step 4: Execute posting
+    Once you have content + campaign_id + trigger_word → execute_linkedin_campaign(content, campaign_id, trigger_word)
+    This posts to LinkedIn + starts monitoring
+
+  NEVER just say "Let's get it launched!" without actually calling execute_linkedin_campaign()!
 
 - "post and monitor" / "go live with campaign [ID]" → execute_linkedin_campaign(content, campaign_id, trigger_word)
   * For when user has existing campaign + content ready
