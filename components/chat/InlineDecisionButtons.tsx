@@ -37,15 +37,17 @@ export function InlineDecisionButtons({
   };
 
   return (
-    <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-2 max-w-md">
+    <div className="flex flex-wrap gap-2">
       {options.map((option) => (
         <button
           key={option.value}
           onClick={() => handleClick(option.value)}
-          className={`w-full flex items-center justify-center px-4 py-3 rounded-lg font-medium text-sm transition-all ${
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
             option.variant === 'primary'
-              ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md'
-              : 'bg-white border-2 border-gray-300 text-gray-900 hover:border-blue-500 hover:bg-gray-50'
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : option.value === 'just_write'
+              ? 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+              : 'border border-gray-300 text-gray-900 hover:border-blue-500 hover:bg-blue-50'
           }`}
         >
           {getIcon(option.icon)}

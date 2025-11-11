@@ -716,6 +716,40 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const handleDecisionSelect = async (decision: string, workflowId?: string) => {
     console.log('[INLINE_FORM] Decision selected:', decision, 'workflow:', workflowId);
 
+    // Special handling for "just write first" - close workflow and let user write
+    if (decision === 'just_write') {
+      // Clear the interactive form by removing the last message with decision buttons
+      setMessages(prev => {
+        const newMessages = [...prev];
+        // Find and remove the last message with interactive elements
+        for (let i = newMessages.length - 1; i >= 0; i--) {
+          if (newMessages[i].interactive?.type === 'decision') {
+            newMessages.splice(i, 1);
+            break;
+          }
+        }
+        return newMessages;
+      });
+
+      // Add a friendly message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: 'Just write',
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Got it! Go ahead and write your post. You can save it and link it to a campaign anytime.',
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+      return; // Don't call backend
+    }
+
     // Add user message showing their choice
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -737,6 +771,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
       const data = await response.json();
 
       // Add assistant response (may contain next step of workflow)
@@ -754,7 +793,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       }
     } catch (err) {
       console.error('[INLINE_FORM] Error handling decision:', err);
-      toast.error('Failed to process your selection');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to process your selection';
+      toast.error(errorMsg);
     }
   };
 
