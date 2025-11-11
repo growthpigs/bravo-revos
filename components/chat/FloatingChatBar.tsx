@@ -107,6 +107,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [documentTitle, setDocumentTitle] = useState<string>('Working Document');
   const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [documentSourceMessageId, setDocumentSourceMessageId] = useState<string | null>(null); // Track which message is in document
   const [editedContent, setEditedContent] = useState<string>('');
   const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [showSaveToCampaignModal, setShowSaveToCampaignModal] = useState(false);
@@ -319,6 +320,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isFullscreen]);
 
+  // Auto-sync document content when fullscreen opens (if no content loaded yet)
+  useEffect(() => {
+    if (isFullscreen && !documentContent && messages.length > 0) {
+      // Find the most recent assistant message with substantial content (> 500 chars)
+      const latestContent = [...messages].reverse().find(
+        msg => msg.role === 'assistant' && msg.content.length > 500
+      );
+
+      if (latestContent) {
+        console.log('[FCB] Auto-syncing latest content to document area on fullscreen open');
+        setDocumentContent(latestContent.content);
+        setDocumentSourceMessageId(latestContent.id);
+        extractDocumentTitle(latestContent.content);
+      }
+    }
+  }, [isFullscreen, documentContent, messages]);
+
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
     return content.substring(0, 30) + (content.length > 30 ? '...' : '');
@@ -446,29 +464,27 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
-  // Generate default action buttons for document content
-  const getDefaultActions = (): ActionButton[] => {
+  // Fixed buttons - always present at bottom of chat when there's document content
+  const getFixedBarButtons = (): ActionButton[] => {
     return [
       { id: 'post_linkedin', label: 'POST TO LINKEDIN', action: 'post_linkedin', primary: true },
-      { id: 'try_new_style', label: 'TRY NEW STYLE', action: 'regenerate' },
-      { id: 'change_voice', label: 'DIFFERENT VOICE', action: 'change_voice' },
-      { id: 'try_copywriting', label: 'TRY COPYWRITING', action: 'try_copywriting' },
       { id: 'save', label: 'SAVE', action: 'save' },
       { id: 'schedule', label: 'SCHEDULE POST', action: 'schedule' },
     ];
   };
 
-  // Get background color for action button (different gray shades)
-  const getButtonColor = (index: number, isPrimary?: boolean): string => {
-    if (isPrimary) return 'bg-gray-800 text-white hover:bg-gray-900';
-    const colors = [
-      'bg-gray-200 text-gray-800 hover:bg-gray-300',
-      'bg-gray-300 text-gray-800 hover:bg-gray-400',
-      'bg-gray-250 text-gray-800 hover:bg-gray-350',
-      'bg-gray-200 text-gray-700 hover:bg-gray-300',
-      'bg-gray-300 text-gray-700 hover:bg-gray-400',
+  // Content-specific buttons - only under messages that synced to document area
+  const getContentButtons = (): ActionButton[] => {
+    return [
+      { id: 'try_new_style', label: 'TRY NEW STYLE', action: 'regenerate' },
+      { id: 'change_voice', label: 'DIFFERENT VOICE', action: 'change_voice' },
     ];
-    return colors[index % colors.length];
+  };
+
+  // Get background color for action button (consistent gray shades)
+  const getButtonColor = (isPrimary?: boolean): string => {
+    if (isPrimary) return 'bg-gray-800 text-white hover:bg-gray-900';
+    return 'bg-gray-400 text-gray-800 hover:bg-gray-500';
   };
 
   // Handle action button clicks
@@ -682,6 +698,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               console.log('[FCB] Assistant response triggered fullscreen (JSON mode)');
               setIsFullscreen(true);
               setDocumentContent(cleanContent);
+              setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
               extractDocumentTitle(cleanContent);
             }
           }
@@ -740,6 +757,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
             );
             setDocumentContent(cleanContent);
+            setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
             extractDocumentTitle(cleanContent);
           }
         }
@@ -751,6 +769,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
           );
           setDocumentContent(cleanContent);
+          setDocumentSourceMessageId(assistantMessage.id); // Keep tracking the same message
           extractDocumentTitle(cleanContent);
         }
 
@@ -970,6 +989,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     if (longMessage) {
       setIsFullscreen(true);
       setDocumentContent(longMessage.content);
+      setDocumentSourceMessageId(longMessage.id); // Track which message is in document
       extractDocumentTitle(longMessage.content);
     }
   };
@@ -1285,21 +1305,25 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             />
           )}
 
-          {/* Action buttons - show under interactive messages in fullscreen mode */}
-          {isFullscreen && message.content.length > 100 && (
-            <div className="mt-2.5 flex flex-wrap gap-[7px]">
-              {getDefaultActions().map((action, idx) => (
-                <button
-                  key={action.id}
-                  onClick={() => handleActionClick(action.action, message.id)}
-                  className={cn(
-                    "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
-                    getButtonColor(idx, action.primary)
-                  )}
-                >
-                  {action.label}
-                </button>
-              ))}
+          {/* Content-specific buttons - only show if this message is synced to document */}
+          {isFullscreen && documentSourceMessageId === message.id && (
+            <div className="mt-2.5">
+              {/* 2px separator line */}
+              <div className="h-[2px] bg-gray-300 mb-2.5 w-full" />
+              <div className="flex flex-wrap gap-[7px]">
+                {getContentButtons().map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action.action, message.id)}
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                      getButtonColor(action.primary)
+                    )}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1315,21 +1339,25 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           onExpand={handleMessageExpand}
         />
 
-        {/* Action buttons - show under assistant messages in fullscreen mode */}
-        {message.role === 'assistant' && isFullscreen && message.content.length > 100 && (
-          <div className="mt-2.5 flex flex-wrap gap-[7px]">
-            {getDefaultActions().map((action, idx) => (
-              <button
-                key={action.id}
-                onClick={() => handleActionClick(action.action, message.id)}
-                className={cn(
-                  "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
-                  getButtonColor(idx, action.primary)
-                )}
-              >
-                {action.label}
-              </button>
-            ))}
+        {/* Content-specific buttons - only show if this message is synced to document */}
+        {message.role === 'assistant' && isFullscreen && documentSourceMessageId === message.id && (
+          <div className="mt-2.5">
+            {/* 2px separator line */}
+            <div className="h-[2px] bg-gray-300 mb-2.5 w-full" />
+            <div className="flex flex-wrap gap-[7px]">
+              {getContentButtons().map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => handleActionClick(action.action, message.id)}
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                    getButtonColor(action.primary)
+                  )}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -1421,6 +1449,26 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               </div>
             )}
           </div>
+
+          {/* Fixed Action Button Bar - Always visible when there's document content */}
+          {documentContent && (
+            <div className="p-3 bg-gray-50 border-t border-gray-200">
+              <div className="flex gap-[7px]">
+                {getFixedBarButtons().map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action.action)}
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                      getButtonColor(action.primary)
+                    )}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Input Area */}
           <form onSubmit={handleSubmit} className="p-3 bg-white">
