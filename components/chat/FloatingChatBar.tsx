@@ -552,8 +552,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     if (shouldTriggerFullscreen && !isFullscreen) {
       console.log('[FCB] User message triggered fullscreen mode:', input.trim());
       setIsFullscreen(true);
-      // Pre-populate document area with placeholder while assistant types
-      setDocumentContent('Generating your content...');
+      // Document area stays blank until real content arrives
     }
 
     setInput('');
@@ -1562,30 +1561,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                         {documentContent}
                       </ReactMarkdown>
                     </div>
-                  ) : (
-                    <div className="text-gray-400 text-center py-12">
-                      <p className="text-sm">Document content will appear here</p>
-                      <p className="text-xs mt-2">Ask me to write a post, article, or document</p>
-                    </div>
-                  )}
-
-                  {/* Action Buttons - Always show when there's document content */}
-                  {documentContent && (
-                    <div className="mt-2.5 flex flex-wrap gap-[7px]">
-                      {getDefaultActions().map((action, idx) => (
-                        <button
-                          key={action.id}
-                          onClick={() => handleActionClick(action.action)}
-                          className={cn(
-                            "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
-                            getButtonColor(idx, action.primary)
-                          )}
-                        >
-                          {action.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}
