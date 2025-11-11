@@ -690,7 +690,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       msg => msg.role === 'assistant' && msg.content.length > 500
     );
 
-    if (longMessage && hasDocumentCreationTrigger()) {
+    // User explicitly clicked expand - open regardless of trigger keywords
+    if (longMessage) {
       setIsFullscreen(true);
       setDocumentContent(longMessage.content);
       extractDocumentTitle(longMessage.content);
