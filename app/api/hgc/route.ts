@@ -779,6 +779,18 @@ export async function POST(request: NextRequest) {
     if (workflowId && selectedCampaignId && !selectedScheduleTime) {
       console.log('[HGC_INLINE] Campaign selected:', selectedCampaignId, 'workflow:', workflowId)
 
+      // Check if user selected "Start a new post" (no campaign)
+      if (selectedCampaignId === 'new_post') {
+        console.log('[HGC_INLINE] New post selected - asking for topic')
+
+        return NextResponse.json({
+          success: true,
+          response: `Perfect! Let's write a fresh post.\n\nWhat would you like to write about? You can:\n1. Give me a topic (e.g., "AI in healthcare", "leadership tips")\n2. Provide your own content\n3. Describe what you want to say and I'll draft it\n\n<!-- campaign_id: none -->`,
+          workflow_id: workflowId,
+          campaign_id: null, // No campaign for standalone posts
+        })
+      }
+
       // Check if this is a LAUNCH workflow (post NOW) or SCHEDULE workflow (post later)
       const isLaunchWorkflow = workflowId.startsWith('launch-')
 
@@ -976,9 +988,9 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // INTENT: Launch Campaign (Post to LinkedIn NOW)
-      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin/i)) {
-        console.log('[HGC_INTENT] Detected launch_campaign intent - showing campaign selector')
+      // INTENT: Write/Launch Campaign (Post to LinkedIn)
+      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin|write.*post|let'?s write|compose.*post|create.*post/i)) {
+        console.log('[HGC_INTENT] Detected write/launch campaign intent - showing campaign selector')
 
         // Fetch campaigns
         const campaignsResult = await handleGetAllCampaigns()
@@ -993,18 +1005,28 @@ export async function POST(request: NextRequest) {
         // Generate workflow ID
         const workflowId = `launch-${Date.now()}`
 
+        // Add "Start a new post" option + existing campaigns
+        const campaignOptions = [
+          {
+            id: 'new_post',
+            name: '✨ Start a new post',
+            description: 'Write a post without linking to a campaign',
+          },
+          ...campaignsResult.campaigns.map((c: any) => ({
+            id: c.id,
+            name: c.name || 'Untitled Campaign',
+            description: c.status === 'draft' ? 'Draft campaign' : undefined,
+          })),
+        ];
+
         // Return campaign selector directly (skip decision step)
         return NextResponse.json({
           success: true,
-          response: 'Which campaign would you like to post to LinkedIn?',
+          response: 'What would you like to write about?',
           interactive: {
             type: 'campaign_select',
             workflow_id: workflowId,
-            campaigns: campaignsResult.campaigns.map((c: any) => ({
-              id: c.id,
-              name: c.name || 'Untitled Campaign',
-              description: c.status === 'draft' ? 'Draft campaign' : undefined,
-            })),
+            campaigns: campaignOptions,
           },
         })
       }
