@@ -514,7 +514,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             createdAt: new Date(),
           };
 
-          setMessages(prev => [...prev, assistantMessage]);
+          // Deduplicate: Only add if message with this ID doesn't already exist
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === assistantMessage.id);
+            if (exists) {
+              console.log('[HGC_STREAM] ⚠️  Message with ID', assistantMessage.id, 'already exists, skipping duplicate');
+              return prev;
+            }
+            return [...prev, assistantMessage];
+          });
           console.log('[HGC_STREAM] JSON response added to messages. Length:', cleanContent.length);
 
           if (data.interactive) {
