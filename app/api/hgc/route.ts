@@ -824,7 +824,7 @@ export async function POST(request: NextRequest) {
           interactive: {
             type: 'campaign_select',
             workflow_id: workflowId,
-            campaigns: campaignsResult.campaigns.map((c: any) => ({
+            campaigns: (campaignsResult.campaigns || []).map((c: any) => ({
               id: c.id,
               name: c.name || 'Untitled Campaign',
               description: c.status === 'draft' ? 'Draft campaign' : undefined,
@@ -938,11 +938,11 @@ export async function POST(request: NextRequest) {
           schedule_time: selectedScheduleTime,
         })
 
-        const scheduleResult = await handleSchedulePost({
-          content: postContent,
-          campaign_id: campaignId,
-          schedule_time: selectedScheduleTime,
-        })
+        const scheduleResult = await handleSchedulePost(
+          postContent,
+          selectedScheduleTime,
+          campaignId
+        )
 
         if (scheduleResult.success) {
           return NextResponse.json({
@@ -1317,7 +1317,7 @@ IMPORTANT:
 4. If user asks about campaigns, use get_all_campaigns() to see what exists first
 5. ALWAYS show campaign IDs (UUIDs) when listing campaigns - this is CRITICAL for scheduling`
         },
-        ...formattedMessages
+        ...formattedMessages.filter(msg => msg.role !== 'tool')
       ],
       tools: [
         get_all_campaigns,
@@ -1502,7 +1502,7 @@ EXAMPLES:
 
 Present tool results with intelligence, context, and strategic value.`
           },
-          ...formattedMessages,
+          ...formattedMessages.filter(msg => msg.role !== 'tool'),
           assistantMessage,
           ...toolResults
         ]
