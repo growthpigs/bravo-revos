@@ -108,6 +108,16 @@ export async function authenticateLinkedinAccount(
   try {
     const credentials = getUnipileCredentials(clientCredentials);
 
+    // DEBUG: Log credentials being used (mask API key for security)
+    console.log('[UNIPILE_DEBUG] Credentials being used:', {
+      dsn: credentials.dsn,
+      apiKey: credentials.apiKey ? `${credentials.apiKey.substring(0, 10)}...` : 'MISSING',
+      mockMode: isMockMode(),
+      env_UNIPILE_API_KEY: process.env.UNIPILE_API_KEY ? `${process.env.UNIPILE_API_KEY.substring(0, 10)}...` : 'MISSING',
+      env_UNIPILE_DSN: process.env.UNIPILE_DSN || 'NOT SET',
+      env_UNIPILE_MOCK_MODE: process.env.UNIPILE_MOCK_MODE,
+    });
+
     // Mock mode for testing (when UNIPILE_MOCK_MODE !== 'false')
     if (isMockMode()) {
       console.log('[MOCK] Authenticating LinkedIn account:', username);
@@ -124,6 +134,39 @@ export async function authenticateLinkedinAccount(
       };
     }
 
+    // Build the payload BEFORE stringifying to check for corruption
+    const payload = {
+      provider: 'LINKEDIN',
+      username,
+      password,
+    };
+
+    // DIAGNOSTIC: Log exact payload being sent to Unipile
+    console.log('[UNIPILE_PAYLOAD] Exact JSON being sent:', JSON.stringify(payload));
+    console.log('[UNIPILE_PAYLOAD] Password details:', {
+      length: password.length,
+      byteLength: Buffer.from(password).length,
+      starts: password.slice(0, 3),
+      ends: password.slice(-3),
+      hasSpecialChars: /[!@#$%^&*(),.?":{}|<>\\/[\]+=_-]/.test(password)
+    });
+
+    // Log the full request for debugging (mask password in display)
+    console.log('[UNIPILE_REQUEST]', {
+      url: `${credentials.dsn}/api/v1/accounts`,
+      method: 'POST',
+      headers: {
+        'X-API-KEY': credentials.apiKey ? `${credentials.apiKey.substring(0, 10)}...` : 'MISSING',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: {
+        provider: 'LINKEDIN',
+        username,
+        password: '***MASKED***',
+      },
+    });
+
     const response = await fetch(
       `${credentials.dsn}/api/v1/accounts`,
       {
@@ -131,17 +174,33 @@ export async function authenticateLinkedinAccount(
         headers: {
           'X-API-KEY': credentials.apiKey,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          provider: 'LINKEDIN',
-          username,
-          password,
-        }),
+        body: JSON.stringify(payload),
       }
     );
 
     if (!response.ok) {
-      throw new Error(`Unipile auth failed: ${response.status} ${response.statusText}`);
+      // Try to read error response body for details
+      let errorDetails = '';
+      try {
+        const errorBody = await response.json();
+        errorDetails = JSON.stringify(errorBody, null, 2);
+        console.error('[UNIPILE_ERROR] Response body:', errorBody);
+      } catch (e) {
+        // Response might not be JSON
+        try {
+          const errorText = await response.text();
+          errorDetails = errorText;
+          console.error('[UNIPILE_ERROR] Response text:', errorText);
+        } catch (textError) {
+          console.error('[UNIPILE_ERROR] Could not read error response');
+        }
+      }
+
+      const errorMessage = `Unipile auth failed: ${response.status} ${response.statusText}${errorDetails ? `\nDetails: ${errorDetails}` : ''}`;
+      console.error('[UNIPILE_ERROR] Full error:', errorMessage);
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -498,6 +557,114 @@ export async function getUserLatestPosts(
     return data.items || [];
   } catch (error) {
     console.error('Error getting user posts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a LinkedIn post via Unipile
+ * @param accountId - Unipile account ID
+ * @param text - Post content text
+ * @param clientCredentials - Optional per-client Unipile credentials
+ * @returns Created post details with ID and URL
+ */
+export interface CreatePostResponse {
+  id: string;
+  url?: string;
+  text: string;
+  created_at: string;
+  status: string;
+}
+
+export async function createLinkedInPost(
+  accountId: string,
+  text: string,
+  clientCredentials?: UnipileCredentials | null
+): Promise<CreatePostResponse> {
+  try {
+    const credentials = getUnipileCredentials(clientCredentials);
+
+    // Mock mode for testing
+    if (isMockMode()) {
+      console.log('[MOCK] Creating LinkedIn post:', {
+        accountId,
+        textLength: text.length,
+        preview: text.substring(0, 50),
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      return {
+        id: `mock_post_${Math.random().toString(36).substr(2, 9)}`,
+        url: `https://www.linkedin.com/feed/update/urn:li:activity:${Date.now()}`,
+        text,
+        created_at: new Date().toISOString(),
+        status: 'published',
+      };
+    }
+
+    console.log('[UNIPILE_POST] Creating LinkedIn post:', {
+      accountId,
+      textLength: text.length,
+      dsn: credentials.dsn,
+    });
+
+    const response = await fetch(
+      `${credentials.dsn}/api/v1/posts`,
+      {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': credentials.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          account_id: accountId,
+          text,
+          provider: 'LINKEDIN',
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      let errorDetails = '';
+      try {
+        const errorBody = await response.json();
+        errorDetails = JSON.stringify(errorBody, null, 2);
+        console.error('[UNIPILE_POST_ERROR] Response body:', errorBody);
+      } catch (e) {
+        try {
+          const errorText = await response.text();
+          errorDetails = errorText;
+          console.error('[UNIPILE_POST_ERROR] Response text:', errorText);
+        } catch (textError) {
+          console.error('[UNIPILE_POST_ERROR] Could not read error response');
+        }
+      }
+
+      throw new Error(
+        `Failed to create LinkedIn post: ${response.status} ${response.statusText}${errorDetails ? `\nDetails: ${errorDetails}` : ''}`
+      );
+    }
+
+    const data = await response.json();
+
+    // Unipile returns different field names: post_id (on create) vs id (on get)
+    const postId = data.post_id || data.id;
+
+    console.log('[UNIPILE_POST] Post created successfully:', {
+      id: postId,
+      url: data.share_url || data.url,
+    });
+
+    return {
+      id: postId,
+      url: data.share_url || data.url,
+      text: data.text || text,
+      created_at: data.created_at || data.parsed_datetime || new Date().toISOString(),
+      status: data.status || 'published',
+    };
+  } catch (error) {
+    console.error('Error creating LinkedIn post:', error);
     throw error;
   }
 }

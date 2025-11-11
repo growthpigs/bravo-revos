@@ -26,9 +26,6 @@ export async function GET(request: NextRequest) {
       allHeaders,
     });
 
-    // Use service role to bypass RLS policies for LinkedIn account management
-    const supabase = await createClient({ isServiceRole: true });
-
     let userId: string;
     let clientId: string;
 
@@ -38,14 +35,18 @@ export async function GET(request: NextRequest) {
       clientId = '00000000-0000-0000-0000-000000000002';
       console.log('[DEBUG_LINKEDIN_API] Development mode: Using test user and client IDs');
     } else {
-      // Get authenticated user in production
+      // Get authenticated user in production - use regular client to access session
+      const authSupabase = await createClient({ isServiceRole: false });
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await authSupabase.auth.getUser();
 
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+
+      // Now use service role for database queries that bypass RLS
+      const supabase = await createClient({ isServiceRole: true });
 
       // Get user's client info
       const { data: userData, error: userError } = await supabase
@@ -61,6 +62,9 @@ export async function GET(request: NextRequest) {
       userId = userData.id;
       clientId = userData.client_id;
     }
+
+    // Use service role to bypass RLS policies for LinkedIn account management
+    const supabase = await createClient({ isServiceRole: true });
 
     // Fetch client's Unipile credentials
     const { data: clientData, error: clientError } = await supabase
@@ -186,8 +190,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     const isDevelopment = process.env.UNIPILE_MOCK_MODE !== 'false';
-    // Use service role to bypass RLS policies for LinkedIn account management
-    const supabase = await createClient({ isServiceRole: true });
 
     let userId: string;
     let clientId: string;
@@ -198,13 +200,18 @@ export async function DELETE(request: NextRequest) {
       clientId = '00000000-0000-0000-0000-000000000002';
       console.log('[DEBUG_LINKEDIN_API] DELETE Development mode: Using test user ID');
     } else {
+      // Get authenticated user in production - use regular client to access session
+      const authSupabase = await createClient({ isServiceRole: false });
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await authSupabase.auth.getUser();
 
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+
+      // Now use service role for database queries that bypass RLS
+      const supabase = await createClient({ isServiceRole: true });
 
       // Get user ID and client ID from users table
       const { data: userData, error: userError } = await supabase
@@ -220,6 +227,9 @@ export async function DELETE(request: NextRequest) {
       userId = userData.id;
       clientId = userData.client_id;
     }
+
+    // Use service role to bypass RLS policies for LinkedIn account management
+    const supabase = await createClient({ isServiceRole: true });
 
     // Fetch client's Unipile credentials
     const { data: clientData, error: clientError } = await supabase
