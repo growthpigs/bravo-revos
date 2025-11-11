@@ -76,7 +76,7 @@ const create_campaign = {
           description: 'Campaign description (optional)'
         }
       },
-      required: ['name', 'voice_id']
+      required: ['name']
     }
   }
 }
