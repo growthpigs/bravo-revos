@@ -779,27 +779,47 @@ export async function POST(request: NextRequest) {
     if (workflowId && selectedCampaignId && !selectedScheduleTime) {
       console.log('[HGC_INLINE] Campaign selected:', selectedCampaignId, 'workflow:', workflowId)
 
-      // Extract post content from conversation history (for final step)
-      const postContentMatch = messages
-        .filter(m => m.role === 'user')
-        .find(m => m.content.match(/schedule.*post|post.*about/i))
+      // Check if this is a LAUNCH workflow (post NOW) or SCHEDULE workflow (post later)
+      const isLaunchWorkflow = workflowId.startsWith('launch-')
 
-      const postContent = postContentMatch
-        ? postContentMatch.content.replace(/schedule.*post|post.*about/i, '').trim() || 'Untitled post'
-        : 'Untitled post'
+      if (isLaunchWorkflow) {
+        // LAUNCH workflow: Ask for content to post NOW
+        console.log('[HGC_INLINE] Launch workflow detected - asking for content')
 
-      // Return datetime picker WITH campaign_id and content stored
-      return NextResponse.json({
-        success: true,
-        response: 'When would you like to schedule this post?',
-        interactive: {
-          type: 'datetime_select',
-          workflow_id: workflowId,
+        // Get campaign details for context
+        const campaignResult = await handleGetCampaignById(selectedCampaignId)
+        const campaignName = campaignResult.success ? campaignResult.campaign?.name : 'this campaign'
+
+        return NextResponse.json({
+          success: true,
+          response: `Great! What content should I post to LinkedIn for **${campaignName}**?\n\nYou can either:\n1. Provide the exact content you want to post\n2. Say "generate it" and I'll create content from the campaign description\n\n<!-- campaign_id: ${selectedCampaignId} -->`,
+          workflow_id: workflowId, // Keep workflow active
           campaign_id: selectedCampaignId, // Store for next step
-          content: postContent, // Store for next step
-          initial_datetime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // Tomorrow
-        },
-      })
+        })
+      } else {
+        // SCHEDULE workflow: Show datetime picker
+        // Extract post content from conversation history (for final step)
+        const postContentMatch = messages
+          .filter(m => m.role === 'user')
+          .find(m => m.content.match(/schedule.*post|post.*about/i))
+
+        const postContent = postContentMatch
+          ? postContentMatch.content.replace(/schedule.*post|post.*about/i, '').trim() || 'Untitled post'
+          : 'Untitled post'
+
+        // Return datetime picker WITH campaign_id and content stored
+        return NextResponse.json({
+          success: true,
+          response: 'When would you like to schedule this post?',
+          interactive: {
+            type: 'datetime_select',
+            workflow_id: workflowId,
+            campaign_id: selectedCampaignId, // Store for next step
+            content: postContent, // Store for next step
+            initial_datetime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // Tomorrow
+          },
+        })
+      }
     }
 
     // STEP 3: User selected a datetime (final step - execute schedule)
@@ -867,6 +887,107 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================
+    // LAUNCH WORKFLOW CONTENT HANDLER
+    // Detect if user is providing content after campaign selection in launch workflow
+    // ========================================
+    const recentMessages = formattedMessages.slice(-3) // Check last 3 messages
+    const hasLaunchContentRequest = recentMessages.some(m =>
+      m.role === 'assistant' && m.content.includes('What content should I post to LinkedIn')
+    )
+
+    if (hasLaunchContentRequest) {
+      console.log('[HGC_LAUNCH] Detected content response in launch workflow')
+
+      // Extract campaign_id from recent assistant message
+      // It was included in the response at line 796-797
+      const assistantMsg = recentMessages.find(m => m.role === 'assistant' && m.content.includes('What content should I post'))
+
+      // Try to find campaign_id in message history
+      // Look for the most recent campaign selection
+      let campaignId: string | undefined
+
+      // Check if there's a campaign_id in the request body (from button click context)
+      if (body.campaign_id) {
+        campaignId = body.campaign_id
+      }
+
+      // Fallback: Try to extract from message that mentions campaign selection
+      if (!campaignId) {
+        for (let i = formattedMessages.length - 1; i >= 0; i--) {
+          const msg = formattedMessages[i]
+          if (msg.content && typeof msg.content === 'string') {
+            // Look for campaign UUID pattern
+            const uuidMatch = msg.content.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+            if (uuidMatch) {
+              campaignId = uuidMatch[0]
+              console.log('[HGC_LAUNCH] Found campaign_id in message history:', campaignId)
+              break
+            }
+          }
+        }
+      }
+
+      if (campaignId) {
+        const userContent = formattedMessages[formattedMessages.length - 1].content
+
+        // Check if user wants content generated
+        if (userContent.toLowerCase().includes('generate')) {
+          console.log('[HGC_LAUNCH] User requested content generation')
+          // Get campaign details to generate content
+          const campaignResult = await handleGetCampaignById(campaignId)
+
+          if (campaignResult.success && campaignResult.campaign) {
+            const campaign = campaignResult.campaign
+            const generatedContent = `${campaign.description || 'Exciting update about ' + campaign.name}\n\n#LinkedIn #Growth #${campaign.name.replace(/\s+/g, '')}`
+
+            console.log('[HGC_LAUNCH] Generated content, executing LinkedIn campaign')
+
+            // Execute LinkedIn campaign
+            const result = await handleExecuteLinkedInCampaign(
+              generatedContent,
+              campaignId,
+              'interested' // Default trigger word
+            )
+
+            if (result.success) {
+              return NextResponse.json({
+                success: true,
+                response: `✅ **Posted to LinkedIn!**\n\n${result.message}\n\n**Content:**\n${generatedContent}`,
+              })
+            } else {
+              return NextResponse.json({
+                success: false,
+                response: `❌ Failed to post: ${result.error}`,
+              })
+            }
+          }
+        } else {
+          // User provided their own content
+          console.log('[HGC_LAUNCH] User provided content, executing LinkedIn campaign')
+
+          // Execute LinkedIn campaign with user's content
+          const result = await handleExecuteLinkedInCampaign(
+            userContent,
+            campaignId,
+            'interested' // Default trigger word
+          )
+
+          if (result.success) {
+            return NextResponse.json({
+              success: true,
+              response: `✅ **Posted to LinkedIn!**\n\n${result.message}`,
+            })
+          } else {
+            return NextResponse.json({
+              success: false,
+              response: `❌ Failed to post: ${result.error}`,
+            })
+          }
+        }
+      }
+    }
+
+    // ========================================
     // INTENT ROUTER - Bypass GPT-4o for known workflows
     // ========================================
     const lastMessage = formattedMessages[formattedMessages.length - 1]
@@ -906,6 +1027,39 @@ export async function POST(request: NextRequest) {
                 variant: 'secondary',
               },
             ],
+          },
+        })
+      }
+
+      // INTENT: Launch Campaign (Post to LinkedIn NOW)
+      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin/i)) {
+        console.log('[HGC_INTENT] Detected launch_campaign intent - showing campaign selector')
+
+        // Fetch campaigns
+        const campaignsResult = await handleGetAllCampaigns()
+
+        if (!campaignsResult.success || !campaignsResult.campaigns || campaignsResult.campaigns.length === 0) {
+          return NextResponse.json({
+            success: false,
+            response: 'You don\'t have any campaigns yet. Create one first with "create campaign".',
+          })
+        }
+
+        // Generate workflow ID
+        const workflowId = `launch-${Date.now()}`
+
+        // Return campaign selector directly (skip decision step)
+        return NextResponse.json({
+          success: true,
+          response: 'Which campaign would you like to post to LinkedIn?',
+          interactive: {
+            type: 'campaign_select',
+            workflow_id: workflowId,
+            campaigns: campaignsResult.campaigns.map((c: any) => ({
+              id: c.id,
+              name: c.name || 'Untitled Campaign',
+              description: c.status === 'draft' ? 'Draft campaign' : undefined,
+            })),
           },
         })
       }
@@ -988,40 +1142,35 @@ When user wants POD ENGAGEMENT:
 - "who's in my pod?" → get_pod_members(pod_id)
 - "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
 
-🚨 POSTING TO LINKEDIN - MANDATORY SCRIPT 🚨
+🚨 POSTING TO LINKEDIN - USE CAMPAIGN SELECTOR BUTTONS 🚨
 
-When user says "launch [campaign name]" or "post [campaign]":
+When user says "launch campaign" or "post to LinkedIn":
 
-STEP 1 - YOUR FIRST RESPONSE MUST BE (copy this exact format):
-"I'll post [Campaign Name] to LinkedIn right now!
+STEP 1 - IMMEDIATELY call get_all_campaigns() to trigger campaign selector buttons
+- The system will automatically show interactive campaign selection buttons
+- User gets confidence by clicking their campaign choice
 
-What content should I post? You can either:
-1. Provide the content you want to post
-2. Ask me to generate content from the campaign description
-
-Just reply with the content or say 'generate it'."
-
-STOP HERE. Wait for user to provide content.
-
-STEP 2 - After user provides content:
-- Call get_campaign_by_id() to get campaign_id
-- Extract trigger_word from campaign or default to "interested"
+STEP 2 - After campaign selected (handled by backend):
+- Backend will ask: "What content should I post for [Campaign Name]?"
+- User provides content OR asks you to generate it
 
 STEP 3 - Post immediately:
 - Call execute_linkedin_campaign(content, campaign_id, trigger_word)
 - NO confirmation, NO asking permission
 - Just POST IT
 
-Example conversation:
-User: "Launch Future of AI campaign"
-You: "I'll post Future of AI in Design to LinkedIn right now! What content should I post? [options]"
-User: "Generate it"
-You: [generates content, immediately calls execute_linkedin_campaign()]
+Example flow:
+User: "Launch campaign"
+You: [Call get_all_campaigns()] → Campaign buttons appear
+User: [Clicks "Future of AI in Design" button]
+Backend: "What content should I post for Future of AI in Design?"
+User: "Generate it from the description"
+You: [Generate content, immediately call execute_linkedin_campaign()]
 
-WHAT NOT TO DO:
-❌ "Would you like me to proceed?" - NO! Just ask for content!
-❌ "Let's review the campaign" - NO! Just ask for content!
-❌ Talking about the campaign status - IRRELEVANT! Just ask for content!
+CRITICAL:
+- ALWAYS use get_all_campaigns() to trigger the button interface
+- NEVER just talk about campaigns without calling the tool
+- This gives users the confidence of clicking their choice
 
 - "post and monitor" / "go live with campaign [ID]" → execute_linkedin_campaign(content, campaign_id, trigger_word)
   * For when user has existing campaign + content ready
