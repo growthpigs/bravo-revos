@@ -150,57 +150,108 @@ export async function POST(request: NextRequest) {
 
         console.log(`[DM_SCRAPER] Found ${triggeredComments.length} comments with trigger word "${job.trigger_word}"`)
 
+        // Get active DM sequence for this campaign (if exists)
+        const { data: dmSequence } = await supabase
+          .from('dm_sequences')
+          .select('*')
+          .eq('campaign_id', job.campaign_id)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        console.log(`[DM_SCRAPER] ${dmSequence ? 'Found' : 'No'} active DM sequence for campaign`)
+
         // Send auto-DM to commenters with trigger word
         let dmsSent = 0
 
         for (const comment of triggeredComments) {
           try {
             // Check if we already DM'd this commenter
-            const { data: existingDM } = await supabase
+            const { data: existingLead } = await supabase
               .from('leads')
               .select('id')
               .eq('campaign_id', job.campaign_id)
               .eq('linkedin_profile_url', comment.author.profile_url)
-              .single()
+              .maybeSingle()
 
-            if (existingDM) {
+            if (existingLead) {
               console.log(`[DM_SCRAPER] Already sent DM to ${comment.author.name}, skipping`)
               continue
             }
 
-            // Send auto-DM asking for email
-            const dmMessage = `Hey ${comment.author.name}! Thanks for your interest. To get the ${job.trigger_word}, could you reply with your best email address? I'll send it right over.`
+            // Create lead record first
+            const { data: newLead, error: leadError } = await supabase
+              .from('leads')
+              .insert({
+                campaign_id: job.campaign_id,
+                linkedin_profile_url: comment.author.profile_url,
+                name: comment.author.name,
+                status: 'dm_pending',
+                source: 'comment_trigger',
+                metadata: {
+                  comment_id: comment.id,
+                  comment_text: comment.text,
+                  trigger_word: job.trigger_word,
+                  post_id: job.unipile_post_id,
+                  author_id: comment.author.id
+                }
+              })
+              .select()
+              .single()
 
-            await sendDirectMessage(
-              job.unipile_account_id,
-              comment.author.id,
-              dmMessage
-            )
+            if (leadError || !newLead) {
+              console.error(`[DM_SCRAPER] Failed to create lead:`, leadError)
+              continue
+            }
 
-            console.log(`[DM_SCRAPER] Sent auto-DM to ${comment.author.name}`)
+            if (dmSequence) {
+              // Use DM sequence - create delivery record
+              console.log(`[DM_SCRAPER] Creating DM delivery for ${comment.author.name} using sequence`)
 
-            // Create lead record (pending email)
-            await supabase.from('leads').insert({
-              campaign_id: job.campaign_id,
-              linkedin_profile_url: comment.author.profile_url,
-              name: comment.author.name,
-              status: 'dm_sent',
-              source: 'comment_trigger',
-              metadata: {
-                comment_id: comment.id,
-                comment_text: comment.text,
-                trigger_word: job.trigger_word,
-                post_id: job.unipile_post_id
-              }
-            })
+              const delay = Math.floor(
+                Math.random() * (dmSequence.step1_delay_max - dmSequence.step1_delay_min) +
+                dmSequence.step1_delay_min
+              )
 
-            dmsSent++
-            rateLimit.dmsSent++
+              await supabase.from('dm_deliveries').insert({
+                sequence_id: dmSequence.id,
+                lead_id: newLead.id,
+                step_number: 1,
+                status: 'pending',
+                message_content: dmSequence.step1_template
+                  .replace(/\{\{first_name\}\}/g, comment.author.name.split(' ')[0] || comment.author.name)
+                  .replace(/\{\{last_name\}\}/g, comment.author.name.split(' ').slice(1).join(' ') || '')
+                  .replace(/\{\{company\}\}/g, ''),
+                sent_at: new Date(Date.now() + delay * 60 * 1000).toISOString()
+              })
 
-            // Rate limit: 100ms delay between DMs
+              dmsSent++
+            } else {
+              // Fallback: Direct DM (legacy behavior)
+              console.log(`[DM_SCRAPER] Sending direct DM to ${comment.author.name} (no sequence)`)
+
+              const dmMessage = `Hey ${comment.author.name}! Thanks for your interest. To get the ${job.trigger_word}, could you reply with your best email address? I'll send it right over.`
+
+              await sendDirectMessage(
+                job.unipile_account_id,
+                comment.author.id,
+                dmMessage
+              )
+
+              await supabase
+                .from('leads')
+                .update({ status: 'dm_sent' })
+                .eq('id', newLead.id)
+
+              console.log(`[DM_SCRAPER] Sent direct DM to ${comment.author.name}`)
+
+              dmsSent++
+              rateLimit.dmsSent++
+            }
+
+            // Rate limit: 100ms delay between operations
             await new Promise((resolve) => setTimeout(resolve, 100))
           } catch (error) {
-            console.error(`[DM_SCRAPER] Failed to DM ${comment.author.name}:`, error)
+            console.error(`[DM_SCRAPER] Failed to process ${comment.author.name}:`, error)
           }
         }
 

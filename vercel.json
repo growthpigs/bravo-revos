@@ -5,6 +5,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/dm-delivery",
+      "schedule": "*/2 * * * *"
+    },
+    {
       "path": "/api/cron/webhook-retry",
       "schedule": "*/10 * * * *"
     },
