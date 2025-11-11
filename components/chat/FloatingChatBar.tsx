@@ -767,7 +767,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             messages: [
               ...messages.filter(m => !m.interactive),
               userMessage,
-            ],
+            ].slice(-40), // Keep last 40 messages to stay under API limit
             decision: 'continue',
             workflow_id: workflowId,
           }),
@@ -838,7 +838,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           decision: decision,
         }),
@@ -890,7 +890,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           campaign_id: campaignId,
         }),
@@ -936,7 +936,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           schedule_time: datetime,
           campaign_id: campaignId,
