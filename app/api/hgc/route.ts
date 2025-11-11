@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 import { hgcRequestSchema } from '@/lib/validations/hgc'
+import { createLinkedInPost } from '@/lib/unipile-client'
 
 /**
  * POST /api/hgc
@@ -200,6 +201,33 @@ const update_campaign_status = {
         }
       },
       required: ['campaign_id', 'status']
+    }
+  }
+}
+
+// Tool 9: Execute LinkedIn Campaign (FULL AUTOMATION)
+const execute_linkedin_campaign = {
+  type: 'function' as const,
+  function: {
+    name: 'execute_linkedin_campaign',
+    description: 'Launch a LinkedIn campaign: post to LinkedIn + start monitoring for trigger words. Use when user says "launch campaign" or "post and monitor".',
+    parameters: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: 'LinkedIn post content'
+        },
+        campaign_id: {
+          type: 'string',
+          description: 'Campaign UUID to associate with'
+        },
+        trigger_word: {
+          type: 'string',
+          description: 'Word to monitor in comments (e.g., "interested", "guide"). Default: "interested"'
+        }
+      },
+      required: ['content', 'campaign_id']
     }
   }
 }
@@ -487,7 +515,7 @@ async function handleUpdateCampaignStatus(campaign_id: string, status: string) {
     return { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }
   }
 
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('campaigns')
     .update({
       status,
@@ -505,6 +533,128 @@ async function handleUpdateCampaignStatus(campaign_id: string, status: string) {
     success: true,
     campaign: data,
     message: `Campaign status updated to ${status}.`
+  }
+}
+
+async function handleExecuteLinkedInCampaign(
+  content: string,
+  campaign_id: string,
+  trigger_word?: string
+) {
+  const supabase = await createClient()
+
+  try {
+    console.log('[EXECUTE_CAMPAIGN] Starting campaign execution:', {
+      campaign_id,
+      content_length: content.length,
+      trigger_word: trigger_word || 'interested'
+    })
+
+    // Get user's LinkedIn account
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: 'User not authenticated' }
+    }
+
+    const { data: linkedinAccounts } = await supabase
+      .from('linkedin_accounts')
+      .select('unipile_account_id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .limit(1)
+
+    if (!linkedinAccounts || linkedinAccounts.length === 0) {
+      return {
+        success: false,
+        error: 'No active LinkedIn account found. Please connect your LinkedIn account first.'
+      }
+    }
+
+    const unipileAccountId = linkedinAccounts[0].unipile_account_id
+
+    // 1. Post to LinkedIn via Unipile
+    console.log('[EXECUTE_CAMPAIGN] Posting to LinkedIn...')
+    const post = await createLinkedInPost(unipileAccountId, content)
+
+    console.log('[EXECUTE_CAMPAIGN] Post created:', {
+      id: post.id,
+      url: post.url
+    })
+
+    // 2. Store post in database
+    const { data: dbPost, error: postError } = await supabase
+      .from('posts')
+      .insert({
+        campaign_id,
+        linkedin_id: post.id,
+        content,
+        status: 'published',
+        published_at: new Date().toISOString(),
+        linkedin_url: post.url
+      })
+      .select()
+      .single()
+
+    if (postError) {
+      console.error('[EXECUTE_CAMPAIGN] Failed to store post:', postError)
+      return {
+        success: false,
+        error: `Post published but failed to save to database: ${postError.message}`
+      }
+    }
+
+    console.log('[EXECUTE_CAMPAIGN] Post stored in database:', dbPost.id)
+
+    // 3. Create monitoring job
+    const effectiveTriggerWord = trigger_word || 'interested'
+    const { data: job, error: jobError } = await supabase
+      .from('scrape_jobs')
+      .insert({
+        post_id: dbPost.id,
+        linkedin_post_id: post.id,
+        trigger_word: effectiveTriggerWord,
+        status: 'scheduled',
+        next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString() // Check in 5 minutes
+      })
+      .select()
+      .single()
+
+    if (jobError) {
+      console.error('[EXECUTE_CAMPAIGN] Failed to create monitoring job:', jobError)
+      // Post is live, so return partial success
+      return {
+        success: true,
+        post_url: post.url,
+        post_id: post.id,
+        monitoring: 'failed',
+        warning: `Post is live but monitoring setup failed: ${jobError.message}`
+      }
+    }
+
+    console.log('[EXECUTE_CAMPAIGN] Monitoring job created:', job.id)
+
+    // Update campaign to active if it was draft
+    await supabase
+      .from('campaigns')
+      .update({ status: 'active' })
+      .eq('id', campaign_id)
+      .eq('status', 'draft')
+
+    return {
+      success: true,
+      post_url: post.url,
+      post_id: post.id,
+      linkedin_id: post.id,
+      monitoring: 'active',
+      trigger_word: effectiveTriggerWord,
+      message: `✅ Campaign launched! Post is live on LinkedIn and monitoring for "${effectiveTriggerWord}" responses.`
+    }
+  } catch (error) {
+    console.error('[EXECUTE_CAMPAIGN] Error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to execute campaign'
+    }
   }
 }
 
@@ -838,6 +988,12 @@ When user wants POD ENGAGEMENT:
 - "who's in my pod?" → get_pod_members(pod_id)
 - "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
 
+When user wants FULL CAMPAIGN EXECUTION:
+- "launch campaign" / "post and monitor" / "go live with campaign" → execute_linkedin_campaign(content, campaign_id, trigger_word)
+  * This posts to LinkedIn + starts monitoring automatically
+  * One command = full automation
+  * Returns live post URL and monitoring status
+
 CAMPAIGN SELECTION (MANDATORY FORMAT):
 
 When listing campaigns, ALWAYS include full UUID in this exact format:
@@ -876,7 +1032,8 @@ IMPORTANT:
         trigger_dm_scraper,
         get_pod_members,
         send_pod_repost_links,
-        update_campaign_status
+        update_campaign_status,
+        execute_linkedin_campaign
       ],
       tool_choice: 'auto'
     })
@@ -998,6 +1155,13 @@ IMPORTANT:
             result = await handleUpdateCampaignStatus(
               functionArgs.campaign_id,
               functionArgs.status
+            )
+            break
+          case 'execute_linkedin_campaign':
+            result = await handleExecuteLinkedInCampaign(
+              functionArgs.content,
+              functionArgs.campaign_id,
+              functionArgs.trigger_word
             )
             break
           default:
