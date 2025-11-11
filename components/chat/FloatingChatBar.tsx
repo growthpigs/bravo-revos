@@ -678,31 +678,40 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       return false;
     }
 
-    // Find the last user message
-    const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
-    if (!lastUserMessage) {
-      console.log('[FULLSCREEN_DEBUG] No user message found, returning false');
+    // Look at last 3 user messages (not just the last one)
+    // User might say "write" then later say "generate" or "finished"
+    const recentUserMessages = [...messages]
+      .reverse()
+      .filter(msg => msg.role === 'user')
+      .slice(0, 3);
+
+    if (recentUserMessages.length === 0) {
+      console.log('[FULLSCREEN_DEBUG] No user messages found, returning false');
       return false;
     }
 
-    const text = lastUserMessage.content.toLowerCase();
-    console.log('[FULLSCREEN_DEBUG] Last user message:', text);
+    const recentText = recentUserMessages.map(msg => msg.content.toLowerCase()).join(' ');
+    console.log('[FULLSCREEN_DEBUG] Recent user messages (last 3):', recentText);
 
     // Trigger keywords that indicate creative/document writing
-    const triggerKeywords = ['write', 'compose', 'draft', 'create a post', 'create an article', 'create a document', 'post', 'article', 'blog', 'newsletter', 'email'];
+    const triggerKeywords = [
+      'write', 'compose', 'draft', 'generate', 'create a post', 'create an article',
+      'create a document', 'post', 'article', 'blog', 'newsletter', 'email',
+      'finished', 'go ahead', 'do it', 'let\'s go'
+    ];
 
     // Block keywords that should NOT trigger fullscreen
     const blockKeywords = ['create a campaign', 'create a cartridge', 'explain', 'tell me', 'analyze', 'help me', 'what is', 'how to', 'describe', 'summarize', 'list', 'show me'];
 
     // Check if any block keyword is present
-    const hasBlockKeyword = blockKeywords.some(keyword => text.includes(keyword));
+    const hasBlockKeyword = blockKeywords.some(keyword => recentText.includes(keyword));
     if (hasBlockKeyword) {
       console.log('[FULLSCREEN_DEBUG] Block keyword found, returning false');
       return false;
     }
 
     // Check if any trigger keyword is present
-    const hasTriggerKeyword = triggerKeywords.some(keyword => text.includes(keyword));
+    const hasTriggerKeyword = triggerKeywords.some(keyword => recentText.includes(keyword));
     console.log('[FULLSCREEN_DEBUG] Trigger keyword found:', hasTriggerKeyword);
 
     return hasTriggerKeyword;
