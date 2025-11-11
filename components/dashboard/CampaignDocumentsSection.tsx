@@ -95,9 +95,9 @@ export function CampaignDocumentsSection({ campaignId }: CampaignDocumentsSectio
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-600" />
               <div>
-                <CardTitle>Campaign Posts</CardTitle>
+                <CardTitle>Knowledge Base Documents</CardTitle>
                 <CardDescription>
-                  Posts and documents for this campaign ({documents.length})
+                  Documents linked to this campaign ({documents.length})
                 </CardDescription>
               </div>
             </div>
@@ -162,11 +162,11 @@ export function CampaignDocumentsSection({ campaignId }: CampaignDocumentsSectio
           ) : (
             <div className="text-center py-8">
               <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600 mb-4">No posts linked to this campaign yet</p>
-              <p className="text-xs text-gray-500 mb-4">Create posts in Working Document chat and save them to this campaign to see them here.</p>
+              <p className="text-sm text-gray-600 mb-4">No documents linked to this campaign yet</p>
+              <p className="text-xs text-gray-500 mb-4">Link documents from your knowledge base to this campaign to see them here.</p>
               <Button onClick={() => setShowLinkModal(true)} variant="outline" className="gap-2">
                 <Plus className="h-4 w-4" />
-                Link a Post
+                Link Document
               </Button>
             </div>
           )}
