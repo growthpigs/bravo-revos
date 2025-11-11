@@ -125,6 +125,7 @@ export function SaveToCampaignModal({
           content: documentContent,
           metadata: {
             source: 'chat_document_viewer',
+            is_post: true,
             linked_campaign: linkToCampaign ? selectedCampaignId : null,
           },
         }),
