@@ -586,11 +586,11 @@ async function handleExecuteLinkedInCampaign(
       .from('posts')
       .insert({
         campaign_id,
-        linkedin_id: post.id,
+        unipile_post_id: post.id,
         content,
         status: 'published',
         published_at: new Date().toISOString(),
-        linkedin_url: post.url
+        post_url: post.url
       })
       .select()
       .single()
@@ -927,64 +927,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (campaignId) {
-        const userContent = formattedMessages[formattedMessages.length - 1].content
-
-        // Check if user wants content generated
-        if (userContent.toLowerCase().includes('generate')) {
-          console.log('[HGC_LAUNCH] User requested content generation')
-          // Get campaign details to generate content
-          const campaignResult = await handleGetCampaignById(campaignId)
-
-          if (campaignResult.success && campaignResult.campaign) {
-            const campaign = campaignResult.campaign
-            const generatedContent = `${campaign.description || 'Exciting update about ' + campaign.name}\n\n#LinkedIn #Growth #${campaign.name.replace(/\s+/g, '')}`
-
-            console.log('[HGC_LAUNCH] Generated content, executing LinkedIn campaign')
-
-            // Execute LinkedIn campaign
-            const result = await handleExecuteLinkedInCampaign(
-              generatedContent,
-              campaignId,
-              'interested' // Default trigger word
-            )
-
-            if (result.success) {
-              return NextResponse.json({
-                success: true,
-                response: `✅ **Posted to LinkedIn!**\n\n${result.message}\n\n**Content:**\n${generatedContent}`,
-              })
-            } else {
-              return NextResponse.json({
-                success: false,
-                response: `❌ Failed to post: ${result.error}`,
-              })
-            }
-          }
-        } else {
-          // User provided their own content
-          console.log('[HGC_LAUNCH] User provided content, executing LinkedIn campaign')
-
-          // Execute LinkedIn campaign with user's content
-          const result = await handleExecuteLinkedInCampaign(
-            userContent,
-            campaignId,
-            'interested' // Default trigger word
-          )
-
-          if (result.success) {
-            return NextResponse.json({
-              success: true,
-              response: `✅ **Posted to LinkedIn!**\n\n${result.message}`,
-            })
-          } else {
-            return NextResponse.json({
-              success: false,
-              response: `❌ Failed to post: ${result.error}`,
-            })
-          }
-        }
-      }
+      // DON'T auto-post! Let GPT-4o handle content generation in chat
+      // User says "generate" → AI drafts → User refines → User says "post it" → THEN post
+      // So we just fall through to GPT-4o here
     }
 
     // ========================================
@@ -1142,35 +1087,49 @@ When user wants POD ENGAGEMENT:
 - "who's in my pod?" → get_pod_members(pod_id)
 - "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
 
-🚨 POSTING TO LINKEDIN - USE CAMPAIGN SELECTOR BUTTONS 🚨
+🚨 POSTING TO LINKEDIN - WORKING DOCUMENT FLOW 🚨
 
 When user says "launch campaign" or "post to LinkedIn":
 
 STEP 1 - IMMEDIATELY call get_all_campaigns() to trigger campaign selector buttons
-- The system will automatically show interactive campaign selection buttons
-- User gets confidence by clicking their campaign choice
+- System shows interactive campaign selection buttons
+- User clicks their choice
 
 STEP 2 - After campaign selected (handled by backend):
-- Backend will ask: "What content should I post for [Campaign Name]?"
-- User provides content OR asks you to generate it
+- Backend asks: "What content should I post for [Campaign Name]?"
+- User can:
+  a) Provide content directly → Go to STEP 3
+  b) Say "generate it" → Go to drafting workflow
 
-STEP 3 - Post immediately:
+DRAFTING WORKFLOW (Working Documents):
+- User: "generate it" / "write a post"
+- You: Draft content based on campaign description/context
+- User: Reviews, refines ("make it shorter", "add emojis", etc.)
+- You: Iterate on the content in chat
+- User: "post it" / "send it" → Go to STEP 3
+
+STEP 3 - Post to LinkedIn:
+- User says "post it" / "send it" / "publish it"
+- Extract campaign_id from recent message history (embedded in HTML comment)
 - Call execute_linkedin_campaign(content, campaign_id, trigger_word)
-- NO confirmation, NO asking permission
-- Just POST IT
+- NO confirmation - just POST IT
 
 Example flow:
 User: "Launch campaign"
-You: [Call get_all_campaigns()] → Campaign buttons appear
-User: [Clicks "Future of AI in Design" button]
+You: [Shows campaign buttons via get_all_campaigns()]
+User: [Clicks "Future of AI in Design"]
 Backend: "What content should I post for Future of AI in Design?"
-User: "Generate it from the description"
-You: [Generate content, immediately call execute_linkedin_campaign()]
+User: "Generate it"
+You: "Here's a draft: [content]. Want me to refine it?"
+User: "Make it shorter and add emojis"
+You: "Better? [refined content]"
+User: "Perfect, post it"
+You: [Extracts campaign_id, calls execute_linkedin_campaign()]
 
 CRITICAL:
-- ALWAYS use get_all_campaigns() to trigger the button interface
-- NEVER just talk about campaigns without calling the tool
-- This gives users the confidence of clicking their choice
+- NEVER auto-post when user says "generate" - let them review first!
+- Campaign_id is embedded in assistant message as HTML comment
+- Working documents = iterative drafting in chat before posting
 
 - "post and monitor" / "go live with campaign [ID]" → execute_linkedin_campaign(content, campaign_id, trigger_word)
   * For when user has existing campaign + content ready
