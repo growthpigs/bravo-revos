@@ -111,3 +111,8 @@ if (typeof crypto === 'undefined' || !crypto.randomUUID) {
     },
   };
 }
+
+// Mock scrollIntoView for jsdom (not implemented by default)
+if (typeof Element !== 'undefined') {
+  Element.prototype.scrollIntoView = jest.fn();
+}

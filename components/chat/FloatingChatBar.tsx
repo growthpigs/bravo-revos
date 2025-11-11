@@ -1216,10 +1216,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Left: Chat panel | Right: Document viewer
   if (isFullscreen) {
     return (
-      <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
+      <>
+        {/* Slash Command Autocomplete - Fullscreen Mode */}
+        <SlashCommandAutocomplete
+          visible={showSlashMenu}
+          query={slashQuery}
+          onSelect={handleSlashCommandSelect}
+          onClose={() => {
+            setShowSlashMenu(false);
+            setSlashQuery('');
+          }}
+          position={slashMenuPosition}
+        />
 
-        {/* LEFT PANEL: Chat - Hidden when document is maximized */}
-        {!isDocumentMaximized && (
+        <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
+
+          {/* LEFT PANEL: Chat - Hidden when document is maximized */}
+          {!isDocumentMaximized && (
         <div className="w-96 border-r border-gray-200 flex flex-col bg-white">
           {/* Top Navigation Bar - Document Title & Actions */}
           <div className="h-14 px-4 flex items-center justify-between">
@@ -1428,7 +1441,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           documentContent={documentContent}
           documentTitle={documentTitle}
         />
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -1464,10 +1478,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const historyWidth = showChatHistory && hasAnyConversations ? 192 : 0;
 
     return (
-      <div
-        className="fixed right-0 top-16 bottom-0 flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200"
-        style={{ width: `${sidebarWidth}px` }}
-      >
+      <>
+        {/* Slash Command Autocomplete - Expanded Sidebar Mode */}
+        <SlashCommandAutocomplete
+          visible={showSlashMenu}
+          query={slashQuery}
+          onSelect={handleSlashCommandSelect}
+          onClose={() => {
+            setShowSlashMenu(false);
+            setSlashQuery('');
+          }}
+          position={slashMenuPosition}
+        />
+
+        <div
+          className="fixed right-0 top-16 bottom-0 flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200"
+          style={{ width: `${sidebarWidth}px` }}
+        >
         {/* Left resizer - expand/shrink entire sidebar */}
         <div
           onMouseDown={handleLeftResizerMouseDown}
@@ -1715,7 +1742,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </>
     );
   }
 
