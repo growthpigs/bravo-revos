@@ -33,7 +33,8 @@ export const slashCommands: SlashCommand[] = [
     handler: async (args, ctx) => {
       ctx.clearDocument();
       ctx.setFullscreen(true);
-      await ctx.sendMessage('write a post');
+      const msg = args ? `/write ${args}` : '/write';
+      await ctx.sendMessage(msg);
       ctx.clearInput();
     },
   },
@@ -43,12 +44,8 @@ export const slashCommands: SlashCommand[] = [
     category: 'content',
     args: '[topic]',
     handler: async (args, ctx) => {
-      const topic = args.trim();
-      if (topic) {
-        await ctx.sendMessage(`generate a post about ${topic}`);
-      } else {
-        await ctx.sendMessage('generate content');
-      }
+      const msg = args ? `/generate ${args}` : '/generate';
+      await ctx.sendMessage(msg);
       ctx.clearInput();
     },
   },
@@ -57,7 +54,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Improve and polish the current draft',
     category: 'content',
     handler: async (args, ctx) => {
-      await ctx.sendMessage('refine this draft and make it better');
+      await ctx.sendMessage('/refine');
       ctx.clearInput();
     },
   },
@@ -66,7 +63,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Continue writing from current draft',
     category: 'content',
     handler: async (args, ctx) => {
-      await ctx.sendMessage('continue writing');
+      await ctx.sendMessage('/continue');
       ctx.clearInput();
     },
   },
@@ -76,8 +73,8 @@ export const slashCommands: SlashCommand[] = [
     category: 'content',
     args: '[style]',
     handler: async (args, ctx) => {
-      const style = args.trim() || 'professional';
-      await ctx.sendMessage(`rewrite this in a ${style} style`);
+      const msg = args ? `/rewrite ${args}` : '/rewrite';
+      await ctx.sendMessage(msg);
       ctx.clearInput();
     },
   },
@@ -89,7 +86,7 @@ export const slashCommands: SlashCommand[] = [
     category: 'campaign',
     aliases: ['launch', 'campaign'],
     handler: async (args, ctx) => {
-      await ctx.sendMessage('launch campaign');
+      await ctx.sendMessage('/li-campaign');
       ctx.clearInput();
     },
   },
@@ -98,7 +95,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Show all your campaigns with stats',
     category: 'campaign',
     handler: async (args, ctx) => {
-      await ctx.sendMessage('show me my campaigns');
+      await ctx.sendMessage('/campaigns');
       ctx.clearInput();
     },
   },
@@ -109,7 +106,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Show who\'s in your engagement pod',
     category: 'pod',
     handler: async (args, ctx) => {
-      await ctx.sendMessage('show pod members');
+      await ctx.sendMessage('/pod-members');
       ctx.clearInput();
     },
   },
@@ -118,7 +115,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Share your latest post with pod for reposts',
     category: 'pod',
     handler: async (args, ctx) => {
-      await ctx.sendMessage('share with pod');
+      await ctx.sendMessage('/pod-share');
       ctx.clearInput();
     },
   },
@@ -127,7 +124,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Get repost links from pod to engage with',
     category: 'pod',
     handler: async (args, ctx) => {
-      await ctx.sendMessage('show pod repost links');
+      await ctx.sendMessage('/pod-engage');
       ctx.clearInput();
     },
   },
@@ -136,7 +133,7 @@ export const slashCommands: SlashCommand[] = [
     description: 'Show pod engagement statistics',
     category: 'pod',
     handler: async (args, ctx) => {
-      await ctx.sendMessage('show pod stats');
+      await ctx.sendMessage('/pod-stats');
       ctx.clearInput();
     },
   },
@@ -147,9 +144,8 @@ export const slashCommands: SlashCommand[] = [
     description: 'Show all available commands',
     category: 'utility',
     handler: (args, ctx) => {
-      // Don't send message - will show help UI inline
       const helpText = generateHelpText();
-      ctx.sendMessage(helpText);
+      ctx.sendMessage('/help\n\n' + helpText);
       ctx.clearInput();
     },
   },
@@ -168,7 +164,6 @@ export const slashCommands: SlashCommand[] = [
     category: 'utility',
     aliases: ['fs'],
     handler: (args, ctx) => {
-      // Toggle fullscreen - handled by FloatingChatBar
       ctx.setFullscreen(true);
       ctx.clearInput();
     },

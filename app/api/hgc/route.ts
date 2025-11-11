@@ -988,8 +988,8 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // INTENT: Write/Launch Campaign (Post to LinkedIn)
-      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin|write.*post|let'?s write|compose.*post|create.*post/i)) {
+      // INTENT: Write/Launch Campaign (Post to LinkedIn) + Slash commands
+      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin|write.*post|let'?s write|compose.*post|create.*post|^\/write|^\/li-campaign|^\/launch|^\/campaign/i)) {
         console.log('[HGC_INTENT] Detected write/launch campaign intent - showing campaign selector')
 
         // Fetch campaigns
@@ -1036,6 +1036,25 @@ export async function POST(request: NextRequest) {
         console.log('[HGC_INTENT] Detected create_campaign intent - bypassing GPT-4o')
         // TODO: Add inline campaign creation flow
         // For now, fall through to GPT-4o
+      }
+
+      // INTENT: Pod commands (slash commands)
+      if (userMessage.match(/^\/pod-members|^\/pod-share|^\/pod-engage|^\/pod-stats/i)) {
+        console.log('[HGC_INTENT] Detected pod slash command')
+        // Let OpenAI handle these via function calling with clear instruction
+        conversationHistory.push({
+          role: 'system',
+          content: `User executed slash command: ${userMessage}. Use the appropriate pod-related tool (get_pod_members, share_with_pod, etc.) to fulfill this request immediately. Do not ask for clarification - execute the action.`,
+        })
+      }
+
+      // INTENT: Show campaigns (slash command)
+      if (userMessage.match(/^\/campaigns|show.*campaigns|list.*campaigns|my campaigns/i)) {
+        console.log('[HGC_INTENT] Detected campaigns slash command')
+        conversationHistory.push({
+          role: 'system',
+          content: `User wants to see all campaigns. Use get_all_campaigns() tool immediately and display them with stats.`,
+        })
       }
     }
 
