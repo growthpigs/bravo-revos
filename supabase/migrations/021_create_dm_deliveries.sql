@@ -57,6 +57,7 @@ CREATE POLICY dm_deliveries_client_isolation ON dm_deliveries
   );
 
 -- Updated_at trigger
+DROP TRIGGER IF EXISTS dm_deliveries_updated_at ON dm_deliveries;
 CREATE TRIGGER dm_deliveries_updated_at
   BEFORE UPDATE ON dm_deliveries
   FOR EACH ROW

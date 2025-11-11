@@ -63,6 +63,7 @@ CREATE POLICY dm_sequences_client_isolation ON dm_sequences
   USING (client_id = (SELECT client_id FROM users WHERE id = auth.uid()));
 
 -- Updated_at trigger
+DROP TRIGGER IF EXISTS dm_sequences_updated_at ON dm_sequences;
 CREATE TRIGGER dm_sequences_updated_at
   BEFORE UPDATE ON dm_sequences
   FOR EACH ROW
