@@ -28,21 +28,21 @@ export function InlineDecisionButtons({
   const getIcon = (iconType?: 'plus' | 'list') => {
     switch (iconType) {
       case 'plus':
-        return <PlusCircle className="h-5 w-5 mr-2" />;
+        return <PlusCircle className="h-3.5 w-3.5" />;
       case 'list':
-        return <List className="h-5 w-5 mr-2" />;
+        return <List className="h-3.5 w-3.5" />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="flex flex-col gap-3 w-full">
+    <div className="flex flex-col gap-2">
       {options.map((option) => (
         <button
           key={option.value}
           onClick={() => handleClick(option.value)}
-          className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg font-medium transition-all ${
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
             option.variant === 'primary'
               ? 'bg-blue-600 text-white hover:bg-blue-700'
               : option.value === 'continue'

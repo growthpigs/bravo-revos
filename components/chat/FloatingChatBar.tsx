@@ -716,11 +716,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const handleDecisionSelect = async (decision: string, workflowId?: string) => {
     console.log('[INLINE_FORM] Decision selected:', decision, 'workflow:', workflowId);
 
-    // Special handling for "continue" - just close the workflow
+    // Special handling for "continue" - close workflow and continue chat
     if (decision === 'continue') {
+      // Remove the decision buttons
       setMessages(prev => {
         const newMessages = [...prev];
-        // Find and remove the last message with interactive elements
         for (let i = newMessages.length - 1; i >= 0; i--) {
           if (newMessages[i].interactive?.type === 'decision') {
             newMessages.splice(i, 1);
@@ -730,7 +730,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         return newMessages;
       });
 
-      // Add a light confirmation message
+      // Add user's choice
       const userMessage: Message = {
         id: Date.now().toString(),
         role: 'user',
@@ -738,7 +738,36 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         createdAt: new Date(),
       };
       setMessages(prev => [...prev, userMessage]);
-      return; // Don't call backend
+
+      // Get backend response to continue the flow
+      try {
+        const response = await fetch('/api/hgc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              ...messages.filter(m => !m.interactive),
+              userMessage,
+            ],
+            decision: 'continue',
+            workflow_id: workflowId,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.response) {
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: data.response,
+            createdAt: new Date(),
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        }
+      } catch (error) {
+        console.error('Error continuing chat:', error);
+      }
+      return;
     }
 
     // Special handling for "just write first" - close workflow and let user write
