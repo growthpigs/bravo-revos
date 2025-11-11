@@ -205,12 +205,12 @@ const update_campaign_status = {
   }
 }
 
-// Tool 9: Execute LinkedIn Campaign (FULL AUTOMATION)
+// Tool 9: POST TO LINKEDIN NOW (Creates actual LinkedIn post visible on profile)
 const execute_linkedin_campaign = {
   type: 'function' as const,
   function: {
     name: 'execute_linkedin_campaign',
-    description: 'Launch a LinkedIn campaign: post to LinkedIn + start monitoring for trigger words. Use when user says "launch campaign" or "post and monitor".',
+    description: 'POST CONTENT TO LINKEDIN RIGHT NOW - creates an actual LinkedIn post visible on user\'s profile + starts monitoring for trigger words. Use when user wants to post campaign content to LinkedIn. ALWAYS call this after getting content from user.',
     parameters: {
       type: 'object',
       properties: {
@@ -988,28 +988,32 @@ When user wants POD ENGAGEMENT:
 - "who's in my pod?" → get_pod_members(pod_id)
 - "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
 
-When user wants FULL CAMPAIGN EXECUTION (POST TO LINKEDIN NOW):
-- "launch campaign" / "launch [campaign name]" → MANDATORY MULTI-STEP WORKFLOW:
+When user wants to POST TO LINKEDIN:
+CRITICAL: User says "launch campaign" → They mean POST CONTENT TO LINKEDIN NOW, visible on their profile!
 
-  IMPORTANT: "Launch" means POST TO LINKEDIN RIGHT NOW, not just activate campaign status!
+- "launch campaign" / "launch [campaign name]" / "post this campaign" → YOU MUST FOLLOW THIS EXACT FLOW:
 
-  Step 1: Get campaign
-    - If campaign name provided, find it with get_campaign_by_id() or get_all_campaigns()
-    - If no campaign exists, create_campaign(name, description)
+  Step 1: STOP and ask for content
+    Immediately respond: "I'll post this campaign to LinkedIn now. What content should I post?"
+    OR: "Should I generate content based on the campaign description?"
 
-  Step 2: Check requirements
-    - Does campaign have lead_magnet? If NO → ASK USER to select one
-    - Get post content from user
+    DO NOT proceed without getting content from the user!
 
-  Step 3: Ask user for content
-    You MUST ask: "What content should I post for this campaign? Or should I generate content based on the campaign description?"
-    Wait for user response before proceeding.
+  Step 2: Get campaign details
+    - Find campaign with get_campaign_by_id() or get_all_campaigns()
+    - Check if it has lead_magnet (if not, ask user to select one)
 
-  Step 4: Execute posting
-    Once you have content + campaign_id + trigger_word → execute_linkedin_campaign(content, campaign_id, trigger_word)
-    This posts to LinkedIn + starts monitoring
+  Step 3: ACTUALLY POST TO LINKEDIN
+    Once you have content + campaign_id + trigger_word:
+    → Call execute_linkedin_campaign(content, campaign_id, trigger_word)
+    → This creates an ACTUAL LinkedIn post visible on user's profile
+    → Returns LinkedIn post URL
 
-  NEVER just say "Let's get it launched!" without actually calling execute_linkedin_campaign()!
+  VIOLATIONS THAT ARE FORBIDDEN:
+  ❌ Saying "Let's get it launched!" without calling execute_linkedin_campaign()
+  ❌ Changing campaign status to "active" without posting
+  ❌ Talking about posting without actually calling the tool
+  ❌ Asking for approval - just ask for content, then POST IT
 
 - "post and monitor" / "go live with campaign [ID]" → execute_linkedin_campaign(content, campaign_id, trigger_word)
   * For when user has existing campaign + content ready
