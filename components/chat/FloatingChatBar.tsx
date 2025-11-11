@@ -420,27 +420,29 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     try {
       const requestPayload = {
-        messages: [...messages, userMessage].map(m => {
-          let cleanContent = m.content;
+        messages: [...messages, userMessage]
+          .slice(-40) // Keep only last 40 messages to stay under 50-message API limit
+          .map(m => {
+            let cleanContent = m.content;
 
-          // Sanitize: If content is a JSON string (from old broken responses), extract the actual text
-          if (typeof cleanContent === 'string' && cleanContent.trim().startsWith('{')) {
-            try {
-              const parsed = JSON.parse(cleanContent);
-              if (parsed.response) {
-                cleanContent = parsed.response;
-                console.log('[HGC_STREAM] Sanitized JSON message, extracted response text');
+            // Sanitize: If content is a JSON string (from old broken responses), extract the actual text
+            if (typeof cleanContent === 'string' && cleanContent.trim().startsWith('{')) {
+              try {
+                const parsed = JSON.parse(cleanContent);
+                if (parsed.response) {
+                  cleanContent = parsed.response;
+                  console.log('[HGC_STREAM] Sanitized JSON message, extracted response text');
+                }
+              } catch (e) {
+                // Not valid JSON, keep content as-is
               }
-            } catch (e) {
-              // Not valid JSON, keep content as-is
             }
-          }
 
-          return {
-            role: m.role,
-            content: cleanContent,
-          };
-        }),
+            return {
+              role: m.role,
+              content: cleanContent,
+            };
+          }),
       };
 
       console.log('[HGC_STREAM] Starting fetch request to /api/hgc');
