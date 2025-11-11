@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, userId } = await request.json()
+    const { email, password, userId, fullName } = await request.json()
 
     if (!email || !password || !userId) {
       return NextResponse.json(
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       .insert({
         id: userId,
         email,
+        full_name: fullName || null,
         client_id: clientId,
       })
 

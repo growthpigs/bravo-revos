@@ -579,7 +579,13 @@ export async function POST(request: NextRequest) {
     if (workflowId && decision) {
       console.log('[HGC_INLINE] Decision received:', decision, 'workflow:', workflowId)
 
-      if (decision === 'just_write') {
+      if (decision === 'continue') {
+        // User wants to continue writing - just dismiss the workflow
+        return NextResponse.json({
+          success: true,
+          response: 'Got it! Keep writing.',
+        })
+      } else if (decision === 'just_write') {
         // User wants to write without campaign - handled on frontend
         return NextResponse.json({
           success: true,
@@ -733,12 +739,6 @@ export async function POST(request: NextRequest) {
             workflow_id: workflowId,
             decision_options: [
               {
-                label: 'Just Write',
-                value: 'just_write',
-                icon: 'edit',
-                variant: 'secondary',
-              },
-              {
                 label: 'Create New Campaign',
                 value: 'create_new',
                 icon: 'plus',
@@ -748,6 +748,11 @@ export async function POST(request: NextRequest) {
                 label: 'Select From Existing Campaigns',
                 value: 'select_existing',
                 icon: 'list',
+                variant: 'secondary',
+              },
+              {
+                label: 'Continue Writing',
+                value: 'continue',
                 variant: 'secondary',
               },
             ],
@@ -927,12 +932,6 @@ IMPORTANT:
               workflow_id: workflowId,
               decision_options: [
                 {
-                  label: 'Just Write',
-                  value: 'just_write',
-                  icon: 'edit',
-                  variant: 'secondary',
-                },
-                {
                   label: 'Create New Campaign',
                   value: 'create_new',
                   icon: 'plus',
@@ -942,6 +941,11 @@ IMPORTANT:
                   label: 'Select From Existing Campaigns',
                   value: 'select_existing',
                   icon: 'list',
+                  variant: 'secondary',
+                },
+                {
+                  label: 'Continue Writing',
+                  value: 'continue',
                   variant: 'secondary',
                 },
               ],

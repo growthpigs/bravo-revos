@@ -17,6 +17,8 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  Eye,
+  EyeOff,
   Link2,
   Loader2,
   Trash2,
@@ -45,17 +47,39 @@ export default function LinkedInPage() {
   const [checkpointMode, setCheckpointMode] = useState(false);
   const [checkpointAccountId, setCheckpointAccountId] = useState('');
   const [checkpointType, setCheckpointType] = useState('');
+  const [activeTab, setActiveTab] = useState('connected');
 
   // Form state
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [accountName, setAccountName] = useState('');
   const [checkpointCode, setCheckpointCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     console.log('[DEBUG_LINKEDIN] Component mounted');
     fetchAccounts();
+    fetchUserProfile();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await fetch('/api/user');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[DEBUG_LINKEDIN] User profile data:', data);
+        // Auto-fill form with user data
+        if (data.full_name) {
+          setAccountName(data.full_name);
+        }
+        if (data.email) {
+          setUsername(data.email);
+        }
+      }
+    } catch (error) {
+      console.error('[DEBUG_LINKEDIN] Error fetching user profile:', error);
+    }
+  };
 
   const fetchAccounts = async () => {
     try {
@@ -157,6 +181,8 @@ export default function LinkedInPage() {
         setAccountName('');
         // Always fetch the full account list from the server to ensure we have all fields
         await fetchAccounts();
+        // Auto-switch to Connected tab to show the new account
+        setActiveTab('connected');
       }
     } catch (error) {
       console.error('[DEBUG_LINKEDIN] Error:', error);
@@ -201,6 +227,8 @@ export default function LinkedInPage() {
         setPassword('');
         setAccountName('');
         await fetchAccounts();
+        // Auto-switch to Connected tab to show the new account
+        setActiveTab('connected');
       }
     } catch (error) {
       toast.error('Checkpoint resolution failed');
@@ -269,7 +297,7 @@ export default function LinkedInPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="connected" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="connected">Connected</TabsTrigger>
           <TabsTrigger value="connect">Connect</TabsTrigger>
@@ -363,61 +391,75 @@ export default function LinkedInPage() {
 
         {/* Connect Tab */}
         <TabsContent value="connect" className="space-y-4">
-          {!checkpointMode ? (
-            <form onSubmit={handleAuthenticate} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Account Name</label>
-                <Input
-                  placeholder="e.g., My Sales Account"
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  disabled={authenticating}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  A friendly name to identify this account in the system
-                </p>
-              </div>
+          <div className="max-w-2xl mx-auto">
+            {!checkpointMode ? (
+              <form onSubmit={handleAuthenticate} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-sm text-slate-500 font-normal">Account Name</label>
+                  <Input
+                    placeholder="e.g., John Doe"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    disabled={authenticating}
+                    className="h-11"
+                  />
+                  <p className="text-xs text-gray-400">
+                    A friendly name to identify this account in the system
+                  </p>
+                </div>
 
-              <div>
-                <label className="text-sm font-medium mb-1 block">Email/Username</label>
-                <Input
-                  type="email"
-                  placeholder="your.email@linkedin.com"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={authenticating}
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-slate-500 font-normal">LinkedIn Email</label>
+                  <Input
+                    type="email"
+                    placeholder="your.email@linkedin.com"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={authenticating}
+                    className="h-11"
+                  />
+                </div>
 
-              <div>
-                <label className="text-sm font-medium mb-1 block">Password</label>
-                <Input
-                  type="password"
-                  placeholder="Your LinkedIn password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={authenticating}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Your password is encrypted and never stored in plain text
-                </p>
-              </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-slate-500 font-normal">Password</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Your LinkedIn password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={authenticating}
+                      className="h-11 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      disabled={authenticating}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Your password is encrypted and never stored in plain text
+                  </p>
+                </div>
 
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Your credentials are securely transmitted to Unipile&apos;s servers and not stored in plain
-                  text. We only keep encrypted session tokens.
-                </AlertDescription>
-              </Alert>
+                <Alert className="bg-slate-50 border-slate-200">
+                  <AlertCircle className="h-4 w-4 text-slate-600" />
+                  <AlertDescription className="text-slate-600 text-sm">
+                    Your credentials are securely transmitted to Unipile&apos;s servers and not stored in plain
+                    text. We only keep encrypted session tokens.
+                  </AlertDescription>
+                </Alert>
 
-              <Button type="submit" disabled={authenticating} className="w-full">
-                {authenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Connect Account
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleCheckpointResolution} className="space-y-4">
+                <Button type="submit" disabled={authenticating} className="w-full h-11">
+                  {authenticating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Connect Account
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleCheckpointResolution} className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -455,8 +497,9 @@ export default function LinkedInPage() {
                   Cancel
                 </Button>
               </div>
-            </form>
-          )}
+              </form>
+            )}
+          </div>
         </TabsContent>
 
         {/* Guide Tab */}

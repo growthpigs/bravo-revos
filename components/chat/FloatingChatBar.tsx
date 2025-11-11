@@ -716,6 +716,31 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const handleDecisionSelect = async (decision: string, workflowId?: string) => {
     console.log('[INLINE_FORM] Decision selected:', decision, 'workflow:', workflowId);
 
+    // Special handling for "continue" - just close the workflow
+    if (decision === 'continue') {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        // Find and remove the last message with interactive elements
+        for (let i = newMessages.length - 1; i >= 0; i--) {
+          if (newMessages[i].interactive?.type === 'decision') {
+            newMessages.splice(i, 1);
+            break;
+          }
+        }
+        return newMessages;
+      });
+
+      // Add a light confirmation message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: 'Continue writing',
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, userMessage]);
+      return; // Don't call backend
+    }
+
     // Special handling for "just write first" - close workflow and let user write
     if (decision === 'just_write') {
       // Clear the interactive form by removing the last message with decision buttons
