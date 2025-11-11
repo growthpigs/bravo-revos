@@ -567,7 +567,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           const assistantContent = data.response;
           const cleanContent = deduplicateLines(
             stripIntroText(assistantContent)
-              .replace(/<!--.*?-->/gs, '') // Strip HTML comments (safety net for backend leakage)
+              .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments (safety net for backend leakage)
           );
 
           // Create assistant message with cleaned content (intro text removed)
@@ -658,7 +658,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             setIsFullscreen(true);
             const cleanContent = deduplicateLines(
               stripIntroText(assistantContent)
-                .replace(/<!--.*?-->/gs, '') // Strip HTML comments
+                .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
             );
             setDocumentContent(cleanContent);
             extractDocumentTitle(cleanContent);
@@ -669,7 +669,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         if (isFullscreen && assistantContent.length > 500) {
           const cleanContent = deduplicateLines(
             stripIntroText(assistantContent)
-              .replace(/<!--.*?-->/gs, '') // Strip HTML comments
+              .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
           );
           setDocumentContent(cleanContent);
           extractDocumentTitle(cleanContent);
