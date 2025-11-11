@@ -850,9 +850,9 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          response: `Perfect! Let's write a fresh post.\n\nWhat would you like to write about? You can:\n1. Give me a topic (e.g., "AI in healthcare", "leadership tips")\n2. Provide your own content\n3. Describe what you want to say and I'll draft it\n\n<!-- campaign_id: none -->`,
+          response: `Perfect! Let's write a fresh post.\n\nWhat would you like to write about? You can:\n1. Give me a topic (e.g., "AI in healthcare", "leadership tips")\n2. Provide your own content\n3. Describe what you want to say and I'll draft it`,
           workflow_id: workflowId,
-          campaign_id: null, // No campaign for standalone posts
+          campaign_id: null, // No campaign for standalone posts (tracked separately, not in response text)
         })
       }
 
@@ -869,9 +869,9 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          response: `Great! What content should I post to LinkedIn for **${campaignName}**?\n\nYou can either:\n1. Provide the exact content you want to post\n2. Say "generate it" and I'll create content from the campaign description\n\n<!-- campaign_id: ${selectedCampaignId} -->`,
+          response: `Great! What content should I post to LinkedIn for **${campaignName}**?\n\nYou can either:\n1. Provide the exact content you want to post\n2. Say "generate it" and I'll create content from the campaign description`,
           workflow_id: workflowId, // Keep workflow active
-          campaign_id: selectedCampaignId, // Store for next step
+          campaign_id: selectedCampaignId, // Store for next step (tracked separately, not in response text)
         })
       } else {
         // SCHEDULE workflow: Show datetime picker
@@ -1053,9 +1053,10 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // INTENT: Write/Launch Campaign (Post to LinkedIn) + Slash commands
-      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin|write.*post|let'?s write|compose.*post|create.*post|^\/write|^\/li-campaign|^\/launch|^\/campaign/i)) {
-        console.log('[HGC_INTENT] Detected write/launch campaign intent - showing campaign selector')
+      // INTENT: EXPLICIT Campaign Launch (Post to LinkedIn) + Slash commands
+      // NOTE: Removed generic "write" keywords - those fall through to natural GPT-4o conversation
+      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin|^\/li-campaign|^\/launch|^\/campaign/i)) {
+        console.log('[HGC_INTENT] Detected EXPLICIT campaign launch intent - showing campaign selector')
 
         // Fetch campaigns
         const campaignsResult = await handleGetAllCampaigns()
@@ -1087,7 +1088,7 @@ export async function POST(request: NextRequest) {
         // Return campaign selector directly (skip decision step)
         return NextResponse.json({
           success: true,
-          response: 'What would you like to write about?',
+          response: 'Which campaign would you like to post to?',
           interactive: {
             type: 'campaign_select',
             workflow_id: workflowId,
@@ -1181,9 +1182,21 @@ When user asks about CAMPAIGNS/BUSINESS DATA:
 - "tell me about campaign [name]" → get_all_campaigns() then identify campaign
 
 When user wants to WRITE/POST CONTENT:
-- "write a post" / "let's write" / "write post" / "compose a post" → get_all_campaigns() (show campaign selector)
-- "launch campaign" / "post to linkedin" / "post campaign" → get_all_campaigns() (show campaign selector)
-- 🚨 NEVER ask "what topic?" - ALWAYS show campaigns first via get_all_campaigns()
+
+CONVERSATIONAL FLOW (for generic "write", "compose", "draft"):
+- First ASK: "What would you like to write about?" or "What topic interests you?"
+- User provides topic/content
+- After content is clear, ASK: "Would you like to link this to a campaign?"
+- If yes → call get_all_campaigns() to show campaign selector
+- If no → proceed with standalone post
+
+EXPLICIT CAMPAIGN LAUNCH (for "launch campaign", "post to campaign", "post to linkedin"):
+- Immediately call get_all_campaigns() to show campaign selector (already handled by intent router)
+- User selects campaign → Then ask for content
+
+The key difference:
+- Generic "write" → Ask about CONTENT first, campaign second (optional)
+- Specific "launch campaign" → Show campaigns first, get content second (required)
 
 When user wants to CREATE or MANAGE:
 - "create a campaign" → create_campaign(name, voice_id, description)

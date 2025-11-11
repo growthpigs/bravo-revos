@@ -371,6 +371,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // Helper: Deduplicate consecutive identical lines (prevents "selected campaign" 3x)
+  const deduplicateLines = (text: string): string => {
+    const lines = text.split('\n');
+    return lines.filter((line, i) => {
+      if (i === 0) return true; // Always keep first line
+      const trimmedCurrent = line.trim();
+      const trimmedPrevious = lines[i - 1].trim();
+      // Remove line if it's identical to previous line (consecutive duplicates)
+      return trimmedCurrent !== trimmedPrevious;
+    }).join('\n');
+  };
+
   // Helper: Get conversations grouped by time
   const getGroupedConversations = () => {
     const now = new Date();
@@ -553,7 +565,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         if (data.response) {
           const assistantContent = data.response;
-          const cleanContent = stripIntroText(assistantContent);
+          const cleanContent = deduplicateLines(
+            stripIntroText(assistantContent)
+              .replace(/<!--.*?-->/gs, '') // Strip HTML comments (safety net for backend leakage)
+          );
 
           // Create assistant message with cleaned content (intro text removed)
           const assistantMessage: Message = {
@@ -641,7 +656,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           if (shouldTrigger) {
             console.log('[FCB] Assistant response triggered fullscreen (streaming mode)');
             setIsFullscreen(true);
-            const cleanContent = stripIntroText(assistantContent);
+            const cleanContent = deduplicateLines(
+              stripIntroText(assistantContent)
+                .replace(/<!--.*?-->/gs, '') // Strip HTML comments
+            );
             setDocumentContent(cleanContent);
             extractDocumentTitle(cleanContent);
           }
@@ -649,7 +667,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         // Keep document in sync if already in fullscreen
         if (isFullscreen && assistantContent.length > 500) {
-          const cleanContent = stripIntroText(assistantContent);
+          const cleanContent = deduplicateLines(
+            stripIntroText(assistantContent)
+              .replace(/<!--.*?-->/gs, '') // Strip HTML comments
+          );
           setDocumentContent(cleanContent);
           extractDocumentTitle(cleanContent);
         }
@@ -1248,6 +1269,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   setIsMinimized(false);
                   setIsDocumentMaximized(false);
                   setShowMessages(true);  // Auto-open message panel
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                 aria-label="Close fullscreen"
@@ -1521,6 +1544,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             <button
               onClick={() => {
                 setIsFullscreen(true);
+                setShowSlashMenu(false);  // Close slash menu
+                setSlashQuery('');
               }}
               className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
               aria-label="Fullscreen"
@@ -1534,6 +1559,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               onClick={() => {
                 setIsExpanded(false);
                 setIsMinimized(false);
+                setShowSlashMenu(false);  // Close slash menu
+                setSlashQuery('');
               }}
               className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
               aria-label="Floating bar"
@@ -1846,6 +1873,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 type="button"
                 onClick={() => {
                   setIsExpanded(true);
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
                 aria-label="Sidebar view"
@@ -1859,6 +1888,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 type="button"
                 onClick={() => {
                   setIsFullscreen(true);
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
                 aria-label="Fullscreen"
