@@ -8,11 +8,39 @@ import { ChatMessage } from './ChatMessage';
 import { SaveToCampaignModal } from '../SaveToCampaignModal';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
+import { InlineDecisionButtons } from './InlineDecisionButtons';
+import { InlineCampaignSelector } from './InlineCampaignSelector';
+import { InlineDateTimePicker } from './InlineDateTimePicker';
+
+interface DecisionOption {
+  label: string;
+  value: string;
+  icon?: 'plus' | 'list';
+  variant?: 'primary' | 'secondary';
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+interface InteractiveData {
+  type: 'decision' | 'campaign_select' | 'datetime_select' | 'confirm';
+  workflow_id?: string;
+  campaigns?: Campaign[];
+  decision_options?: DecisionOption[];
+  initial_datetime?: string;
+  initial_content?: string;
+  campaign_id?: string;
+  content?: string;
+}
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  interactive?: InteractiveData;
   createdAt: Date;
 }
 
@@ -463,11 +491,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
             content: cleanContent,
+            interactive: data.interactive, // CRITICAL: Attach interactive field for inline forms
             createdAt: new Date(),
           };
 
           setMessages(prev => [...prev, assistantMessage]);
           console.log('[HGC_STREAM] JSON response added to messages. Length:', cleanContent.length);
+
+          if (data.interactive) {
+            console.log('[HGC_STREAM] 🎯 INTERACTIVE response detected:', data.interactive.type);
+          }
 
           // Auto-fullscreen if content > 500 chars AND user triggered document creation
           if (cleanContent.length > 500 && !isFullscreen && hasDocumentCreationTrigger()) {
@@ -675,6 +708,207 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // ========================================
+  // INLINE WORKFLOW HANDLERS
+  // ========================================
+
+  // Handle user selecting a decision (e.g., "Create New Campaign" vs "Select Existing")
+  const handleDecisionSelect = async (decision: string, workflowId?: string) => {
+    console.log('[INLINE_FORM] Decision selected:', decision, 'workflow:', workflowId);
+
+    // Add user message showing their choice
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: decision === 'create_new' ? 'Create a new campaign' : 'Select from existing campaigns',
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Send decision to backend with workflow context
+      const response = await fetch('/api/hgc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          workflow_id: workflowId,
+          decision: decision,
+        }),
+      });
+
+      const data = await response.json();
+
+      // Add assistant response (may contain next step of workflow)
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.response || 'Got it!',
+        interactive: data.interactive, // Next step (e.g., campaign selector)
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (data.interactive) {
+        console.log('[INLINE_FORM] 🎯 Next step:', data.interactive.type);
+      }
+    } catch (err) {
+      console.error('[INLINE_FORM] Error handling decision:', err);
+      toast.error('Failed to process your selection');
+    }
+  };
+
+  // Handle user selecting a campaign
+  const handleCampaignSelect = async (campaignId: string, workflowId?: string) => {
+    console.log('[INLINE_FORM] Campaign selected:', campaignId, 'workflow:', workflowId);
+
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: `Selected campaign: ${campaignId}`,
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Send campaign selection to backend
+      const response = await fetch('/api/hgc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          workflow_id: workflowId,
+          campaign_id: campaignId,
+        }),
+      });
+
+      const data = await response.json();
+
+      // Add assistant response (may contain datetime picker)
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.response || 'Great choice!',
+        interactive: data.interactive, // Next step (e.g., datetime picker)
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (data.interactive) {
+        console.log('[INLINE_FORM] 🎯 Next step:', data.interactive.type);
+      }
+    } catch (err) {
+      console.error('[INLINE_FORM] Error handling campaign selection:', err);
+      toast.error('Failed to process campaign selection');
+    }
+  };
+
+  // Handle user selecting a datetime
+  const handleDateTimeSelect = async (datetime: string, workflowId?: string, campaignId?: string, content?: string) => {
+    console.log('[INLINE_FORM] DateTime selected:', datetime, 'workflow:', workflowId, 'campaign:', campaignId, 'content:', content);
+
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: `Schedule for: ${new Date(datetime).toLocaleString()}`,
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Send datetime selection to backend (final step - should execute schedule)
+      const response = await fetch('/api/hgc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          workflow_id: workflowId,
+          schedule_time: datetime,
+          campaign_id: campaignId,
+          content: content,
+        }),
+      });
+
+      const data = await response.json();
+
+      // Add assistant response (should be success message)
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.response || 'Post scheduled successfully!',
+        interactive: data.interactive,
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (data.success) {
+        toast.success('Post scheduled successfully!');
+      }
+    } catch (err) {
+      console.error('[INLINE_FORM] Error handling datetime selection:', err);
+      toast.error('Failed to schedule post');
+    }
+  };
+
+  // ========================================
+  // MESSAGE RENDERING WITH INLINE COMPONENTS
+  // ========================================
+
+  const renderMessage = (message: Message, index: number) => {
+    // Check if this message has interactive elements
+    if (message.interactive && message.role === 'assistant') {
+      return (
+        <div key={message.id} className="space-y-3">
+          {/* Show the message text */}
+          <ChatMessage
+            message={convertToUIMessage(message)}
+            isLoading={isLoading && index === messages.length - 1}
+            onExpand={handleMessageExpand}
+          />
+
+          {/* Render the appropriate inline component */}
+          {message.interactive.type === 'decision' && message.interactive.decision_options && (
+            <InlineDecisionButtons
+              options={message.interactive.decision_options}
+              workflowId={message.interactive.workflow_id}
+              onSelect={handleDecisionSelect}
+            />
+          )}
+
+          {message.interactive.type === 'campaign_select' && message.interactive.campaigns && (
+            <InlineCampaignSelector
+              campaigns={message.interactive.campaigns}
+              workflowId={message.interactive.workflow_id}
+              onSelect={handleCampaignSelect}
+            />
+          )}
+
+          {message.interactive.type === 'datetime_select' && (
+            <InlineDateTimePicker
+              initialDatetime={message.interactive.initial_datetime}
+              workflowId={message.interactive.workflow_id}
+              campaignId={message.interactive.campaign_id}
+              content={message.interactive.initial_content}
+              onSelect={handleDateTimeSelect}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // Regular message without interactive elements
+    return (
+      <ChatMessage
+        key={message.id}
+        message={convertToUIMessage(message)}
+        isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+        onExpand={handleMessageExpand}
+      />
+    );
+  };
+
   // Don't render if minimized
   if (isMinimized) {
     return (
@@ -731,14 +965,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 <p className="text-sm">Start a conversation with your AI assistant</p>
               </div>
             ) : (
-              messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={convertToUIMessage(message)}
-                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-                  onExpand={handleMessageExpand}
-                />
-              ))
+              messages.map((message, index) => renderMessage(message, index))
             )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
@@ -1022,14 +1249,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 <p className="text-sm">Start a conversation with your AI assistant</p>
               </div>
             ) : (
-              messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={convertToUIMessage(message)}
-                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-                  onExpand={handleMessageExpand}
-                />
-              ))
+              messages.map((message, index) => renderMessage(message, index))
             )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
@@ -1238,14 +1458,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
           >
             <div className="p-4 space-y-3">
-              {messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={convertToUIMessage(message)}
-                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-                  onExpand={handleMessageExpand}
-                />
-              ))}
+              {messages.map((message, index) => renderMessage(message, index))}
             </div>
           </div>
         )}

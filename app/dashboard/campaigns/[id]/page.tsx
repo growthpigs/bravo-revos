@@ -180,6 +180,11 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
         </Card>
       </div>
 
+      {/* Campaign Posts Section - Moved up for visibility */}
+      <div className="mb-8">
+        <CampaignDocumentsSection campaignId={campaign.id} />
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Lead Magnet Section */}
         <Card>
@@ -338,11 +343,6 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             )}
           </CardContent>
         </Card>
-      </div>
-
-      {/* Knowledge Base Documents Section */}
-      <div className="mt-8">
-        <CampaignDocumentsSection campaignId={campaign.id} />
       </div>
     </div>
   )

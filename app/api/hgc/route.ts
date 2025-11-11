@@ -85,24 +85,24 @@ const schedule_post = {
   type: 'function' as const,
   function: {
     name: 'schedule_post',
-    description: 'Queue a post for review.',
+    description: 'Queue a post for review. All parameters are optional - if missing, user will be prompted with inline forms.',
     parameters: {
       type: 'object',
       properties: {
         content: {
           type: 'string',
-          description: 'Post content'
+          description: 'Post content (optional - will be prompted if missing)'
         },
         schedule_time: {
           type: 'string',
-          description: 'ISO timestamp for when to publish'
+          description: 'ISO timestamp for when to publish (optional - will be prompted if missing)'
         },
         campaign_id: {
           type: 'string',
-          description: 'Campaign ID (optional)'
+          description: 'Campaign ID (optional - will show campaign selector if missing)'
         }
       },
-      required: ['content', 'schedule_time']
+      required: []
     }
   }
 }
@@ -564,6 +564,193 @@ export async function POST(request: NextRequest) {
 
     console.log('[HGC_TS] Formatted to', formattedMessages.length, 'alternating messages')
 
+    // ========================================
+    // INLINE WORKFLOW HANDLING
+    // Handle decision/campaign/datetime selections from inline forms
+    // ========================================
+
+    // Check if this is a workflow step (decision made, campaign selected, or datetime selected)
+    const workflowId = body.workflow_id as string | undefined
+    const decision = body.decision as string | undefined
+    const selectedCampaignId = body.campaign_id as string | undefined
+    const selectedScheduleTime = body.schedule_time as string | undefined
+
+    // STEP 1: User made a decision (create new vs select existing)
+    if (workflowId && decision) {
+      console.log('[HGC_INLINE] Decision received:', decision, 'workflow:', workflowId)
+
+      if (decision === 'select_existing') {
+        // Fetch user's campaigns
+        const campaignsResult = await handleGetAllCampaigns()
+
+        if (!campaignsResult.success) {
+          return NextResponse.json({
+            success: false,
+            response: 'Failed to fetch campaigns. Please try again.',
+          })
+        }
+
+        // Return campaign selector
+        return NextResponse.json({
+          success: true,
+          response: 'Here are your campaigns. Which one would you like to use?',
+          interactive: {
+            type: 'campaign_select',
+            workflow_id: workflowId,
+            campaigns: campaignsResult.campaigns.map((c: any) => ({
+              id: c.id,
+              name: c.name || 'Untitled Campaign',
+              description: c.status === 'draft' ? 'Draft campaign' : undefined,
+            })),
+          },
+        })
+      } else if (decision === 'create_new') {
+        // TODO: Implement inline campaign creation
+        return NextResponse.json({
+          success: true,
+          response: 'Campaign creation coming soon! For now, please select an existing campaign.',
+        })
+      }
+    }
+
+    // STEP 2: User selected a campaign
+    if (workflowId && selectedCampaignId && !selectedScheduleTime) {
+      console.log('[HGC_INLINE] Campaign selected:', selectedCampaignId, 'workflow:', workflowId)
+
+      // Extract post content from conversation history (for final step)
+      const postContentMatch = messages
+        .filter(m => m.role === 'user')
+        .find(m => m.content.match(/schedule.*post|post.*about/i))
+
+      const postContent = postContentMatch
+        ? postContentMatch.content.replace(/schedule.*post|post.*about/i, '').trim() || 'Untitled post'
+        : 'Untitled post'
+
+      // Return datetime picker WITH campaign_id and content stored
+      return NextResponse.json({
+        success: true,
+        response: 'When would you like to schedule this post?',
+        interactive: {
+          type: 'datetime_select',
+          workflow_id: workflowId,
+          campaign_id: selectedCampaignId, // Store for next step
+          content: postContent, // Store for next step
+          initial_datetime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // Tomorrow
+        },
+      })
+    }
+
+    // STEP 3: User selected a datetime (final step - execute schedule)
+    if (workflowId && selectedScheduleTime) {
+      console.log('[HGC_INLINE] DateTime selected:', selectedScheduleTime, 'workflow:', workflowId)
+
+      // Get campaign_id and content from the message with datetime picker
+      // The frontend should have sent these back
+      let campaignId = selectedCampaignId
+      let postContent = body.content as string | undefined
+
+      // Fallback: Extract from message history if not in request
+      if (!postContent) {
+        const postContentMatch = messages
+          .filter(m => m.role === 'user')
+          .find(m => m.content.match(/schedule.*post|post.*about/i))
+
+        postContent = postContentMatch
+          ? postContentMatch.content.replace(/schedule.*post|post.*about/i, '').trim() || 'Untitled post'
+          : 'Untitled post'
+      }
+
+      if (!campaignId) {
+        // Try to extract from previous messages
+        const campaignMatch = messages
+          .filter(m => m.role === 'user')
+          .find(m => m.content.match(/Selected campaign:/i))
+
+        if (campaignMatch) {
+          campaignId = campaignMatch.content.replace(/Selected campaign:\s*/i, '').trim()
+        }
+      }
+
+      // EXECUTE THE SCHEDULE
+      if (campaignId && postContent && selectedScheduleTime) {
+        console.log('[HGC_INLINE] Executing schedule_post:', {
+          content: postContent,
+          campaign_id: campaignId,
+          schedule_time: selectedScheduleTime,
+        })
+
+        const scheduleResult = await handleSchedulePost({
+          content: postContent,
+          campaign_id: campaignId,
+          schedule_time: selectedScheduleTime,
+        })
+
+        if (scheduleResult.success) {
+          return NextResponse.json({
+            success: true,
+            response: `✅ Post scheduled successfully for ${new Date(selectedScheduleTime).toLocaleString()}!\n\nContent: "${postContent}"\nCampaign: ${campaignId}`,
+          })
+        } else {
+          return NextResponse.json({
+            success: false,
+            response: `Failed to schedule post: ${scheduleResult.error}`,
+          })
+        }
+      } else {
+        return NextResponse.json({
+          success: false,
+          response: `Missing required information: campaign_id=${!!campaignId}, content=${!!postContent}`,
+        })
+      }
+    }
+
+    // ========================================
+    // INTENT ROUTER - Bypass GPT-4o for known workflows
+    // ========================================
+    const lastMessage = formattedMessages[formattedMessages.length - 1]
+    if (lastMessage && lastMessage.role === 'user') {
+      const userMessage = lastMessage.content.toLowerCase()
+
+      // INTENT: Schedule Post
+      if (userMessage.match(/schedule.*post|create.*post|post.*about|post.*tomorrow|post.*\d{1,2}(am|pm)/i)) {
+        console.log('[HGC_INTENT] Detected schedule_post intent - bypassing GPT-4o')
+
+        // Generate workflow ID
+        const workflowId = `workflow-${Date.now()}`
+
+        // Return decision buttons directly
+        return NextResponse.json({
+          success: true,
+          response: 'Would you like to create a new campaign or use an existing one?',
+          interactive: {
+            type: 'decision',
+            workflow_id: workflowId,
+            decision_options: [
+              {
+                label: 'Create New Campaign',
+                value: 'create_new',
+                icon: 'plus',
+                variant: 'primary',
+              },
+              {
+                label: 'Select From Existing Campaigns',
+                value: 'select_existing',
+                icon: 'list',
+                variant: 'secondary',
+              },
+            ],
+          },
+        })
+      }
+
+      // INTENT: Create Campaign (future expansion)
+      if (userMessage.match(/create.*campaign|new campaign|start.*campaign/i)) {
+        console.log('[HGC_INTENT] Detected create_campaign intent - bypassing GPT-4o')
+        // TODO: Add inline campaign creation flow
+        // For now, fall through to GPT-4o
+      }
+    }
+
     console.log('[HGC_TS] Calling OpenAI with function calling...')
     const aiStartTime = Date.now()
 
@@ -594,7 +781,17 @@ You: [IMMEDIATELY call schedule_post(), get result]
 You: "✅ Post scheduled successfully for Nov 11 at 10am" ← Only after tool confirms
 
 If the tool returns an error, tell the user the exact error. Never pretend success.
-If you don't have required information (like campaign_id), ask for it BEFORE discussing what you'll do.
+
+INLINE WORKFLOW (CRITICAL):
+When user wants to schedule a post but hasn't specified campaign:
+1. Call schedule_post() with content and time (campaign_id can be undefined/null)
+2. The system will show inline buttons asking them to choose a campaign
+3. DO NOT ask questions - just call the tool immediately
+
+Example:
+User: "Schedule a post about AI"
+You: [IMMEDIATELY call schedule_post(content="post about AI", schedule_time=null, campaign_id=null)]
+System: [Shows inline buttons automatically]
 
 PERSONALITY & COMMUNICATION:
 - Be conversational, insightful, and strategic (NOT a data dump bot)
@@ -613,7 +810,10 @@ When user asks about CAMPAIGNS/BUSINESS DATA:
 
 When user wants to CREATE or MANAGE:
 - "create a campaign" → create_campaign(name, voice_id, description)
-- "schedule a post" → schedule_post(content, time, campaign_id)
+- "schedule a post" / "schedule post" / "post about X" → IMMEDIATELY call schedule_post() with whatever info you have
+  * Even if content/time/campaign_id are missing → call schedule_post(content, null, null)
+  * The system will show inline forms to collect missing info
+  * NEVER ask questions - just call the tool
 - "start DM monitoring" / "monitor post for leads" → trigger_dm_scraper(post_id, trigger_word)
 - "activate campaign" / "pause campaign" → update_campaign_status(campaign_id, status)
 
@@ -698,6 +898,40 @@ IMPORTANT:
         }
 
         console.log(`[HGC_TS] Tool call: ${functionName}`, functionArgs)
+
+        // WORKFLOW DETECTION: Intercept schedule_post without campaign_id
+        if (functionName === 'schedule_post' && !functionArgs.campaign_id) {
+          console.log('[HGC_WORKFLOW] schedule_post called without campaign_id - returning decision buttons')
+
+          // Generate unique workflow ID
+          const workflowId = `workflow-${Date.now()}`
+
+          // Return decision buttons: Create New or Select Existing
+          return NextResponse.json({
+            success: true,
+            response: 'Would you like to create a new campaign or use an existing one?',
+            interactive: {
+              type: 'decision',
+              workflow_id: workflowId,
+              decision_options: [
+                {
+                  label: 'Create New Campaign',
+                  value: 'create_new',
+                  icon: 'plus',
+                  variant: 'primary',
+                },
+                {
+                  label: 'Select From Existing Campaigns',
+                  value: 'select_existing',
+                  icon: 'list',
+                  variant: 'secondary',
+                },
+              ],
+              initial_content: functionArgs.content || '',
+              initial_datetime: functionArgs.schedule_time || '',
+            },
+          })
+        }
 
         let result
         switch (functionName) {

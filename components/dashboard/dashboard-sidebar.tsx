@@ -18,7 +18,8 @@ import {
   MessageSquare,
   LogOut,
   Zap,
-  BookOpen
+  BookOpen,
+  Calendar
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -29,6 +30,7 @@ interface DashboardSidebarProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Scheduled Actions', href: '/dashboard/scheduled', icon: Calendar },
   { name: 'Campaigns', href: '/dashboard/campaigns', icon: Megaphone },
   { name: 'Voice Cartridges', href: '/dashboard/cartridges', icon: Zap },
   { name: 'LinkedIn Accounts', href: '/dashboard/linkedin', icon: Linkedin },
