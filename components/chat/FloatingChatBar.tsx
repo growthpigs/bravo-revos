@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { InlineDecisionButtons } from './InlineDecisionButtons';
 import { InlineCampaignSelector } from './InlineCampaignSelector';
 import { InlineDateTimePicker } from './InlineDateTimePicker';
+import { SlashCommandAutocomplete } from './SlashCommandAutocomplete';
+import { getCommand, type SlashCommand, type SlashCommandContext } from '@/lib/slash-commands';
 
 interface DecisionOption {
   label: string;
@@ -65,6 +67,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Slash command state
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
 
   // Conversation management
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -655,8 +662,89 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // ========================================
+  // SLASH COMMAND HANDLERS
+  // ========================================
+
+  // Handle input change - detect slash commands
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+
+    // Detect "/" at start of input
+    if (value.startsWith('/') && !showSlashMenu) {
+      // Calculate dropdown position above textarea
+      if (textareaRef.current) {
+        const rect = textareaRef.current.getBoundingClientRect();
+        setSlashMenuPosition({
+          top: rect.top - 10, // Position above textarea
+          left: rect.left,
+        });
+      }
+      setShowSlashMenu(true);
+      setSlashQuery(value.slice(1)); // Remove "/" for query
+    } else if (value.startsWith('/') && showSlashMenu) {
+      // Update query as user types
+      setSlashQuery(value.slice(1));
+    } else if (!value.startsWith('/') && showSlashMenu) {
+      // Hide menu if "/" is removed
+      setShowSlashMenu(false);
+      setSlashQuery('');
+    }
+  };
+
+  // Handle slash command selection
+  const handleSlashCommandSelect = async (command: SlashCommand) => {
+    console.log('[SLASH_CMD] Executing command:', command.name);
+
+    // Close menu
+    setShowSlashMenu(false);
+    setSlashQuery('');
+
+    // Extract args (text after command name)
+    const commandText = `/${command.name}`;
+    const args = input.slice(commandText.length).trim();
+
+    // Create command context
+    const context: SlashCommandContext = {
+      sendMessage: async (message: string) => {
+        // Set input and trigger send
+        setInput(message);
+        // Small delay to let state update
+        await new Promise(resolve => setTimeout(resolve, 50));
+        // Trigger submit
+        const fakeEvent = { preventDefault: () => {} } as FormEvent;
+        await handleSubmit(fakeEvent);
+      },
+      clearInput: () => {
+        setInput('');
+      },
+      setFullscreen: (enabled: boolean) => {
+        setIsFullscreen(enabled);
+      },
+      clearMessages: () => {
+        setMessages([]);
+        setCurrentConversationId(null);
+        toast.success('Conversation cleared');
+      },
+    };
+
+    // Execute command handler
+    try {
+      await command.handler(args, context);
+    } catch (error) {
+      console.error('[SLASH_CMD] Error executing command:', error);
+      toast.error(`Failed to execute /${command.name}`);
+    }
+  };
+
   // Handle Enter key (send) and Shift+Enter (new line)
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // If slash menu is open, don't handle Enter (let autocomplete handle it)
+    if (showSlashMenu && e.key === 'Enter') {
+      return; // Let SlashCommandAutocomplete handle Enter
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (input.trim() && !isLoading) {
@@ -1151,7 +1239,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Send a message..."
                 className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none resize-none text-gray-700 placeholder-gray-500"
@@ -1607,6 +1695,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         />
       )}
 
+      {/* Slash Command Autocomplete */}
+      <SlashCommandAutocomplete
+        visible={showSlashMenu}
+        query={slashQuery}
+        onSelect={handleSlashCommandSelect}
+        onClose={() => {
+          setShowSlashMenu(false);
+          setSlashQuery('');
+        }}
+        position={slashMenuPosition}
+      />
+
       <div
         ref={floatingChatContainerRef}
         className={cn(
@@ -1649,7 +1749,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 onFocus={() => {
                   if (messages.length > 0) {
