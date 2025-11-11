@@ -1074,6 +1074,11 @@ When user asks about CAMPAIGNS/BUSINESS DATA:
 - "how is campaign X doing?" → get_campaign_by_id(campaign_id="...")
 - "tell me about campaign [name]" → get_all_campaigns() then identify campaign
 
+When user wants to WRITE/POST CONTENT:
+- "write a post" / "let's write" / "write post" / "compose a post" → get_all_campaigns() (show campaign selector)
+- "launch campaign" / "post to linkedin" / "post campaign" → get_all_campaigns() (show campaign selector)
+- 🚨 NEVER ask "what topic?" - ALWAYS show campaigns first via get_all_campaigns()
+
 When user wants to CREATE or MANAGE:
 - "create a campaign" → create_campaign(name, voice_id, description)
 - "schedule a post" / "schedule post" / "post about X" → IMMEDIATELY call schedule_post() with whatever info you have
@@ -1089,11 +1094,15 @@ When user wants POD ENGAGEMENT:
 
 🚨 POSTING TO LINKEDIN - WORKING DOCUMENT FLOW 🚨
 
-When user says "launch campaign" or "post to LinkedIn":
+When user says ANY of these phrases:
+- "launch campaign" / "post to LinkedIn" / "post a campaign"
+- "write a post" / "let's write a post" / "write post" / "let's write"
+- "create a post" / "compose a post"
 
 STEP 1 - IMMEDIATELY call get_all_campaigns() to trigger campaign selector buttons
 - System shows interactive campaign selection buttons
 - User clicks their choice
+- 🚨 NEVER ask "what topic?" or "provide details" - ALWAYS show campaigns first!
 
 STEP 2 - After campaign selected (handled by backend):
 - Backend asks: "What content should I post for [Campaign Name]?"
