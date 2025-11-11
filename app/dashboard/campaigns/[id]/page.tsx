@@ -21,7 +21,6 @@ import {
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import CampaignActions from '@/components/dashboard/campaign-actions'
-import { CampaignPostsSection } from '@/components/dashboard/CampaignPostsSection'
 import { CampaignDocumentsSection } from '@/components/dashboard/CampaignDocumentsSection'
 
 export const dynamic = 'force-dynamic'
@@ -181,12 +180,7 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
         </Card>
       </div>
 
-      {/* Campaign Posts Section */}
-      <div className="mb-8">
-        <CampaignPostsSection campaignId={campaign.id} />
-      </div>
-
-      {/* Knowledge Base Documents Section */}
+      {/* Campaign Posts Section - Moved up for visibility */}
       <div className="mb-8">
         <CampaignDocumentsSection campaignId={campaign.id} />
       </div>
