@@ -989,9 +989,16 @@ When user wants POD ENGAGEMENT:
 - "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
 
 When user wants FULL CAMPAIGN EXECUTION:
-- "launch campaign" / "post and monitor" / "go live with campaign" → execute_linkedin_campaign(content, campaign_id, trigger_word)
+- "launch campaign about X" → MULTI-STEP WORKFLOW:
+  1. First check if campaign exists (get_all_campaigns)
+  2. If not, create_campaign(name, description) with trigger_word in description
+  3. ASK USER which lead magnet to use (if campaign doesn't have one)
+  4. ASK USER for post content OR offer to generate it from campaign description
+  5. Finally execute_linkedin_campaign(content, campaign_id, trigger_word)
+
+- "post and monitor" / "go live with campaign [ID]" → execute_linkedin_campaign(content, campaign_id, trigger_word)
+  * For when user has existing campaign + content ready
   * This posts to LinkedIn + starts monitoring automatically
-  * One command = full automation
   * Returns live post URL and monitoring status
 
 CAMPAIGN SELECTION (MANDATORY FORMAT):
