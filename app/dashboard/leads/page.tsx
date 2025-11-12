@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Download, Filter, Users2, Search, X, Eye, Copy, MessageSquare, Mail, CheckCircle, XCircle } from 'lucide-react'
@@ -334,12 +334,11 @@ export default function LeadsPage() {
                       <td className="py-3 px-4 text-gray-600">{lead.email || '-'}</td>
                       <td className="py-3 px-4 text-gray-600">{(lead.campaigns as any)?.name || '-'}</td>
                       <td className="py-3 px-4">
-                        <Badge className={statusColors[lead.status]} variant="secondary">
-                          <span className="flex items-center gap-1">
-                            {statusIcons[lead.status]}
-                            {statusLabels[lead.status]}
-                          </span>
-                        </Badge>
+                        <StatusBadge
+                          className={statusColors[lead.status]}
+                          icon={statusIcons[lead.status]}
+                          label={statusLabels[lead.status]}
+                        />
                       </td>
                       <td className="py-3 px-4 text-gray-600">{lead.company || '-'}</td>
                       <td className="py-3 px-4 text-gray-600 text-xs">
@@ -440,12 +439,11 @@ export default function LeadsPage() {
                   </div>
                   <div>
                     <Label className="text-xs text-gray-600 uppercase">Status</Label>
-                    <Badge className={`${statusColors[selectedLead.status]} mt-1`} variant="secondary">
-                      <span className="flex items-center gap-1">
-                        {statusIcons[selectedLead.status]}
-                        {statusLabels[selectedLead.status]}
-                      </span>
-                    </Badge>
+                    <StatusBadge
+                      className={`${statusColors[selectedLead.status]} mt-1`}
+                      icon={statusIcons[selectedLead.status]}
+                      label={statusLabels[selectedLead.status]}
+                    />
                   </div>
                 </div>
               </div>
