@@ -65,6 +65,38 @@
 
 ---
 
+## 🗄️ SQL Migration Protocol
+
+**CRITICAL: ALL SQL migration files MUST include clickable Supabase link at the top**
+
+### Required Format
+
+Every SQL migration file must start with:
+```sql
+-- Supabase Project: kvjcidxbyimoswntpjcp
+-- Click to open in SQL editor: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+--
+-- [Brief description of migration]
+```
+
+### Usage Workflow
+
+1. Create SQL file in `supabase/migrations/[YYYYMMDD]_[description].sql`
+2. Add clickable link at the top (format above)
+3. User clicks link → Opens Supabase SQL editor
+4. User clicks "Run" in Supabase UI
+5. Migration applied ✅
+
+**IMPORTANT**: The link self-populates the SQL editor. NO copy-paste needed.
+
+### Example Files
+
+- `supabase/migrations/20251112_offerings_table.sql` - Offerings table with RLS
+- Include complete DDL, indexes, RLS policies, triggers
+- Comment out sample data inserts (user can uncomment if needed)
+
+---
+
 ## Documentation Structure
 
 **CRITICAL: Branch-Based Documentation System**

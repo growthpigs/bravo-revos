@@ -21,7 +21,8 @@ import {
   Zap,
   BookOpen,
   Calendar,
-  FlaskConical
+  FlaskConical,
+  Package
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
@@ -36,6 +37,7 @@ const navigation = [
   { name: 'Scheduled Actions', href: '/dashboard/scheduled', icon: Calendar },
   { name: 'Campaigns', href: '/dashboard/campaigns', icon: Megaphone },
   { name: 'Voice Cartridges', href: '/dashboard/cartridges', icon: Zap },
+  { name: 'Offerings', href: '/dashboard/offerings', icon: Package },
   { name: 'LinkedIn Accounts', href: '/dashboard/linkedin', icon: Linkedin },
   { name: 'Leads', href: '/dashboard/leads', icon: Users2 },
   { name: 'LinkedIn Posts', href: '/dashboard/posts', icon: Linkedin },
