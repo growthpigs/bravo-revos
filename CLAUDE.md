@@ -65,6 +65,41 @@
 
 ---
 
+## 🎯 Superpowers Skills - Automatic Activation
+
+**CRITICAL: These skills MUST be activated automatically based on conversation context**
+
+### Activation Rules
+
+1. **superpowers-brainstorm** → Auto-activate when:
+   - User starts talking about ideas
+   - User mentions "what if we..." or "I'm thinking about..."
+   - User asks for design feedback or alternatives
+   - User wants to explore options before committing
+   - **Action**: Invoke brainstorming skill immediately
+
+2. **superpowers-write-plan** → Auto-activate when:
+   - User gives a mandate to write a plan
+   - User says "create a plan for..." or "write plan for..."
+   - User requests implementation roadmap
+   - **Action**: Invoke write-plan skill immediately
+
+3. **superpowers-execute-plan** → Auto-activate when:
+   - User gives a mandate to execute a plan
+   - User says "execute the plan" or "implement the plan"
+   - User approves plan and wants implementation to start
+   - **Action**: Invoke execute-plan skill immediately
+
+### Pattern Recognition
+
+- **Ideas phase** → `/superpowers-brainstorm`
+- **Planning phase** → `/superpowers-write-plan`
+- **Execution phase** → `/superpowers-execute-plan`
+
+**DO NOT ask permission. Auto-invoke the appropriate skill based on conversation context.**
+
+---
+
 ## 🗄️ SQL Migration Protocol
 
 **CRITICAL: ALL SQL migration files MUST include clickable Supabase link at the top**
