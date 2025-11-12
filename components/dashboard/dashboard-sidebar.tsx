@@ -151,10 +151,10 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
 
                       {item.badge && (
                         <span className={cn(
-                          "text-xs px-2 py-0.5 rounded font-semibold",
+                          "text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase",
                           item.badge === "NEW"
                             ? "bg-blue-100 text-blue-700"
-                            : "bg-gray-200 text-gray-600"
+                            : "bg-gray-200 text-gray-500"
                         )}>
                           {item.badge}
                         </span>
