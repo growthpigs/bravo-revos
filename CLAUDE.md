@@ -67,16 +67,36 @@
 
 ## Documentation Structure
 
-All project documentation MUST live in:
-`docs/projects/bravo-revos/`
+**CRITICAL: Branch-Based Documentation System**
 
-This includes:
-- spec.md - Feature specifications
-- data-model.md - Database schema
-- research.md - Research findings
-- plan.md - Implementation plans
-- roadmap.md - Project roadmap
-- Any SITREPs or session documents
+When user mentions starting a "new mandate", "new sprint", "new feature", or "new branch":
+1. ✅ **ASK FOR BRANCH NAME** - "What should the branch name be?"
+2. ✅ **CREATE BRANCH** - `git checkout -b feat/[name]`
+3. ✅ **CREATE BRANCH FOLDER** - `docs/branches/[date]-[name]/`
+4. ✅ **SAVE ALL WORK THERE** - plan.md, sitrep.md, validation.md
+
+**Folder Structure:**
+```
+docs/
+  SITREPs/          ← Overall app situation reports (capitalized)
+  features/         ← Major feature documentation (high-level specs)
+  branches/         ← Branch-specific work (one folder per feature branch)
+    [YYYY-MM-DD]-[branch-name]/
+      plan.md       ← Implementation plan
+      sitrep.md     ← Feature completion report
+      validation.md ← Test results and validation
+  projects/         ← Legacy (keep for now, may deprecate)
+```
+
+**Branch Folder Naming:**
+- Date: `YYYY-MM-DD` (e.g., `2025-11-12`)
+- Name: kebab-case matching git branch (e.g., `offerings-conversation-intelligence`)
+- Example: `docs/branches/2025-11-12-offerings-conversation-intelligence/`
+
+**Git Branch Naming:**
+- Features: `feat/[name]` (e.g., `feat/offerings-conversation-intelligence`)
+- Fixes: `fix/[name]`
+- Docs: `docs/[name]`
 
 **ALWAYS upload documents to Archon immediately after creation using manage_document().**
 
