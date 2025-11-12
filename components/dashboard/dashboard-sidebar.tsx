@@ -116,11 +116,11 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
     <div className="flex flex-col w-64 bg-white border-r border-gray-200 h-screen sticky top-0 pt-16">
 
       <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-6">
+        <nav className="space-y-7">
           {menuSections.map((section) => (
             <div key={section.title}>
               {/* Section Title */}
-              <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <h3 className="px-3 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                 {section.title}
               </h3>
 
@@ -133,13 +133,13 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
                       key={item.label}
                       href={item.href}
                       className={cn(
-                        'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                        'flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
                         isActive
-                          ? 'bg-gray-100 text-gray-900 font-semibold'
+                          ? 'bg-blue-50 text-blue-900 font-semibold'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       )}
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
                       <span className="flex-1">{item.label}</span>
 
                       {item.badge && (
