@@ -113,6 +113,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const messagesPanelRef = useRef<HTMLDivElement>(null);
   const floatingBarRef = useRef<HTMLFormElement>(null);
   const floatingChatContainerRef = useRef<HTMLDivElement>(null);
+  const isLoadingConversation = useRef(false);
   const [showMessages, setShowMessages] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -296,7 +297,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       return () => clearTimeout(timeout);
     }
-  }, [messages, isExpanded, isFullscreen]);
+  }, [messages, isExpanded, isFullscreen, showMessages]);
 
   // Special handler: When fullscreen opens, scroll after animation completes
   useEffect(() => {

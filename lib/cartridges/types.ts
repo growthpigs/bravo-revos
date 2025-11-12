@@ -194,3 +194,16 @@ export interface Cartridge {
     temperature?: number;
   };
 }
+
+// Type aliases for loader compatibility
+export type BaseCartridge = Cartridge;
+export type CartridgeTool = Tool;
+
+/**
+ * Slash Command Interface - Interactive commands
+ */
+export interface SlashCommand {
+  command: string;
+  description: string;
+  handler: (args: string[], context: AgentContext) => Promise<string>;
+}

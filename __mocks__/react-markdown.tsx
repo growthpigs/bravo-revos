@@ -57,7 +57,7 @@ const ReactMarkdown: React.FC<{
 
     // Wrap list items in ul if needed
     if (parsed.includes('<li')) {
-      parsed = parsed.replace(/(<li[^>]*>.*<\/li>)+/gs, (match) => {
+      parsed = parsed.replace(/(<li[^>]*>[\s\S]*?<\/li>)+/g, (match) => {
         return `<ul class="list-disc ml-4 my-2 space-y-1 text-inherit">${match}</ul>`;
       });
     }

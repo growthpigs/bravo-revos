@@ -198,7 +198,7 @@ export default function LinkedInPage() {
                   <Alert className="mt-4 border-red-200 bg-red-50">
                     <AlertCircle className="h-4 w-4 text-red-600" />
                     <AlertDescription className="text-red-600">
-                      There's an issue with your LinkedIn connection. Please contact support for assistance.
+                      {"There's an issue with your LinkedIn connection. Please contact support for assistance."}
                     </AlertDescription>
                   </Alert>
                 )}

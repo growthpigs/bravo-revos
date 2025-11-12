@@ -174,7 +174,7 @@ export class MarketingConsole {
   private detectInteractiveElements(response: string): any | undefined {
     // Check for campaign selector pattern
     if (response.includes('SELECT_CAMPAIGN:')) {
-      const match = response.match(/SELECT_CAMPAIGN:\s*(\[.*?\])/s);
+      const match = response.match(/SELECT_CAMPAIGN:\s*(\[[\s\S]*?\])/);
       if (match) {
         try {
           const campaigns = JSON.parse(match[1]);
@@ -190,7 +190,7 @@ export class MarketingConsole {
 
     // Check for decision buttons pattern
     if (response.includes('DECISION:')) {
-      const match = response.match(/DECISION:\s*(\[.*?\])/s);
+      const match = response.match(/DECISION:\s*(\[[\s\S]*?\])/);
       if (match) {
         try {
           const options = JSON.parse(match[1]);
