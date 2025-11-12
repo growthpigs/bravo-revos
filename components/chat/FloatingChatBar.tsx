@@ -332,6 +332,20 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [isLoading]);
 
+  // Auto-focus chat input when chat opens in any mode
+  useEffect(() => {
+    // Chat is visible when: showMessages OR isExpanded OR isFullscreen
+    const chatIsVisible = showMessages || isExpanded || isFullscreen;
+    const chatIsNotCollapsed = !isCollapsed;
+
+    if (chatIsVisible && chatIsNotCollapsed && textareaRef.current) {
+      // Small timeout to ensure DOM has fully rendered
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+    }
+  }, [showMessages, isExpanded, isFullscreen, isCollapsed]);
+
   // ESC key hierarchy: Fullscreen → Floating → Collapsed Button
   useEffect(() => {
     const handleEscape = (e: globalThis.KeyboardEvent) => {
@@ -906,16 +920,80 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const commandText = `/${command.name}`;
     const args = input.slice(commandText.length).trim();
 
+    // Clear input immediately
+    setInput('');
+
     // Create command context
     const context: SlashCommandContext = {
       sendMessage: async (message: string) => {
-        // Set input and trigger send
-        setInput(message);
-        // Small delay to let state update
-        await new Promise(resolve => setTimeout(resolve, 50));
-        // Trigger submit
-        const fakeEvent = { preventDefault: () => {} } as FormEvent;
-        await handleSubmit(fakeEvent);
+        // Create user message directly (bypass input state timing issue)
+        const userMessage: Message = {
+          id: generateUniqueId(),
+          role: 'user',
+          content: message.trim(),
+          createdAt: new Date(),
+        };
+
+        console.log('[SLASH_CMD] Sending message as user:', userMessage.content);
+
+        // Add to messages and show panel
+        setMessages(prev => [...prev, userMessage]);
+        setShowMessages(true);
+
+        // Check if should trigger fullscreen
+        const lowerContent = message.toLowerCase();
+        const shouldTriggerFullscreen =
+          lowerContent.includes('write') ||
+          lowerContent.includes('draft') ||
+          lowerContent.includes('compose') ||
+          lowerContent.startsWith('/write') ||
+          lowerContent.startsWith('/generate');
+
+        if (shouldTriggerFullscreen && !isFullscreen) {
+          console.log('[SLASH_CMD] Triggering fullscreen for:', message);
+          setIsFullscreen(true);
+        }
+
+        // Start loading and call API
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          const response = await fetch(HGC_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [...messages, userMessage].slice(-40).map(m => ({
+                role: m.role,
+                content: m.content,
+              })),
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // Add assistant response
+          const assistantMessage: Message = {
+            id: generateUniqueId(),
+            role: 'assistant',
+            content: data.response,
+            createdAt: new Date(),
+            interactive: data.interactive,
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+
+        } catch (error) {
+          console.error('[SLASH_CMD] API error:', error);
+          setError('Failed to send message');
+          toast.error('Failed to send message');
+        } finally {
+          setIsLoading(false);
+        }
       },
       clearInput: () => {
         setInput('');
