@@ -339,10 +339,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const chatIsNotCollapsed = !isCollapsed;
 
     if (chatIsVisible && chatIsNotCollapsed && textareaRef.current) {
-      // Small timeout to ensure DOM has fully rendered
+      // Longer timeout to ensure DOM has fully rendered in all modes (sidebar/fullscreen)
       setTimeout(() => {
         textareaRef.current?.focus();
-      }, 50);
+      }, 100);
     }
   }, [showMessages, isExpanded, isFullscreen, isCollapsed]);
 
