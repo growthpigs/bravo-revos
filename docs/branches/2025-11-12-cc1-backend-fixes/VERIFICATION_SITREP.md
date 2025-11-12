@@ -155,17 +155,19 @@ The code is:
 - 27 ESLint errors in other files (unescaped HTML entities) - Not caused by our changes
 - React Hook dependency warnings in FloatingChatBar.tsx - Pre-existing, not in our X button code
 
-### User-Requested Features (Next Iteration)
-- Cursor focus retention in chat input after sending messages
+### Features Completed in Previous Iteration
+- ✅ Cursor focus retention in chat input after sending messages (commit a807571)
+- ✅ Resizable sidebar with drag handles (commit 6eb711f)
+
+### Known Limitations (Next Iteration)
+- ⚠️ **Chat column not draggable in working document state** - The chat panel in fullscreen/expanded mode cannot be resized horizontally. The sidebar has drag handles, but the chat column in the working document area (right panel) doesn't have left/right drag functionality yet. This should be added as a separate feature.
 - Increase fullscreen chat height for better clickability
-- Drag handles on chat column for resizable width (like sidebar)
-- Verify sidebar drag handle functionality
 
 ---
 
 ## Summary
 
-**Status: ✅ COMPLETE - READY FOR MERGE TO MAIN**
+**Status: ✅ MERGED TO MAIN**
 
 All chat UI improvements and authentication fixes have been:
 1. Implemented correctly
@@ -173,11 +175,22 @@ All chat UI improvements and authentication fixes have been:
 3. Reviewed against best practices
 4. Tested for functionality
 5. Confirmed production-safe
+6. **MERGED to main branch successfully**
 
-Ready to merge to main branch immediately.
+### Merge Completion Details
+- **Merge Commit:** bb3a286 (fast-forward merge of feat/cc1-backend-fixes into main)
+- **Files Changed:** 68 files across components, API routes, tests, and documentation
+- **Branch Status:** Main now includes all 23 commits from feat/cc1-backend-fixes
+- **Dev Server:** Running on localhost:3000 with latest code from main
+- **Key Features on Main:**
+  - ✅ Cursor focus retention (a807571)
+  - ✅ Resizable sidebar (6eb711f)
+  - ✅ Chat UI improvements (3f306f9)
+  - ✅ Auth fixes (bb3a286)
 
 ---
 
 **Verified By:** Claude Code
 **Date:** November 12, 2025, 15:44 UTC
-**Next Steps:** Merge to main, then address user-requested follow-up features
+**Merge Completed:** November 12, 2025, 16:10 UTC
+**Next Steps:** Implement drag handles for chat column in working document state; increase fullscreen chat height
