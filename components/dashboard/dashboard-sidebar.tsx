@@ -9,6 +9,12 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   LayoutDashboard,
   Megaphone,
   Users2,
@@ -31,7 +37,8 @@ import {
   BarChart,
   Key,
   Database,
-  Layers
+  Layers,
+  MoreVertical
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
@@ -190,29 +197,64 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
           </Button>
 
           <div className="my-4 border-t border-gray-200"></div>
-
-          {/* User Profile Section */}
-          <div className="px-3 py-4 mt-12">
-            <div className="flex flex-col gap-2 mb-3">
-              <p className="text-xs font-medium text-gray-500 truncate">
-                {user?.full_name || user?.email}
-              </p>
-              <p className="text-xs text-gray-400 capitalize">
-                {user?.role?.replace('_', ' ')}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-auto text-gray-500 hover:text-gray-600 hover:bg-gray-100 h-8 px-3"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-3 w-3 mr-2" />
-              Sign Out
-            </Button>
-          </div>
         </nav>
       </ScrollArea>
+
+      {/* Bottom Section - Book a Demo + User Profile */}
+      <div className="mt-auto border-t border-gray-200 bg-white">
+        {/* Book a Demo Button */}
+        <div className="p-3">
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-9 text-sm font-medium"
+            disabled
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            Book a Demo
+          </Button>
+        </div>
+
+        {/* User Profile Card */}
+        <div className="p-3 pt-0">
+          <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+            {/* Avatar */}
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
+                {user?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() ||
+                 user?.email?.substring(0, 2).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+
+            {/* User Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {user?.full_name || user?.email?.split('@')[0] || 'User'}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {user?.email}
+              </p>
+            </div>
+
+            {/* Three-dot Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-gray-200 rounded-md"
+                >
+                  <MoreVertical className="h-4 w-4 text-gray-500" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
