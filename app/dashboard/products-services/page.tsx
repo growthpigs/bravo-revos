@@ -5,7 +5,9 @@
  * Define what you're selling to train AI conversations
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,10 +19,12 @@ import { conversationIntelligenceChip } from '@/lib/chips/conversation-intellige
 import type { Offering } from '@/lib/types/offerings';
 
 export default function OfferingsPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [selectedOffering, setSelectedOffering] = useState<Offering | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [userId] = useState('user-1'); // TODO: Get from auth context
+  const supabase = useMemo(() => createClient(), []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -36,15 +40,46 @@ export default function OfferingsPage() {
   const [previewMessage, setPreviewMessage] = useState('ugh another sales tool... what makes you different?');
   const [previewResponse, setPreviewResponse] = useState('');
 
-  // Load offerings on mount
+  // Fetch user and load offerings
   useEffect(() => {
-    loadOfferings();
-  }, []);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const { data: { user }, error } = await supabase.auth.getUser();
+
+        if (error || !user) {
+          console.error('Auth error:', error);
+          window.location.href = '/login';
+          return;
+        }
+
+        setUser(user);
+
+        // Load offerings for this user
+        const result = await offeringsChip.execute({
+          action: 'list',
+          userId: user.id,
+        });
+
+        if (result.success && result.offerings) {
+          setOfferings(result.offerings);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [supabase]);
 
   const loadOfferings = async () => {
+    if (!user?.id) return;
+
     const result = await offeringsChip.execute({
       action: 'list',
-      userId,
+      userId: user.id,
     });
 
     if (result.success && result.offerings) {
@@ -53,9 +88,11 @@ export default function OfferingsPage() {
   };
 
   const handleCreate = async () => {
+    if (!user?.id) return;
+
     const result = await offeringsChip.execute({
       action: 'create',
-      userId,
+      userId: user.id,
       data: {
         name: formData.name,
         elevator_pitch: formData.elevator_pitch,
@@ -74,11 +111,11 @@ export default function OfferingsPage() {
   };
 
   const handleUpdate = async () => {
-    if (!selectedOffering) return;
+    if (!selectedOffering || !user?.id) return;
 
     const result = await offeringsChip.execute({
       action: 'update',
-      userId,
+      userId: user.id,
       offeringId: selectedOffering.id,
       data: {
         name: formData.name,
@@ -99,10 +136,11 @@ export default function OfferingsPage() {
 
   const handleDelete = async (offeringId: string) => {
     if (!confirm('Are you sure you want to delete this offering?')) return;
+    if (!user?.id) return;
 
     const result = await offeringsChip.execute({
       action: 'delete',
-      userId,
+      userId: user.id,
       offeringId,
     });
 
@@ -186,6 +224,17 @@ export default function OfferingsPage() {
       })
       .filter((p): p is { metric: string; value: string } => p !== null);
   };
+
+  // Show loading state while authenticating
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
