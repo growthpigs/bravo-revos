@@ -49,14 +49,19 @@ export class ConversationIntelligenceChip {
   private useGPT4: boolean = false;
 
   constructor() {
-    // Initialize OpenAI if API key available
-    if (process.env.OPENAI_API_KEY) {
+    // Skip OpenAI initialization in test environment
+    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+
+    // Initialize OpenAI if API key available and not in test
+    if (process.env.OPENAI_API_KEY && !isTest) {
       this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
       });
       this.useGPT4 = true;
     } else {
-      console.warn('[ConversationIntelligence] No OPENAI_API_KEY - using heuristic analysis');
+      if (!isTest) {
+        console.warn('[ConversationIntelligence] No OPENAI_API_KEY - using heuristic analysis');
+      }
     }
   }
 
@@ -205,10 +210,20 @@ Return JSON:
     const lower = userMessages.toLowerCase();
 
     // Simple heuristics for emotional detection
-    const frustrated = /not working|broken|fail|ugh|annoying/.test(lower);
+    // Check skeptical BEFORE frustrated since "ugh" can appear in both
+    const skeptical = /really|doubt|sure|another|typical|ugh/.test(lower);
+    const frustrated = /not working|broken|fail|annoying/.test(lower);
     const urgent = /asap|urgent|quickly|now|immediately/.test(lower);
-    const skeptical = /really|doubt|sure|another|typical/.test(lower);
     const excited = /great|amazing|perfect|love|excellent/.test(lower);
+
+    // Skeptical takes precedence over general frustration
+    if (skeptical && !frustrated) {
+      return {
+        primary: 'skeptical',
+        intensity: 0.6,
+        triggers: ['doubt', 'really'],
+      };
+    }
 
     if (frustrated) {
       return {
@@ -224,14 +239,6 @@ Return JSON:
         secondary: 'anxious',
         intensity: 0.7,
         triggers: ['asap', 'quickly'],
-      };
-    }
-
-    if (skeptical) {
-      return {
-        primary: 'skeptical',
-        intensity: 0.6,
-        triggers: ['doubt', 'really'],
       };
     }
 
@@ -333,9 +340,9 @@ Key benefits: ${context.offering.key_benefits.join(', ')}`;
     const offering = context.offering;
 
     // Skeptical response
-    if (emotion.primary === 'skeptical') {
+    if (emotion.primary === 'skeptical' || context.toneProfile.sentiment === 'skeptical') {
       if (offering) {
-        return `Fair question! ${offering.elevator_pitch}. Here's what makes us different: ${offering.key_benefits[0]}.`;
+        return `Fair question! ${offering.elevator_pitch}. Here's what makes ${offering.name} different: ${offering.key_benefits[0]}.`;
       }
       return "Fair question! Let me be straight with you about what makes this different...";
     }
