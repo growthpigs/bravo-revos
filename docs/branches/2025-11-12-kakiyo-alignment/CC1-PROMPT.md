@@ -6,10 +6,10 @@ Create the branch-based documentation structure for your work:
 
 ```bash
 # 1. Create folder structure
-mkdir -p docs/SITREPs docs/features docs/branches/2025-11-12-offerings-conversation-intelligence
+mkdir -p docs/SITREPs docs/features docs/branches/2025-11-12-kakiyo-alignment
 
 # 2. Create feature branch
-git checkout -b feat/offerings-conversation-intelligence
+git checkout -b feat/kakiyo-alignment
 
 # 3. Commit structure
 git add docs/
@@ -23,7 +23,7 @@ docs/
   SITREPs/          ← Overall app situation reports
   features/         ← Major feature specs (high-level)
   branches/         ← Branch-specific work
-    2025-11-12-offerings-conversation-intelligence/
+    2025-11-12-kakiyo-alignment/
       plan.md       ← Your implementation plan
       sitrep.md     ← Feature completion report (when done)
       validation.md ← Test results
@@ -44,7 +44,7 @@ docs/
 - Fixes: `fix/[kebab-case-name]`
 - Docs: `docs/[kebab-case-name]`
 
-**Example:** `feat/offerings-conversation-intelligence`
+**Example:** `feat/kakiyo-alignment`
 
 ## Folder Naming Convention
 
@@ -52,4 +52,4 @@ docs/
 - Name: Same as branch name (without `feat/` prefix)
 - Use kebab-case
 
-**Example:** `docs/branches/2025-11-12-offerings-conversation-intelligence/`
+**Example:** `docs/branches/2025-11-12-kakiyo-alignment/`

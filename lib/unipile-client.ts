@@ -576,6 +576,87 @@ export interface CreatePostResponse {
   status: string;
 }
 
+/**
+ * Get direct messages from a conversation
+ * Used for email extraction from DM replies
+ * @param accountId - Unipile account ID
+ * @param userId - LinkedIn user ID (conversation partner)
+ * @param since - Only return messages after this date
+ * @returns Array of messages in the conversation
+ */
+export interface UnipileMessage {
+  id: string;
+  text: string;
+  created_at: string;
+  direction: 'inbound' | 'outbound'; // inbound = user replied to us
+  author: {
+    id: string;
+    name: string;
+  };
+}
+
+export async function getDirectMessages(
+  accountId: string,
+  userId: string,
+  since?: Date
+): Promise<UnipileMessage[]> {
+  try {
+    // Mock mode for testing
+    if (isMockMode()) {
+      console.log('[MOCK] Fetching DM messages from user:', userId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Return mock DM reply with email
+      return [
+        {
+          id: `mock_dm_${Math.random().toString(36).substr(2, 9)}`,
+          text: 'Sure! My email is john.doe@example.com - looking forward to it!',
+          created_at: new Date().toISOString(),
+          direction: 'inbound',
+          author: {
+            id: userId,
+            name: 'John Doe',
+          },
+        },
+      ];
+    }
+
+    // Build query params
+    const params = new URLSearchParams({
+      account_id: accountId,
+      limit: '100',
+    });
+
+    if (since) {
+      params.append('since', since.toISOString());
+    }
+
+    const response = await fetch(
+      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/messaging/conversations/${userId}/messages?${params}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get DM messages: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const messages = data.items || data.messages || [];
+
+    // Filter for inbound messages only (user replies, not our outbound DMs)
+    return messages.filter((msg: any) => msg.direction === 'inbound');
+  } catch (error) {
+    console.error('Error getting direct messages:', error);
+    throw error;
+  }
+}
+
 export async function createLinkedInPost(
   accountId: string,
   text: string,
