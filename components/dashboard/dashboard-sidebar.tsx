@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,6 @@ import {
   Upload,
   MessageSquare,
   MessageCircle,
-  LogOut,
   Zap,
   BookOpen,
   Calendar,
@@ -31,11 +30,8 @@ import {
   BarChart,
   Key,
   Database,
-  Layers,
-  CheckCircle,
-  AlertCircle
+  Layers
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
 
 interface DashboardSidebarProps {
@@ -94,42 +90,17 @@ const menuSections: MenuSection[] = [
 
 export default function DashboardSidebar({ user, client }: DashboardSidebarProps) {
   const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
   const [sandboxEnabled, setSandboxEnabled] = useState(false)
-  const [connectionsCount, setConnectionsCount] = useState(0)
 
   useEffect(() => {
     setSandboxEnabled(isSandboxMode())
-    loadConnectionsCount()
   }, [])
-
-  async function loadConnectionsCount() {
-    try {
-      const { data, error } = await supabase
-        .from('connected_accounts')
-        .select('id')
-        .eq('status', 'active')
-
-      if (!error && data) {
-        setConnectionsCount(data.length)
-      }
-    } catch (error) {
-      console.error('Error loading connections count:', error)
-    }
-  }
 
   const handleToggleSandbox = () => {
     const newMode = toggleSandboxMode()
     setSandboxEnabled(newMode)
     // Reload page to apply sandbox mode changes
     window.location.reload()
-  }
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-    router.refresh()
   }
 
   return (
@@ -227,9 +198,12 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
         </div>
 
         {/* User Profile Section */}
-        <div className="p-3 pt-0 space-y-2">
-          {/* User Info */}
-          <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50">
+        <div className="p-3 pt-0">
+          {/* Clickable User Profile Card */}
+          <Link
+            href="/settings"
+            className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
+          >
             <Avatar className="h-9 w-9">
               <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
                 {user?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() ||
@@ -244,43 +218,7 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
                 {user?.email}
               </p>
             </div>
-          </div>
-
-          {/* Action Links */}
-          <div className="space-y-1">
-            <Link
-              href="/settings/connections"
-              className="flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              {connectionsCount > 0 ? (
-                <>
-                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-1">{connectionsCount} Channel{connectionsCount !== 1 ? 's' : ''}</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-1">Connect Channels</span>
-                </>
-              )}
-            </Link>
-
-            <Link
-              href="/settings"
-              className="flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              <Settings className="h-4 w-4 flex-shrink-0" />
-              <span className="flex-1">Settings</span>
-            </Link>
-
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-            >
-              <LogOut className="h-4 w-4 flex-shrink-0" />
-              <span className="flex-1 text-left">Sign Out</span>
-            </button>
-          </div>
+          </Link>
         </div>
       </div>
     </div>

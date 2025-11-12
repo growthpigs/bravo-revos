@@ -5,7 +5,7 @@
 -- Add full_name column to users table
 ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT;
 
--- Update existing user (rodericandrews@gmail.com) with full name
+-- Update existing user (rodericandrews@gmail.com and variants like +2) with full name
 UPDATE users
 SET full_name = 'Roderic Andrews'
-WHERE email = 'rodericandrews@gmail.com' AND full_name IS NULL;
+WHERE email LIKE 'rodericandrews%@gmail.com' AND full_name IS NULL;

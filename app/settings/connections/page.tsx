@@ -124,8 +124,21 @@ export default function ConnectionsPage() {
 
   async function checkUnipileStatus() {
     try {
+      // Check if UniPile is configured via environment variables (simplest check)
+      const statusResponse = await fetch('/api/unipile/status')
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json()
+        // If we got a response (even if not connected), UniPile is configured
+        setUnipileEnabled(true)
+        return
+      }
+
+      // Fallback: check database configuration
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setUnipileEnabled(false)
+        return
+      }
 
       const { data: profile } = await supabase
         .from('users')
@@ -133,7 +146,10 @@ export default function ConnectionsPage() {
         .eq('id', user.id)
         .single()
 
-      if (!profile?.client_id) return
+      if (!profile?.client_id) {
+        setUnipileEnabled(false)
+        return
+      }
 
       const { data: client } = await supabase
         .from('clients')
@@ -144,12 +160,15 @@ export default function ConnectionsPage() {
       setUnipileEnabled(client?.unipile_enabled || false)
     } catch (error) {
       console.error('Error checking UniPile status:', error)
+      setUnipileEnabled(false)
     }
   }
 
   async function loadConnections() {
     try {
       setLoading(true)
+
+      // Load from database
       const { data, error } = await supabase
         .from('connected_accounts')
         .select('*')
@@ -157,7 +176,33 @@ export default function ConnectionsPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setConnections(data || [])
+      const dbConnections = data || []
+
+      // Also check UniPile API directly (bypasses database)
+      try {
+        const statusResponse = await fetch('/api/unipile/status')
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json()
+
+          // If LinkedIn is connected in UniPile but not in database, add it
+          if (statusData.connected && statusData.provider === 'LINKEDIN') {
+            const hasLinkedIn = dbConnections.some(conn => conn.provider === 'LINKEDIN')
+            if (!hasLinkedIn) {
+              dbConnections.unshift({
+                id: statusData.account_id,
+                provider: 'LINKEDIN',
+                account_name: statusData.account_name,
+                status: 'active',
+                last_sync_at: statusData.created_at
+              })
+            }
+          }
+        }
+      } catch (statusError) {
+        console.log('Could not check UniPile status:', statusError)
+      }
+
+      setConnections(dbConnections)
     } catch (error) {
       console.error('Error loading connections:', error)
       toast.error('Failed to load connections')
