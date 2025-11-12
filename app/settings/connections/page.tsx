@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useToast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
 
 interface Channel {
   provider: string
@@ -123,8 +123,7 @@ export default function ConnectionsPage() {
     open: false,
     account: null
   })
-  const supabase = createClientComponentClient()
-  const { toast } = useToast()
+  const supabase = createClient()
 
   useEffect(() => {
     loadConnections()
@@ -169,11 +168,7 @@ export default function ConnectionsPage() {
       setConnections(data || [])
     } catch (error) {
       console.error('Error loading connections:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load connections',
-        variant: 'destructive'
-      })
+      toast.error('Failed to load connections')
     } finally {
       setLoading(false)
     }
@@ -194,11 +189,7 @@ export default function ConnectionsPage() {
 
       if (!response.ok) {
         if (data.error === 'UNIPILE_NOT_CONFIGURED') {
-          toast({
-            title: 'Not Available',
-            description: data.message,
-            variant: 'destructive'
-          })
+          toast.error(data.message)
           return
         }
         throw new Error(data.message || 'Failed to initiate connection')
@@ -212,11 +203,7 @@ export default function ConnectionsPage() {
       )
 
       if (!popup) {
-        toast({
-          title: 'Popup Blocked',
-          description: 'Please allow popups for this site and try again',
-          variant: 'destructive'
-        })
+        toast.error('Popup blocked! Please allow popups for this site and try again')
         return
       }
 
@@ -224,18 +211,11 @@ export default function ConnectionsPage() {
       const messageHandler = (event: MessageEvent) => {
         if (event.data.type === 'UNIPILE_CONNECTED') {
           window.removeEventListener('message', messageHandler)
-          toast({
-            title: 'Connected!',
-            description: `${event.data.provider} account connected successfully`
-          })
+          toast.success(`${event.data.provider} account connected successfully`)
           loadConnections()
         } else if (event.data.type === 'UNIPILE_ERROR') {
           window.removeEventListener('message', messageHandler)
-          toast({
-            title: 'Connection Failed',
-            description: event.data.error || 'Please try again',
-            variant: 'destructive'
-          })
+          toast.error(event.data.error || 'Connection failed. Please try again')
         }
       }
 
@@ -252,11 +232,7 @@ export default function ConnectionsPage() {
 
     } catch (error) {
       console.error('Connection error:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to connect',
-        variant: 'destructive'
-      })
+      toast.error(error instanceof Error ? error.message : 'Failed to connect')
     } finally {
       setConnecting(null)
     }
@@ -276,21 +252,14 @@ export default function ConnectionsPage() {
         throw new Error('Failed to disconnect account')
       }
 
-      toast({
-        title: 'Disconnected',
-        description: `${disconnectDialog.account.account_name} disconnected successfully`
-      })
+      toast.success(`${disconnectDialog.account.account_name} disconnected successfully`)
 
       setDisconnectDialog({ open: false, account: null })
       loadConnections()
 
     } catch (error) {
       console.error('Disconnect error:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to disconnect account',
-        variant: 'destructive'
-      })
+      toast.error('Failed to disconnect account')
     }
   }
 

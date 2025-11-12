@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -53,10 +53,7 @@ export async function GET(request: Request) {
     }
 
     // Create Supabase client with service role (bypasses RLS for OAuth callback)
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = await createClient({ isServiceRole: true });
 
     // Get user's client configuration
     const { data: profile } = await supabase
