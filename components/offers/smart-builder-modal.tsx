@@ -1,11 +1,19 @@
 'use client'
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { useState } from 'react'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Loader2 } from 'lucide-react'
 
 interface SmartBuilderModalProps {
   open: boolean
@@ -14,163 +22,140 @@ interface SmartBuilderModalProps {
 
 export function SmartBuilderModal({ open, onClose }: SmartBuilderModalProps) {
   const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({
-    topic: '',
-    targetAudience: '',
-    mainBenefit: '',
-    proofPoint: '',
-    deliveryFormat: ''
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [answers, setAnswers] = useState({
+    problem: '',
+    solution: '',
+    format: 'pdf',
+    outcome: '',
+    delivery: 'email'
   })
 
+  const questions = [
+    {
+      id: 'problem',
+      question: "What's the main problem your audience faces?",
+      placeholder: "e.g., They struggle to get engagement on LinkedIn posts",
+      type: 'textarea'
+    },
+    {
+      id: 'solution',
+      question: "What unique insight or solution do you have?",
+      placeholder: "e.g., A 7-step framework I used to 10x my engagement",
+      type: 'textarea'
+    },
+    {
+      id: 'format',
+      question: "What format works best?",
+      type: 'radio',
+      options: [
+        { value: 'pdf', label: 'PDF Guide' },
+        { value: 'template', label: 'Template (Notion/Excel)' },
+        { value: 'checklist', label: 'Checklist' },
+        { value: 'swipefile', label: 'Swipe File' }
+      ]
+    },
+    {
+      id: 'outcome',
+      question: "What's the desired outcome for readers?",
+      placeholder: "e.g., They can immediately apply the framework to their next post",
+      type: 'textarea'
+    },
+    {
+      id: 'delivery',
+      question: "How will they access it?",
+      type: 'radio',
+      options: [
+        { value: 'email', label: 'Email capture (recommended)' },
+        { value: 'link', label: 'Direct link (no email required)' }
+      ]
+    }
+  ]
+
+  const currentQuestion = questions[step - 1]
+
   const handleNext = () => {
-    if (step < 5) setStep(step + 1)
+    if (step < questions.length) {
+      setStep(step + 1)
+    } else {
+      generateOffer()
+    }
   }
 
-  const handleBack = () => {
-    if (step > 1) setStep(step - 1)
-  }
-
-  const handleSubmit = () => {
-    // TODO: Generate offer with AI
-    console.log('Creating offer with:', formData)
-    onClose()
-    setStep(1)
-    setFormData({
-      topic: '',
-      targetAudience: '',
-      mainBenefit: '',
-      proofPoint: '',
-      deliveryFormat: ''
-    })
+  const generateOffer = async () => {
+    setIsGenerating(true)
+    // Simulate AI generation
+    setTimeout(() => {
+      console.log('Generated offer with answers:', answers)
+      setIsGenerating(false)
+      onClose()
+      // In production, this would call your AI API
+    }, 2000)
   }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>Smart Offer Builder - Step {step} of 5</DialogTitle>
+          <DialogTitle>Smart Offer Builder</DialogTitle>
+          <DialogDescription>
+            Step {step} of {questions.length}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="py-6">
-          {step === 1 && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="topic">What topic do you want to create an offer about?</Label>
-                <Input
-                  id="topic"
-                  placeholder="e.g., LinkedIn engagement strategies"
-                  value={formData.topic}
-                  onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                This will be the main focus of your lead magnet
-              </p>
-            </div>
-          )}
+          <Label className="text-base mb-3 block">
+            {currentQuestion.question}
+          </Label>
 
-          {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="audience">Who is this for?</Label>
-                <Input
-                  id="audience"
-                  placeholder="e.g., B2B founders with 0-10k followers"
-                  value={formData.targetAudience}
-                  onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Be specific about who will benefit most
-              </p>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="benefit">What's the main outcome they'll get?</Label>
-                <Textarea
-                  id="benefit"
-                  placeholder="e.g., 10x their engagement in 30 days without spending hours creating content"
-                  value={formData.mainBenefit}
-                  onChange={(e) => setFormData({ ...formData, mainBenefit: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Focus on the transformation, not just the features
-              </p>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="proof">What proof do you have this works?</Label>
-                <Textarea
-                  id="proof"
-                  placeholder="e.g., Used this to grow from 2k to 50k followers in 6 months"
-                  value={formData.proofPoint}
-                  onChange={(e) => setFormData({ ...formData, proofPoint: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Social proof makes your offer credible
-              </p>
-            </div>
-          )}
-
-          {step === 5 && (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="format">How will you deliver this?</Label>
-                <select
-                  id="format"
-                  className="w-full p-2 border rounded-md"
-                  value={formData.deliveryFormat}
-                  onChange={(e) => setFormData({ ...formData, deliveryFormat: e.target.value })}
-                >
-                  <option value="">Select format...</option>
-                  <option value="pdf">PDF Guide</option>
-                  <option value="notion">Notion Template</option>
-                  <option value="excel">Excel Spreadsheet</option>
-                  <option value="checklist">Checklist</option>
-                  <option value="video">Video Training</option>
-                  <option value="link">Direct Link/Resource</option>
-                </select>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Choose the format that best delivers value
-              </p>
-            </div>
+          {currentQuestion.type === 'textarea' ? (
+            <Textarea
+              className="min-h-[100px]"
+              placeholder={currentQuestion.placeholder}
+              value={answers[currentQuestion.id as keyof typeof answers]}
+              onChange={(e) => setAnswers({
+                ...answers,
+                [currentQuestion.id]: e.target.value
+              })}
+            />
+          ) : (
+            <RadioGroup
+              value={answers[currentQuestion.id as keyof typeof answers]}
+              onValueChange={(value) => setAnswers({
+                ...answers,
+                [currentQuestion.id]: value
+              })}
+            >
+              {currentQuestion.options?.map(option => (
+                <div key={option.value} className="flex items-center space-x-2 mb-3">
+                  <RadioGroupItem value={option.value} id={option.value} />
+                  <Label htmlFor={option.value} className="cursor-pointer">
+                    {option.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
           )}
         </div>
 
-        <div className="flex justify-between pt-4 border-t">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={step === 1}
-          >
-            Back
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
+        <DialogFooter>
+          {step > 1 && (
+            <Button
+              variant="outline"
+              onClick={() => setStep(step - 1)}
+              disabled={isGenerating}
+            >
+              Back
             </Button>
-            {step < 5 ? (
-              <Button onClick={handleNext}>
-                Next
-              </Button>
-            ) : (
-              <Button onClick={handleSubmit}>
-                Generate Offer
-              </Button>
-            )}
-          </div>
-        </div>
+          )}
+          <Button
+            onClick={handleNext}
+            disabled={isGenerating || !answers[currentQuestion.id as keyof typeof answers]}
+          >
+            {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {step < questions.length ? 'Next' : 'Generate Offer'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
