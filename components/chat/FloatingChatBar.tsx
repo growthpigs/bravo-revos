@@ -22,6 +22,12 @@ const HGC_API_ENDPOINT = USE_AGENTKIT_V2 ? '/api/hgc-v2' : '/api/hgc';
 
 console.log('[FloatingChatBar] Using API endpoint:', HGC_API_ENDPOINT, USE_AGENTKIT_V2 ? '(AgentKit v2)' : '(Legacy)');
 
+// Unique ID generator with counter to prevent duplicates
+let messageIdCounter = 0;
+const generateUniqueId = () => {
+  return `${Date.now()}-${messageIdCounter++}`;
+};
+
 interface DecisionOption {
   label: string;
   value: string;
@@ -353,7 +359,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Helper: Create new conversation
   const createNewConversation = () => {
     const newConv: Conversation = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       title: 'New Chat',
       messages: [],
       createdAt: new Date(),
@@ -559,7 +565,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: input.trim(),
       createdAt: new Date(),
@@ -675,7 +681,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
           // Create assistant message with cleaned content (intro text removed)
           const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
+            id: generateUniqueId(),
             role: 'assistant',
             content: cleanContent,
             interactive: data.interactive, // CRITICAL: Attach interactive field for inline forms
@@ -722,7 +728,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Create assistant message placeholder
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: '',
         createdAt: new Date(),
@@ -1056,7 +1062,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add user's choice
       const userMessage: Message = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         role: 'user',
         content: 'Continue writing',
         createdAt: new Date(),
@@ -1081,7 +1087,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         const data = await response.json();
         if (data.response) {
           const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
+            id: generateUniqueId(),
             role: 'assistant',
             content: data.response,
             createdAt: new Date(),
@@ -1111,7 +1117,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add a friendly message
       const userMessage: Message = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         role: 'user',
         content: 'Just write',
         createdAt: new Date(),
@@ -1119,7 +1125,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       setMessages(prev => [...prev, userMessage]);
 
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: 'Got it! Go ahead and write your post. You can save it and link it to a campaign anytime.',
         createdAt: new Date(),
@@ -1130,7 +1136,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     // Add user message showing their choice
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: decision === 'create_new' ? 'Create a new campaign' : 'Select from existing campaigns',
       createdAt: new Date(),
@@ -1158,7 +1164,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add assistant response (may contain next step of workflow)
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: data.response || 'Got it!',
         interactive: data.interactive, // Next step (e.g., campaign selector)
@@ -1182,7 +1188,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     // Add user message
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: `Selected campaign: ${campaignId}`,
       createdAt: new Date(),
@@ -1205,7 +1211,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add assistant response (may contain datetime picker)
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: data.response || 'Great choice!',
         interactive: data.interactive, // Next step (e.g., datetime picker)
@@ -1228,7 +1234,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     // Add user message
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: `Schedule for: ${new Date(datetime).toLocaleString()}`,
       createdAt: new Date(),
@@ -1253,7 +1259,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add assistant response (should be success message)
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: data.response || 'Post scheduled successfully!',
         interactive: data.interactive,
