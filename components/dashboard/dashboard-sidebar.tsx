@@ -22,7 +22,15 @@ import {
   BookOpen,
   Calendar,
   FlaskConical,
-  Package
+  Package,
+  Rocket,
+  Activity,
+  Gift,
+  Search,
+  BarChart,
+  Key,
+  Database,
+  Layers
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
@@ -32,20 +40,52 @@ interface DashboardSidebarProps {
   client: any
 }
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Scheduled Actions', href: '/dashboard/scheduled', icon: Calendar },
-  { name: 'Campaigns', href: '/dashboard/campaigns', icon: Megaphone },
-  { name: 'Voice Cartridges', href: '/dashboard/cartridges', icon: Zap },
-  { name: 'Products & Services', href: '/dashboard/products-services', icon: Package },
-  { name: 'Offers', href: '/dashboard/offers', icon: Upload },
-  { name: 'LinkedIn Accounts', href: '/dashboard/linkedin', icon: Linkedin },
-  { name: 'Leads', href: '/dashboard/leads', icon: Users2 },
-  { name: 'LinkedIn Posts', href: '/dashboard/posts', icon: Linkedin },
-  { name: 'DM Sequences', href: '/dashboard/dm-sequences', icon: MessageSquare },
-  { name: 'Knowledge Base', href: '/dashboard/knowledge-base', icon: BookOpen },
-  { name: 'Webhooks', href: '/dashboard/webhooks', icon: Webhook },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+interface MenuItem {
+  icon: any
+  label: string
+  href: string
+  badge?: string
+}
+
+interface MenuSection {
+  title: string
+  items: MenuItem[]
+}
+
+const menuSections: MenuSection[] = [
+  {
+    title: "OUTREACH",
+    items: [
+      { icon: Rocket, label: "Campaigns", href: "/dashboard/campaigns" },
+      { icon: MessageSquare, label: "Inbox", href: "/dashboard/inbox", badge: "Soon" },
+      { icon: Activity, label: "Activity Feed", href: "/dashboard/activity", badge: "Soon" }
+    ]
+  },
+  {
+    title: "AI TRAINING",
+    items: [
+      { icon: Package, label: "Products & Services", href: "/dashboard/products-services" },
+      { icon: Gift, label: "Offers", href: "/dashboard/offers", badge: "NEW" },
+      { icon: MessageCircle, label: "Prompts", href: "/dashboard/prompts", badge: "Soon" },
+      { icon: Layers, label: "Cartridges", href: "/dashboard/cartridges" }
+    ]
+  },
+  {
+    title: "FIND & MANAGE",
+    items: [
+      { icon: Search, label: "Lead Finder", href: "/dashboard/leads/finder", badge: "Soon" },
+      { icon: Users2, label: "Leads", href: "/dashboard/leads" },
+      { icon: BarChart, label: "Analytics", href: "/dashboard/analytics", badge: "Soon" }
+    ]
+  },
+  {
+    title: "DEVELOPER",
+    items: [
+      { icon: Key, label: "API Keys", href: "/dashboard/api-keys", badge: "Soon" },
+      { icon: Webhook, label: "Webhooks", href: "/dashboard/webhooks" },
+      { icon: Database, label: "Knowledge Base", href: "/dashboard/knowledge-base" }
+    ]
+  }
 ]
 
 export default function DashboardSidebar({ user, client }: DashboardSidebarProps) {
@@ -75,25 +115,48 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
     <div className="flex flex-col w-64 bg-white border-r border-gray-200 h-screen sticky top-0 pt-16">
 
       <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-1">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                  isActive
-                    ? 'bg-gray-100 text-gray-900 font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                )}
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {item.name}
-              </Link>
-            )
-          })}
+        <nav className="space-y-6">
+          {menuSections.map((section) => (
+            <div key={section.title}>
+              {/* Section Title */}
+              <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {section.title}
+              </h3>
+
+              {/* Section Items */}
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-gray-100 text-gray-900 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      )}
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+
+                      {item.badge && (
+                        <span className={cn(
+                          "text-xs px-2 py-0.5 rounded font-semibold",
+                          item.badge === "NEW"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-200 text-gray-600"
+                        )}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
 
           {/* Divider */}
           <div className="my-4 border-t border-gray-200"></div>
