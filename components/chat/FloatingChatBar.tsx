@@ -22,10 +22,14 @@ const HGC_API_ENDPOINT = USE_AGENTKIT_V2 ? '/api/hgc-v2' : '/api/hgc';
 
 console.log('[FloatingChatBar] Using API endpoint:', HGC_API_ENDPOINT, USE_AGENTKIT_V2 ? '(AgentKit v2)' : '(Legacy)');
 
-// Unique ID generator with counter to prevent duplicates
-let messageIdCounter = 0;
+// Unique ID generator using crypto.randomUUID for truly unique IDs
 const generateUniqueId = () => {
-  return `${Date.now()}-${messageIdCounter++}`;
+  // Use crypto.randomUUID() for guaranteed uniqueness
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers: timestamp + random + counter
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${Date.now()}`;
 };
 
 interface DecisionOption {
