@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Download, Filter, Users2, Search, X, Eye, Copy } from 'lucide-react'
+import { Download, Filter, Users2, Search, X, Eye, Copy, MessageSquare, Mail, CheckCircle, XCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Lead {
@@ -97,11 +97,19 @@ export default function LeadsPage() {
   }
 
   const statusLabels: Record<string, string> = {
-    comment_detected: '💬 Comment Detected',
-    dm_sent: '📨 DM Sent',
-    email_captured: '✉️ Email Captured',
-    webhook_sent: '✅ Webhook Sent',
-    failed: '❌ Failed',
+    comment_detected: 'Comment Detected',
+    dm_sent: 'DM Sent',
+    email_captured: 'Email Captured',
+    webhook_sent: 'Webhook Sent',
+    failed: 'Failed',
+  }
+
+  const statusIcons: Record<string, React.ReactNode> = {
+    comment_detected: <MessageSquare className="w-3 h-3" />,
+    dm_sent: <Mail className="w-3 h-3" />,
+    email_captured: <Mail className="w-3 h-3" />,
+    webhook_sent: <CheckCircle className="w-3 h-3" />,
+    failed: <XCircle className="w-3 h-3" />,
   }
 
   // Filter leads based on selected filters
@@ -327,7 +335,10 @@ export default function LeadsPage() {
                       <td className="py-3 px-4 text-gray-600">{(lead.campaigns as any)?.name || '-'}</td>
                       <td className="py-3 px-4">
                         <Badge className={statusColors[lead.status]} variant="secondary">
-                          {statusLabels[lead.status]}
+                          <span className="flex items-center gap-1">
+                            {statusIcons[lead.status]}
+                            {statusLabels[lead.status]}
+                          </span>
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-gray-600">{lead.company || '-'}</td>
@@ -430,7 +441,10 @@ export default function LeadsPage() {
                   <div>
                     <Label className="text-xs text-gray-600 uppercase">Status</Label>
                     <Badge className={`${statusColors[selectedLead.status]} mt-1`} variant="secondary">
-                      {statusLabels[selectedLead.status]}
+                      <span className="flex items-center gap-1">
+                        {statusIcons[selectedLead.status]}
+                        {statusLabels[selectedLead.status]}
+                      </span>
                     </Badge>
                   </div>
                 </div>

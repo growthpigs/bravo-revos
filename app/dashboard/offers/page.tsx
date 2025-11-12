@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FileText, Edit, Globe, Download, Link, Mail } from 'lucide-react'
+import { FileText, Edit, Globe, Download, Link, Mail, TrendingUp, Target, Rocket } from 'lucide-react'
 import { SmartBuilderModal } from '@/components/offers/smart-builder-modal'
 
 export default function OffersPage() {
@@ -40,31 +40,31 @@ export default function OffersPage() {
         </p>
       </div>
 
-      {/* Create Offer Section - Kakiyo Style */}
-      <Card className="mb-8 p-6 bg-gray-900/50 border-gray-800">
+      {/* Create Offer Section */}
+      <Card className="mb-8 p-6">
         <h2 className="text-lg font-semibold mb-4">Create New Offer</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
             onClick={() => setShowSmartBuilder(true)}
-            className="p-6 border border-gray-700 rounded-lg hover:bg-gray-800 hover:border-gray-600 transition-all text-center group"
+            className="p-6 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all text-center group"
           >
-            <FileText className="w-8 h-8 mx-auto mb-3 group-hover:text-blue-400" />
+            <FileText className="w-8 h-8 mx-auto mb-3 text-gray-600 group-hover:text-blue-600" />
             <div className="font-medium mb-1">Smart Builder</div>
             <div className="text-sm text-muted-foreground">
               Answer 5 questions, AI creates your offer
             </div>
           </button>
 
-          <button className="p-6 border border-gray-700 rounded-lg hover:bg-gray-800 hover:border-gray-600 transition-all text-center group">
-            <Edit className="w-8 h-8 mx-auto mb-3 group-hover:text-blue-400" />
+          <button className="p-6 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all text-center group">
+            <Edit className="w-8 h-8 mx-auto mb-3 text-gray-600 group-hover:text-blue-600" />
             <div className="font-medium mb-1">Manual Entry</div>
             <div className="text-sm text-muted-foreground">
               Write your own offer content
             </div>
           </button>
 
-          <button className="p-6 border border-gray-700 rounded-lg hover:bg-gray-800 hover:border-gray-600 transition-all text-center group">
-            <Globe className="w-8 h-8 mx-auto mb-3 group-hover:text-blue-400" />
+          <button className="p-6 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all text-center group">
+            <Globe className="w-8 h-8 mx-auto mb-3 text-gray-600 group-hover:text-blue-600" />
             <div className="font-medium mb-1">Website Scraping</div>
             <div className="text-sm text-muted-foreground">
               Extract from existing content
@@ -85,8 +85,8 @@ export default function OffersPage() {
                     <h3 className="font-semibold text-lg">{offer.name}</h3>
                     <span className={`px-2 py-1 text-xs rounded-full ${
                       offer.status === 'active'
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-gray-500/20 text-gray-400'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-gray-100 text-gray-600'
                     }`}>
                       {offer.status}
                     </span>
@@ -100,8 +100,14 @@ export default function OffersPage() {
                       {offer.delivery === 'Email' ? <Mail className="w-4 h-4" /> : <Link className="w-4 h-4" />}
                       {offer.delivery}
                     </span>
-                    <span>📊 {offer.leads_captured} leads</span>
-                    <span>🎯 {offer.conversion_rate} conversion</span>
+                    <span className="flex items-center gap-1">
+                      <TrendingUp className="w-4 h-4" />
+                      {offer.leads_captured} leads
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Target className="w-4 h-4" />
+                      {offer.conversion_rate} conversion
+                    </span>
                   </div>
                 </div>
                 <div className="flex gap-2 ml-4">
@@ -117,8 +123,11 @@ export default function OffersPage() {
       </div>
 
       {/* Popular Offer Types */}
-      <Card className="p-6 bg-blue-950/20 border-blue-900/50">
-        <h3 className="font-semibold text-lg mb-4">🚀 Popular LinkedIn Offer Types</h3>
+      <Card className="p-6 bg-blue-50 border-blue-200">
+        <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+          <Rocket className="w-5 h-5 text-blue-600" />
+          Popular LinkedIn Offer Types
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-2">
             <div className="flex items-start gap-2">

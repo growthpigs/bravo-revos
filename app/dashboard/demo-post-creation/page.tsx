@@ -15,7 +15,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Sparkles, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Cartridge {
@@ -195,7 +195,10 @@ export default function DemoPostCreationPage() {
                   writeMode === 'human' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                 }`}
               >
-                <h3 className="font-semibold mb-2">👤 Human Written</h3>
+                <h3 className="font-semibold mb-2">
+                  <User className="inline h-4 w-4 mr-2" />
+                  Human Written
+                </h3>
                 <p className="text-sm text-gray-600">You write it manually. Full creative control.</p>
               </div>
 
