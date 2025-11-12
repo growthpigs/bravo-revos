@@ -65,6 +65,7 @@ const menuSections: MenuSection[] = [
     title: "OUTREACH",
     items: [
       { icon: Rocket, label: "Campaigns", href: "/dashboard/campaigns" },
+      { icon: Users2, label: "Pod Activity", href: "/dashboard/pod-activity", badge: "NEW" },
       { icon: MessageSquare, label: "Inbox", href: "/dashboard/inbox", badge: "Soon" },
       { icon: Activity, label: "Activity Feed", href: "/dashboard/activity", badge: "Soon" }
     ]
