@@ -112,12 +112,12 @@ export default function DMSequencesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">DM Sequences</h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-2">
             Automate your LinkedIn DM outreach with intelligent sequences
           </p>
         </div>
