@@ -152,26 +152,26 @@ export default function CartridgesPage() {
 
         <TabsContent value={activeTab} className="space-y-6">
           {filteredCartridges.map(cartridge => (
-            <Card key={cartridge.id} className="p-6">
+            <Card key={cartridge.id} className="p-6 bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
               <div className="space-y-4">
                 {/* Cartridge Header */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-start gap-4">
                     <div className="p-3 bg-gray-100 rounded-lg">
-                      <cartridge.icon className="w-6 h-6" />
+                      <cartridge.icon className="w-6 h-6 text-gray-700" />
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-semibold">{cartridge.name}</h3>
-                        <Badge variant={
-                          cartridge.status === 'active' ? 'default' :
-                          cartridge.status === 'coming_soon' ? 'secondary' :
-                          'outline'
-                        }>
+                        <h3 className="text-xl font-semibold text-gray-900">{cartridge.name}</h3>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          cartridge.status === 'active'
+                            ? 'bg-gray-100 text-gray-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
                           {cartridge.status === 'coming_soon' ? 'Coming Soon' : cartridge.status}
-                        </Badge>
+                        </span>
                       </div>
-                      <p className="text-muted-foreground mt-1">
+                      <p className="text-gray-600 mt-1">
                         {cartridge.description}
                       </p>
                     </div>
@@ -203,22 +203,22 @@ export default function CartridgesPage() {
                         key={chip.id}
                         className={`p-3 border rounded-lg ${
                           chip.status === 'active'
-                            ? 'border-green-200 bg-green-50'
+                            ? 'border-gray-200 bg-white shadow-sm'
                             : 'border-gray-200 bg-gray-50 opacity-60'
                         }`}
                       >
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <Cpu className="w-4 h-4 text-muted-foreground" />
-                              <span className="font-medium text-sm">{chip.name}</span>
+                              <Cpu className="w-4 h-4 text-gray-600" />
+                              <span className="font-medium text-sm text-gray-900">{chip.name}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs text-gray-600 mt-1">
                               {chip.description}
                             </p>
                           </div>
                           {chip.status === 'active' && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                            <div className="text-xs font-medium text-gray-500">Active</div>
                           )}
                         </div>
                       </div>
@@ -247,20 +247,20 @@ export default function CartridgesPage() {
       </Tabs>
 
       {/* Future Vision Card */}
-      <Card className="mt-8 p-6 bg-blue-50 border-blue-200">
+      <Card className="mt-8 p-6 bg-gray-50 border-gray-200">
         <div className="flex items-start gap-4">
-          <Package className="w-6 h-6 text-blue-600 mt-1" />
+          <Package className="w-6 h-6 text-gray-600 mt-1" />
           <div>
-            <h3 className="font-semibold text-blue-900">Future Cartridge Marketplace</h3>
-            <p className="text-sm text-blue-700 mt-1">
+            <h3 className="font-semibold text-gray-900">Future Cartridge Marketplace</h3>
+            <p className="text-sm text-gray-600 mt-1">
               Soon you&apos;ll be able to browse and install community-created cartridges.
               Build your own cartridges with our SDK and monetize them in the marketplace.
             </p>
             <div className="flex gap-4 mt-3">
-              <Badge variant="outline" className="text-blue-600">Twitter Cartridge</Badge>
-              <Badge variant="outline" className="text-blue-600">Slack Cartridge</Badge>
-              <Badge variant="outline" className="text-blue-600">SEO Cartridge</Badge>
-              <Badge variant="outline" className="text-blue-600">+ 50 more</Badge>
+              <Badge variant="outline" className="text-gray-700">Twitter Cartridge</Badge>
+              <Badge variant="outline" className="text-gray-700">Slack Cartridge</Badge>
+              <Badge variant="outline" className="text-gray-700">SEO Cartridge</Badge>
+              <Badge variant="outline" className="text-gray-700">+ 50 more</Badge>
             </div>
           </div>
         </div>
