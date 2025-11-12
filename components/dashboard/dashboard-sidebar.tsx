@@ -17,6 +17,7 @@ import {
   Webhook,
   Upload,
   MessageSquare,
+  MessageCircle,
   LogOut,
   Zap,
   BookOpen,
