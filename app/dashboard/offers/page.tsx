@@ -133,7 +133,7 @@ export default function OffersPage() {
             <div className="flex items-start gap-2">
               <span className="text-blue-400 mt-1">•</span>
               <div>
-                <div className="font-medium">"How I did X" PDF guides</div>
+                <div className="font-medium">&quot;How I did X&quot; PDF guides</div>
                 <div className="text-xs text-muted-foreground">Share your success story</div>
               </div>
             </div>
