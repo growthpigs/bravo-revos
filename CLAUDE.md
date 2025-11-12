@@ -2,6 +2,23 @@
 
 ---
 
+## 🔄 MANDATORY RULE: Branch Status on Completion
+
+**EVERY TIME work is marked complete and tested:**
+1. State the **branch name** explicitly
+2. State **what was completed**
+3. State **current status** (testing, review, ready to merge)
+4. Keep it brief but complete
+
+**Format Example:**
+```
+[BRANCH: feat/chat-improvements] ✅ Chat auto-scroll + conversation history + ESC hierarchy - tested and ready for review
+```
+
+**Why:** Status line doesn't work, so we track manually. This ensures every completed feature is properly tracked across sessions and branches.
+
+---
+
 ## 📌 CURRENT SESSION STATUS (2025-11-06)
 
 ### F-01 AgentKit Orchestration: ✅ COMPLETE
