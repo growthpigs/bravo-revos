@@ -13,6 +13,14 @@ import { InlineCampaignSelector } from './InlineCampaignSelector';
 import { InlineDateTimePicker } from './InlineDateTimePicker';
 import { SlashCommandAutocomplete } from './SlashCommandAutocomplete';
 import { getCommand, type SlashCommand, type SlashCommandContext } from '@/lib/slash-commands';
+import { sandboxFetch } from '@/lib/sandbox/sandbox-wrapper';
+import { SandboxIndicator } from './SandboxIndicator';
+
+// Feature Flag: Use AgentKit v2 (Cartridge Architecture)
+const USE_AGENTKIT_V2 = process.env.NEXT_PUBLIC_USE_AGENTKIT_V2 === 'true';
+const HGC_API_ENDPOINT = USE_AGENTKIT_V2 ? '/api/hgc-v2' : '/api/hgc';
+
+console.log('[FloatingChatBar] Using API endpoint:', HGC_API_ENDPOINT, USE_AGENTKIT_V2 ? '(AgentKit v2)' : '(Legacy)');
 
 interface DecisionOption {
   label: string;
@@ -602,10 +610,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           }),
       };
 
-      console.log('[HGC_STREAM] Starting fetch request to /api/hgc');
+      console.log(`[HGC_STREAM] Starting fetch request to ${HGC_API_ENDPOINT}`);
       console.log('[HGC_STREAM] Request payload:', JSON.stringify(requestPayload, null, 2));
 
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1057,7 +1065,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Get backend response to continue the flow
       try {
-        const response = await fetch('/api/hgc', {
+        const response = await sandboxFetch(HGC_API_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1131,7 +1139,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     try {
       // Send decision to backend with workflow context
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1183,7 +1191,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     try {
       // Send campaign selection to backend
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1229,7 +1237,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     try {
       // Send datetime selection to backend (final step - should execute schedule)
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1974,6 +1982,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
           >
             <div className="p-4 space-y-3">
+              <SandboxIndicator />
               {messages.map((message, index) => renderMessage(message, index))}
             </div>
           </div>
