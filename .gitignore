@@ -50,6 +50,18 @@ lerna-debug.log*
 .next/
 out/
 
+# Python
+.pytest_cache/
+__pycache__/
+
+# Backup files
+*.bak
+*.tmp
+
+# Temporary status/report files
+*_NEEDED.md
+*_REPORT.md
+
 # Misc
 .cache/
 temp/

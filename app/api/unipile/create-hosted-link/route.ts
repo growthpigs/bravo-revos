@@ -75,6 +75,7 @@ export async function POST(request: Request) {
         api_url: UNIPILE_DSN,
         expiresOn: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
         notify_url: `${APP_URL}/api/unipile/notify`,
+        success_url: `${APP_URL}/dashboard/settings?tab=connections&success=true`,
         name: user.id // Store user ID so we know who this account belongs to
       })
     });

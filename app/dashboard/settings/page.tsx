@@ -59,8 +59,21 @@ export default function SettingsPage() {
 
   async function checkUnipileStatus() {
     try {
+      // Check if UniPile is configured via environment variables (simplest check)
+      const statusResponse = await fetch('/api/unipile/status')
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json()
+        // If we got a response (even if not connected), UniPile is configured
+        setUnipileEnabled(statusData.configured || false)
+        return
+      }
+
+      // Fallback: check database configuration
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setUnipileEnabled(false)
+        return
+      }
 
       const { data: profile } = await supabase
         .from('users')
@@ -68,7 +81,10 @@ export default function SettingsPage() {
         .eq('id', user.id)
         .single()
 
-      if (!profile?.client_id) return
+      if (!profile?.client_id) {
+        setUnipileEnabled(false)
+        return
+      }
 
       const { data: client } = await supabase
         .from('clients')
@@ -79,6 +95,7 @@ export default function SettingsPage() {
       setUnipileEnabled(client?.unipile_enabled || false)
     } catch (error) {
       console.error('Error checking UniPile status:', error)
+      setUnipileEnabled(false)
     }
   }
 
@@ -91,7 +108,15 @@ export default function SettingsPage() {
         .eq('status', 'active')
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        // Handle schema cache error gracefully (table exists but PostgREST cache hasn't refreshed)
+        if (error.code === 'PGRST205') {
+          console.log('[Schema Cache] connected_accounts not in cache yet, will retry on next load')
+          setConnections([])
+          return
+        }
+        throw error
+      }
       setConnections(data || [])
     } catch (error) {
       console.error('Error loading connections:', error)
@@ -105,11 +130,11 @@ export default function SettingsPage() {
     try {
       setConnecting(provider)
 
-      // Request OAuth URL
-      const response = await fetch('/api/unipile/auth', {
+      // Request UniPile Hosted Auth URL (CORRECT flow)
+      const response = await fetch('/api/unipile/create-hosted-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider })
+        body: JSON.stringify({ provider: provider.toLowerCase() })
       })
 
       const data = await response.json()
@@ -117,50 +142,39 @@ export default function SettingsPage() {
       if (!response.ok) {
         if (data.error === 'UNIPILE_NOT_CONFIGURED') {
           toast.error(data.message)
+          setConnecting(null)
           return
         }
         throw new Error(data.message || 'Failed to initiate connection')
       }
 
-      // Open OAuth popup
+      // Open UniPile in a popup window (keeps app visible behind it)
       const popup = window.open(
-        data.oauth_url,
-        'unipile-oauth',
-        'width=600,height=700,scrollbars=yes'
+        data.authUrl,
+        'unipile-connect',
+        'width=600,height=800,scrollbars=yes,resizable=yes'
       )
 
       if (!popup) {
         toast.error('Popup blocked! Please allow popups for this site and try again')
+        setConnecting(null)
         return
       }
 
-      // Listen for completion
-      const messageHandler = (event: MessageEvent) => {
-        if (event.data.type === 'UNIPILE_CONNECTED') {
-          window.removeEventListener('message', messageHandler)
-          toast.success(`${event.data.provider} account connected successfully`)
-          loadConnections()
-        } else if (event.data.type === 'UNIPILE_ERROR') {
-          window.removeEventListener('message', messageHandler)
-          toast.error(event.data.error || 'Connection failed. Please try again')
-        }
-      }
-
-      window.addEventListener('message', messageHandler)
-
-      // Check if popup was closed without completing
-      const popupChecker = setInterval(() => {
+      // Poll to detect when popup closes
+      const checkPopup = setInterval(() => {
         if (popup.closed) {
-          clearInterval(popupChecker)
-          window.removeEventListener('message', messageHandler)
+          clearInterval(checkPopup)
           setConnecting(null)
+          // Refresh connections list to show newly connected account
+          toast.success(`${provider} connection complete!`)
+          loadConnections()
         }
       }, 500)
 
     } catch (error) {
       console.error('Connection error:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to connect')
-    } finally {
       setConnecting(null)
     }
   }
