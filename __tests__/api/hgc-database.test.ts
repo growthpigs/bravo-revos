@@ -8,6 +8,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { Database } from '@/types/supabase'
 
 // Use actual Supabase for database tests (requires env vars)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
@@ -18,12 +19,12 @@ const shouldRun = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLI
 const describeOrSkip = shouldRun ? describe : describe.skip
 
 describeOrSkip('HGC Database - scrape_jobs table', () => {
-  let supabase: ReturnType<typeof createClient>
+  let supabase: ReturnType<typeof createClient<Database>>
   let testCampaignId: string
   let testPostId: string
 
   beforeAll(async () => {
-    supabase = createClient(supabaseUrl, supabaseKey)
+    supabase = createClient<Database>(supabaseUrl, supabaseKey)
 
     // Create test campaign and post
     // (In real tests, you'd use test fixtures or factories)
@@ -179,10 +180,10 @@ describeOrSkip('HGC Database - scrape_jobs table', () => {
 })
 
 describeOrSkip('HGC Database - notifications table', () => {
-  let supabase: ReturnType<typeof createClient>
+  let supabase: ReturnType<typeof createClient<Database>>
 
   beforeAll(() => {
-    supabase = createClient(supabaseUrl, supabaseKey)
+    supabase = createClient<Database>(supabaseUrl, supabaseKey)
   })
 
   describe('Table Structure', () => {

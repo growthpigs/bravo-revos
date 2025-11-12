@@ -343,10 +343,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           setIsExpanded(false);
           setShowMessages(true);
           setIsCollapsed(false);
-        } else if (isExpanded || (showMessages && !isCollapsed)) {
-          // From expanded/sidebar or floating: collapse to button
-          console.log('[FCB] ESC pressed - collapsing chat to button');
+        } else if (isExpanded) {
+          // From expanded/sidebar: go to floating chat (stay open, just collapse sidebar)
+          console.log('[FCB] ESC pressed - exiting sidebar to floating chat');
           setIsExpanded(false);
+          setShowMessages(true);
+          setIsCollapsed(false);
+        } else if (showMessages && !isCollapsed) {
+          // From floating chat: collapse to button
+          console.log('[FCB] ESC pressed - collapsing floating chat to button');
           setIsCollapsed(true);
           setShowMessages(false);
         }
