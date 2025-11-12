@@ -560,7 +560,7 @@ describe('Pod Campaign Integration', () => {
       });
 
       it('should preserve non-draft status', () => {
-        const currentStatus = 'active';
+        const currentStatus: string = 'active';
         const newStatus = currentStatus === 'draft' ? 'active' : currentStatus;
 
         expect(newStatus).toBe('active');
