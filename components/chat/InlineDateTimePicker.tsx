@@ -44,9 +44,9 @@ export function InlineDateTimePicker({
   };
 
   return (
-    <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-3 max-w-md">
-      <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-        <Calendar className="h-4 w-4" />
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5 text-xs text-gray-700">
+        <Calendar className="h-3 w-3" />
         <span className="font-medium">Select date and time</span>
       </div>
 
@@ -54,11 +54,11 @@ export function InlineDateTimePicker({
         type="datetime-local"
         value={selectedDatetime}
         onChange={(e) => setSelectedDatetime(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-gray-900 bg-white"
       />
 
       {selectedDatetime && (
-        <div className="text-sm text-gray-600 bg-white p-2 rounded border border-gray-200">
+        <div className="text-xs text-gray-600 bg-white px-2 py-1 rounded border border-gray-300">
           <span className="font-medium">Selected:</span> {formatDatetime(selectedDatetime)}
         </div>
       )}
@@ -66,10 +66,10 @@ export function InlineDateTimePicker({
       <button
         onClick={handleConfirm}
         disabled={!selectedDatetime}
-        className={`w-full px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+        className={`w-full px-3 py-1 border rounded text-xs font-medium transition-colors ${
           selectedDatetime
-            ? 'bg-blue-600 text-white hover:bg-blue-700'
-            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            ? 'border-gray-300 bg-white text-gray-900 hover:border-gray-900 hover:bg-gray-50'
+            : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
         }`}
       >
         Confirm Schedule

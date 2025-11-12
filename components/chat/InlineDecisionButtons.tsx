@@ -37,20 +37,12 @@ export function InlineDecisionButtons({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       {options.map((option) => (
         <button
           key={option.value}
           onClick={() => handleClick(option.value)}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
-            option.variant === 'primary'
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : option.value === 'continue'
-              ? 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-              : option.value === 'just_write'
-              ? 'bg-gray-200 text-gray-900 hover:bg-gray-300'
-              : 'border border-gray-300 text-gray-900 hover:border-blue-500 hover:bg-blue-50'
-          }`}
+          className="inline-flex items-center gap-1.5 px-3 py-1 border border-gray-300 rounded text-xs font-medium text-gray-900 bg-white hover:border-gray-900 hover:bg-gray-50 transition-colors"
         >
           {getIcon(option.icon)}
           {option.label}
