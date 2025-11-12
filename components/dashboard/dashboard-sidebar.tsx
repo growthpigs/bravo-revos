@@ -201,7 +201,7 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
         <div className="p-3 pt-0">
           {/* Clickable User Profile Card */}
           <Link
-            href="/settings"
+            href="/dashboard/settings"
             className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
           >
             <Avatar className="h-9 w-9">

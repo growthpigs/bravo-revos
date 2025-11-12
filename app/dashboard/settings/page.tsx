@@ -1,66 +1,219 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Settings, Lock, Wifi } from 'lucide-react'
+import { ChannelsList } from '@/components/settings/channels-list'
+import { toast } from 'sonner'
+
+interface ConnectedAccount {
+  id: string
+  provider: string
+  account_name: string
+  status: string
+  last_sync_at: string
+}
 
 export default function SettingsPage() {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [company, setCompany] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const supabase = createClient()
+
+  // General settings state
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [company, setCompany] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  // Connections state
+  const [connections, setConnections] = useState<ConnectedAccount[]>([])
+  const [unipileEnabled, setUnipileEnabled] = useState(true)
+  const [connecting, setConnecting] = useState<string | null>(null)
+  const [connectionsLoading, setConnectionsLoading] = useState(true)
 
   useEffect(() => {
-    // Load user data
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => {
-        setEmail(data.email || '');
-        setName(data.full_name || '');
-        setCompany(data.company || '');
-        setLoading(false);
+    loadUserData()
+    loadConnections()
+    checkUnipileStatus()
+  }, [])
+
+  async function loadUserData() {
+    try {
+      const response = await fetch('/api/user')
+      const data = await response.json()
+      setEmail(data.email || '')
+      setName(data.full_name || '')
+      setCompany(data.company || '')
+    } catch (err) {
+      console.error('Failed to load user data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function checkUnipileStatus() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('users')
+        .select('client_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.client_id) return
+
+      const { data: client } = await supabase
+        .from('clients')
+        .select('unipile_enabled')
+        .eq('id', profile.client_id)
+        .single()
+
+      setUnipileEnabled(client?.unipile_enabled || false)
+    } catch (error) {
+      console.error('Error checking UniPile status:', error)
+    }
+  }
+
+  async function loadConnections() {
+    try {
+      setConnectionsLoading(true)
+      const { data, error } = await supabase
+        .from('connected_accounts')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setConnections(data || [])
+    } catch (error) {
+      console.error('Error loading connections:', error)
+      toast.error('Failed to load connections')
+    } finally {
+      setConnectionsLoading(false)
+    }
+  }
+
+  async function handleConnect(provider: string) {
+    try {
+      setConnecting(provider)
+
+      // Request OAuth URL
+      const response = await fetch('/api/unipile/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider })
       })
-      .catch(err => {
-        console.error('Failed to load user data:', err);
-        setLoading(false);
-      });
-  }, []);
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (data.error === 'UNIPILE_NOT_CONFIGURED') {
+          toast.error(data.message)
+          return
+        }
+        throw new Error(data.message || 'Failed to initiate connection')
+      }
+
+      // Open OAuth popup
+      const popup = window.open(
+        data.oauth_url,
+        'unipile-oauth',
+        'width=600,height=700,scrollbars=yes'
+      )
+
+      if (!popup) {
+        toast.error('Popup blocked! Please allow popups for this site and try again')
+        return
+      }
+
+      // Listen for completion
+      const messageHandler = (event: MessageEvent) => {
+        if (event.data.type === 'UNIPILE_CONNECTED') {
+          window.removeEventListener('message', messageHandler)
+          toast.success(`${event.data.provider} account connected successfully`)
+          loadConnections()
+        } else if (event.data.type === 'UNIPILE_ERROR') {
+          window.removeEventListener('message', messageHandler)
+          toast.error(event.data.error || 'Connection failed. Please try again')
+        }
+      }
+
+      window.addEventListener('message', messageHandler)
+
+      // Check if popup was closed without completing
+      const popupChecker = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(popupChecker)
+          window.removeEventListener('message', messageHandler)
+          setConnecting(null)
+        }
+      }, 500)
+
+    } catch (error) {
+      console.error('Connection error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to connect')
+    } finally {
+      setConnecting(null)
+    }
+  }
+
+  async function handleDisconnect(account: ConnectedAccount) {
+    try {
+      const response = await fetch('/api/unipile/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: account.id })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect account')
+      }
+
+      toast.success(`${account.account_name} disconnected successfully`)
+      loadConnections()
+
+    } catch (error) {
+      console.error('Disconnect error:', error)
+      toast.error('Failed to disconnect account')
+    }
+  }
 
   const handleSaveGeneral = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setSuccess('');
-    setError('');
+    e.preventDefault()
+    setSaving(true)
+    setSuccess('')
+    setError('')
 
     try {
       const response = await fetch('/api/user', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ full_name: name, company }),
-      });
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to save settings');
+        throw new Error('Failed to save settings')
       }
 
-      setSuccess('Settings saved successfully');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess('Settings saved successfully')
+      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="p-8">Loading...</div>
   }
 
   return (
@@ -73,8 +226,9 @@ export default function SettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="connections">Connections</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
@@ -134,6 +288,50 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
+        {/* Connections Tab */}
+        <TabsContent value="connections">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wifi className="h-5 w-5" />
+                Connected Channels
+              </CardTitle>
+              <CardDescription>
+                Connect your communication channels through UniPile. All connections are secure and encrypted.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Connection Summary */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Active Connections</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {connections.length} of 8 channels connected
+                    </p>
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900">{connections.length}/8</div>
+                </div>
+              </div>
+
+              {/* Channels List */}
+              {connectionsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-gray-600">Loading connections...</div>
+                </div>
+              ) : (
+                <ChannelsList
+                  connections={connections}
+                  unipileEnabled={unipileEnabled}
+                  onConnect={handleConnect}
+                  onDisconnect={handleDisconnect}
+                  connecting={connecting}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Security Settings */}
         <TabsContent value="security">
           <Card>
@@ -159,5 +357,5 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
-  );
+  )
 }

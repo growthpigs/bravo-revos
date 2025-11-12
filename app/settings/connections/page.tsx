@@ -215,11 +215,11 @@ export default function ConnectionsPage() {
     try {
       setConnecting(provider)
 
-      // Request OAuth URL
-      const response = await fetch('/api/unipile/auth', {
+      // Request hosted auth link (CORRECT UniPile flow)
+      const response = await fetch('/api/unipile/create-hosted-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider })
+        body: JSON.stringify({ provider: provider.toLowerCase() })
       })
 
       const data = await response.json()
@@ -227,50 +227,20 @@ export default function ConnectionsPage() {
       if (!response.ok) {
         if (data.error === 'UNIPILE_NOT_CONFIGURED') {
           toast.error(data.message)
+          setConnecting(null)
           return
         }
         throw new Error(data.message || 'Failed to initiate connection')
       }
 
-      // Open OAuth popup
-      const popup = window.open(
-        data.oauth_url,
-        'unipile-oauth',
-        'width=600,height=700,scrollbars=yes'
-      )
-
-      if (!popup) {
-        toast.error('Popup blocked! Please allow popups for this site and try again')
-        return
-      }
-
-      // Listen for completion
-      const messageHandler = (event: MessageEvent) => {
-        if (event.data.type === 'UNIPILE_CONNECTED') {
-          window.removeEventListener('message', messageHandler)
-          toast.success(`${event.data.provider} account connected successfully`)
-          loadConnections()
-        } else if (event.data.type === 'UNIPILE_ERROR') {
-          window.removeEventListener('message', messageHandler)
-          toast.error(event.data.error || 'Connection failed. Please try again')
-        }
-      }
-
-      window.addEventListener('message', messageHandler)
-
-      // Check if popup was closed without completing
-      const popupChecker = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(popupChecker)
-          window.removeEventListener('message', messageHandler)
-          setConnecting(null)
-        }
-      }, 500)
+      // FULL REDIRECT to UniPile's hosted page (NOT a popup!)
+      // UniPile handles everything and calls our notify endpoint when done
+      toast.success(`Redirecting to ${provider} connection page...`)
+      window.location.href = data.authUrl
 
     } catch (error) {
       console.error('Connection error:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to connect')
-    } finally {
       setConnecting(null)
     }
   }
