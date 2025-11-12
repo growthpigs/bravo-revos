@@ -315,9 +315,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [isFullscreen]); // Only re-run when isFullscreen changes (not on every message)
 
-  // Save current conversation when messages change
+  // Save current conversation when messages change (but not while loading a conversation)
   useEffect(() => {
-    if (isMounted && currentConversationId) {
+    if (isMounted && currentConversationId && !isLoadingConversation.current) {
       saveCurrentConversation();
     }
   }, [messages]);
@@ -332,15 +332,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [isLoading, isFullscreen, isExpanded]);
 
-  // ESC key to exit fullscreen or collapse chat
+  // ESC key hierarchy: Fullscreen → Floating → Collapsed Button
   useEffect(() => {
     const handleEscape = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isFullscreen) {
-          console.log('[FCB] ESC pressed - exiting fullscreen');
+          // From fullscreen: go to floating chat
+          console.log('[FCB] ESC pressed - exiting fullscreen to floating chat');
           setIsFullscreen(false);
-        } else if (showMessages) {
-          console.log('[FCB] ESC pressed - collapsing chat');
+          setIsExpanded(false);
+          setShowMessages(true);
+          setIsCollapsed(false);
+        } else if (isExpanded || (showMessages && !isCollapsed)) {
+          // From expanded/sidebar or floating: collapse to button
+          console.log('[FCB] ESC pressed - collapsing chat to button');
+          setIsExpanded(false);
           setIsCollapsed(true);
           setShowMessages(false);
         }
@@ -348,7 +354,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isFullscreen, showMessages]);
+  }, [isFullscreen, isExpanded, showMessages, isCollapsed]);
 
   // Auto-sync document content when fullscreen opens (if no content loaded yet)
   useEffect(() => {
@@ -414,12 +420,20 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const loadConversation = (conversationId: string) => {
     const conv = conversations.find(c => c.id === conversationId);
     if (conv) {
+      // Flag that we're loading a conversation to prevent auto-save race condition
+      isLoadingConversation.current = true;
+
       setCurrentConversationId(conversationId);
       setMessages(conv.messages);
       setInput('');
       // Clear document state when switching conversations
       setDocumentContent('');
       setDocumentTitle('Working Document');
+
+      // Clear the flag after state updates complete
+      setTimeout(() => {
+        isLoadingConversation.current = false;
+      }, 100);
     }
   };
 
