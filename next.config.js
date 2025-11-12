@@ -10,6 +10,20 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/dashboard/offerings',
+        destination: '/dashboard/products-services',
+        permanent: true,
+      },
+      {
+        source: '/dashboard/lead-magnets',
+        destination: '/dashboard/offers',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig

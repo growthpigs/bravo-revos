@@ -74,11 +74,11 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-2">
             Welcome back! Here is an overview of your campaigns
           </p>
         </div>
@@ -94,8 +94,8 @@ export default async function DashboardPage() {
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <Card key={stat.title} className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-100">
                 <CardTitle className="text-sm font-medium text-gray-600">
                   {stat.title}
                 </CardTitle>
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
                   <Icon className={`h-4 w-4 ${stat.color}`} />
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <div className="text-3xl font-bold text-gray-900">{stat.value}</div>
                 <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
               </CardContent>
@@ -113,26 +113,26 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+        <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="border-b border-gray-100">
+            <CardTitle className="text-gray-900">Quick Actions</CardTitle>
             <CardDescription>Get started with common tasks</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-2 pt-6">
             <Link href="/dashboard/campaigns/new">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
                 <Megaphone className="h-4 w-4 mr-2" />
                 Create Campaign
               </Button>
             </Link>
             <Link href="/dashboard/lead-magnets">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
                 <Plus className="h-4 w-4 mr-2" />
                 Upload Lead Magnet
               </Button>
             </Link>
             <Link href="/dashboard/webhooks">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
                 <Zap className="h-4 w-4 mr-2" />
                 Configure Webhook
               </Button>
@@ -140,12 +140,12 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Leads</CardTitle>
+        <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="border-b border-gray-100">
+            <CardTitle className="text-gray-900">Recent Leads</CardTitle>
             <CardDescription>Latest lead activity</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <p className="text-sm text-gray-500">No leads yet</p>
           </CardContent>
         </Card>

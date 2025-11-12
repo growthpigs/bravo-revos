@@ -11,6 +11,22 @@ import { toast } from 'sonner';
 import { InlineDecisionButtons } from './InlineDecisionButtons';
 import { InlineCampaignSelector } from './InlineCampaignSelector';
 import { InlineDateTimePicker } from './InlineDateTimePicker';
+import { SlashCommandAutocomplete } from './SlashCommandAutocomplete';
+import { getCommand, type SlashCommand, type SlashCommandContext } from '@/lib/slash-commands';
+import { sandboxFetch } from '@/lib/sandbox/sandbox-wrapper';
+import { SandboxIndicator } from './SandboxIndicator';
+
+// Feature Flag: Use AgentKit v2 (Cartridge Architecture)
+const USE_AGENTKIT_V2 = process.env.NEXT_PUBLIC_USE_AGENTKIT_V2 === 'true';
+const HGC_API_ENDPOINT = USE_AGENTKIT_V2 ? '/api/hgc-v2' : '/api/hgc';
+
+console.log('[FloatingChatBar] Using API endpoint:', HGC_API_ENDPOINT, USE_AGENTKIT_V2 ? '(AgentKit v2)' : '(Legacy)');
+
+// Unique ID generator with counter to prevent duplicates
+let messageIdCounter = 0;
+const generateUniqueId = () => {
+  return `${Date.now()}-${messageIdCounter++}`;
+};
 
 interface DecisionOption {
   label: string;
@@ -36,11 +52,19 @@ interface InteractiveData {
   content?: string;
 }
 
+interface ActionButton {
+  id: string;
+  label: string;
+  action: 'post_linkedin' | 'regenerate' | 'change_voice' | 'try_copywriting' | 'save' | 'schedule';
+  primary?: boolean;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   interactive?: InteractiveData;
+  actions?: ActionButton[];
   createdAt: Date;
 }
 
@@ -65,6 +89,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Slash command state
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
 
   // Conversation management
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -92,6 +121,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [documentTitle, setDocumentTitle] = useState<string>('Working Document');
   const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [documentSourceMessageId, setDocumentSourceMessageId] = useState<string | null>(null); // Track which message is in document
   const [editedContent, setEditedContent] = useState<string>('');
   const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [showSaveToCampaignModal, setShowSaveToCampaignModal] = useState(false);
@@ -229,28 +259,51 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [input]);
 
-  // Scroll to bottom when messages update or panel opens
+  // Unified scroll handler for all chat panels
   useEffect(() => {
-    // Scroll to bottom when panel opens (showMessages changes)
-    if (messagesPanelRef.current && showMessages && !isExpanded) {
-      setTimeout(() => {
-        if (messagesPanelRef.current) {
-          messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
-        }
-      }, 0);
-    }
-  }, [showMessages, isExpanded]);
-
-  useEffect(() => {
-    // Scroll sidebar when expanded OR fullscreen
+    // Scroll fullscreen/expanded left panel to bottom
     if (scrollAreaRef.current && (isExpanded || isFullscreen)) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      // Use longer delay to ensure DOM fully rendered + animation complete
+      const timeout = setTimeout(() => {
+        if (scrollAreaRef.current) {
+          const scrollElement = scrollAreaRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Fullscreen panel scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 200); // 200ms accounts for fullscreen animation duration
+
+      return () => clearTimeout(timeout);
     }
-    // Scroll floating messages panel when NOT expanded
-    if (messagesPanelRef.current && !isExpanded && messages.length > 0) {
-      messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
+
+    // Scroll floating message panel to bottom
+    if (messagesPanelRef.current && !isExpanded && !isFullscreen && messages.length > 0) {
+      const timeout = setTimeout(() => {
+        if (messagesPanelRef.current) {
+          const scrollElement = messagesPanelRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Floating panel scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 100);
+
+      return () => clearTimeout(timeout);
     }
   }, [messages, isExpanded, isFullscreen]);
+
+  // Special handler: When fullscreen opens, scroll after animation completes
+  useEffect(() => {
+    if (isFullscreen && scrollAreaRef.current && messages.length > 0) {
+      // Wait for fullscreen animation to complete (200ms CSS transition)
+      const timeout = setTimeout(() => {
+        if (scrollAreaRef.current) {
+          const scrollElement = scrollAreaRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Fullscreen opened, scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 250); // 250ms = 200ms animation + 50ms buffer
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isFullscreen]); // Only re-run when isFullscreen changes (not on every message)
 
   // Save current conversation when messages change
   useEffect(() => {
@@ -258,6 +311,45 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       saveCurrentConversation();
     }
   }, [messages]);
+
+  // Maintain focus in textarea after sending message
+  useEffect(() => {
+    if (!isLoading && textareaRef.current && !isFullscreen && !isExpanded) {
+      // Small timeout to ensure DOM has updated after state changes
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
+    }
+  }, [isLoading, isFullscreen, isExpanded]);
+
+  // ESC key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        console.log('[FCB] ESC pressed - exiting fullscreen');
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen]);
+
+  // Auto-sync document content when fullscreen opens (if no content loaded yet)
+  useEffect(() => {
+    if (isFullscreen && !documentContent && messages.length > 0) {
+      // Find the most recent assistant message with substantial content (> 500 chars)
+      const latestContent = [...messages].reverse().find(
+        msg => msg.role === 'assistant' && msg.content.length > 500
+      );
+
+      if (latestContent) {
+        console.log('[FCB] Auto-syncing latest content to document area on fullscreen open');
+        setDocumentContent(latestContent.content);
+        setDocumentSourceMessageId(latestContent.id);
+        extractDocumentTitle(latestContent.content);
+      }
+    }
+  }, [isFullscreen, documentContent, messages]);
 
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
@@ -267,7 +359,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Helper: Create new conversation
   const createNewConversation = () => {
     const newConv: Conversation = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       title: 'New Chat',
       messages: [],
       createdAt: new Date(),
@@ -331,6 +423,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // Helper: Deduplicate consecutive identical lines (prevents "selected campaign" 3x)
+  const deduplicateLines = (text: string): string => {
+    const lines = text.split('\n');
+    return lines.filter((line, i) => {
+      if (i === 0) return true; // Always keep first line
+      const trimmedCurrent = line.trim();
+      const trimmedPrevious = lines[i - 1].trim();
+      // Remove line if it's identical to previous line (consecutive duplicates)
+      return trimmedCurrent !== trimmedPrevious;
+    }).join('\n');
+  };
+
   // Helper: Get conversations grouped by time
   const getGroupedConversations = () => {
     const now = new Date();
@@ -374,6 +478,64 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // Fixed buttons - always present at bottom of chat when there's document content
+  const getFixedBarButtons = (): ActionButton[] => {
+    return [
+      { id: 'post_linkedin', label: 'POST TO LINKEDIN', action: 'post_linkedin', primary: true },
+      { id: 'save', label: 'SAVE', action: 'save' },
+      { id: 'schedule', label: 'SCHEDULE POST', action: 'schedule' },
+    ];
+  };
+
+  // Content-specific buttons - only under messages that synced to document area
+  const getContentButtons = (): ActionButton[] => {
+    return [
+      { id: 'try_new_style', label: 'TRY NEW STYLE', action: 'regenerate' },
+      { id: 'change_voice', label: 'DIFFERENT VOICE', action: 'change_voice' },
+    ];
+  };
+
+  // Get background color for action button (consistent gray shades)
+  const getButtonColor = (isPrimary?: boolean): string => {
+    if (isPrimary) return 'bg-gray-800 text-white hover:bg-gray-900';
+    return 'bg-gray-400 text-gray-800 hover:bg-gray-500';
+  };
+
+  // Handle action button clicks
+  const handleActionClick = async (action: string, messageId?: string) => {
+    console.log('[FCB] Action clicked:', action, 'messageId:', messageId);
+
+    switch (action) {
+      case 'post_linkedin':
+        // TODO: Implement post to LinkedIn
+        toast.success('Post to LinkedIn - Coming soon!');
+        break;
+      case 'regenerate':
+        // Send "try a new style" to HGC
+        setInput('Try a new style for this content');
+        handleSubmit(new Event('submit') as any);
+        break;
+      case 'change_voice':
+        // TODO: Show voice cartridge selector
+        toast.info('Voice cartridge selector - Coming soon!');
+        break;
+      case 'try_copywriting':
+        // TODO: Show copywriting cartridge selector (future feature)
+        toast.info('Copywriting cartridge - Coming soon!');
+        break;
+      case 'save':
+        // Open save to campaign modal
+        setShowSaveToCampaignModal(true);
+        break;
+      case 'schedule':
+        // TODO: Implement schedule post
+        toast.info('Schedule post - Coming soon!');
+        break;
+      default:
+        console.warn('[FCB] Unknown action:', action);
+    }
+  };
+
   // Strip intro explanation text before the actual content
   const stripIntroText = (content: string) => {
     // Remove common intro patterns like "Here's a...", "Sure, here's...", etc.
@@ -403,7 +565,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: input.trim(),
       createdAt: new Date(),
@@ -414,39 +576,50 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
 
+    // Check if user's message contains trigger keywords
+    // Open fullscreen immediately BEFORE waiting for assistant response
+    const shouldTriggerFullscreen = hasDocumentCreationTrigger();
+    if (shouldTriggerFullscreen && !isFullscreen) {
+      console.log('[FCB] User message triggered fullscreen mode:', input.trim());
+      setIsFullscreen(true);
+      // Document area stays blank until real content arrives
+    }
+
     setInput('');
     setIsLoading(true);
     setError(null);
 
     try {
       const requestPayload = {
-        messages: [...messages, userMessage].map(m => {
-          let cleanContent = m.content;
+        messages: [...messages, userMessage]
+          .slice(-40) // Keep only last 40 messages to stay under 50-message API limit
+          .map(m => {
+            let cleanContent = m.content;
 
-          // Sanitize: If content is a JSON string (from old broken responses), extract the actual text
-          if (typeof cleanContent === 'string' && cleanContent.trim().startsWith('{')) {
-            try {
-              const parsed = JSON.parse(cleanContent);
-              if (parsed.response) {
-                cleanContent = parsed.response;
-                console.log('[HGC_STREAM] Sanitized JSON message, extracted response text');
+            // Sanitize: If content is a JSON string (from old broken responses), extract the actual text
+            if (typeof cleanContent === 'string' && cleanContent.trim().startsWith('{')) {
+              try {
+                const parsed = JSON.parse(cleanContent);
+                if (parsed.response) {
+                  cleanContent = parsed.response;
+                  console.log('[HGC_STREAM] Sanitized JSON message, extracted response text');
+                }
+              } catch (e) {
+                // Not valid JSON, keep content as-is
               }
-            } catch (e) {
-              // Not valid JSON, keep content as-is
             }
-          }
 
-          return {
-            role: m.role,
-            content: cleanContent,
-          };
-        }),
+            return {
+              role: m.role,
+              content: cleanContent,
+            };
+          }),
       };
 
-      console.log('[HGC_STREAM] Starting fetch request to /api/hgc');
+      console.log(`[HGC_STREAM] Starting fetch request to ${HGC_API_ENDPOINT}`);
       console.log('[HGC_STREAM] Request payload:', JSON.stringify(requestPayload, null, 2));
 
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -501,18 +674,29 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         if (data.response) {
           const assistantContent = data.response;
-          const cleanContent = stripIntroText(assistantContent);
+          const cleanContent = deduplicateLines(
+            stripIntroText(assistantContent)
+              .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments (safety net for backend leakage)
+          );
 
           // Create assistant message with cleaned content (intro text removed)
           const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
+            id: generateUniqueId(),
             role: 'assistant',
             content: cleanContent,
             interactive: data.interactive, // CRITICAL: Attach interactive field for inline forms
             createdAt: new Date(),
           };
 
-          setMessages(prev => [...prev, assistantMessage]);
+          // Deduplicate: Only add if message with this ID doesn't already exist
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === assistantMessage.id);
+            if (exists) {
+              console.log('[HGC_STREAM] ⚠️  Message with ID', assistantMessage.id, 'already exists, skipping duplicate');
+              return prev;
+            }
+            return [...prev, assistantMessage];
+          });
           console.log('[HGC_STREAM] JSON response added to messages. Length:', cleanContent.length);
 
           if (data.interactive) {
@@ -520,11 +704,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           }
 
           // Auto-fullscreen if content > 500 chars AND user triggered document creation
-          if (cleanContent.length > 500 && !isFullscreen && hasDocumentCreationTrigger()) {
-            console.log('[HGC_STREAM] Auto-fullscreen triggered for JSON response (trigger words matched)');
-            setIsFullscreen(true);
-            setDocumentContent(cleanContent);
-            extractDocumentTitle(cleanContent);
+          console.log('[FCB] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
+          if (cleanContent.length > 500 && !isFullscreen) {
+            const shouldTrigger = hasDocumentCreationTrigger();
+            console.log('[FCB] Checking trigger for JSON response, result:', shouldTrigger);
+            if (shouldTrigger) {
+              console.log('[FCB] Assistant response triggered fullscreen (JSON mode)');
+              setIsFullscreen(true);
+              setDocumentContent(cleanContent);
+              setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
+              extractDocumentTitle(cleanContent);
+            }
           }
         }
         setIsLoading(false);
@@ -538,7 +728,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Create assistant message placeholder
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: '',
         createdAt: new Date(),
@@ -570,17 +760,30 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         assistantContent += chunk;
 
         // Auto-fullscreen when document content starts (>500 chars = actual document) AND trigger keywords matched
-        if (assistantContent.length > 500 && !isFullscreen && hasDocumentCreationTrigger()) {
-          setIsFullscreen(true);
-          const cleanContent = stripIntroText(assistantContent);
-          setDocumentContent(cleanContent);
-          extractDocumentTitle(cleanContent);
+        if (assistantContent.length > 500 && !isFullscreen) {
+          const shouldTrigger = hasDocumentCreationTrigger();
+          console.log('[FCB] Streaming - content length:', assistantContent.length, 'shouldTrigger:', shouldTrigger);
+          if (shouldTrigger) {
+            console.log('[FCB] Assistant response triggered fullscreen (streaming mode)');
+            setIsFullscreen(true);
+            const cleanContent = deduplicateLines(
+              stripIntroText(assistantContent)
+                .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
+            );
+            setDocumentContent(cleanContent);
+            setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
+            extractDocumentTitle(cleanContent);
+          }
         }
 
         // Keep document in sync if already in fullscreen
         if (isFullscreen && assistantContent.length > 500) {
-          const cleanContent = stripIntroText(assistantContent);
+          const cleanContent = deduplicateLines(
+            stripIntroText(assistantContent)
+              .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
+          );
           setDocumentContent(cleanContent);
+          setDocumentSourceMessageId(assistantMessage.id); // Keep tracking the same message
           extractDocumentTitle(cleanContent);
         }
 
@@ -625,8 +828,93 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // ========================================
+  // SLASH COMMAND HANDLERS
+  // ========================================
+
+  // Handle input change - detect slash commands
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+
+    // Detect "/" at start of input
+    if (value.startsWith('/') && !showSlashMenu) {
+      // Calculate dropdown position above textarea
+      if (textareaRef.current) {
+        const rect = textareaRef.current.getBoundingClientRect();
+        setSlashMenuPosition({
+          top: rect.top - 10, // Position above textarea
+          left: rect.left,
+        });
+      }
+      setShowSlashMenu(true);
+      setSlashQuery(value.slice(1)); // Remove "/" for query
+    } else if (value.startsWith('/') && showSlashMenu) {
+      // Update query as user types
+      setSlashQuery(value.slice(1));
+    } else if (!value.startsWith('/') && showSlashMenu) {
+      // Hide menu if "/" is removed
+      setShowSlashMenu(false);
+      setSlashQuery('');
+    }
+  };
+
+  // Handle slash command selection
+  const handleSlashCommandSelect = async (command: SlashCommand) => {
+    console.log('[SLASH_CMD] Executing command:', command.name);
+
+    // Close menu
+    setShowSlashMenu(false);
+    setSlashQuery('');
+
+    // Extract args (text after command name)
+    const commandText = `/${command.name}`;
+    const args = input.slice(commandText.length).trim();
+
+    // Create command context
+    const context: SlashCommandContext = {
+      sendMessage: async (message: string) => {
+        // Set input and trigger send
+        setInput(message);
+        // Small delay to let state update
+        await new Promise(resolve => setTimeout(resolve, 50));
+        // Trigger submit
+        const fakeEvent = { preventDefault: () => {} } as FormEvent;
+        await handleSubmit(fakeEvent);
+      },
+      clearInput: () => {
+        setInput('');
+      },
+      setFullscreen: (enabled: boolean) => {
+        setIsFullscreen(enabled);
+      },
+      clearMessages: () => {
+        setMessages([]);
+        setCurrentConversationId(null);
+        toast.success('Conversation cleared');
+      },
+      clearDocument: () => {
+        setDocumentContent('');
+        setDocumentTitle('Working Document');
+      },
+    };
+
+    // Execute command handler
+    try {
+      await command.handler(args, context);
+    } catch (error) {
+      console.error('[SLASH_CMD] Error executing command:', error);
+      toast.error(`Failed to execute /${command.name}`);
+    }
+  };
+
   // Handle Enter key (send) and Shift+Enter (new line)
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // If slash menu is open, don't handle Enter (let autocomplete handle it)
+    if (showSlashMenu && e.key === 'Enter') {
+      return; // Let SlashCommandAutocomplete handle Enter
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (input.trim() && !isLoading) {
@@ -659,27 +947,50 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Handle expand button click - find last long message and show in fullscreen
   // Check if user's last message contains trigger keywords for document creation
   const hasDocumentCreationTrigger = () => {
-    if (messages.length === 0) return false;
+    console.log('[FULLSCREEN_DEBUG] hasDocumentCreationTrigger called, messages.length:', messages.length);
 
-    // Find the last user message
-    const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
-    if (!lastUserMessage) return false;
+    if (messages.length === 0) {
+      console.log('[FULLSCREEN_DEBUG] No messages, returning false');
+      return false;
+    }
 
-    const text = lastUserMessage.content.toLowerCase();
+    // Look at last 3 user messages (not just the last one)
+    // User might say "write" then later say "generate" or "finished"
+    const recentUserMessages = [...messages]
+      .reverse()
+      .filter(msg => msg.role === 'user')
+      .slice(0, 3);
+
+    if (recentUserMessages.length === 0) {
+      console.log('[FULLSCREEN_DEBUG] No user messages found, returning false');
+      return false;
+    }
+
+    const recentText = recentUserMessages.map(msg => msg.content.toLowerCase()).join(' ');
+    console.log('[FULLSCREEN_DEBUG] Recent user messages (last 3):', recentText);
 
     // Trigger keywords that indicate creative/document writing
-    const triggerKeywords = ['write', 'compose', 'draft', 'create a post', 'create an article', 'create a document', 'post', 'article', 'blog', 'newsletter', 'email'];
+    const triggerKeywords = [
+      'write', 'compose', 'draft', 'generate', 'create a post', 'create an article',
+      'create a document', 'post', 'article', 'blog', 'newsletter', 'email',
+      'finished', 'go ahead', 'do it', 'let\'s go'
+    ];
 
     // Block keywords that should NOT trigger fullscreen
     const blockKeywords = ['create a campaign', 'create a cartridge', 'explain', 'tell me', 'analyze', 'help me', 'what is', 'how to', 'describe', 'summarize', 'list', 'show me'];
 
     // Check if any block keyword is present
-    if (blockKeywords.some(keyword => text.includes(keyword))) {
+    const hasBlockKeyword = blockKeywords.some(keyword => recentText.includes(keyword));
+    if (hasBlockKeyword) {
+      console.log('[FULLSCREEN_DEBUG] Block keyword found, returning false');
       return false;
     }
 
     // Check if any trigger keyword is present
-    return triggerKeywords.some(keyword => text.includes(keyword));
+    const hasTriggerKeyword = triggerKeywords.some(keyword => recentText.includes(keyword));
+    console.log('[FULLSCREEN_DEBUG] Trigger keyword found:', hasTriggerKeyword);
+
+    return hasTriggerKeyword;
   };
 
   const handleMessageExpand = () => {
@@ -688,9 +999,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       msg => msg.role === 'assistant' && msg.content.length > 500
     );
 
-    if (longMessage && hasDocumentCreationTrigger()) {
+    // User explicitly clicked expand - open regardless of trigger keywords
+    if (longMessage) {
       setIsFullscreen(true);
       setDocumentContent(longMessage.content);
+      setDocumentSourceMessageId(longMessage.id); // Track which message is in document
       extractDocumentTitle(longMessage.content);
     }
   };
@@ -749,7 +1062,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add user's choice
       const userMessage: Message = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         role: 'user',
         content: 'Continue writing',
         createdAt: new Date(),
@@ -758,14 +1071,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Get backend response to continue the flow
       try {
-        const response = await fetch('/api/hgc', {
+        const response = await sandboxFetch(HGC_API_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [
               ...messages.filter(m => !m.interactive),
               userMessage,
-            ],
+            ].slice(-40), // Keep last 40 messages to stay under API limit
             decision: 'continue',
             workflow_id: workflowId,
           }),
@@ -774,7 +1087,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         const data = await response.json();
         if (data.response) {
           const assistantMessage: Message = {
-            id: (Date.now() + 1).toString(),
+            id: generateUniqueId(),
             role: 'assistant',
             content: data.response,
             createdAt: new Date(),
@@ -804,7 +1117,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add a friendly message
       const userMessage: Message = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         role: 'user',
         content: 'Just write',
         createdAt: new Date(),
@@ -812,7 +1125,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       setMessages(prev => [...prev, userMessage]);
 
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: 'Got it! Go ahead and write your post. You can save it and link it to a campaign anytime.',
         createdAt: new Date(),
@@ -823,7 +1136,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     // Add user message showing their choice
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: decision === 'create_new' ? 'Create a new campaign' : 'Select from existing campaigns',
       createdAt: new Date(),
@@ -832,11 +1145,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     try {
       // Send decision to backend with workflow context
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           decision: decision,
         }),
@@ -851,7 +1164,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add assistant response (may contain next step of workflow)
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: data.response || 'Got it!',
         interactive: data.interactive, // Next step (e.g., campaign selector)
@@ -875,7 +1188,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     // Add user message
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: `Selected campaign: ${campaignId}`,
       createdAt: new Date(),
@@ -884,11 +1197,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     try {
       // Send campaign selection to backend
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           campaign_id: campaignId,
         }),
@@ -898,7 +1211,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add assistant response (may contain datetime picker)
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: data.response || 'Great choice!',
         interactive: data.interactive, // Next step (e.g., datetime picker)
@@ -921,7 +1234,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     // Add user message
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: `Schedule for: ${new Date(datetime).toLocaleString()}`,
       createdAt: new Date(),
@@ -930,11 +1243,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     try {
       // Send datetime selection to backend (final step - should execute schedule)
-      const response = await fetch('/api/hgc', {
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }],
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           schedule_time: datetime,
           campaign_id: campaignId,
@@ -946,7 +1259,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       // Add assistant response (should be success message)
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: data.response || 'Post scheduled successfully!',
         interactive: data.interactive,
@@ -1005,18 +1318,63 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               onSelect={handleDateTimeSelect}
             />
           )}
+
+          {/* Content-specific buttons - only show if this message is synced to document */}
+          {isFullscreen && documentSourceMessageId === message.id && (
+            <div className="mt-2.5">
+              {/* 2px separator line */}
+              <div className="h-[2px] bg-gray-300 mb-2.5 w-full" />
+              <div className="flex flex-wrap gap-[7px]">
+                {getContentButtons().map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action.action, message.id)}
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                      getButtonColor(action.primary)
+                    )}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
     // Regular message without interactive elements
     return (
-      <ChatMessage
-        key={message.id}
-        message={convertToUIMessage(message)}
-        isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-        onExpand={handleMessageExpand}
-      />
+      <div key={message.id}>
+        <ChatMessage
+          message={convertToUIMessage(message)}
+          isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+          onExpand={handleMessageExpand}
+        />
+
+        {/* Content-specific buttons - only show if this message is synced to document */}
+        {message.role === 'assistant' && isFullscreen && documentSourceMessageId === message.id && (
+          <div className="mt-2.5">
+            {/* 2px separator line */}
+            <div className="h-[2px] bg-gray-300 mb-2.5 w-full" />
+            <div className="flex flex-wrap gap-[7px]">
+              {getContentButtons().map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => handleActionClick(action.action, message.id)}
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                    getButtonColor(action.primary)
+                  )}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -1037,10 +1395,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Left: Chat panel | Right: Document viewer
   if (isFullscreen) {
     return (
-      <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
+      <>
+        {/* Slash Command Autocomplete - Fullscreen Mode */}
+        <SlashCommandAutocomplete
+          visible={showSlashMenu}
+          query={slashQuery}
+          onSelect={handleSlashCommandSelect}
+          onClose={() => {
+            setShowSlashMenu(false);
+            setSlashQuery('');
+          }}
+          position={slashMenuPosition}
+        />
 
-        {/* LEFT PANEL: Chat - Hidden when document is maximized */}
-        {!isDocumentMaximized && (
+        <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
+
+          {/* LEFT PANEL: Chat - Hidden when document is maximized */}
+          {!isDocumentMaximized && (
         <div className="w-96 border-r border-gray-200 flex flex-col bg-white">
           {/* Top Navigation Bar - Document Title & Actions */}
           <div className="h-14 px-4 flex items-center justify-between">
@@ -1056,6 +1427,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   setIsMinimized(false);
                   setIsDocumentMaximized(false);
                   setShowMessages(true);  // Auto-open message panel
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                 aria-label="Close fullscreen"
@@ -1091,13 +1464,33 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             )}
           </div>
 
+          {/* Fixed Action Button Bar - Always visible when there's document content */}
+          {documentContent && (
+            <div className="p-3 bg-gray-50 border-t border-gray-200">
+              <div className="flex gap-[7px]">
+                {getFixedBarButtons().map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action.action)}
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                      getButtonColor(action.primary)
+                    )}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Input Area */}
           <form onSubmit={handleSubmit} className="p-3 bg-white">
             <div className="flex gap-2 items-flex-end">
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Send a message..."
                 className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none resize-none text-gray-700 placeholder-gray-500"
@@ -1230,12 +1623,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                         {documentContent}
                       </ReactMarkdown>
                     </div>
-                  ) : (
-                    <div className="text-gray-400 text-center py-12">
-                      <p className="text-sm">Document content will appear here</p>
-                      <p className="text-xs mt-2">Ask me to write a post, article, or document</p>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}
@@ -1249,7 +1637,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           documentContent={documentContent}
           documentTitle={documentTitle}
         />
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -1285,10 +1674,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     const historyWidth = showChatHistory && hasAnyConversations ? 192 : 0;
 
     return (
-      <div
-        className="fixed right-0 top-16 bottom-0 flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200"
-        style={{ width: `${sidebarWidth}px` }}
-      >
+      <>
+        {/* Slash Command Autocomplete - Expanded Sidebar Mode */}
+        <SlashCommandAutocomplete
+          visible={showSlashMenu}
+          query={slashQuery}
+          onSelect={handleSlashCommandSelect}
+          onClose={() => {
+            setShowSlashMenu(false);
+            setSlashQuery('');
+          }}
+          position={slashMenuPosition}
+        />
+
+        <div
+          className="fixed right-0 top-16 bottom-0 flex bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200"
+          style={{ width: `${sidebarWidth}px` }}
+        >
         {/* Left resizer - expand/shrink entire sidebar */}
         <div
           onMouseDown={handleLeftResizerMouseDown}
@@ -1315,6 +1717,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             <button
               onClick={() => {
                 setIsFullscreen(true);
+                setShowSlashMenu(false);  // Close slash menu
+                setSlashQuery('');
               }}
               className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
               aria-label="Fullscreen"
@@ -1328,6 +1732,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               onClick={() => {
                 setIsExpanded(false);
                 setIsMinimized(false);
+                setShowSlashMenu(false);  // Close slash menu
+                setSlashQuery('');
               }}
               className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
               aria-label="Floating bar"
@@ -1388,7 +1794,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 <textarea
                   ref={textareaRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Revy wants to help! Type..."
                   className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
@@ -1536,7 +1942,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -1552,6 +1959,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           }}
         />
       )}
+
+      {/* Slash Command Autocomplete */}
+      <SlashCommandAutocomplete
+        visible={showSlashMenu}
+        query={slashQuery}
+        onSelect={handleSlashCommandSelect}
+        onClose={() => {
+          setShowSlashMenu(false);
+          setSlashQuery('');
+        }}
+        position={slashMenuPosition}
+      />
 
       <div
         ref={floatingChatContainerRef}
@@ -1569,6 +1988,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
           >
             <div className="p-4 space-y-3">
+              <SandboxIndicator />
               {messages.map((message, index) => renderMessage(message, index))}
             </div>
           </div>
@@ -1595,7 +2015,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 onFocus={() => {
                   if (messages.length > 0) {
@@ -1627,6 +2047,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 type="button"
                 onClick={() => {
                   setIsExpanded(true);
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
                 aria-label="Sidebar view"
@@ -1640,6 +2062,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 type="button"
                 onClick={() => {
                   setIsFullscreen(true);
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
                 aria-label="Fullscreen"

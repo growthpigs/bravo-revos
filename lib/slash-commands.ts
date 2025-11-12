@@ -1,0 +1,252 @@
+/**
+ * Slash Commands Registry
+ * Cursor-style slash commands for fast LinkedIn campaign workflows
+ */
+
+export interface SlashCommand {
+  name: string;
+  description: string;
+  category: 'content' | 'campaign' | 'pod' | 'utility';
+  args?: string; // e.g., "[topic]" or "<required-arg>"
+  icon?: string; // Emoji icon for visual category
+  aliases?: string[]; // Alternative command names
+  handler: (args: string, context: SlashCommandContext) => void;
+}
+
+export interface SlashCommandContext {
+  sendMessage: (message: string) => Promise<void>;
+  clearInput: () => void;
+  setFullscreen: (enabled: boolean) => void;
+  clearMessages: () => void;
+  clearDocument: () => void;
+}
+
+/**
+ * All available slash commands
+ */
+export const slashCommands: SlashCommand[] = [
+  // ===== CONTENT COMMANDS =====
+  {
+    name: 'write',
+    description: 'Start writing a post (shows campaign selector)',
+    category: 'content',
+    handler: async (args, ctx) => {
+      ctx.clearDocument();
+      ctx.setFullscreen(true);
+      const msg = args ? `/write ${args}` : '/write';
+      await ctx.sendMessage(msg);
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'generate',
+    description: 'Generate content about a specific topic',
+    category: 'content',
+    args: '[topic]',
+    handler: async (args, ctx) => {
+      const msg = args ? `/generate ${args}` : '/generate';
+      await ctx.sendMessage(msg);
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'refine',
+    description: 'Improve and polish the current draft',
+    category: 'content',
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/refine');
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'continue',
+    description: 'Continue writing from current draft',
+    category: 'content',
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/continue');
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'rewrite',
+    description: 'Rewrite content in different style',
+    category: 'content',
+    args: '[style]',
+    handler: async (args, ctx) => {
+      const msg = args ? `/rewrite ${args}` : '/rewrite';
+      await ctx.sendMessage(msg);
+      ctx.clearInput();
+    },
+  },
+
+  // ===== CAMPAIGN COMMANDS =====
+  {
+    name: 'li-campaign',
+    description: 'Launch a LinkedIn campaign (select → pod → content → post)',
+    category: 'campaign',
+    aliases: ['launch', 'campaign'],
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/li-campaign');
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'campaigns',
+    description: 'Show all your campaigns with stats',
+    category: 'campaign',
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/campaigns');
+      ctx.clearInput();
+    },
+  },
+
+  // ===== POD COMMANDS =====
+  {
+    name: 'pod-members',
+    description: 'Show who\'s in your engagement pod',
+    category: 'pod',
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/pod-members');
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'pod-share',
+    description: 'Share your latest post with pod for reposts',
+    category: 'pod',
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/pod-share');
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'pod-engage',
+    description: 'Get repost links from pod to engage with',
+    category: 'pod',
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/pod-engage');
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'pod-stats',
+    description: 'Show pod engagement statistics',
+    category: 'pod',
+    handler: async (args, ctx) => {
+      await ctx.sendMessage('/pod-stats');
+      ctx.clearInput();
+    },
+  },
+
+  // ===== UTILITY COMMANDS =====
+  {
+    name: 'help',
+    description: 'Show all available commands',
+    category: 'utility',
+    handler: (args, ctx) => {
+      const helpText = generateHelpText();
+      ctx.sendMessage('/help\n\n' + helpText);
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'clear',
+    description: 'Clear conversation history',
+    category: 'utility',
+    handler: (args, ctx) => {
+      ctx.clearMessages();
+      ctx.clearInput();
+    },
+  },
+  {
+    name: 'fullscreen',
+    description: 'Toggle fullscreen working documents mode',
+    category: 'utility',
+    aliases: ['fs'],
+    handler: (args, ctx) => {
+      ctx.setFullscreen(true);
+      ctx.clearInput();
+    },
+  },
+];
+
+/**
+ * Search commands by query (fuzzy matching)
+ */
+export function searchCommands(query: string): SlashCommand[] {
+  const lowerQuery = query.toLowerCase().trim();
+
+  if (!lowerQuery) {
+    return slashCommands;
+  }
+
+  return slashCommands.filter((cmd) => {
+    // Match command name
+    if (cmd.name.toLowerCase().includes(lowerQuery)) {
+      return true;
+    }
+
+    // Match aliases
+    if (cmd.aliases?.some(alias => alias.toLowerCase().includes(lowerQuery))) {
+      return true;
+    }
+
+    // Match description keywords
+    if (cmd.description.toLowerCase().includes(lowerQuery)) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
+/**
+ * Get command by exact name or alias
+ */
+export function getCommand(name: string): SlashCommand | undefined {
+  const lowerName = name.toLowerCase();
+
+  return slashCommands.find((cmd) => {
+    if (cmd.name.toLowerCase() === lowerName) {
+      return true;
+    }
+
+    if (cmd.aliases?.some(alias => alias.toLowerCase() === lowerName)) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
+/**
+ * Generate help text showing all commands
+ */
+function generateHelpText(): string {
+  const categories = {
+    content: '📝 Content Commands',
+    campaign: '🎯 Campaign Commands',
+    pod: '👥 Pod Commands',
+    utility: '⚙️ Utility Commands',
+  };
+
+  let helpText = '## Available Slash Commands\n\n';
+
+  Object.entries(categories).forEach(([category, title]) => {
+    const commands = slashCommands.filter(cmd => cmd.category === category);
+
+    if (commands.length > 0) {
+      helpText += `### ${title}\n\n`;
+
+      commands.forEach((cmd) => {
+        const args = cmd.args ? ` ${cmd.args}` : '';
+        const aliases = cmd.aliases ? ` (alias: ${cmd.aliases.join(', ')})` : '';
+        helpText += `**/${cmd.name}${args}**${aliases}\n${cmd.description}\n\n`;
+      });
+    }
+  });
+
+  helpText += '\n💡 **Tip**: Type `/` to see all commands, or start typing to filter.\n';
+
+  return helpText;
+}

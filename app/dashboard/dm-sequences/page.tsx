@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit2, Trash2, Eye, Play } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, Play, Pause } from 'lucide-react';
 import { toast } from 'sonner';
+import { DMSequence } from '@/types/dm-sequences';
+import { CreateDMSequenceModal } from '@/components/dashboard/create-dm-sequence-modal';
 
 export default function DMSequencesPage() {
-  const [sequences, setSequences] = useState([]);
+  const [sequences, setSequences] = useState<DMSequence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     loadSequences();
@@ -16,8 +20,14 @@ export default function DMSequencesPage() {
   const loadSequences = async () => {
     try {
       setIsLoading(true);
-      // TODO: Implement DM sequences API call
-      setSequences([]);
+      const response = await fetch('/api/dm-sequences');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load DM sequences');
+      }
+
+      setSequences(result.data || []);
     } catch (error) {
       console.error('Error loading DM sequences:', error);
       toast.error('Failed to load DM sequences');
@@ -27,16 +37,43 @@ export default function DMSequencesPage() {
   };
 
   const handleCreateSequence = () => {
-    toast.info('Create DM sequence feature coming soon');
+    setShowCreateModal(true);
+  };
+
+  const handleSequenceCreated = () => {
+    loadSequences();
   };
 
   const handleEditSequence = (id: string) => {
     toast.info('Edit feature coming soon');
   };
 
-  const handleDeleteSequence = (id: string) => {
-    if (confirm('Are you sure you want to delete this DM sequence?')) {
-      toast.success('DM sequence deleted');
+  const handleDeleteSequence = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this DM sequence? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(id);
+      const response = await fetch(`/api/dm-sequences/${id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete DM sequence');
+      }
+
+      toast.success('DM sequence deleted successfully');
+
+      // Remove from local state
+      setSequences(sequences.filter(seq => seq.id !== id));
+    } catch (error) {
+      console.error('Error deleting DM sequence:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete DM sequence');
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -44,17 +81,43 @@ export default function DMSequencesPage() {
     toast.info('Details view coming soon');
   };
 
-  const handleActivateSequence = (id: string) => {
-    toast.success('DM sequence activated');
+  const handleToggleStatus = async (sequence: DMSequence) => {
+    const newStatus = sequence.status === 'active' ? 'paused' : 'active';
+
+    try {
+      const response = await fetch(`/api/dm-sequences/${sequence.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update sequence status');
+      }
+
+      toast.success(`Sequence ${newStatus === 'active' ? 'activated' : 'paused'}`);
+
+      // Update local state
+      setSequences(sequences.map(seq =>
+        seq.id === sequence.id ? { ...seq, status: newStatus } : seq
+      ));
+    } catch (error) {
+      console.error('Error updating sequence status:', error);
+      toast.error('Failed to update sequence status');
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">DM Sequences</h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-2">
             Automate your LinkedIn DM outreach with intelligent sequences
           </p>
         </div>
@@ -89,14 +152,21 @@ export default function DMSequencesPage() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg text-gray-900">{sequence.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{sequence.description}</p>
-                  <div className="flex items-center gap-4 mt-4 text-sm text-gray-600">
-                    <span className={sequence.status === 'active' ? 'text-green-600' : ''}>
-                      Status: {sequence.status}
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg text-gray-900">{sequence.name}</h3>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      sequence.status === 'active' ? 'bg-green-100 text-green-800' :
+                      sequence.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {sequence.status}
                     </span>
-                    <span>Messages: {sequence.message_count || 0}</span>
-                    <span>Sent: {sequence.sent_count || 0}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{sequence.description || 'No description'}</p>
+                  <div className="flex items-center gap-4 mt-4 text-sm text-gray-600">
+                    <span>Sent: {sequence.sent_count}</span>
+                    <span>Replies: {sequence.replied_count}</span>
+                    <span>Emails: {sequence.email_captured_count}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -104,20 +174,27 @@ export default function DMSequencesPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleViewDetails(sequence.id)}
+                    title="View details"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleActivateSequence(sequence.id)}
+                    onClick={() => handleToggleStatus(sequence)}
+                    title={sequence.status === 'active' ? 'Pause sequence' : 'Activate sequence'}
                   >
-                    <Play className="h-4 w-4" />
+                    {sequence.status === 'active' ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEditSequence(sequence.id)}
+                    title="Edit sequence"
                   >
                     <Edit2 className="h-4 w-4" />
                   </Button>
@@ -125,8 +202,10 @@ export default function DMSequencesPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteSequence(sequence.id)}
+                    disabled={isDeleting === sequence.id}
+                    title="Delete sequence"
                   >
-                    <Trash2 className="h-4 w-4 text-red-600" />
+                    <Trash2 className={`h-4 w-4 ${isDeleting === sequence.id ? 'opacity-50' : 'text-red-600'}`} />
                   </Button>
                 </div>
               </div>
@@ -155,6 +234,13 @@ export default function DMSequencesPage() {
           </ul>
         </div>
       </div>
+
+      {/* Create Sequence Modal */}
+      <CreateDMSequenceModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+        onSuccess={handleSequenceCreated}
+      />
     </div>
   );
 }

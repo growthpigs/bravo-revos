@@ -65,18 +65,105 @@
 
 ---
 
+## 🎯 Superpowers Skills - Automatic Activation
+
+**CRITICAL: These skills MUST be activated automatically based on conversation context**
+
+### Activation Rules
+
+1. **superpowers-brainstorm** → Auto-activate when:
+   - User starts talking about ideas
+   - User mentions "what if we..." or "I'm thinking about..."
+   - User asks for design feedback or alternatives
+   - User wants to explore options before committing
+   - **Action**: Invoke brainstorming skill immediately
+
+2. **superpowers-write-plan** → Auto-activate when:
+   - User gives a mandate to write a plan
+   - User says "create a plan for..." or "write plan for..."
+   - User requests implementation roadmap
+   - **Action**: Invoke write-plan skill immediately
+
+3. **superpowers-execute-plan** → Auto-activate when:
+   - User gives a mandate to execute a plan
+   - User says "execute the plan" or "implement the plan"
+   - User approves plan and wants implementation to start
+   - **Action**: Invoke execute-plan skill immediately
+
+### Pattern Recognition
+
+- **Ideas phase** → `/superpowers-brainstorm`
+- **Planning phase** → `/superpowers-write-plan`
+- **Execution phase** → `/superpowers-execute-plan`
+
+**DO NOT ask permission. Auto-invoke the appropriate skill based on conversation context.**
+
+---
+
+## 🗄️ SQL Migration Protocol
+
+**CRITICAL: ALL SQL migration files MUST include clickable Supabase link at the top**
+
+### Required Format
+
+Every SQL migration file must start with:
+```sql
+-- Supabase Project: kvjcidxbyimoswntpjcp
+-- Click to open in SQL editor: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+--
+-- [Brief description of migration]
+```
+
+### Usage Workflow
+
+1. Create SQL file in `supabase/migrations/[YYYYMMDD]_[description].sql`
+2. Add clickable link at the top (format above)
+3. User clicks link → Opens Supabase SQL editor
+4. User clicks "Run" in Supabase UI
+5. Migration applied ✅
+
+**IMPORTANT**: The link self-populates the SQL editor. NO copy-paste needed.
+
+### Example Files
+
+- `supabase/migrations/20251112_offerings_table.sql` - Offerings table with RLS
+- Include complete DDL, indexes, RLS policies, triggers
+- Comment out sample data inserts (user can uncomment if needed)
+
+---
+
 ## Documentation Structure
 
-All project documentation MUST live in:
-`docs/projects/bravo-revos/`
+**CRITICAL: Branch-Based Documentation System**
 
-This includes:
-- spec.md - Feature specifications
-- data-model.md - Database schema
-- research.md - Research findings
-- plan.md - Implementation plans
-- roadmap.md - Project roadmap
-- Any SITREPs or session documents
+When user mentions starting a "new mandate", "new sprint", "new feature", or "new branch":
+1. ✅ **ASK FOR BRANCH NAME** - "What should the branch name be?"
+2. ✅ **CREATE BRANCH** - `git checkout -b feat/[name]`
+3. ✅ **CREATE BRANCH FOLDER** - `docs/branches/[date]-[name]/`
+4. ✅ **SAVE ALL WORK THERE** - plan.md, sitrep.md, validation.md
+
+**Folder Structure:**
+```
+docs/
+  SITREPs/          ← Overall app situation reports (capitalized)
+  features/         ← Major feature documentation (high-level specs)
+  branches/         ← Branch-specific work (one folder per feature branch)
+    [YYYY-MM-DD]-[branch-name]/
+      plan.md       ← Implementation plan
+      sitrep.md     ← Feature completion report
+      validation.md ← Test results and validation
+  projects/         ← Legacy (keep for now, may deprecate)
+```
+
+**Branch Folder Naming:**
+- Date: `YYYY-MM-DD` (e.g., `2025-11-12`)
+- Name: kebab-case matching git branch (e.g., `offerings-conversation-intelligence`)
+- Example: `docs/branches/2025-11-12-offerings-conversation-intelligence/`
+
+**Git Branch Naming:**
+- Features: `feat/[name]` (e.g., `feat/offerings-conversation-intelligence`)
+- Fixes: `fix/[name]`
+- Docs: `docs/[name]`
 
 **ALWAYS upload documents to Archon immediately after creation using manage_document().**
 

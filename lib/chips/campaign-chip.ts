@@ -1,0 +1,172 @@
+/**
+ * Campaign Chip - Campaign management capabilities
+ *
+ * Handles: get_all_campaigns, create_campaign, get_campaign_by_id
+ */
+
+import { tool } from '@openai/agents';
+import { z } from 'zod';
+import { BaseChip } from './base-chip';
+import { AgentContext } from '@/lib/cartridges/types';
+
+export class CampaignChip extends BaseChip {
+  id = 'campaign-chip';
+  name = 'Campaign Management';
+  description = 'Create, retrieve, and manage campaigns';
+
+  getTool() {
+    return tool({
+      name: 'manage_campaigns',
+      description: 'Manage campaigns: list all, get specific campaign, or create new campaign',
+      parameters: z.object({
+        action: z.enum(['list', 'get', 'create']).describe('Action to perform'),
+        campaign_id: z.string().optional().describe('Campaign UUID (for get action)'),
+        name: z.string().optional().describe('Campaign name (for create action)'),
+        description: z.string().optional().describe('Campaign description (for create action)'),
+        voice_id: z.string().optional().describe('Voice cartridge ID (for create action)'),
+      }),
+      execute: async (input, context) => {
+        return this.execute(input, context as AgentContext);
+      },
+    });
+  }
+
+  async execute(input: any, context: AgentContext): Promise<any> {
+    this.validateContext(context);
+
+    const { action, campaign_id, name, description, voice_id } = input;
+
+    try {
+      switch (action) {
+        case 'list':
+          return await this.handleGetAllCampaigns(context);
+
+        case 'get':
+          if (!campaign_id) {
+            return this.formatError('campaign_id required for get action');
+          }
+          return await this.handleGetCampaignById(campaign_id, context);
+
+        case 'create':
+          if (!name) {
+            return this.formatError('name required for create action');
+          }
+          return await this.handleCreateCampaign(name, voice_id, description, context);
+
+        default:
+          return this.formatError(`Unknown action: ${action}`);
+      }
+    } catch (error) {
+      return this.formatError(error);
+    }
+  }
+
+  /**
+   * Get all campaigns for authenticated user
+   */
+  private async handleGetAllCampaigns(context: AgentContext) {
+    const { data, error } = await context.supabase
+      .from('campaigns')
+      .select('id, name, status, created_at, lead_magnet_source')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return this.formatError(error.message);
+    }
+
+    return this.formatSuccess({
+      campaigns: data || [],
+      count: data?.length || 0,
+    });
+  }
+
+  /**
+   * Get specific campaign by ID
+   */
+  private async handleGetCampaignById(campaign_id: string, context: AgentContext) {
+    const { data, error } = await context.supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', campaign_id)
+      .single();
+
+    if (error) {
+      return this.formatError(error.message);
+    }
+
+    // Get lead count
+    const { count: leadsCount } = await context.supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaign_id);
+
+    // Get posts count
+    const { count: postsCount } = await context.supabase
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaign_id);
+
+    return this.formatSuccess({
+      campaign: {
+        ...data,
+        metrics: {
+          leads_generated: leadsCount || 0,
+          posts_created: postsCount || 0,
+        },
+      },
+    });
+  }
+
+  /**
+   * Create new campaign
+   */
+  private async handleCreateCampaign(
+    name: string,
+    voice_id: string | undefined,
+    description: string | undefined,
+    context: AgentContext
+  ) {
+    // Get user's client_id
+    const { data: userData, error: userError } = await context.supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (userError || !userData?.client_id) {
+      console.error('[CampaignChip] User client_id not found:', userError?.message);
+      return this.formatError(
+        'User client not found. Please ensure your account is properly configured.'
+      );
+    }
+
+    const { data, error } = await context.supabase
+      .from('campaigns')
+      .insert({
+        name,
+        voice_id: voice_id || null,
+        description,
+        status: 'draft',
+        client_id: userData.client_id,
+        created_by: context.userId,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return this.formatError(error.message);
+    }
+
+    // Warning if no voice cartridge
+    let message = 'Campaign created in DRAFT status. Review in dashboard to activate.';
+    if (!voice_id) {
+      message +=
+        '\n\n⚠️ WARNING: This campaign is not using a voice cartridge. We recommend adding one for better content generation quality.';
+    }
+
+    return this.formatSuccess({
+      campaign: data,
+      message,
+    });
+  }
+}
