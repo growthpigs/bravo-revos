@@ -39,9 +39,9 @@ interface Channel {
 interface ConnectedAccount {
   id: string
   provider: string
-  account_name: string
+  profile_name: string
   status: string
-  last_sync_at: string
+  last_synced: string
 }
 
 interface ChannelsListProps {
@@ -118,7 +118,7 @@ export function ChannelsList({ connections, unipileEnabled, onConnect, onDisconn
   })
 
   function getConnection(provider: string): ConnectedAccount | undefined {
-    return connections.find(c => c.provider === provider)
+    return connections.find(c => c.provider.toLowerCase() === provider.toLowerCase())
   }
 
   function formatLastSync(dateString: string): string {
@@ -176,10 +176,10 @@ export function ChannelsList({ connections, unipileEnabled, onConnect, onDisconn
               </div>
               <p className="text-sm text-gray-600 mt-1">Connected</p>
               <p className="text-sm text-gray-700 mt-2 font-medium">
-                {connection.account_name}
+                {connection.profile_name}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Last synced: {formatLastSync(connection.last_sync_at)}
+                Last synced: {connection.last_synced ? formatLastSync(connection.last_synced) : 'Never'}
               </p>
             </div>
             <Button
@@ -237,7 +237,7 @@ export function ChannelsList({ connections, unipileEnabled, onConnect, onDisconn
       <AlertDialog open={disconnectDialog.open} onOpenChange={(open) => setDisconnectDialog({ open, account: null })}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect {disconnectDialog.account?.account_name}?</AlertDialogTitle>
+            <AlertDialogTitle>Disconnect {disconnectDialog.account?.profile_name}?</AlertDialogTitle>
             <AlertDialogDescription>
               You'll need to reconnect to send messages through this channel.
               Are you sure you want to disconnect?

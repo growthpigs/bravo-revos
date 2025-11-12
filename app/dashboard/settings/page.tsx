@@ -14,9 +14,9 @@ import { toast } from 'sonner'
 interface ConnectedAccount {
   id: string
   provider: string
-  account_name: string
+  profile_name: string
   status: string
-  last_sync_at: string
+  last_synced: string
 }
 
 export default function SettingsPage() {
@@ -191,7 +191,7 @@ export default function SettingsPage() {
         throw new Error('Failed to disconnect account')
       }
 
-      toast.success(`${account.account_name} disconnected successfully`)
+      toast.success(`${account.profile_name} disconnected successfully`)
       loadConnections()
 
     } catch (error) {

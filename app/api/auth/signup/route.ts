@@ -19,53 +19,26 @@ export async function POST(request: NextRequest) {
 
     console.log('[SIGNUP_API] Creating user record for:', userId)
 
-    // First, create or get a default agency
-    const { data: agencies } = await supabase
-      .from('agencies')
+    // Get the existing default client (we already created it)
+    const { data: clients, error: clientFetchError } = await supabase
+      .from('clients')
       .select('id')
       .limit(1)
 
-    let agencyId = agencies?.[0]?.id
-
-    if (!agencyId) {
-      const { data: newAgency, error: agencyError } = await supabase
-        .from('agencies')
-        .insert({
-          name: 'Default Agency',
-          slug: 'default-agency',
-        })
-        .select()
-        .single()
-
-      if (agencyError) {
-        console.error('[SIGNUP_API] Error creating agency:', agencyError)
-        return NextResponse.json(
-          { error: `Failed to create agency: ${agencyError.message}` },
-          { status: 500 }
-        )
-      }
-      agencyId = newAgency?.id
-    }
-
-    // Create a default client for the agency
-    const { data: newClient, error: clientError } = await supabase
-      .from('clients')
-      .insert({
-        agency_id: agencyId,
-        name: 'Default Client',
-      })
-      .select()
-      .single()
-
-    if (clientError) {
-      console.error('[SIGNUP_API] Error creating client:', clientError)
+    if (clientFetchError || !clients || clients.length === 0) {
+      console.error('[SIGNUP_API] No default client found:', clientFetchError)
       return NextResponse.json(
-        { error: 'Failed to create client' },
+        { error: 'No default client configured. Please contact support.' },
         { status: 500 }
       )
     }
 
-    const clientId = newClient.id
+    const clientId = clients[0].id
+
+    // Parse full name into first and last
+    const nameParts = (fullName || '').trim().split(' ')
+    const firstName = nameParts[0] || null
+    const lastName = nameParts.slice(1).join(' ') || null
 
     // Create user record in users table using service role
     const { error: insertError } = await supabase
@@ -73,7 +46,8 @@ export async function POST(request: NextRequest) {
       .insert({
         id: userId,
         email,
-        full_name: fullName || null,
+        first_name: firstName,
+        last_name: lastName,
         client_id: clientId,
       })
 
