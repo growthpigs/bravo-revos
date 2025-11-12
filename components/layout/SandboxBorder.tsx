@@ -6,7 +6,10 @@ export function SandboxBorder({ children }: { children: React.ReactNode }) {
   const sandboxEnabled = isSandboxMode();
 
   return (
-    <div className={sandboxEnabled ? 'border-4 border-yellow-400 min-h-screen' : ''}>
+    <div className={sandboxEnabled ? 'relative' : ''}>
+      {sandboxEnabled && (
+        <div className="fixed inset-0 border-4 border-yellow-400 pointer-events-none z-[9999]" />
+      )}
       {children}
     </div>
   );

@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -19,9 +20,11 @@ import {
   LogOut,
   Zap,
   BookOpen,
-  Calendar
+  Calendar,
+  FlaskConical
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
 
 interface DashboardSidebarProps {
   user: any
@@ -47,6 +50,18 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [sandboxEnabled, setSandboxEnabled] = useState(false)
+
+  useEffect(() => {
+    setSandboxEnabled(isSandboxMode())
+  }, [])
+
+  const handleToggleSandbox = () => {
+    const newMode = toggleSandboxMode()
+    setSandboxEnabled(newMode)
+    // Reload page to apply sandbox mode changes
+    window.location.reload()
+  }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -79,6 +94,35 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
           })}
 
           {/* Divider */}
+          <div className="my-4 border-t border-gray-200"></div>
+
+          {/* Sandbox Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleToggleSandbox}
+            className={cn(
+              'w-full justify-start gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+              sandboxEnabled
+                ? 'bg-yellow-50 text-yellow-900 hover:bg-yellow-100'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            )}
+          >
+            <FlaskConical className={cn(
+              'h-5 w-5 flex-shrink-0',
+              sandboxEnabled ? 'text-yellow-600' : ''
+            )} />
+            <span>Sandbox Mode</span>
+            <span className={cn(
+              'ml-auto text-xs font-semibold px-2 py-0.5 rounded',
+              sandboxEnabled
+                ? 'bg-yellow-200 text-yellow-800'
+                : 'bg-gray-200 text-gray-600'
+            )}>
+              {sandboxEnabled ? 'ON' : 'OFF'}
+            </span>
+          </Button>
+
           <div className="my-4 border-t border-gray-200"></div>
 
           {/* User Profile Section */}

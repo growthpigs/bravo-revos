@@ -3,9 +3,29 @@ import { SandboxResponse } from './types';
 
 /**
  * Check if sandbox mode is enabled
+ * Priority: localStorage > env var
  */
 export function isSandboxMode(): boolean {
+  if (typeof window !== 'undefined') {
+    const storedValue = localStorage.getItem('sandbox_mode');
+    if (storedValue !== null) {
+      return storedValue === 'true';
+    }
+  }
   return process.env.NEXT_PUBLIC_SANDBOX_MODE === 'true';
+}
+
+/**
+ * Toggle sandbox mode (stores in localStorage)
+ */
+export function toggleSandboxMode(): boolean {
+  if (typeof window !== 'undefined') {
+    const currentMode = isSandboxMode();
+    const newMode = !currentMode;
+    localStorage.setItem('sandbox_mode', String(newMode));
+    return newMode;
+  }
+  return false;
 }
 
 /**
