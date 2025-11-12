@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     console.log('Pod activity created manually:', activity.id);
 
     // Log the manual trigger
-    await supabase.from('webhook_logs').insert({
+    await supabase.from('unipile_webhook_logs').insert({
       event: 'manual_trigger',
       payload: {
         campaign_id,

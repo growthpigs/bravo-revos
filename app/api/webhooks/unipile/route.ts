@@ -143,7 +143,7 @@ async function handlePostPublished(data: any) {
 
   // 5. Log webhook processing
   await supabase
-    .from('webhook_logs')
+    .from('unipile_webhook_logs')
     .insert({
       event: 'post.published',
       payload: data,
@@ -217,7 +217,7 @@ async function handlePostFailed(data: any) {
 
   // Log webhook processing
   await supabase
-    .from('webhook_logs')
+    .from('unipile_webhook_logs')
     .insert({
       event: 'post.failed',
       payload: data,
