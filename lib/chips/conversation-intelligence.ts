@@ -1,10 +1,9 @@
 /**
  * ConversationIntelligenceChip
  * Analyzes tone and emotional state to adapt response style
- * Uses GPT-4 for analysis (falls back to heuristics if no API key)
+ * Uses GPT-4 via secure API route (falls back to heuristics if unavailable)
  */
 
-import OpenAI from 'openai';
 import type { Offering } from '@/lib/types/offerings';
 
 export interface ToneProfile {
@@ -45,31 +44,17 @@ export class ConversationIntelligenceChip {
   readonly name = 'Conversation Intelligence';
   readonly description = 'Analyze tone and emotional state to adapt response style';
 
-  private openai: OpenAI | null = null;
-  private useGPT4: boolean = false;
+  private useGPT4: boolean = true; // Try API route first
 
   constructor() {
-    // Skip OpenAI initialization in test environment
-    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-
-    // Initialize OpenAI if API key available and not in test
-    if (process.env.OPENAI_API_KEY && !isTest) {
-      this.openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
-      this.useGPT4 = true;
-    } else {
-      if (!isTest) {
-        console.warn('[ConversationIntelligence] No OPENAI_API_KEY - using heuristic analysis');
-      }
-    }
+    // No client-side OpenAI initialization needed - we use API route
   }
 
   /**
    * Analyze tone of a message
    */
   async analyzeTone(message: string): Promise<ToneProfile> {
-    if (this.useGPT4 && this.openai) {
+    if (this.useGPT4) {
       return await this.analyzeToneWithGPT4(message);
     } else {
       return this.analyzeToneHeuristic(message);
@@ -77,36 +62,32 @@ export class ConversationIntelligenceChip {
   }
 
   /**
-   * Analyze tone using GPT-4
+   * Analyze tone using GPT-4 via API route
    */
   private async analyzeToneWithGPT4(message: string): Promise<ToneProfile> {
     try {
-      const completion = await this.openai!.chat.completions.create({
-        model: 'gpt-4',
-        temperature: 0,
-        messages: [
-          {
-            role: 'system',
-            content: `Analyze the tone and emotional state of the user's message.
-
-Return JSON:
-{
-  "formality": "casual" | "neutral" | "formal",
-  "sentiment": "excited" | "neutral" | "skeptical" | "frustrated" | "professional",
-  "emotionalState": "eager" | "doubtful" | "frustrated" | "analytical" | "urgent",
-  "confidence": 0.0-1.0
-}`,
-          },
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
-        response_format: { type: 'json_object' },
+      const response = await fetch('/api/conversation-intelligence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'analyze-tone',
+          message,
+        }),
       });
 
-      const analysis = JSON.parse(completion.choices[0].message.content || '{}');
-      return analysis as ToneProfile;
+      if (!response.ok) {
+        const errorData = await response.json();
+        // If service unavailable or fallback suggested, use heuristics
+        if (errorData.fallback) {
+          return this.analyzeToneHeuristic(message);
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.toneProfile as ToneProfile;
     } catch (error) {
       console.error('[ConversationIntelligence] GPT-4 analysis failed:', error);
       return this.analyzeToneHeuristic(message);
@@ -264,7 +245,7 @@ Return JSON:
     const style = this.matchCommunicationStyle(context.toneProfile);
     const emotion = this.detectEmotionalState(context.conversationHistory);
 
-    if (this.useGPT4 && this.openai) {
+    if (this.useGPT4) {
       return await this.generateResponseWithGPT4(context, style, emotion);
     } else {
       return this.generateResponseHeuristic(context, style, emotion);
@@ -272,7 +253,7 @@ Return JSON:
   }
 
   /**
-   * Generate response using GPT-4
+   * Generate response using GPT-4 via API route
    */
   private async generateResponseWithGPT4(
     context: GenerateResponseContext,
@@ -280,49 +261,35 @@ Return JSON:
     emotion: EmotionalContext
   ): Promise<string> {
     try {
-      // Build system prompt based on style
-      let systemPrompt = 'You are a helpful assistant.';
-
-      if (style.tone === 'conversational') {
-        systemPrompt = 'You are a friendly, down-to-earth assistant. Use casual language, avoid jargon, and be empathetic.';
-      } else if (style.tone === 'professional') {
-        systemPrompt = 'You are a professional business consultant. Use formal language, provide detailed analysis, and focus on facts and metrics.';
-      }
-
-      if (style.empathy === 'high') {
-        systemPrompt += ' Show understanding and validate their concerns before offering solutions.';
-      }
-
-      if (emotion.primary === 'frustrated') {
-        systemPrompt += ' The user is frustrated. Acknowledge their frustration and provide clear, simple solutions.';
-      } else if (emotion.primary === 'skeptical') {
-        systemPrompt += ' The user is skeptical. Be honest, acknowledge common concerns, and provide concrete evidence.';
-      }
-
-      // Add offering context if available
-      if (context.offering) {
-        systemPrompt += `\n\nYou are representing this offering: ${context.offering.name}
-Elevator pitch: ${context.offering.elevator_pitch}
-Key benefits: ${context.offering.key_benefits.join(', ')}`;
-      }
-
-      const completion = await this.openai!.chat.completions.create({
-        model: 'gpt-4',
-        temperature: 0.7,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
+      const response = await fetch('/api/conversation-intelligence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'generate-response',
+          message: context.userMessage,
+          context: {
+            toneProfile: context.toneProfile,
+            style,
+            emotion,
+            conversationHistory: context.conversationHistory,
+            offering: context.offering,
           },
-          ...context.conversationHistory,
-          {
-            role: 'user',
-            content: context.userMessage,
-          },
-        ],
+        }),
       });
 
-      return completion.choices[0].message.content || '';
+      if (!response.ok) {
+        const errorData = await response.json();
+        // If service unavailable or fallback suggested, use heuristics
+        if (errorData.fallback) {
+          return this.generateResponseHeuristic(context, style, emotion);
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.response as string;
     } catch (error) {
       console.error('[ConversationIntelligence] GPT-4 generation failed:', error);
       return this.generateResponseHeuristic(context, style, emotion);
