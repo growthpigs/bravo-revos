@@ -322,15 +322,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [messages]);
 
-  // Maintain focus in textarea after sending message
+  // Maintain focus in textarea after sending message (all states)
   useEffect(() => {
-    if (!isLoading && textareaRef.current && !isFullscreen && !isExpanded) {
+    if (!isLoading && textareaRef.current) {
       // Small timeout to ensure DOM has updated after state changes
       setTimeout(() => {
         textareaRef.current?.focus();
       }, 0);
     }
-  }, [isLoading, isFullscreen, isExpanded]);
+  }, [isLoading]);
 
   // ESC key hierarchy: Fullscreen → Floating → Collapsed Button
   useEffect(() => {
