@@ -2,6 +2,53 @@
 
 ---
 
+## 🚨 HGC ARCHITECTURE - NON-NEGOTIABLES (CTO MANDATE)
+
+**CRITICAL: These rules are ABSOLUTE and keep getting violated. REWRITE if broken.**
+
+### Core Rules
+1. **AgentKit ONLY** - Use `@openai/agentkit` SDK exclusively
+   - ❌ NEVER use `openai.chat.completions.create()` with manual tool handling
+   - ✅ AgentKit orchestrates all tools and function calling
+
+2. **Mem0 REQUIRED** - Persistent memory system
+   - Scope: `agencyId::clientId::userId`
+   - Store conversation context, preferences, history
+
+3. **Console Architecture** - Personality and tools load from Console objects
+   - ❌ NEVER hardcode tools/personality in API routes
+   - ✅ Load from `/lib/consoles/*.ts` files
+   - Console defines personality → Loads cartridges → Chips expose tools → AgentKit orchestrates
+
+4. **Supabase RLS Enforcement** - Row Level Security ALWAYS
+   - Backend uses service role key
+   - Frontend uses anon key
+   - Every query respects auth.uid()
+
+5. **UniPile for LinkedIn** - External social media integration
+   - Poll every 5 minutes (NO comment webhooks)
+   - Use official UniPile SDK
+
+### Immutable Hierarchy
+```
+LifeOS (root) → 3 Desks (Wealth/Health/Relationships) → Consoles → Cartridges → Chips
+RevOS = Marketing Console under Wealth Desk
+```
+
+### What This Means
+- Console defines personality and available cartridges
+- Cartridges contain domain logic
+- Chips expose specific tools/capabilities
+- AgentKit routes all user inputs through this hierarchy
+- NO custom orchestration, NO hardcoding
+
+### Violation = Complete Rewrite
+If custom orchestration is found, the entire route must be rewritten to use AgentKit + Console architecture.
+
+**Full Spec:** `/docs/HGC_COMPREHENSIVE_SPEC_FINAL.md`
+
+---
+
 ## 🔄 MANDATORY RULE: Branch Status on Completion
 
 **EVERY TIME work is marked complete and tested:**
