@@ -32,6 +32,14 @@ export async function POST(request: NextRequest) {
   try {
     // Get raw body for signature verification
     const rawBody = await request.text();
+
+    // Prevent DoS attacks with large payloads
+    const MAX_PAYLOAD_SIZE = 1024 * 100; // 100KB
+    if (rawBody.length > MAX_PAYLOAD_SIZE) {
+      console.error('Webhook payload too large:', rawBody.length);
+      return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+    }
+
     const signature = request.headers.get('x-unipile-signature');
 
     // Verify webhook is from UniPile

@@ -18,8 +18,9 @@ COMMENT ON COLUMN campaigns.pod_id IS 'Associated pod for post amplification';
 COMMENT ON COLUMN campaigns.last_post_url IS 'LinkedIn URL of most recent published post';
 COMMENT ON COLUMN campaigns.last_post_at IS 'Timestamp when last post was published';
 
--- 2. Create webhook_logs table for audit trail
-CREATE TABLE IF NOT EXISTS webhook_logs (
+-- 2. Create unipile_webhook_logs table for audit trail
+-- (Renamed from webhook_logs to avoid collision with ESP webhook tracking table)
+CREATE TABLE IF NOT EXISTS unipile_webhook_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event TEXT NOT NULL,
   payload JSONB NOT NULL,
@@ -31,16 +32,16 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 );
 
 -- Add indexes
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_event ON webhook_logs(event);
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_campaign_id ON webhook_logs(campaign_id);
-CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at ON webhook_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_unipile_webhook_logs_event ON unipile_webhook_logs(event);
+CREATE INDEX IF NOT EXISTS idx_unipile_webhook_logs_campaign_id ON unipile_webhook_logs(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_unipile_webhook_logs_created_at ON unipile_webhook_logs(created_at DESC);
 
 -- Enable RLS
-ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE unipile_webhook_logs ENABLE ROW LEVEL SECURITY;
 
 -- RLS: Only service role can access webhook logs (admin/debugging only)
-CREATE POLICY "Service role can manage webhook logs"
-  ON webhook_logs
+CREATE POLICY "Service role can manage unipile webhook logs"
+  ON unipile_webhook_logs
   FOR ALL
   USING (auth.jwt() ->> 'role' = 'service_role');
 
@@ -89,8 +90,8 @@ COMMENT ON COLUMN pod_activities.urgency IS 'Priority level: urgent, normal, low
 COMMENT ON COLUMN pod_activities.deadline IS 'When pod members should complete engagement';
 
 -- 5. Grant permissions
-GRANT SELECT ON webhook_logs TO authenticated;
-GRANT ALL ON webhook_logs TO service_role;
+GRANT SELECT ON unipile_webhook_logs TO authenticated;
+GRANT ALL ON unipile_webhook_logs TO service_role;
 
 GRANT SELECT ON triggered_comments TO authenticated;
 GRANT ALL ON triggered_comments TO service_role;
@@ -111,7 +112,7 @@ GRANT ALL ON triggered_comments TO service_role;
 -- ORDER BY c.created_at DESC
 -- LIMIT 10;
 
--- Check webhook logs
+-- Check unipile webhook logs
 -- SELECT
 --   id,
 --   event,
@@ -119,7 +120,7 @@ GRANT ALL ON triggered_comments TO service_role;
 --   campaign_id,
 --   activity_id,
 --   created_at
--- FROM webhook_logs
+-- FROM unipile_webhook_logs
 -- ORDER BY created_at DESC
 -- LIMIT 20;
 

@@ -19,6 +19,7 @@ Complete reference for all environment variables used in Bravo revOS.
 | `ENCRYPTION_KEY` | ✅ Yes | Backend Only | `a1b2c3d4...` (64 chars hex) |
 | `CRON_SECRET` | ✅ Yes | Backend Only | `x9y8z7...` (64 chars hex) |
 | `OPENAI_API_KEY` | ✅ Yes | Backend Only | `sk-...` |
+| `UNIPILE_WEBHOOK_SECRET` | ✅ Yes | Backend Only | `a1b2c3...` (64 chars hex) |
 | `NEXT_PUBLIC_APP_URL` | ✅ Yes | Frontend + Backend | `https://your-site.netlify.app` |
 
 ---
@@ -163,6 +164,26 @@ Complete reference for all environment variables used in Bravo revOS.
 - **Production**: `false` (use real LinkedIn data)
 - **Default**: `false`
 
+#### `UNIPILE_WEBHOOK_SECRET`
+- **Type**: Secret
+- **Required**: Yes (for pod campaign integration)
+- **Where**: Backend Only
+- **Purpose**: Verify HMAC signatures on UniPile webhooks for pod amplification
+- **How to Generate**:
+  ```bash
+  openssl rand -hex 32
+  ```
+- **Example**: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2`
+- **Length**: 64 hexadecimal characters (32 bytes)
+- **Security**: ⚠️ CRITICAL - Must match secret configured in UniPile dashboard
+- **Used In**:
+  - `/app/api/webhooks/unipile/route.ts` (webhook signature verification)
+- **Configuration**: Set same value in:
+  1. Environment variables (Netlify/Render)
+  2. UniPile dashboard webhook settings
+- **Algorithm**: HMAC-SHA256
+- **Attack Prevention**: Uses `crypto.timingSafeEqual()` to prevent timing attacks
+
 #### `RESEND_API_KEY`
 - **Type**: Secret
 - **Required**: No (feature-specific)
@@ -260,6 +281,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # Optional: Unipile (use mock mode for dev)
 UNIPILE_MOCK_MODE=true
+UNIPILE_WEBHOOK_SECRET=<generate with: openssl rand -hex 32>
 
 # Optional: Email (skip in dev)
 # RESEND_API_KEY=re_...
