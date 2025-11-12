@@ -4,6 +4,7 @@ import React from 'react';
 import type { UIMessage } from 'ai';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { SquareDashed } from 'lucide-react';
 
 interface ChatMessageProps {
   message: UIMessage;
@@ -99,10 +100,12 @@ export function ChatMessage({ message, isLoading, onExpand }: ChatMessageProps) 
         {showExpandButton && (
           <button
             onClick={onExpand}
-            className="absolute top-2 right-2 w-4 h-4 border-2 border-dashed border-gray-400 rounded hover:border-gray-600 transition-colors"
+            className="absolute top-2 right-2 p-1 rounded hover:bg-gray-200 transition-colors"
             aria-label="Expand document"
             title="Click to expand and view full document"
-          />
+          >
+            <SquareDashed className="w-4 h-4 text-gray-600 hover:text-gray-900" />
+          </button>
         )}
       </div>
     </div>

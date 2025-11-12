@@ -35,10 +35,14 @@ export async function POST(request: NextRequest) {
 
     const clientId = clients[0].id
 
-    // Parse full name into first and last
-    const nameParts = (fullName || '').trim().split(' ')
-    const firstName = nameParts[0] || null
-    const lastName = nameParts.slice(1).join(' ') || null
+    // Parse full name into first and last (optional)
+    let firstName = null
+    let lastName = null
+    if (fullName && fullName.trim()) {
+      const nameParts = fullName.trim().split(' ')
+      firstName = nameParts[0] || null
+      lastName = nameParts.slice(1).join(' ') || null
+    }
 
     // Create user record in users table using service role
     const { error: insertError } = await supabase

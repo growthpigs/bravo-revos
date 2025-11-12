@@ -118,14 +118,13 @@ export default function LoginPage() {
 
             {isSignUp && (
               <div className="space-y-1.5">
-                <Label htmlFor="fullName" className="text-sm text-slate-500 font-normal">Full Name</Label>
+                <Label htmlFor="fullName" className="text-sm text-slate-500 font-normal">Full Name (optional)</Label>
                 <Input
                   id="fullName"
                   type="text"
                   placeholder="John Doe"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  required
                   className="h-11"
                 />
               </div>

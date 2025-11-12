@@ -2029,7 +2029,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 setIsCollapsed(true);
                 setShowMessages(false);
               }}
-              className="absolute top-2 right-2 z-10 p-1 text-gray-400 opacity-60 hover:text-gray-600 hover:opacity-100 hover:bg-gray-100 rounded transition-colors"
+              className="absolute top-2 right-2 z-10 p-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
               aria-label="Collapse chat"
               title="Collapse chat (or press ESC)"
             >
