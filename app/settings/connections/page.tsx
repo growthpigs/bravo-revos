@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   MessageSquare,
   Send,
@@ -48,73 +47,66 @@ interface ConnectedAccount {
   last_sync_at: string
 }
 
-const CHANNELS = {
-  MESSAGING: [
-    {
-      provider: 'WHATSAPP',
-      name: 'WhatsApp',
-      description: 'Send messages and manage WhatsApp conversations',
-      icon: MessageSquare,
-      features: ['Messages', 'Groups', 'Media Sharing', 'Status Updates']
-    },
-    {
-      provider: 'TELEGRAM',
-      name: 'Telegram',
-      description: 'Connect Telegram for messaging and bot integration',
-      icon: Send,
-      features: ['Messages', 'Groups', 'Channels', 'Bots']
-    },
-    {
-      provider: 'MESSENGER',
-      name: 'Messenger',
-      description: 'Facebook Messenger for social messaging',
-      icon: MessageCircle,
-      features: ['Messages', 'Groups', 'Voice Calls', 'Video Calls']
-    }
-  ],
-  SOCIAL: [
-    {
-      provider: 'LINKEDIN',
-      name: 'LinkedIn',
-      description: 'Professional networking and lead generation',
-      icon: Linkedin,
-      features: ['Messages', 'Posts', 'Engagement', 'Lead Capture']
-    },
-    {
-      provider: 'INSTAGRAM',
-      name: 'Instagram',
-      description: 'Visual storytelling and DM automation',
-      icon: Instagram,
-      features: ['Direct Messages', 'Posts', 'Stories', 'Comments']
-    },
-    {
-      provider: 'TWITTER',
-      name: 'Twitter',
-      description: 'Real-time engagement and tweet automation',
-      icon: Twitter,
-      features: ['Tweets', 'Direct Messages', 'Replies', 'Analytics']
-    }
-  ],
-  PRODUCTIVITY: [
-    {
-      provider: 'EMAIL',
-      name: 'Email',
-      description: 'Connect email for outreach campaigns',
-      icon: Mail,
-      features: ['Send/Receive', 'Templates', 'Sequences', 'Tracking']
-    },
-    {
-      provider: 'CALENDAR',
-      name: 'Calendar',
-      description: 'Schedule meetings and manage appointments',
-      icon: Calendar,
-      features: ['Events', 'Scheduling', 'Reminders', 'Availability']
-    }
-  ]
-}
+const CHANNELS = [
+  {
+    provider: 'LINKEDIN',
+    name: 'LinkedIn',
+    description: 'Professional networking and lead generation',
+    icon: Linkedin,
+    features: ['Messages', 'Posts', 'Engagement', 'Lead Capture']
+  },
+  {
+    provider: 'WHATSAPP',
+    name: 'WhatsApp',
+    description: 'Send messages and manage WhatsApp conversations',
+    icon: MessageSquare,
+    features: ['Messages', 'Groups', 'Media Sharing', 'Status Updates']
+  },
+  {
+    provider: 'TELEGRAM',
+    name: 'Telegram',
+    description: 'Connect Telegram for messaging and bot integration',
+    icon: Send,
+    features: ['Messages', 'Groups', 'Channels', 'Bots']
+  },
+  {
+    provider: 'MESSENGER',
+    name: 'Messenger',
+    description: 'Facebook Messenger for social messaging',
+    icon: MessageCircle,
+    features: ['Messages', 'Groups', 'Voice Calls', 'Video Calls']
+  },
+  {
+    provider: 'INSTAGRAM',
+    name: 'Instagram',
+    description: 'Visual storytelling and DM automation',
+    icon: Instagram,
+    features: ['Direct Messages', 'Posts', 'Stories', 'Comments']
+  },
+  {
+    provider: 'TWITTER',
+    name: 'Twitter',
+    description: 'Real-time engagement and tweet automation',
+    icon: Twitter,
+    features: ['Tweets', 'Direct Messages', 'Replies', 'Analytics']
+  },
+  {
+    provider: 'EMAIL',
+    name: 'Email',
+    description: 'Connect email for outreach campaigns',
+    icon: Mail,
+    features: ['Send/Receive', 'Templates', 'Sequences', 'Tracking']
+  },
+  {
+    provider: 'CALENDAR',
+    name: 'Calendar',
+    description: 'Schedule meetings and manage appointments',
+    icon: Calendar,
+    features: ['Events', 'Scheduling', 'Reminders', 'Availability']
+  }
+]
 
 export default function ConnectionsPage() {
-  const [activeTab, setActiveTab] = useState('MESSAGING')
   const [connections, setConnections] = useState<ConnectedAccount[]>([])
   const [unipileEnabled, setUnipileEnabled] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -413,26 +405,10 @@ export default function ConnectionsPage() {
         </div>
       </Card>
 
-      {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-full max-w-2xl">
-          <TabsTrigger value="MESSAGING">Messaging</TabsTrigger>
-          <TabsTrigger value="SOCIAL">Social</TabsTrigger>
-          <TabsTrigger value="PRODUCTIVITY">Productivity</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="MESSAGING" className="space-y-4">
-          {CHANNELS.MESSAGING.map(renderChannelCard)}
-        </TabsContent>
-
-        <TabsContent value="SOCIAL" className="space-y-4">
-          {CHANNELS.SOCIAL.map(renderChannelCard)}
-        </TabsContent>
-
-        <TabsContent value="PRODUCTIVITY" className="space-y-4">
-          {CHANNELS.PRODUCTIVITY.map(renderChannelCard)}
-        </TabsContent>
-      </Tabs>
+      {/* Channels List */}
+      <div className="space-y-4">
+        {CHANNELS.map(renderChannelCard)}
+      </div>
 
       {/* Disconnect Confirmation Dialog */}
       <AlertDialog open={disconnectDialog.open} onOpenChange={(open) => setDisconnectDialog({ open, account: null })}>

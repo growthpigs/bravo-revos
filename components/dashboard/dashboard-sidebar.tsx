@@ -9,13 +9,6 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
   LayoutDashboard,
   Megaphone,
   Users2,
@@ -39,7 +32,6 @@ import {
   Key,
   Database,
   Layers,
-  MoreVertical,
   CheckCircle,
   AlertCircle
 } from 'lucide-react'
@@ -234,63 +226,61 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
           </Button>
         </div>
 
-        {/* User Profile Card */}
-        <div className="p-3 pt-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                {/* Avatar */}
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
-                    {user?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() ||
-                     user?.email?.substring(0, 2).toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
+        {/* User Profile Section */}
+        <div className="p-3 pt-0 space-y-2">
+          {/* User Info */}
+          <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50">
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
+                {user?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() ||
+                 user?.email?.substring(0, 2).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {user?.full_name || user?.email?.split('@')[0] || 'User'}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {user?.email}
+              </p>
+            </div>
+          </div>
 
-                {/* User Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.full_name || user?.email?.split('@')[0] || 'User'}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {user?.email}
-                  </p>
-                </div>
+          {/* Action Links */}
+          <div className="space-y-1">
+            <Link
+              href="/settings/connections"
+              className="flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              {connectionsCount > 0 ? (
+                <>
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-1">{connectionsCount} Channel{connectionsCount !== 1 ? 's' : ''}</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-1">Connect Channels</span>
+                </>
+              )}
+            </Link>
 
-                {/* Three-dot Menu Icon (Visual Indicator) */}
-                <MoreVertical className="h-4 w-4 text-gray-500 flex-shrink-0" />
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link href="/settings/connections" className="cursor-pointer flex items-center">
-                  {connectionsCount > 0 ? (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2 text-gray-600" />
-                      <span>{connectionsCount} Channel{connectionsCount !== 1 ? 's' : ''} Connected</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="h-4 w-4 mr-2 text-gray-600" />
-                      <span>Connect Channels</span>
-                    </>
-                  )}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="cursor-pointer flex items-center">
-                  <Settings className="h-4 w-4 mr-2" />
-                  <span>Settings</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <Link
+              href="/settings"
+              className="flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <Settings className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1">Settings</span>
+            </Link>
+
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1 text-left">Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
