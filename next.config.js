@@ -24,6 +24,30 @@ const nextConfig = {
       },
     ]
   },
+  // Webpack optimizations to prevent cache corruption
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      // Reduce memory pressure and prevent cache corruption
+      config.cache = {
+        type: 'memory', // Use memory cache instead of filesystem to prevent corruption
+        maxGenerations: 1, // Clear cache more aggressively
+      };
+
+      // Prevent webpack from running out of memory
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: false,
+      };
+    }
+    return config;
+  },
+  // Increase memory for Node.js
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
 }
 
 module.exports = nextConfig

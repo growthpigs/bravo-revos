@@ -60,7 +60,7 @@ export default async function DashboardLayout({
             <TopBar />
 
             {/* Content */}
-            <main className="flex-1 overflow-y-auto pt-16 px-6 py-6">
+            <main className="flex-1 overflow-y-auto pt-16 px-6 py-6 pb-36">
               {children}
             </main>
           </div>

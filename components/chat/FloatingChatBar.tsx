@@ -1,8 +1,12 @@
 'use client';
 
+// @refresh reset
+// ^ This disables Fast Refresh for this component to prevent build cache corruption
+// due to the component's size and complexity. Use full page reload instead.
+
 import React from 'react';
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
-import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock, Copy, Save } from 'lucide-react';
+import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock, Copy, Save, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
 import { SaveToCampaignModal } from '../SaveToCampaignModal';
@@ -88,6 +92,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(true);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -326,17 +331,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [isLoading, isFullscreen, isExpanded]);
 
-  // ESC key to exit fullscreen
+  // ESC key to exit fullscreen or collapse chat
   useEffect(() => {
     const handleEscape = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        console.log('[FCB] ESC pressed - exiting fullscreen');
-        setIsFullscreen(false);
+      if (e.key === 'Escape') {
+        if (isFullscreen) {
+          console.log('[FCB] ESC pressed - exiting fullscreen');
+          setIsFullscreen(false);
+        } else if (showMessages) {
+          console.log('[FCB] ESC pressed - collapsing chat');
+          setIsCollapsed(true);
+          setShowMessages(false);
+        }
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isFullscreen]);
+  }, [isFullscreen, showMessages]);
 
   // Auto-sync document content when fullscreen opens (if no content loaded yet)
   useEffect(() => {
@@ -1382,6 +1393,30 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     );
   };
 
+  // Handle left resizer mousedown (expand/shrink entire sidebar)
+  // NOTE: Direction may feel backwards - user drags right to expand left side, etc
+  const handleLeftResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    resizerTypeRef.current = 'left';
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = sidebarWidth;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  };
+
+  // Handle middle resizer mousedown (redistribute chat/history within fixed total)
+  // NOTE: Direction may feel backwards - user drags right to shrink chat area, etc
+  const handleMiddleResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    resizerTypeRef.current = 'middle';
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = chatWidth;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  };
+
   // Don't render if minimized
   if (isMinimized) {
     return (
@@ -1412,7 +1447,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           position={slashMenuPosition}
         />
 
-        <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
+        <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-left duration-200">
 
           {/* LEFT PANEL: Chat - Hidden when document is maximized */}
           {!isDocumentMaximized && (
@@ -1645,30 +1680,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       </>
     );
   }
-
-  // Handle left resizer mousedown (expand/shrink entire sidebar)
-  // NOTE: Direction may feel backwards - user drags right to expand left side, etc
-  const handleLeftResizerMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    isDraggingRef.current = true;
-    resizerTypeRef.current = 'left';
-    dragStartXRef.current = e.clientX;
-    dragStartWidthRef.current = sidebarWidth;
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'col-resize';
-  };
-
-  // Handle middle resizer mousedown (redistribute chat/history within fixed total)
-  // NOTE: Direction may feel backwards - user drags right to shrink chat area, etc
-  const handleMiddleResizerMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    isDraggingRef.current = true;
-    resizerTypeRef.current = 'middle';
-    dragStartXRef.current = e.clientX;
-    dragStartWidthRef.current = chatWidth;
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'col-resize';
-  };
 
   // Expanded sidebar view (RIGHT side, embedded) - with ChatSDK-style history
   if (isExpanded) {
@@ -1976,6 +1987,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         position={slashMenuPosition}
       />
 
+      {!isCollapsed && (
       <div
         ref={floatingChatContainerRef}
         className={cn(
@@ -1989,8 +2001,20 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         {messages.length > 0 && showMessages && (
           <div
             ref={messagesPanelRef}
-            className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
+            className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200 relative"
           >
+            {/* Close button - Top right corner */}
+            <button
+              onClick={() => {
+                setIsCollapsed(true);
+                setShowMessages(false);
+              }}
+              className="absolute top-2 right-2 z-10 p-1 text-gray-400 opacity-60 hover:text-gray-600 hover:opacity-100 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Collapse chat"
+              title="Collapse chat (or press ESC)"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <div className="p-4 space-y-3">
               <SandboxIndicator />
               {messages.map((message, index) => renderMessage(message, index))}
@@ -2127,6 +2151,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         </div>
       )}
       </div>
+      )}
+
+      {/* Collapsed chat button - Minimized square with cool icon */}
+      {isCollapsed && (
+        <button
+          onClick={() => {
+            setIsCollapsed(false);
+            setShowMessages(true);
+          }}
+          className="fixed bottom-5 right-5 z-50"
+        >
+          <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer group">
+            <Sparkles className="w-6 h-6 text-white group-hover:text-yellow-300 transition-colors" />
+          </div>
+        </button>
+      )}
     </>
   );
 }
