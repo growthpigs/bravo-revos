@@ -145,11 +145,11 @@ export default function KnowledgeBasePage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-6">
+        <div className="mx-auto max-w-7xl p-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Knowledge Base</h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-muted-foreground">
                 {total} document{total !== 1 ? 's' : ''} in your knowledge base
                 {selectedCampaignName && ` • Filtered by: ${selectedCampaignName}`}
               </p>

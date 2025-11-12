@@ -74,11 +74,11 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted-foreground mt-2">
             Welcome back! Here is an overview of your campaigns
           </p>
         </div>
