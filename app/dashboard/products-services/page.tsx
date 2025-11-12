@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Offerings Management UI
- * Simple interface to create, edit, and preview offerings
+ * Products & Services Management UI
+ * Define what you're selling to train AI conversations
  */
 
 import { useState, useEffect } from 'react';
@@ -191,8 +191,8 @@ export default function OfferingsPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Offerings Management</h1>
-          <p className="text-muted-foreground">Manage your product/service offerings for AI-powered conversations</p>
+          <h1 className="text-3xl font-bold">Products & Services</h1>
+          <p className="text-muted-foreground">Define what you're selling to train AI conversations</p>
         </div>
         {!isCreating && (
           <Button onClick={() => setIsCreating(true)}>Create New Offering</Button>
