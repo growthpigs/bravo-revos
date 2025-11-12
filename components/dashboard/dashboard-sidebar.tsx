@@ -215,44 +215,38 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
 
         {/* User Profile Card */}
         <div className="p-3 pt-0">
-          <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-            {/* Avatar */}
-            <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
-                {user?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() ||
-                 user?.email?.substring(0, 2).toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+                {/* Avatar */}
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-blue-600 text-white text-sm font-medium">
+                    {user?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() ||
+                     user?.email?.substring(0, 2).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
 
-            {/* User Info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.full_name || user?.email?.split('@')[0] || 'User'}
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                {user?.email}
-              </p>
-            </div>
+                {/* User Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.full_name || user?.email?.split('@')[0] || 'User'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.email}
+                  </p>
+                </div>
 
-            {/* Three-dot Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 hover:bg-gray-200 rounded-md"
-                >
-                  <MoreVertical className="h-4 w-4 text-gray-500" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                {/* Three-dot Menu Icon (Visual Indicator) */}
+                <MoreVertical className="h-4 w-4 text-gray-500 flex-shrink-0" />
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
