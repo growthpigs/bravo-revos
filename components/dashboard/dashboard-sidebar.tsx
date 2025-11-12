@@ -12,6 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -38,7 +39,9 @@ import {
   Key,
   Database,
   Layers,
-  MoreVertical
+  MoreVertical,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
@@ -102,10 +105,27 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
   const router = useRouter()
   const supabase = createClient()
   const [sandboxEnabled, setSandboxEnabled] = useState(false)
+  const [connectionsCount, setConnectionsCount] = useState(0)
 
   useEffect(() => {
     setSandboxEnabled(isSandboxMode())
+    loadConnectionsCount()
   }, [])
+
+  async function loadConnectionsCount() {
+    try {
+      const { data, error } = await supabase
+        .from('connected_accounts')
+        .select('id')
+        .eq('status', 'active')
+
+      if (!error && data) {
+        setConnectionsCount(data.length)
+      }
+    } catch (error) {
+      console.error('Error loading connections count:', error)
+    }
+  }
 
   const handleToggleSandbox = () => {
     const newMode = toggleSandboxMode()
@@ -241,7 +261,30 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
                 <MoreVertical className="h-4 w-4 text-gray-500 flex-shrink-0" />
               </div>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link href="/settings/connections" className="cursor-pointer flex items-center">
+                  {connectionsCount > 0 ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2 text-gray-600" />
+                      <span>{connectionsCount} Channel{connectionsCount !== 1 ? 's' : ''} Connected</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-4 w-4 mr-2 text-gray-600" />
+                      <span>Connect Channels</span>
+                    </>
+                  )}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="cursor-pointer flex items-center">
+                  <Settings className="h-4 w-4 mr-2" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
