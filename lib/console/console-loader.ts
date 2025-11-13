@@ -11,15 +11,11 @@
 
 import { cache } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
-
-export interface ConsoleConfig {
-  id: string;
-  name: string;
-  displayName: string;
-  systemInstructions: string;
-  behaviorRules: any[];
-  version: number;
-}
+import {
+  ConsoleConfig,
+  safeParseConsoleConfig,
+  validateCartridgeSize,
+} from '@/lib/validation/console-validation';
 
 /**
  * Load console configuration from database by name
@@ -29,7 +25,7 @@ export interface ConsoleConfig {
  *
  * @param consoleName - Name of console to load (e.g., 'marketing-console-v1')
  * @param supabase - Supabase client instance
- * @returns ConsoleConfig object
+ * @returns ConsoleConfig object with all 8 cartridges
  * @throws Error if console not found or database error
  */
 export const loadConsolePrompt = cache(async function loadConsolePrompt(
@@ -47,17 +43,22 @@ export const loadConsolePrompt = cache(async function loadConsolePrompt(
   try {
     const { data, error } = await supabase
       .from('console_prompts')
-      .select('id, name, display_name, system_instructions, behavior_rules, version')
+      .select(`
+        id, name, display_name, version,
+        system_instructions, behavior_rules,
+        operations_cartridge, system_cartridge, context_cartridge,
+        skills_cartridge, plugins_cartridge, knowledge_cartridge,
+        memory_cartridge, ui_cartridge
+      `)
       .eq('name', consoleName)
       .eq('is_active', true)
       .single();
 
     if (error) {
-      // Check if this is a missing table error
       if (error.message.includes('Could not find the table')) {
         throw new Error(
           `[loadConsolePrompt] Database error: console_prompts table not found. ` +
-            `Please apply migration 033_console_prompts.sql. ` +
+            `Please apply migration 036_console_cartridges_8_system.sql. ` +
             `Error: ${error.message}`
         );
       }
@@ -73,22 +74,40 @@ export const loadConsolePrompt = cache(async function loadConsolePrompt(
       );
     }
 
-    // Convert snake_case from database to camelCase
-    return {
+    // Convert snake_case to camelCase and provide defaults
+    const config = {
       id: data.id,
       name: data.name,
       displayName: data.display_name,
+      version: data.version,
       systemInstructions: data.system_instructions,
       behaviorRules: data.behavior_rules || [],
-      version: data.version,
+
+      operationsCartridge: data.operations_cartridge || {},
+      systemCartridge: data.system_cartridge || {},
+      contextCartridge: data.context_cartridge || {},
+      skillsCartridge: data.skills_cartridge || { chips: [] },
+      pluginsCartridge: data.plugins_cartridge || { enabled: [], config: {}, required: [], description: '' },
+      knowledgeCartridge: data.knowledge_cartridge || {},
+      memoryCartridge: data.memory_cartridge || {},
+      uiCartridge: data.ui_cartridge || { inlineButtons: {}, buttonActions: {}, fullscreenTriggers: {}, principle: '' },
     };
+
+    // Validate with Zod
+    const validation = safeParseConsoleConfig(config);
+    if (!validation.success) {
+      console.error('[loadConsolePrompt] Validation failed:', validation.error.format());
+      throw new Error(
+        `[loadConsolePrompt] Invalid console configuration: ${validation.error.issues[0]?.message}`
+      );
+    }
+
+    return validation.data;
   } catch (error: any) {
-    // Re-throw our custom errors
     if (error.message?.startsWith('[loadConsolePrompt]')) {
       throw error;
     }
 
-    // Wrap unexpected errors
     throw new Error(
       `[loadConsolePrompt] Unexpected error loading console '${consoleName}': ${error.message}`
     );
@@ -102,7 +121,7 @@ export const loadConsolePrompt = cache(async function loadConsolePrompt(
  * in a single request will return the cached result.
  *
  * @param supabase - Supabase client instance
- * @returns Array of ConsoleConfig objects
+ * @returns Array of ConsoleConfig objects with all 8 cartridges
  */
 export const loadAllConsoles = cache(async function loadAllConsoles(
   supabase: SupabaseClient
@@ -114,7 +133,13 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
   try {
     const { data, error } = await supabase
       .from('console_prompts')
-      .select('id, name, display_name, system_instructions, behavior_rules, version')
+      .select(`
+        id, name, display_name, version,
+        system_instructions, behavior_rules,
+        operations_cartridge, system_cartridge, context_cartridge,
+        skills_cartridge, plugins_cartridge, knowledge_cartridge,
+        memory_cartridge, ui_cartridge
+      `)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -122,7 +147,7 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
       if (error.message.includes('Could not find the table')) {
         throw new Error(
           `[loadAllConsoles] Database error: console_prompts table not found. ` +
-            `Please apply migration 033_console_prompts.sql. ` +
+            `Please apply migration 036_console_cartridges_8_system.sql. ` +
             `Error: ${error.message}`
         );
       }
@@ -130,14 +155,34 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
       throw new Error(`[loadAllConsoles] Failed to load consoles: ${error.message}`);
     }
 
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      displayName: row.display_name,
-      systemInstructions: row.system_instructions,
-      behaviorRules: row.behavior_rules || [],
-      version: row.version,
-    }));
+    return (data || []).map((row: any) => {
+      const config = {
+        id: row.id,
+        name: row.name,
+        displayName: row.display_name,
+        version: row.version,
+        systemInstructions: row.system_instructions,
+        behaviorRules: row.behavior_rules || [],
+
+        operationsCartridge: row.operations_cartridge || {},
+        systemCartridge: row.system_cartridge || {},
+        contextCartridge: row.context_cartridge || {},
+        skillsCartridge: row.skills_cartridge || { chips: [] },
+        pluginsCartridge: row.plugins_cartridge || { enabled: [], config: {}, required: [], description: '' },
+        knowledgeCartridge: row.knowledge_cartridge || {},
+        memoryCartridge: row.memory_cartridge || {},
+        uiCartridge: row.ui_cartridge || { inlineButtons: {}, buttonActions: {}, fullscreenTriggers: {}, principle: '' },
+      };
+
+      // Validate each console (but don't throw, just log and skip invalid ones)
+      const validation = safeParseConsoleConfig(config);
+      if (!validation.success) {
+        console.error(`[loadAllConsoles] Skipping invalid console '${row.name}':`, validation.error.format());
+        return null;
+      }
+
+      return validation.data;
+    }).filter((c): c is ConsoleConfig => c !== null);
   } catch (error: any) {
     if (error.message?.startsWith('[loadAllConsoles]')) {
       throw error;
