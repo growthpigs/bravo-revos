@@ -45,14 +45,19 @@ export function useHealthStatus(refreshInterval = 30000) {
         const snapshot = data.data as SystemHealthSnapshot;
 
         // Map health check results to service status
+        const services = snapshot?.services as any; // Type-safe access to services
+
         const newStatus: HealthStatus = {
-          agentkit: mapServiceStatus(snapshot?.services?.agentkit),
-          mem0: mapServiceStatus(snapshot?.services?.mem0),
-          console: mapServiceStatus(snapshot?.services?.console),
+          // TODO: These services need verifiers (Batch 2)
+          agentkit: mapServiceStatus(services?.agentkit),
+          mem0: mapServiceStatus(services?.mem0),
+          console: mapServiceStatus(services?.console),
+
+          // Existing services with verifiers
           database: { state: 'healthy', label: 'CONNECTED' }, // Placeholder
-          supabase: mapServiceStatus(snapshot?.services?.supabase),
-          unipile: mapServiceStatus(snapshot?.services?.unipile),
-          cache: mapServiceStatus(snapshot?.services?.redis),
+          supabase: mapServiceStatus(services?.supabase),
+          unipile: mapServiceStatus(services?.unipile),
+          cache: mapServiceStatus(services?.redis),
           api: { state: 'healthy', label: 'ACTIVE' }, // Placeholder
           system: {
             state: snapshot?.overallStatus || 'unknown',
