@@ -92,7 +92,11 @@ export const ConsoleConfigSchema = z.object({
   displayName: z.string().min(1),
   version: z.number().int().positive(),
   systemInstructions: z.string().optional(), // Backward compat
-  behaviorRules: z.array(z.any()).optional(), // Backward compat
+  behaviorRules: z.array(z.object({
+    rule: z.string().optional(),
+    priority: z.enum(['high', 'medium', 'low']).optional(),
+    description: z.string().optional(),
+  }).or(z.string())).optional(), // Backward compat: allows both objects and strings
 
   operationsCartridge: OperationsCartridgeSchema.optional(),
   systemCartridge: SystemCartridgeSchema.optional(),

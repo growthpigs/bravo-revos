@@ -42,7 +42,6 @@ export default function ConsoleConfigPage() {
   const [editedConsole, setEditedConsole] = useState<ConsoleConfig | null>(null);
   const [activeTab, setActiveTab] = useState('operations');
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [systemInstructions, setSystemInstructions] = useState('');
   const [loading, setLoading] = useState<LoadingState>({ consoles: true, save: false });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SuccessMessage | null>(null);
@@ -146,7 +145,6 @@ export default function ConsoleConfigPage() {
   function selectConsole(console: ConsoleConfig) {
     setSelectedConsole(console);
     setEditedConsole(JSON.parse(JSON.stringify(console))); // Deep copy
-    setSystemInstructions(console.systemInstructions || '');
     setValidationError(null);
     setError(null);
     setDropdownOpen(false);

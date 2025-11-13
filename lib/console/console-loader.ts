@@ -210,7 +210,7 @@ export function assembleSystemPrompt(config: ConsoleConfig): string {
 
   // Backward compatibility: If cartridges empty, fall back to legacy field
   if (!systemCartridge?.systemPrompt && systemInstructions) {
-    console.warn('[assembleSystemPrompt] Using legacy system_instructions field (cartridges empty)');
+    console.warn('[CONSOLE_LOADER] Using legacy system_instructions field (cartridges empty)');
     return systemInstructions;
   }
 
@@ -273,12 +273,12 @@ ${knowledgeCartridge?.bestPractices || 'Follow standard best practices for user 
 
   if (tokenCount > 8000) {
     console.warn(
-      `[assembleSystemPrompt] Prompt very large: ${tokenCount} tokens ` +
+      `[CONSOLE_LOADER] Prompt very large: ${tokenCount} tokens ` +
       `(>50% of GPT-4 8K context). Consider shortening cartridges.`
     );
   } else if (tokenCount > 4000) {
     console.info(
-      `[assembleSystemPrompt] Prompt size: ${tokenCount} tokens ` +
+      `[CONSOLE_LOADER] Prompt size: ${tokenCount} tokens ` +
       `(~${Math.round(tokenCount / 8192 * 100)}% of GPT-4 8K context)`
     );
   }
