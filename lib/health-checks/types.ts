@@ -36,6 +36,7 @@ export type OpenAIHealthCheck = HealthCheckResult & { service: 'openai' };
 export type ResendHealthCheck = HealthCheckResult & { service: 'resend' };
 export type EnvVarHealthCheck = HealthCheckResult & { service: 'environment' };
 export type GitHealthCheck = HealthCheckResult & { service: 'git' };
+export type ConsoleHealthCheck = HealthCheckResult & { service: 'console' };
 
 /**
  * Aggregate health status for the entire system
@@ -54,6 +55,7 @@ export interface SystemHealthSnapshot {
     resend: ResendHealthCheck;
     environment: EnvVarHealthCheck;
     git: GitHealthCheck;
+    console: ConsoleHealthCheck;
   };
   summary: {
     totalServices: number;
