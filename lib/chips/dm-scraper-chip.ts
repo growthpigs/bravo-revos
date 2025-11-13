@@ -27,7 +27,12 @@ export class DMScraperChip extends BaseChip {
         post_id: z.string().optional().describe('Specific post ID to check DMs for'),
       }),
       execute: async (input, context) => {
-        return this.execute(input, context as AgentContext);
+        // AgentKit passes our AgentContext as the context parameter
+        // Double-cast pattern: RunContext -> unknown -> AgentContext
+        if (!context || typeof context !== 'object') {
+          throw new Error('Invalid context provided to chip');
+        }
+        return this.execute(input, context as unknown as AgentContext);
       },
     });
   }

@@ -7,7 +7,7 @@
  * Philosophy: Console loads cartridges. AgentKit orchestrates. Chips execute.
  */
 
-import { Agent } from '@openai/agents';
+import { Agent, run } from '@openai/agents';
 import { Cartridge, AgentContext, Message } from '@/lib/cartridges/types';
 import OpenAI from 'openai';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -34,9 +34,12 @@ export class MarketingConsole {
 
     // Initialize AgentKit agent with base config
     this.agent = new Agent({
+      name: 'MarketingConsole',
       model: config.model || 'gpt-4o-mini',
       instructions: config.baseInstructions,
-      temperature: config.temperature || 0.7,
+      modelSettings: {
+        temperature: config.temperature || 0.7,
+      },
       tools: [], // Start with no tools
     });
 
@@ -57,20 +60,28 @@ export class MarketingConsole {
     // Inject cartridge capabilities
     const injection = cartridge.inject();
 
-    // Update agent with cartridge's tools
+    // Create updated agent config using clone()
     const currentTools = this.agent.tools || [];
-    this.agent.tools = [...currentTools, ...injection.tools];
+    const updatedConfig: any = {
+      tools: [...currentTools, ...injection.tools],
+      instructions: `${this.agent.instructions}\n\n${injection.instructions}`,
+    };
 
-    // Append cartridge instructions
-    this.agent.instructions = `${this.agent.instructions}\n\n${injection.instructions}`;
-
-    // Override model/temperature if cartridge specifies
+    // Override model if cartridge specifies
     if (injection.model) {
-      this.agent.model = injection.model;
+      updatedConfig.model = injection.model;
     }
+
+    // Override temperature if cartridge specifies
     if (injection.temperature !== undefined) {
-      this.agent.temperature = injection.temperature;
+      updatedConfig.modelSettings = {
+        ...this.agent.modelSettings,
+        temperature: injection.temperature,
+      };
     }
+
+    // Clone agent with updated configuration
+    this.agent = this.agent.clone(updatedConfig);
 
     console.log(`[MarketingConsole] Cartridge loaded. Total tools: ${this.agent.tools.length}`);
   }
@@ -105,11 +116,15 @@ export class MarketingConsole {
     };
 
     try {
-      // Run agent using AgentKit's orchestration
-      const result = await this.agent.run({
-        messages: this.convertMessagesToAgentFormat(messages),
-        context, // Pass context to tools
-      });
+      // Run agent using AgentKit's run() function
+      const result = await run(
+        this.agent,
+        this.convertMessagesToAgentFormat(messages),
+        {
+          context, // Pass context to tools
+          stream: false,
+        }
+      );
 
       console.log('[MarketingConsole] Agent execution complete');
 

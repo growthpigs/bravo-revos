@@ -34,7 +34,12 @@ export class PublishingChip extends BaseChip {
           .describe('ISO timestamp for scheduled posts (required for schedule action)'),
       }),
       execute: async (input, context) => {
-        return this.execute(input, context as AgentContext);
+        // AgentKit passes our AgentContext as the context parameter
+        // Double-cast pattern: RunContext -> unknown -> AgentContext
+        if (!context || typeof context !== 'object') {
+          throw new Error('Invalid context provided to chip');
+        }
+        return this.execute(input, context as unknown as AgentContext);
       },
     });
   }
