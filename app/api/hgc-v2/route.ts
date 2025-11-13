@@ -18,7 +18,7 @@ import { LinkedInCartridge } from '@/lib/cartridges/linkedin-cartridge';
 import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
 import type { Message } from '@/lib/cartridges/types';
 import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
-import { loadConsolePrompt } from '@/lib/console/console-loader';
+import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
 import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/session-manager';
 import { ZodError } from 'zod';
 
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     const console_instance = new MarketingConsole({
       model: 'gpt-4o-mini',
       temperature: 0.7,
-      baseInstructions: consoleConfig.systemInstructions,
+      baseInstructions: assembleSystemPrompt(consoleConfig),
       openai,
       supabase,
     });
