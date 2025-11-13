@@ -42,7 +42,7 @@ export function TopBar({ showLogo = true }: TopBarProps) {
       </div>
 
       {/* Right: Health Status - 6 columns × 2 rows, dots before names */}
-      {data && isVisible && (
+      {data && (
         <div className="font-mono text-[8pt] uppercase text-gray-600 flex items-start gap-3">
           {/* Column 1 */}
           <div className="flex flex-col gap-0.5">
