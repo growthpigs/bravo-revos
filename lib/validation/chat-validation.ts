@@ -21,9 +21,9 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 /**
  * Complete chat request schema
+ * Note: userId comes from authentication, not request body
  */
 export const ChatRequestSchema = z.object({
-  userId: z.string().uuid('Invalid user ID format'),
   sessionId: z.string().optional(), // Optional - will be generated if not provided
   messages: z
     .array(ChatMessageSchema)
@@ -34,6 +34,19 @@ export const ChatRequestSchema = z.object({
 });
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+/**
+ * Legacy v1 format schema (for backward compatibility)
+ * Format: { message: string, conversationHistory?: Message[] }
+ */
+export const LegacyV1RequestSchema = z.object({
+  message: z.string().min(1, 'Message cannot be empty'),
+  conversationHistory: z.array(ChatMessageSchema).optional(),
+  voiceId: z.string().uuid().optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
+export type LegacyV1Request = z.infer<typeof LegacyV1RequestSchema>;
 
 /**
  * Validate and parse a chat request
@@ -54,4 +67,25 @@ export function validateChatRequest(body: unknown): ChatRequest {
  */
 export function safeParseChatRequest(body: unknown) {
   return ChatRequestSchema.safeParse(body);
+}
+
+/**
+ * Validate legacy v1 format request
+ *
+ * @param body - Raw request body in v1 format
+ * @returns Parsed and validated request
+ * @throws ZodError if validation fails
+ */
+export function validateLegacyV1Request(body: unknown): LegacyV1Request {
+  return LegacyV1RequestSchema.parse(body);
+}
+
+/**
+ * Safe validation for legacy v1 format
+ *
+ * @param body - Raw request body
+ * @returns Success with data or error with issues
+ */
+export function safeParseLegacyV1Request(body: unknown) {
+  return LegacyV1RequestSchema.safeParse(body);
 }
