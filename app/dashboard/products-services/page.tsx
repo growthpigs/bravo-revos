@@ -241,7 +241,7 @@ export default function OfferingsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Products & Services</h1>
-          <p className="text-muted-foreground mt-2">Define what you're selling to train AI conversations</p>
+          <p className="text-muted-foreground mt-2">Define what you&apos;re selling to train AI conversations</p>
         </div>
         {!isCreating && (
           <Button onClick={() => setIsCreating(true)}>Create New Offering</Button>

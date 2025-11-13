@@ -239,7 +239,7 @@ export function ChannelsList({ connections, unipileEnabled, onConnect, onDisconn
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect {disconnectDialog.account?.profile_name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              You'll need to reconnect to send messages through this channel.
+              You&apos;ll need to reconnect to send messages through this channel.
               Are you sure you want to disconnect?
             </AlertDialogDescription>
           </AlertDialogHeader>

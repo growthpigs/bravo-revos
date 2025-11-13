@@ -1,6 +1,8 @@
 /**
  * G-01: Real-time Monitoring Dashboard
  * Admin view for system health and engagement metrics
+ *
+ * UPDATED: Integrated REAL health check system with multi-source verification
  */
 
 'use client';
@@ -24,6 +26,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { subscribeToMetrics } from '@/lib/monitoring/realtime';
 import type { DashboardMetrics, PodMetrics } from '@/lib/monitoring/metrics';
+import { HealthStatusBanner } from '@/components/health/health-status-banner';
+import { DiagnosticModal } from '@/components/health/diagnostic-modal';
 
 const COLORS = {
   completed: '#10b981',
@@ -37,6 +41,22 @@ export default function MonitoringDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+
+  // Health check modal state
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState('1.0.0');
+
+  // Get app version from API (server-side only)
+  useEffect(() => {
+    fetch('/api/system/version')
+      .then(r => r.json())
+      .then(data => setAppVersion(data.version))
+      .catch(error => {
+        console.error('[Monitoring] Failed to fetch version:', error);
+        setAppVersion('1.0.0'); // Fallback
+      });
+  }, []);
 
   // Fetch current metrics
   useEffect(() => {
@@ -147,16 +167,39 @@ export default function MonitoringDashboard() {
     { name: 'Pending', value: metrics.engagement.pendingActivities, color: COLORS.pending },
   ];
 
+  // Handle service status click
+  const handleStatusClick = (serviceName: string) => {
+    setSelectedService(serviceName);
+    setIsModalOpen(true);
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Monitoring Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Real-time system and engagement metrics</p>
-        <p className="text-xs text-muted-foreground mt-2">
-          Last updated: {new Date(metrics.timestamp).toLocaleTimeString()}
-        </p>
-      </div>
+    <>
+      {/* Health Status Banner - Top of page */}
+      <HealthStatusBanner
+        showLogo={true}
+        version={appVersion}
+        autoRefresh={true}
+        refreshInterval={30000}
+        onStatusClick={handleStatusClick}
+      />
+
+      {/* Diagnostic Modal */}
+      <DiagnosticModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        serviceName={selectedService}
+      />
+
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold">Monitoring Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Real-time system and engagement metrics</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Last updated: {new Date(metrics.timestamp).toLocaleTimeString()}
+          </p>
+        </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -305,44 +348,9 @@ export default function MonitoringDashboard() {
         </Card>
       )}
 
-      {/* System Health */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Health</CardTitle>
-          <CardDescription>Status of core system components</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-3 p-3 rounded-lg border">
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <div>
-                <p className="text-sm font-medium">Redis</p>
-                <p className="text-xs text-muted-foreground">{metrics.systemHealth.redisStatus}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 p-3 rounded-lg border">
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <div>
-                <p className="text-sm font-medium">Webhook Worker</p>
-                <p className="text-xs text-muted-foreground">
-                  {metrics.systemHealth.webhookWorkerStatus}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 p-3 rounded-lg border">
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <div>
-                <p className="text-sm font-medium">Engagement Worker</p>
-                <p className="text-xs text-muted-foreground">
-                  {metrics.systemHealth.engagementWorkerStatus}
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      {/* System Health - Now handled by HealthStatusBanner at top */}
+      {/* Old hardcoded health section removed - replaced with REAL multi-source verification */}
+      </div>
+    </>
   );
 }

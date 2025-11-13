@@ -83,7 +83,8 @@ const menuSections: MenuSection[] = [
     items: [
       { icon: Key, label: "API Keys", href: "/dashboard/api-keys", badge: "Soon" },
       { icon: Webhook, label: "Webhooks", href: "/dashboard/webhooks" },
-      { icon: Database, label: "Knowledge Base", href: "/dashboard/knowledge-base" }
+      { icon: Database, label: "Knowledge Base", href: "/dashboard/knowledge-base" },
+      { icon: Activity, label: "System Health", href: "/dashboard/system-health" }
     ]
   }
 ]

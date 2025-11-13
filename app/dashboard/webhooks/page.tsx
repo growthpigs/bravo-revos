@@ -388,15 +388,15 @@ export default function WebhooksPage() {
             <p className="text-xs font-mono text-gray-700">
               Payload format: {'{'}
               <br />
-              &nbsp;&nbsp;"event": "lead.captured",
+              &nbsp;&nbsp;&quot;event&quot;: &quot;lead.captured&quot;,
               <br />
-              &nbsp;&nbsp;"lead_id": "uuid",
+              &nbsp;&nbsp;&quot;lead_id&quot;: &quot;uuid&quot;,
               <br />
-              &nbsp;&nbsp;"email": "user@example.com",
+              &nbsp;&nbsp;&quot;email&quot;: &quot;user@example.com&quot;,
               <br />
-              &nbsp;&nbsp;"campaign_id": "uuid",
+              &nbsp;&nbsp;&quot;campaign_id&quot;: &quot;uuid&quot;,
               <br />
-              &nbsp;&nbsp;"timestamp": "ISO8601"
+              &nbsp;&nbsp;&quot;timestamp&quot;: &quot;ISO8601&quot;
               <br />
               {'}'}
             </p>

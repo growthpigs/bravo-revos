@@ -193,7 +193,7 @@ export function LibraryTab() {
         <CardContent className="p-6">
           <h3 className="font-semibold text-blue-900 mb-2">About the Library</h3>
           <p className="text-sm text-blue-800">
-            Browse 98 pre-built lead magnet templates across 8 categories. Click "Preview" to see the template, or "Use" to add it to a campaign.
+            Browse 98 pre-built lead magnet templates across 8 categories. Click &quot;Preview&quot; to see the template, or &quot;Use&quot; to add it to a campaign.
           </p>
         </CardContent>
       </Card>

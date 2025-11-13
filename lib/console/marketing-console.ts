@@ -11,6 +11,8 @@ import { Agent, run } from '@openai/agents';
 import { Cartridge, AgentContext, Message } from '@/lib/cartridges/types';
 import OpenAI from 'openai';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { buildTenantKey } from '@/lib/mem0/client';
+import { searchMemories, addMemory } from '@/lib/mem0/memory';
 
 export interface MarketingConsoleConfig {
   model?: string;
@@ -105,7 +107,53 @@ export class MarketingConsole {
     console.log(`[MarketingConsole] Executing for user ${userId}, session ${sessionId}`);
     console.log(`[MarketingConsole] Message count: ${messages.length}`);
 
-    // Create agent context for chip execution
+    // STEP 1: Get user's client_id for tenant scoping
+    let clientId = 'default-client';
+    let agencyId = 'revos-agency';
+
+    try {
+      const { data: userData } = await this.supabase
+        .from('users')
+        .select('client_id')
+        .eq('id', userId)
+        .single();
+
+      if (userData?.client_id) {
+        clientId = userData.client_id;
+      }
+    } catch (error) {
+      console.warn('[MarketingConsole] Failed to get client_id, using default:', error);
+    }
+
+    // STEP 2: Build tenant key for memory isolation
+    const tenantKey = buildTenantKey(agencyId, clientId, userId);
+    console.log(`[MarketingConsole] Tenant key: ${tenantKey}`);
+
+    // STEP 3: Retrieve relevant memories from Mem0
+    let memoryContext = '';
+    try {
+      const latestMessage = messages[messages.length - 1];
+      const memories = await searchMemories(tenantKey, latestMessage.content, 10);
+
+      if (memories && memories.length > 0) {
+        console.log(`[MarketingConsole] Retrieved ${memories.length} memories from Mem0`);
+
+        // Format memories for injection
+        memoryContext = '\n\n--- RELEVANT CONTEXT FROM PAST CONVERSATIONS ---\n' +
+          memories
+            .map((m: any) => {
+              const memoryText = m.memory || m.data?.memory || '';
+              return `- ${memoryText}`;
+            })
+            .join('\n') +
+          '\n--- END CONTEXT ---\n';
+      }
+    } catch (error) {
+      console.warn('[MarketingConsole] Failed to retrieve memories:', error);
+      // Continue without memories (graceful degradation)
+    }
+
+    // STEP 4: Create agent context for chip execution
     const context: AgentContext = {
       userId,
       sessionId,
@@ -116,9 +164,17 @@ export class MarketingConsole {
     };
 
     try {
-      // Run agent using AgentKit's run() function
+      // STEP 5: Clone agent with memory-enhanced instructions
+      let agentWithMemory = this.agent;
+      if (memoryContext) {
+        agentWithMemory = this.agent.clone({
+          instructions: `${this.agent.instructions}${memoryContext}`,
+        });
+      }
+
+      // STEP 6: Run agent using AgentKit's run() function
       const result = await run(
-        this.agent,
+        agentWithMemory,
         this.convertMessagesToAgentFormat(messages),
         {
           context, // Pass context to tools
@@ -130,6 +186,27 @@ export class MarketingConsole {
 
       // Extract response text
       const responseText = this.extractResponseText(result);
+
+      // STEP 7: Save new memories to Mem0
+      try {
+        await addMemory(
+          tenantKey,
+          {
+            messages: [
+              { role: 'user', content: messages[messages.length - 1].content },
+              { role: 'assistant', content: responseText },
+            ],
+          },
+          {
+            session_id: sessionId,
+            timestamp: new Date().toISOString(),
+          }
+        );
+        console.log('[MarketingConsole] Saved conversation to Mem0');
+      } catch (error) {
+        console.warn('[MarketingConsole] Failed to save memories:', error);
+        // Don't fail request on memory save failure
+      }
 
       // Check if response contains interactive elements
       const interactive = this.detectInteractiveElements(responseText);

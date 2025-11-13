@@ -69,7 +69,7 @@ export function LinkPostModal({ campaignId, onClose, onPostLinked }: LinkPostMod
       if (linkedRes.ok) {
         const linkedData = await linkedRes.json()
         const linkedDocs = linkedData.documents?.map((link: any) => link.knowledge_base_documents) || []
-        const linkedIds = new Set(linkedDocs.map((doc: any) => doc.id).filter(Boolean))
+        const linkedIds = new Set<string>(linkedDocs.map((doc: any) => doc.id as string).filter(Boolean))
         setLinkedPostIds(linkedIds)
       }
 
