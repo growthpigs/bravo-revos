@@ -49,21 +49,36 @@ export async function getOrCreateSession(
   sessionId?: string,
   voiceId?: string
 ): Promise<ChatSession> {
-  // If sessionId provided, try to retrieve it
+  // If sessionId provided, retrieve it and update last_active_at
   if (sessionId) {
+    // Update last_active_at atomically while retrieving
+    // This prevents stale session cleanup and tracks activity
     const { data: existing, error } = await supabase
       .from('chat_sessions')
-      .select('*')
+      .update({ last_active_at: new Date().toISOString() })
       .eq('id', sessionId)
       .eq('user_id', userId)
+      .select()
       .single();
 
     if (!error && existing) {
       return existing as ChatSession;
     }
+
+    // Session not found or doesn't belong to user
+    // Don't silently create new session - this is unexpected behavior
+    if (error?.code === 'PGRST116') {
+      // PGRST116 = no rows returned
+      throw new Error(
+        `Session ${sessionId} not found or does not belong to user ${userId}`
+      );
+    }
+
+    // Other error occurred
+    throw new Error(`Failed to retrieve session ${sessionId}: ${error?.message || 'Unknown error'}`);
   }
 
-  // Create new session
+  // Create new session (only when no sessionId provided)
   const { data: newSession, error: createError } = await supabase
     .from('chat_sessions')
     .insert({

@@ -8,13 +8,22 @@ import { z } from 'zod';
 
 /**
  * Valid roles for chat messages
+ * Includes 'tool' for AgentKit tool response messages
  */
 export const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'assistant', 'system']),
+  role: z.enum(['user', 'assistant', 'system', 'tool']),
   content: z.string().min(1, 'Message content cannot be empty'),
   tool_calls: z.array(z.any()).optional(),
   tool_call_id: z.string().optional(),
   name: z.string().optional(),
+}).refine((data) => {
+  // Tool messages REQUIRE tool_call_id and name
+  if (data.role === 'tool') {
+    return !!data.tool_call_id && !!data.name;
+  }
+  return true;
+}, {
+  message: 'Tool messages must include tool_call_id and name',
 });
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
@@ -40,7 +49,13 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
  * Format: { message: string, conversationHistory?: Message[], sessionId?: string }
  */
 export const LegacyV1RequestSchema = z.object({
-  message: z.string().min(1, 'Message cannot be empty'),
+  message: z.string()
+    .min(1, 'Message cannot be empty')
+    .max(4000, 'Message too long (max 4000 characters)')
+    .refine(
+      (msg) => msg.trim().length > 0,
+      'Message cannot be only whitespace'
+    ),
   conversationHistory: z.array(ChatMessageSchema).optional(),
   sessionId: z.string().uuid().optional(), // Session ID for continuation - generates new if not provided
   voiceId: z.string().uuid().optional(),

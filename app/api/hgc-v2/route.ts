@@ -186,8 +186,15 @@ export async function POST(request: NextRequest) {
       console.log('[HGC_V2] Messages saved successfully');
     } catch (saveError: any) {
       console.error('[HGC_V2] CRITICAL: Message save failed:', saveError.message);
+      console.error('[HGC_V2] Error details:', {
+        sessionId: session.id,
+        userId: user.id,
+        errorCode: saveError.code,
+        errorMessage: saveError.message,
+      });
       messagePersisted = false;
-      // Don't fail the request - still return response to client
+      // Don't fail the request - client gets response but with warning
+      // Client MUST check messagePersisted flag and warn user
     }
 
     // 10. Return FloatingChatBar-compatible response with sessionId
@@ -198,7 +205,11 @@ export async function POST(request: NextRequest) {
       interactive: result.interactive, // Campaign selector, decision buttons, etc.
       meta: {
         consoleSource, // 'database' or 'fallback' - helps identify configuration issues
-        messagePersisted, // NEW - client can detect persistence failures
+        messagePersisted, // CRITICAL - client MUST check this
+        ...(messagePersisted === false && {
+          warning: 'Conversation was not saved - do not continue this session',
+          persistenceError: 'Database save failed',
+        }),
       },
     });
   } catch (error: any) {
