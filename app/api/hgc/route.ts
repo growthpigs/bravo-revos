@@ -1017,6 +1017,11 @@ export async function POST(request: NextRequest) {
       const userMessage = lastMessage.content.toLowerCase()
 
       // INTENT: Schedule Post
+      // DISABLED: This Intent Router was too aggressive and removed agent agency
+      // It matched patterns like "post.*about" which intercepted generic "write a post" requests
+      // Now letting GPT-4o handle all "write" requests naturally with full agency
+      // User can say "No, I don't want a campaign" and agent will respect it
+      /*
       if (userMessage.match(/schedule.*post|create.*post|post.*about|post.*tomorrow|post.*\d{1,2}(am|pm)/i)) {
         console.log('[HGC_INTENT] Detected schedule_post intent - bypassing GPT-4o')
 
@@ -1052,6 +1057,7 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+      */
 
       // INTENT: EXPLICIT Campaign Launch (Post to LinkedIn) + Slash commands
       // NOTE: Removed generic "write" keywords - those fall through to natural GPT-4o conversation
@@ -1234,15 +1240,20 @@ Natural Language Pod Requests:
 
 🚨 POSTING TO LINKEDIN - WORKING DOCUMENT FLOW 🚨
 
-When user says ANY of these phrases:
-- "launch campaign" / "post to LinkedIn" / "post a campaign"
-- "write a post" / "let's write a post" / "write post" / "let's write"
-- "create a post" / "compose a post"
+CAMPAIGNS ARE OPTIONAL - User has full choice:
 
-STEP 1 - IMMEDIATELY call get_all_campaigns() to trigger campaign selector buttons
-- System shows interactive campaign selection buttons
-- User clicks their choice
-- 🚨 NEVER ask "what topic?" or "provide details" - ALWAYS show campaigns first!
+When user says "launch campaign" / "post to campaign" (EXPLICIT campaign intent):
+- STEP 1: IMMEDIATELY call get_all_campaigns() to show campaign selector
+- User selects campaign → Then work on content
+
+When user says "write a post" / "create a post" / "compose" (GENERIC writing intent):
+- STEP 1: Ask "What would you like to write about?"
+- User provides topic/content idea
+- STEP 2: Draft the content OR ask clarifying questions
+- STEP 3: Ask ONCE: "Would you like to link this to a campaign, or post it standalone?"
+- If user says "standalone" / "no" / "just post it" → Respect that, proceed without campaign
+- If user says "yes" / mentions campaign → call get_all_campaigns() to show selector
+- If user already said "no campaign" earlier, DO NOT ask again
 
 STEP 2 - After campaign selected (handled by backend):
 - Backend asks: "What content should I post for [Campaign Name]?"
@@ -1370,6 +1381,9 @@ IMPORTANT:
         console.log(`[HGC_TS] Tool call: ${functionName}`, functionArgs)
 
         // WORKFLOW DETECTION: Intercept schedule_post without campaign_id
+        // DISABLED: This forced campaign workflows even when user explicitly said "no campaign"
+        // Now letting schedule_post() work without campaign_id for standalone posts
+        /*
         if (functionName === 'schedule_post' && !functionArgs.campaign_id) {
           console.log('[HGC_WORKFLOW] schedule_post called without campaign_id - returning decision buttons')
 
@@ -1407,6 +1421,7 @@ IMPORTANT:
             },
           })
         }
+        */
 
         let result
         switch (functionName) {

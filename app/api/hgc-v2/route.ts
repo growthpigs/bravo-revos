@@ -18,6 +18,7 @@ import { LinkedInCartridge } from '@/lib/cartridges/linkedin-cartridge';
 import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
 import type { Message } from '@/lib/cartridges/types';
 import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
+import { loadConsolePrompt } from '@/lib/console/console-loader';
 import { ZodError } from 'zod';
 
 const openai = new OpenAI({
@@ -68,33 +69,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 3. Initialize MarketingConsole
+    // 3. Load console configuration from database
+    let consoleConfig;
+    try {
+      consoleConfig = await loadConsolePrompt('marketing-console-v1', supabase);
+      console.log('[HGC_V2] Console config loaded from database:', {
+        name: consoleConfig.name,
+        version: consoleConfig.version,
+      });
+    } catch (error: any) {
+      console.error('[HGC_V2] Failed to load console config:', error.message);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to load console configuration',
+          details: error.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    // 4. Initialize MarketingConsole with database-driven config
     const console_instance = new MarketingConsole({
       model: 'gpt-4o-mini',
       temperature: 0.7,
-      baseInstructions: `
-You are the Marketing Console AI, a specialized assistant for LinkedIn lead generation campaigns.
-
-You help users:
-- Create and manage campaigns
-- Write compelling LinkedIn content
-- Post to LinkedIn
-- Monitor DM responses for lead generation
-- Track campaign performance
-
-Always be helpful, professional, and focused on driving results.
-`,
+      baseInstructions: consoleConfig.systemInstructions,
       openai,
       supabase,
     });
 
-    // 4. Load LinkedIn Cartridge (always loaded)
+    // 5. Load LinkedIn Cartridge (always loaded)
     const linkedinCartridge = new LinkedInCartridge();
     console_instance.loadCartridge(linkedinCartridge);
 
     console.log('[HGC_V2] LinkedIn cartridge loaded');
 
-    // 5. Load Voice Cartridge (if specified in message context)
+    // 6. Load Voice Cartridge (if specified in message context)
     // TODO: Extract voice_id from campaign context or user preferences
     // For now, voice cartridge is optional
 
@@ -110,7 +120,7 @@ Always be helpful, professional, and focused on driving results.
     }
     */
 
-    // 6. Build messages for agent
+    // 7. Build messages for agent
     const messages: Message[] = [
       ...conversationHistory.map((msg: any) => ({
         role: msg.role,
@@ -125,7 +135,7 @@ Always be helpful, professional, and focused on driving results.
       },
     ];
 
-    // 7. Execute via MarketingConsole
+    // 8. Execute via MarketingConsole
     console.log('[HGC_V2] Executing agent...');
     const result = await console_instance.execute(user.id, generateSessionId(), messages);
 
@@ -134,7 +144,7 @@ Always be helpful, professional, and focused on driving results.
       has_interactive: !!result.interactive,
     });
 
-    // 8. Return FloatingChatBar-compatible response
+    // 9. Return FloatingChatBar-compatible response
     return NextResponse.json({
       success: true,
       response: result.response,
