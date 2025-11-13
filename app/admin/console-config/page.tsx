@@ -145,38 +145,97 @@ export default function ConsoleConfigPage() {
 
   function selectConsole(console: ConsoleConfig) {
     setSelectedConsole(console);
+    setEditedConsole(JSON.parse(JSON.stringify(console))); // Deep copy
     setSystemInstructions(console.systemInstructions);
+    setValidationError(null);
     setError(null);
     setDropdownOpen(false);
   }
 
-  async function saveConsole() {
-    if (!selectedConsole) {
-      setError('No console selected');
-      return;
-    }
+  /**
+   * Update cartridge field (handles nested paths)
+   *
+   * Example: updateCartridge('uiCartridge.inlineButtons.style', 'new value')
+   */
+  function updateCartridge(path: string, value: any) {
+    if (!editedConsole) return;
 
-    if (!systemInstructions.trim()) {
-      setError('System instructions cannot be empty');
+    setEditedConsole(setNestedValue(editedConsole, path, value));
+    setValidationError(null); // Clear validation errors on edit
+  }
+
+  /**
+   * Update JSON field with validation feedback
+   */
+  function updateJSONField(path: string, jsonString: string) {
+    try {
+      const parsed = JSON.parse(jsonString);
+      updateCartridge(path, parsed);
+      setValidationError(null);
+    } catch (err: any) {
+      setValidationError(`Invalid JSON: ${err.message}`);
+    }
+  }
+
+  async function saveConsole() {
+    if (!selectedConsole || !editedConsole) {
+      setError('No console selected');
       return;
     }
 
     try {
       setLoading((prev) => ({ ...prev, save: true }));
       setError(null);
+      setValidationError(null);
+
+      // Validate with Zod
+      const validation = safeParseConsoleConfig(editedConsole);
+      if (!validation.success) {
+        const firstError = validation.error.issues[0];
+        setValidationError(
+          `${firstError?.path.join('.')}: ${firstError?.message}`
+        );
+        return;
+      }
+
+      // Size check for each cartridge
+      const cartridges = [
+        'operationsCartridge',
+        'systemCartridge',
+        'contextCartridge',
+        'skillsCartridge',
+        'pluginsCartridge',
+        'knowledgeCartridge',
+        'memoryCartridge',
+        'uiCartridge',
+      ] as const;
+
+      for (const cart of cartridges) {
+        try {
+          validateCartridgeSize(editedConsole[cart], cart);
+        } catch (err: any) {
+          setError(err.message);
+          return;
+        }
+      }
 
       const { error: err } = await supabase
         .from('console_prompts')
         .update({
-          system_instructions: systemInstructions,
+          operations_cartridge: editedConsole.operationsCartridge,
+          system_cartridge: editedConsole.systemCartridge,
+          context_cartridge: editedConsole.contextCartridge,
+          skills_cartridge: editedConsole.skillsCartridge,
+          plugins_cartridge: editedConsole.pluginsCartridge,
+          knowledge_cartridge: editedConsole.knowledgeCartridge,
+          memory_cartridge: editedConsole.memoryCartridge,
+          ui_cartridge: editedConsole.uiCartridge,
           version: (selectedConsole.version || 0) + 1,
         })
         .eq('id', selectedConsole.id);
 
       if (err) throw err;
 
-      const updated = { ...selectedConsole, systemInstructions };
-      setSelectedConsole(updated);
       setSuccess({
         text: `"${selectedConsole.displayName}" updated successfully`,
         timestamp: Date.now(),
