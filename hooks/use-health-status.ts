@@ -13,6 +13,15 @@ interface HealthData {
     database: HealthCheck;
     supabase: HealthCheck;
     api: HealthCheck;
+    agentkit: HealthCheck;
+    mem0: HealthCheck;
+    unipile: HealthCheck;
+    email: HealthCheck;
+    console: HealthCheck;
+    cache: HealthCheck;
+    queue: HealthCheck;
+    cron: HealthCheck;
+    webhooks: HealthCheck;
     timestamp: string;
   };
 }

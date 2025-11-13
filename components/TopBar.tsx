@@ -41,21 +41,45 @@ export function TopBar({ showLogo = true }: TopBarProps) {
         </div>
       </div>
 
-      {/* Right: Health Status */}
+      {/* Right: Health Status - 4 columns × 3 rows, just dots */}
       {data && isVisible && (
-        <div className="font-mono text-[8pt] uppercase text-gray-500 flex gap-4">
-          <span>
-            DATABASE: <span className={getStatusColor(data.checks.database.status)}>●</span> {data.checks.database.status}
-          </span>
-          <span>
-            SUPABASE: <span className={getStatusColor(data.checks.supabase.status)}>●</span> {data.checks.supabase.status}
-          </span>
-          <span>
-            API: <span className={getStatusColor(data.checks.api.status)}>●</span> {data.checks.api.status}
-          </span>
-          <span>
-            SYSTEM: <span className={getStatusColor(data.status)}>●</span> {data.status}
-          </span>
+        <div className="font-mono text-[8pt] uppercase text-gray-600 flex items-start gap-3">
+          {/* Column 1 */}
+          <div className="flex flex-col gap-0.5">
+            <span>DATABASE <span className={getStatusColor(data.checks.database.status)}>●</span></span>
+            <span>SUPABASE <span className={getStatusColor(data.checks.supabase.status)}>●</span></span>
+            <span>API <span className={getStatusColor(data.checks.api.status)}>●</span></span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-gray-300"></div>
+
+          {/* Column 2 */}
+          <div className="flex flex-col gap-0.5">
+            <span>AGENTKIT <span className={getStatusColor(data.checks.agentkit.status)}>●</span></span>
+            <span>MEM0 <span className={getStatusColor(data.checks.mem0.status)}>●</span></span>
+            <span>UNIPILE <span className={getStatusColor(data.checks.unipile.status)}>●</span></span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-gray-300"></div>
+
+          {/* Column 3 */}
+          <div className="flex flex-col gap-0.5">
+            <span>CONSOLE <span className={getStatusColor(data.checks.console.status)}>●</span></span>
+            <span>CACHE <span className={getStatusColor(data.checks.cache.status)}>●</span></span>
+            <span>QUEUE <span className={getStatusColor(data.checks.queue.status)}>●</span></span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-gray-300"></div>
+
+          {/* Column 4 */}
+          <div className="flex flex-col gap-0.5">
+            <span>CRON <span className={getStatusColor(data.checks.cron.status)}>●</span></span>
+            <span>WEBHOOKS <span className={getStatusColor(data.checks.webhooks.status)}>●</span></span>
+            <span>EMAIL <span className={getStatusColor(data.checks.email.status)}>●</span></span>
+          </div>
         </div>
       )}
     </header>
