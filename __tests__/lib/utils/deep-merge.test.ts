@@ -5,7 +5,7 @@ describe('Deep Merge Utility', () => {
     it('should merge two objects immutably', () => {
       const target = { a: 1, b: { c: 2 } };
       const source = { b: { d: 3 } };
-      const result = deepMerge(target, source);
+      const result = deepMerge(target, source as any);
 
       expect(result).toEqual({ a: 1, b: { c: 2, d: 3 } });
       expect(target).toEqual({ a: 1, b: { c: 2 } }); // Original unchanged
@@ -23,7 +23,7 @@ describe('Deep Merge Utility', () => {
           inlineButtons: { style: 'red' },
         },
       };
-      const result = deepMerge(target, source);
+      const result = deepMerge(target, source as any);
 
       expect(result.uiCartridge.inlineButtons.style).toBe('red');
       expect(result.uiCartridge.inlineButtons.frequency).toBe(5);
@@ -112,7 +112,7 @@ describe('Deep Merge Utility', () => {
 
     it('should create missing paths', () => {
       const obj = { a: {} };
-      const result = setNestedValue(obj, 'a.b.c', 'value');
+      const result = setNestedValue(obj, 'a.b.c', 'value') as any;
 
       expect(result.a.b.c).toBe('value');
     });

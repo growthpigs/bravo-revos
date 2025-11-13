@@ -47,6 +47,6 @@ export function deepEqual<T>(a: T, b: T): boolean {
  */
 export function setNestedValue<T>(obj: T, path: string, value: any): T {
   const cloned = cloneDeep(obj);
-  set(cloned, path, value);
+  set(cloned as object, path, value);
   return cloned;
 }

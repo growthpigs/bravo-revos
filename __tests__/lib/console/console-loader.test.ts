@@ -9,14 +9,14 @@ import { ConsoleConfig } from '@/lib/validation/console-validation';
 
 // Mock factory for creating Supabase-like objects
 function createMockSupabase() {
-  const chainMethods = {
-    select: jest.fn(function () {
+  const chainMethods: any = {
+    select: jest.fn(function (this: any) {
       return chainMethods;
     }),
-    eq: jest.fn(function () {
+    eq: jest.fn(function (this: any) {
       return chainMethods;
     }),
-    order: jest.fn(function () {
+    order: jest.fn(function (this: any) {
       return chainMethods;
     }),
     single: jest.fn(),
