@@ -126,27 +126,18 @@ export async function POST(request: NextRequest) {
 
     console.log('[HGC_V2] LinkedIn cartridge loaded');
 
-    // 6. Load Voice Cartridge (if specified in message context)
-    // TODO: Extract voice_id from campaign context or user preferences
-    // For now, voice cartridge is optional
-
-    // Example of loading voice cartridge:
-    /*
-    const voice_id = extractVoiceIdFromContext(message, conversationHistory);
-    if (voice_id) {
-      const voiceCartridge = await VoiceCartridge.fromDatabase(voice_id, supabase);
-      if (voiceCartridge) {
-        console_instance.loadCartridge(voiceCartridge);
-        console.log('[HGC_V2] Voice cartridge loaded:', voice_id);
-      }
-    }
-    */
+    // 6. Voice cartridge support (TODO: Implement when voice system is ready)
+    // Voice cartridge loading will be added in future iteration
 
     // 7. Build messages for agent
+    // IMPORTANT: When sessionId is provided, conversationHistory from request is IGNORED
+    // The database is the source of truth for existing sessions
+    // Client should only send conversationHistory for NEW sessions (no sessionId)
     let messages: Message[];
 
     if (sessionId) {
       // Continuing existing conversation - load history from DB
+      // NOTE: conversationHistory parameter is IGNORED when sessionId is provided
       console.log('[HGC_V2] Loading conversation history from database...');
       const dbHistory = await getConversationHistory(supabase, session.id);
       messages = [
@@ -159,6 +150,7 @@ export async function POST(request: NextRequest) {
       console.log('[HGC_V2] Loaded', dbHistory.length, 'messages from history');
     } else {
       // New conversation - use provided history or start fresh
+      console.log('[HGC_V2] New session - using provided conversationHistory');
       messages = [
         ...conversationHistory.map((msg: any) => ({
           role: msg.role,
@@ -185,6 +177,7 @@ export async function POST(request: NextRequest) {
 
     // 9. Save messages to database
     console.log('[HGC_V2] Saving messages to session...');
+    let messagePersisted = true;
     try {
       await saveMessages(supabase, session.id, [
         { role: 'user' as const, content: message },
@@ -192,7 +185,8 @@ export async function POST(request: NextRequest) {
       ]);
       console.log('[HGC_V2] Messages saved successfully');
     } catch (saveError: any) {
-      console.error('[HGC_V2] Error saving messages:', saveError.message);
+      console.error('[HGC_V2] CRITICAL: Message save failed:', saveError.message);
+      messagePersisted = false;
       // Don't fail the request - still return response to client
     }
 
@@ -204,6 +198,7 @@ export async function POST(request: NextRequest) {
       interactive: result.interactive, // Campaign selector, decision buttons, etc.
       meta: {
         consoleSource, // 'database' or 'fallback' - helps identify configuration issues
+        messagePersisted, // NEW - client can detect persistence failures
       },
     });
   } catch (error: any) {

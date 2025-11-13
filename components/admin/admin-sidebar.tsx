@@ -7,15 +7,16 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Building2, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  Settings,
   BarChart3,
   UserCircle,
   LogOut,
-  Megaphone
+  Megaphone,
+  Activity
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -26,6 +27,7 @@ interface AdminSidebarProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'System Health', href: '/admin/system-health', icon: Activity },
   { name: 'Clients', href: '/admin/clients', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
