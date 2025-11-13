@@ -63,8 +63,8 @@ export default async function SystemHealthPage() {
   const clientMetrics = {
     campaignsCount: campaignsCount || 0,
     leadsCount: leadsCount || 0,
-    extractionsSuccessRate: extractionsCount > 0
-      ? ((extractionsSuccessCount / extractionsCount) * 100).toFixed(1)
+    extractionsSuccessRate: (extractionsCount || 0) > 0
+      ? (((extractionsSuccessCount || 0) / (extractionsCount || 1)) * 100).toFixed(1)
       : '0.0',
     linkedinAccountsCount: linkedinAccountsCount || 0,
   }

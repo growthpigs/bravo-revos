@@ -210,7 +210,7 @@ export default function ConsoleConfigPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600">You don't have permission to access this page.</p>
+            <p className="text-gray-600">You don&apos;t have permission to access this page.</p>
           </CardContent>
         </Card>
       </div>
@@ -255,7 +255,7 @@ export default function ConsoleConfigPage() {
             <div>
               <CardTitle>Edit Console Prompt</CardTitle>
               <CardDescription>
-                Update the system instructions that guide the AI agent's behavior
+                Update the system instructions that guide the AI agent&apos;s behavior
               </CardDescription>
             </div>
             <Button
