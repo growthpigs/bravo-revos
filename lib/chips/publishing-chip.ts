@@ -7,7 +7,7 @@
 import { tool } from '@openai/agents';
 import { z } from 'zod';
 import { BaseChip } from './base-chip';
-import { AgentContext } from '@/lib/cartridges/types';
+import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
 import { createLinkedInPost } from '@/lib/unipile-client';
 
 export class PublishingChip extends BaseChip {
@@ -35,11 +35,9 @@ export class PublishingChip extends BaseChip {
       }),
       execute: async (input, context) => {
         // AgentKit passes our AgentContext as the context parameter
-        // Double-cast pattern: RunContext -> unknown -> AgentContext
-        if (!context || typeof context !== 'object') {
-          throw new Error('Invalid context provided to chip');
-        }
-        return this.execute(input, context as unknown as AgentContext);
+        // Type-safe extraction with runtime validation
+        const agentContext = extractAgentContext(context);
+        return this.execute(input, agentContext);
       },
     });
   }

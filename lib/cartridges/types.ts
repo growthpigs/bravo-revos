@@ -207,3 +207,47 @@ export interface SlashCommand {
   description: string;
   handler: (args: string[], context: AgentContext) => Promise<string>;
 }
+
+// ===== PART 3: TYPE SAFETY UTILITIES =====
+
+/**
+ * Type guard to validate RunContext contains our AgentContext
+ *
+ * This safely bridges AgentKit's RunContext to our AgentContext type.
+ * Replaces the unsafe double-cast pattern (context as unknown as AgentContext).
+ */
+export function isAgentContext(context: unknown): context is AgentContext {
+  if (!context || typeof context !== 'object') return false;
+
+  const ctx = context as any;
+  return (
+    typeof ctx.userId === 'string' &&
+    typeof ctx.sessionId === 'string' &&
+    Array.isArray(ctx.conversationHistory) &&
+    ctx.supabase !== undefined &&
+    ctx.openai !== undefined &&
+    typeof ctx.metadata === 'object'
+  );
+}
+
+/**
+ * Extract AgentContext from AgentKit's RunContext safely
+ *
+ * @throws {Error} If RunContext does not contain valid AgentContext
+ * @example
+ * ```ts
+ * execute: async (input, context) => {
+ *   const agentContext = extractAgentContext(context);
+ *   return this.execute(input, agentContext);
+ * }
+ * ```
+ */
+export function extractAgentContext(runContext: unknown): AgentContext {
+  if (!isAgentContext(runContext)) {
+    throw new Error(
+      'RunContext does not contain valid AgentContext. ' +
+      'Required fields: userId, sessionId, conversationHistory, supabase, openai, metadata'
+    );
+  }
+  return runContext;
+}

@@ -241,10 +241,56 @@ export class MarketingConsole {
   /**
    * Unload a cartridge
    *
-   * Note: This requires rebuilding the agent. Not implemented yet.
+   * Removes a cartridge and rebuilds the agent with remaining cartridges.
    */
   unloadCartridge(cartridgeId: string): void {
-    console.log(`[MarketingConsole] Unloading cartridge ${cartridgeId} not yet implemented`);
-    // TODO: Implement cartridge unloading by rebuilding agent
+    console.log(`[MarketingConsole] Unloading cartridge: ${cartridgeId}`);
+
+    const cartridge = this.cartridges.get(cartridgeId);
+    if (!cartridge) {
+      console.warn(`[MarketingConsole] Cartridge ${cartridgeId} not found`);
+      return;
+    }
+
+    // Remove from map
+    this.cartridges.delete(cartridgeId);
+
+    // Rebuild agent from scratch with base configuration
+    this.agent = new Agent({
+      name: 'MarketingConsole',
+      model: this.config.model || 'gpt-4o-mini',
+      instructions: this.config.baseInstructions,
+      modelSettings: {
+        temperature: this.config.temperature || 0.7,
+      },
+      tools: [],
+    });
+
+    // Reload all remaining cartridges
+    for (const [_, cart] of this.cartridges) {
+      const injection = cart.inject();
+      const currentTools = this.agent.tools || [];
+      const updatedConfig: any = {
+        tools: [...currentTools, ...injection.tools],
+        instructions: `${this.agent.instructions}\n\n${injection.instructions}`,
+      };
+
+      if (injection.model) {
+        updatedConfig.model = injection.model;
+      }
+
+      if (injection.temperature !== undefined) {
+        updatedConfig.modelSettings = {
+          ...this.agent.modelSettings,
+          temperature: injection.temperature,
+        };
+      }
+
+      this.agent = this.agent.clone(updatedConfig);
+    }
+
+    console.log(
+      `[MarketingConsole] Cartridge unloaded. Remaining tools: ${this.agent.tools.length}`
+    );
   }
 }
