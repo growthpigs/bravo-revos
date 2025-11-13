@@ -196,13 +196,36 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
 /**
  * Assemble comprehensive system prompt from all 8 cartridges
  *
- * FEATURES:
- * - Backward compatibility fallback to system_instructions
- * - Token counting (warns if > 8000 tokens = ~50% of GPT-4 context)
- * - Combines all 8 cartridges into structured prompt
+ * Combines all cartridges into a structured prompt for AI orchestration with AgentKit.
  *
- * @param config - Console configuration with all cartridges
- * @returns Comprehensive system prompt string
+ * **Cartridge Precedence & Purpose:**
+ * 1. System: Base prompt, role, behavioral rules (foundation)
+ * 2. Context: Domain knowledge, app features, structure (environment)
+ * 3. Skills: Available capabilities/chips (what AI can do)
+ * 4. Plugins: MCP server requirements (external integrations)
+ * 5. Knowledge: Docs, examples, best practices (reference material)
+ * 6. Memory: Mem0 scoping and guidelines (what to remember)
+ * 7. UI: Inline buttons, fullscreen triggers (interaction patterns)
+ *
+ * **Fallback Logic:**
+ * - If systemCartridge.systemPrompt is empty, uses legacy `system_instructions` field
+ * - Each section provides safe defaults (e.g., "Assistant" for missing role)
+ * - Empty arrays render as "No specific capabilities defined"
+ *
+ * **Token Management:**
+ * - Uses gpt-3-encoder to count tokens in final prompt
+ * - Warns if >8000 tokens (>50% of GPT-4 8K context)
+ * - Info log if >4000 tokens (helps track prompt growth)
+ *
+ * @param config - Console configuration with all 8 cartridges loaded from database
+ * @returns Comprehensive system prompt string (never undefined, always returns valid prompt)
+ *
+ * @example
+ * ```typescript
+ * const config = await loadConsolePrompt('marketing-console-v1', supabase);
+ * const prompt = assembleSystemPrompt(config);
+ * // Returns: "You are RevOS Intelligence...\n\nROLE: Strategic marketing partner..."
+ * ```
  */
 export function assembleSystemPrompt(config: ConsoleConfig): string {
   const { systemCartridge, contextCartridge, skillsCartridge, pluginsCartridge,
@@ -210,7 +233,9 @@ export function assembleSystemPrompt(config: ConsoleConfig): string {
 
   // Backward compatibility: If cartridges empty, fall back to legacy field
   if (!systemCartridge?.systemPrompt && systemInstructions) {
-    console.warn('[CONSOLE_LOADER] Using legacy system_instructions field (cartridges empty)');
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[CONSOLE_LOADER] Using legacy system_instructions field (cartridges empty)');
+    }
     return systemInstructions;
   }
 
@@ -272,11 +297,13 @@ ${knowledgeCartridge?.bestPractices || 'Follow standard best practices for user 
   const tokenCount = tokens.length;
 
   if (tokenCount > 8000) {
+    // Always warn about oversized prompts (even in production)
     console.warn(
       `[CONSOLE_LOADER] Prompt very large: ${tokenCount} tokens ` +
       `(>50% of GPT-4 8K context). Consider shortening cartridges.`
     );
-  } else if (tokenCount > 4000) {
+  } else if (tokenCount > 4000 && process.env.NODE_ENV === 'development') {
+    // Info logs only in development
     console.info(
       `[CONSOLE_LOADER] Prompt size: ${tokenCount} tokens ` +
       `(~${Math.round(tokenCount / 8192 * 100)}% of GPT-4 8K context)`
