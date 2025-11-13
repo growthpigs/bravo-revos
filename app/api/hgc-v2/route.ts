@@ -17,6 +17,8 @@ import { MarketingConsole } from '@/lib/console/marketing-console';
 import { LinkedInCartridge } from '@/lib/cartridges/linkedin-cartridge';
 import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
 import type { Message } from '@/lib/cartridges/types';
+import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
+import { ZodError } from 'zod';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -24,19 +26,34 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse request
-    const { message, conversationHistory = [] } = await request.json();
+    // 1. Parse and validate request
+    const body = await request.json();
+    const validation = safeParseLegacyV1Request(body);
 
-    if (!message) {
+    if (!validation.success) {
+      const errors = validation.error.issues.map((issue) => ({
+        field: issue.path.join('.'),
+        message: issue.message,
+      }));
+
+      console.error('[HGC_V2] Validation failed:', errors);
+
       return NextResponse.json(
-        { success: false, error: 'Message is required' },
+        {
+          success: false,
+          error: 'Invalid request format',
+          details: errors,
+        },
         { status: 400 }
       );
     }
 
-    console.log('[HGC_V2] Received request:', {
+    const { message, conversationHistory = [], voiceId, metadata } = validation.data;
+
+    console.log('[HGC_V2] Received validated request:', {
       message_length: message.length,
-      history_length: conversationHistory.length,
+      history_length: conversationHistory?.length || 0,
+      has_voice_id: !!voiceId,
     });
 
     // 2. Authenticate user
