@@ -132,3 +132,15 @@ jest.mock('react', () => {
 if (typeof Element !== 'undefined') {
   Element.prototype.scrollIntoView = jest.fn();
 }
+
+// Mock fetch for OpenAI SDK
+if (typeof global.fetch === 'undefined') {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => '',
+    })
+  );
+}
