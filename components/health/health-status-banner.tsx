@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { SystemHealthSnapshot, HealthStatus } from '@/lib/health-checks/types';
-import { formatDeployTime } from '@/lib/health-checks/git-info';
+import { formatDeployTime } from '@/lib/health-checks/client-utils';
 
 interface HealthStatusBannerProps {
   showLogo?: boolean;
