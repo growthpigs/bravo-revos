@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { searchMemories } from '@/lib/mem0/memory';
 
 export async function GET() {
   const checks = {
@@ -13,7 +14,7 @@ export async function GET() {
     supabase: await checkSupabase(),
     api: { status: 'healthy' }, // If this responds, API is up
     agentkit: { status: 'healthy' }, // TODO: Real check
-    mem0: { status: 'healthy' }, // TODO: Real check
+    mem0: await checkMem0(), // ✅ Real Mem0 health check
     unipile: { status: 'healthy' }, // TODO: Real check
     email: { status: 'healthy' }, // TODO: Real check
     console: { status: 'healthy' }, // TODO: Real check
@@ -60,5 +61,44 @@ async function checkSupabase() {
     };
   } catch {
     return { status: 'unhealthy' };
+  }
+}
+
+/**
+ * Check Mem0 connectivity and memory operations
+ * Tests: API connection, search functionality, latency
+ */
+async function checkMem0() {
+  // Skip if MEM0_API_KEY not configured
+  if (!process.env.MEM0_API_KEY) {
+    return {
+      status: 'disabled',
+      message: 'MEM0_API_KEY not configured',
+    };
+  }
+
+  try {
+    const start = Date.now();
+
+    // Test with dedicated health check tenant key
+    const healthTenantKey = 'health::check::test';
+
+    // Attempt to search memories (lightweight operation)
+    await searchMemories(healthTenantKey, 'health check query', 1);
+
+    const latency = Date.now() - start;
+
+    return {
+      status: latency < 2000 ? 'healthy' : 'degraded',
+      latency,
+      message: latency >= 2000 ? 'High latency detected' : undefined,
+    };
+  } catch (error: any) {
+    console.error('[HEALTH_CHECK] Mem0 check failed:', error.message);
+
+    return {
+      status: 'unhealthy',
+      error: error.message || 'Connection failed',
+    };
   }
 }
