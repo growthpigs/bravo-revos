@@ -32,6 +32,14 @@ export async function isUserAdmin(userId: string, supabase: SupabaseClient): Pro
       if (error.code === 'PGRST116') {
         return false;
       }
+
+      // Schema cache issue (table not in REST API schema cache yet) - return false for now
+      // This can happen temporarily after migrations are applied
+      if (error.code === 'PGRST205') {
+        console.warn('[admin-check] Table not in schema cache yet - assuming not admin. Error:', error.message);
+        return false;
+      }
+
       console.error('[admin-check] Error checking admin status:', error);
       return false;
     }

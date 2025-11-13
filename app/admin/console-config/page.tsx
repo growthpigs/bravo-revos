@@ -90,12 +90,29 @@ export default function ConsoleConfigPage() {
   useEffect(() => {
     async function checkAdmin() {
       try {
-        const adminUser = await getCurrentAdminUser(supabase);
-        if (!adminUser) {
+        // First check if user is authenticated at all
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          console.log('[ConsoleConfig] No authenticated user, redirecting to /dashboard');
           router.replace('/dashboard');
           return;
         }
-        setIsAdmin(true);
+
+        // Try to verify admin status
+        const adminUser = await getCurrentAdminUser(supabase);
+
+        // DEVELOPMENT MODE: Allow any authenticated user to access console config
+        // This is temporary while we set up the admin system and schema cache refreshes
+        if (adminUser || process.env.NODE_ENV === 'development') {
+          setIsAdmin(true);
+          if (!adminUser) {
+            console.warn('[ConsoleConfig] User is authenticated but not in admin_users - allowing access in development mode');
+          }
+        } else {
+          console.log('[ConsoleConfig] User is not admin, redirecting to /dashboard');
+          router.replace('/dashboard');
+        }
       } catch (err) {
         console.error('[ConsoleConfig] Error checking admin status:', err);
         router.replace('/dashboard');
