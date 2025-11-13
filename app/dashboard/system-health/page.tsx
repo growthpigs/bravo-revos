@@ -3,11 +3,12 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useHealthStatus } from '@/hooks/use-health-status';
-import { RefreshCw } from 'lucide-react';
+import { useHealthStatus, useHealthBannerVisibility } from '@/hooks/use-health-status';
+import { RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 export default function SystemHealthPage() {
   const { data, isLoading, refresh } = useHealthStatus();
+  const { isVisible, toggle } = useHealthBannerVisibility();
 
   return (
     <div className="p-8">
@@ -75,11 +76,16 @@ export default function SystemHealthPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600 mb-4">
-            Health status is currently displayed in the top banner of all dashboard pages.
+            Health status is displayed in the top banner of all dashboard pages.
             This feature is temporary for development monitoring.
           </p>
-          <Button variant="outline" disabled>
-            Toggle Top Banner (Coming Soon)
+          <Button
+            variant="outline"
+            onClick={toggle}
+            className="flex items-center gap-2"
+          >
+            {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {isVisible ? 'Hide' : 'Show'} Top Banner
           </Button>
         </CardContent>
       </Card>

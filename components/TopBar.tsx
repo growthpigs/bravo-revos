@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useHealthStatus } from '@/hooks/use-health-status';
+import { useHealthStatus, useHealthBannerVisibility } from '@/hooks/use-health-status';
 
 interface TopBarProps {
   showLogo?: boolean;
@@ -11,6 +11,7 @@ interface TopBarProps {
 
 export function TopBar({ showLogo = true }: TopBarProps) {
   const { data } = useHealthStatus();
+  const { isVisible } = useHealthBannerVisibility();
 
   // Get current date in DD-MM-YYYY format
   const currentDate = new Date().toLocaleDateString('en-GB', {
@@ -41,7 +42,7 @@ export function TopBar({ showLogo = true }: TopBarProps) {
       </div>
 
       {/* Right: Health Status */}
-      {data && (
+      {data && isVisible && (
         <div className="font-mono text-[8pt] uppercase text-gray-500 flex gap-4">
           <span>
             DATABASE: <span className={getStatusColor(data.checks.database.status)}>●</span> {data.checks.database.status}

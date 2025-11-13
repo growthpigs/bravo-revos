@@ -43,3 +43,24 @@ export function useHealthStatus(refreshInterval = 30000) {
 
   return { data, isLoading, refresh: fetchHealth };
 }
+
+export function useHealthBannerVisibility() {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('health-banner-visible');
+    if (stored !== null) {
+      setIsVisible(stored === 'true');
+    }
+  }, []);
+
+  const toggle = () => {
+    setIsVisible((prev) => {
+      const newValue = !prev;
+      localStorage.setItem('health-banner-visible', String(newValue));
+      return newValue;
+    });
+  };
+
+  return { isVisible, toggle };
+}
