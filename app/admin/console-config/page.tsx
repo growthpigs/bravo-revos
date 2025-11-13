@@ -57,7 +57,11 @@ export default function ConsoleConfigPage() {
 
       const { data, error: err } = await supabase
         .from('console_prompts')
-        .select('id, name, display_name, system_instructions, behavior_rules, version')
+        .select(`
+          id, name, display_name, system_instructions, behavior_rules, version,
+          operations_cartridge, system_cartridge, context_cartridge, skills_cartridge,
+          plugins_cartridge, knowledge_cartridge, memory_cartridge, ui_cartridge
+        `)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -76,6 +80,15 @@ export default function ConsoleConfigPage() {
         systemInstructions: row.system_instructions,
         behaviorRules: row.behavior_rules || [],
         version: row.version,
+        // Load all 8 cartridges from database
+        operationsCartridge: row.operations_cartridge || {},
+        systemCartridge: row.system_cartridge || {},
+        contextCartridge: row.context_cartridge || {},
+        skillsCartridge: row.skills_cartridge || {},
+        pluginsCartridge: row.plugins_cartridge || {},
+        knowledgeCartridge: row.knowledge_cartridge || {},
+        memoryCartridge: row.memory_cartridge || {},
+        uiCartridge: row.ui_cartridge || {},
       }));
 
       setConsoles(convertedData);
