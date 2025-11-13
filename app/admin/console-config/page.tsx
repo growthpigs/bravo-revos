@@ -14,6 +14,12 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getCurrentAdminUser } from '@/lib/auth/admin-check';
 import type { ConsoleConfig } from '@/lib/console/console-loader';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, CheckCircle, RefreshCw, Save, FileCode, Info } from 'lucide-react';
 
 interface LoadingState {
   consoles: boolean;
@@ -43,15 +49,12 @@ export default function ConsoleConfigPage() {
       try {
         const adminUser = await getCurrentAdminUser(supabase);
         if (!adminUser) {
-          // Not an admin - redirect to dashboard
           router.replace('/dashboard');
           return;
         }
-        // User is admin, allow access
         setIsAdmin(true);
       } catch (err) {
         console.error('[ConsoleConfig] Error checking admin status:', err);
-        // On error, redirect to be safe
         router.replace('/dashboard');
       } finally {
         setAuthChecking(false);
@@ -96,7 +99,6 @@ export default function ConsoleConfigPage() {
         return;
       }
 
-      // Convert database format to ConsoleConfig
       const convertedData: ConsoleConfig[] = data.map((row: any) => ({
         id: row.id,
         name: row.name,
@@ -108,7 +110,6 @@ export default function ConsoleConfigPage() {
 
       setConsoles(convertedData);
 
-      // Auto-select first console
       if (convertedData.length > 0) {
         selectConsole(convertedData[0]);
       }
@@ -152,15 +153,13 @@ export default function ConsoleConfigPage() {
 
       if (err) throw err;
 
-      // Update local state
       const updated = { ...selectedConsole, systemInstructions };
       setSelectedConsole(updated);
       setSuccess({
-        text: `✅ Console "${selectedConsole.displayName}" updated successfully`,
+        text: `Console "${selectedConsole.displayName}" updated successfully`,
         timestamp: Date.now(),
       });
 
-      // Refresh consoles to get updated data
       await loadConsoles();
     } catch (err: any) {
       const message = err?.message || 'Failed to save console configuration';
@@ -174,11 +173,11 @@ export default function ConsoleConfigPage() {
   // Show loading while checking auth
   if (authChecking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin mb-4 text-4xl">⏳</div>
-          <h2 className="text-xl font-semibold mb-2">Verifying Admin Access</h2>
-          <p className="text-slate-400">Please wait while we verify your permissions...</p>
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Verifying Admin Access</h2>
+          <p className="text-gray-500">Please wait while we verify your permissions...</p>
         </div>
       </div>
     );
@@ -187,208 +186,244 @@ export default function ConsoleConfigPage() {
   // This shouldn't happen (redirect should occur), but failsafe
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4">🚫</div>
-          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-slate-400">You do not have permission to access this page.</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600">You do not have permission to access this page.</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Console Configuration</h1>
-          <p className="text-slate-400">
+    <div className="p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Console Configuration</h1>
+          <p className="text-gray-500 mt-2">
             Manage system prompts and behavior rules for agent consoles
           </p>
         </div>
+        <Button
+          onClick={loadConsoles}
+          disabled={loading.consoles}
+          variant="outline"
+          size="sm"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading.consoles ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
 
-        {/* Warning Banner */}
-        <div className="bg-amber-500/20 border border-amber-500 rounded-lg p-4 mb-6 text-amber-200">
-          <div className="flex gap-2">
-            <span className="text-lg">⚠️</span>
-            <div>
-              <strong>Live Changes:</strong> Updates to console prompts take effect immediately
-              for all new conversations. Existing sessions will continue with their original
-              prompt.
-            </div>
+      {/* Warning Banner */}
+      <Card className="border-amber-200 bg-amber-50">
+        <CardContent className="flex items-start gap-3 p-4">
+          <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-amber-900">
+            <strong className="font-semibold">Live Changes:</strong> Updates to console prompts
+            take effect immediately for all new conversations. Existing sessions will continue
+            with their original prompt.
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-6 text-red-200">
-            <div className="flex gap-2">
-              <span className="text-lg">❌</span>
-              <div>{error}</div>
-            </div>
-          </div>
-        )}
+      {/* Error Alert */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-start gap-3 p-4">
+            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-red-900">{error}</div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Success Alert */}
-        {success && (
-          <div className="bg-green-500/20 border border-green-500 rounded-lg p-4 mb-6 text-green-200">
-            <div className="flex gap-2">
-              <span className="text-lg">✅</span>
-              <div>{success.text}</div>
-            </div>
-          </div>
-        )}
+      {/* Success Alert */}
+      {success && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="flex items-start gap-3 p-4">
+            <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-green-900">{success.text}</div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Console List Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-slate-700 rounded-lg p-4">
-              <h2 className="text-lg font-semibold mb-4">Consoles</h2>
-
-              {loading.consoles ? (
-                <div className="text-slate-400 text-sm">Loading consoles...</div>
-              ) : consoles.length === 0 ? (
-                <div className="text-slate-400 text-sm">No consoles found</div>
-              ) : (
-                <div className="space-y-2">
-                  {consoles.map((console) => (
-                    <button
-                      key={console.id}
-                      onClick={() => selectConsole(console)}
-                      className={`w-full text-left p-3 rounded transition-all ${
-                        selectedConsole?.id === console.id
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-600 text-slate-200 hover:bg-slate-500'
-                      }`}
-                    >
-                      <div className="font-medium text-sm">{console.displayName}</div>
-                      <div className="text-xs text-slate-300 mt-1">v{console.version}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <button
-                onClick={loadConsoles}
-                disabled={loading.consoles}
-                className="w-full mt-4 px-3 py-2 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 text-white rounded text-sm transition-all"
-              >
-                {loading.consoles ? 'Refreshing...' : 'Refresh'}
-              </button>
-            </div>
-          </div>
-
-          {/* Editor Panel */}
-          <div className="lg:col-span-3">
-            {selectedConsole ? (
-              <div className="bg-slate-700 rounded-lg p-6">
-                {/* Console Info */}
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold mb-2">{selectedConsole.displayName}</h2>
-                  <div className="text-sm text-slate-400 space-y-1">
-                    <div>
-                      <strong>Name:</strong> <code className="bg-slate-800 px-2 py-1 rounded text-slate-300">
-                        {selectedConsole.name}
-                      </code>
-                    </div>
-                    <div>
-                      <strong>Version:</strong> {selectedConsole.version}
-                    </div>
-                  </div>
-                </div>
-
-                {/* System Instructions Editor */}
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold mb-3">System Instructions</label>
-                  <textarea
-                    value={systemInstructions}
-                    onChange={(e) => setSystemInstructions(e.target.value)}
-                    className="w-full h-96 bg-slate-800 text-white border border-slate-600 rounded-lg p-4 font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Enter system instructions for this console..."
-                  />
-                  <div className="mt-2 text-xs text-slate-400">
-                    Character count: {systemInstructions.length}
-                  </div>
-                </div>
-
-                {/* Behavior Rules Info */}
-                {selectedConsole.behaviorRules && selectedConsole.behaviorRules.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="text-sm font-semibold mb-2">Behavior Rules</h3>
-                    <div className="bg-slate-800 p-3 rounded text-sm text-slate-300">
-                      <pre className="overflow-x-auto">
-                        {JSON.stringify(selectedConsole.behaviorRules, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  <button
-                    onClick={saveConsole}
-                    disabled={loading.save}
-                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
-                  >
-                    {loading.save ? (
-                      <>
-                        <span className="animate-spin">⏳</span>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <span>💾</span>
-                        Save Changes
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => selectConsole(selectedConsole)}
-                    className="px-4 py-3 bg-slate-600 hover:bg-slate-500 text-white font-medium rounded-lg transition-all"
-                  >
-                    Reset
-                  </button>
-                </div>
-
-                {/* Change Detection */}
-                {systemInstructions !== selectedConsole.systemInstructions && (
-                  <div className="mt-4 text-sm text-amber-400">
-                    📝 You have unsaved changes
-                  </div>
-                )}
-              </div>
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Console List Sidebar */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-lg">Consoles</CardTitle>
+            <CardDescription>Select a console to edit</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {loading.consoles ? (
+              <div className="text-sm text-gray-500 text-center py-4">Loading consoles...</div>
+            ) : consoles.length === 0 ? (
+              <div className="text-sm text-gray-500 text-center py-4">No consoles found</div>
             ) : (
-              <div className="bg-slate-700 rounded-lg p-6 text-center text-slate-400">
-                <p>Select a console from the list to edit</p>
-              </div>
+              consoles.map((console) => (
+                <button
+                  key={console.id}
+                  onClick={() => selectConsole(console)}
+                  className={`w-full text-left p-3 rounded-lg transition-all border ${
+                    selectedConsole?.id === console.id
+                      ? 'bg-blue-50 border-blue-200 text-blue-900'
+                      : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileCode className="h-4 w-4" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{console.displayName}</div>
+                      <div className="text-xs text-gray-500">v{console.version}</div>
+                    </div>
+                  </div>
+                </button>
+              ))
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Information Panel */}
-        <div className="mt-8 bg-slate-700 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-3">About Console Configuration</h3>
-          <div className="text-sm text-slate-300 space-y-2">
-            <p>
-              <strong>System Instructions:</strong> The base prompt that defines the agent&apos;s
-              behavior and capabilities. This is passed to OpenAI as the system message.
-            </p>
-            <p>
-              <strong>Behavior Rules:</strong> Additional constraints and rules in JSON format.
-              Currently stored but not actively used in the system.
-            </p>
-            <p>
-              <strong>Live Updates:</strong> When you save changes, they are immediately available
-              for new conversations but don&apos;t affect ongoing sessions.
-            </p>
-            <p>
-              <strong>Versioning:</strong> Each save increments the version number for tracking
-              changes over time.
-            </p>
-          </div>
+        {/* Editor Panel */}
+        <div className="lg:col-span-3 space-y-6">
+          {selectedConsole ? (
+            <>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>{selectedConsole.displayName}</CardTitle>
+                      <CardDescription className="mt-2">
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                          {selectedConsole.name}
+                        </code>
+                        <Badge variant="secondary" className="ml-2">
+                          v{selectedConsole.version}
+                        </Badge>
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="system" className="w-full">
+                    <TabsList className="w-full">
+                      <TabsTrigger value="system" className="flex-1">System Prompt</TabsTrigger>
+                      <TabsTrigger value="behavior" className="flex-1">Behavior Rules</TabsTrigger>
+                      <TabsTrigger value="info" className="flex-1">Info</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="system" className="mt-6">
+                      <div className="space-y-4">
+                        <Textarea
+                          value={systemInstructions}
+                          onChange={(e) => setSystemInstructions(e.target.value)}
+                          className="font-mono text-sm min-h-[400px]"
+                          placeholder="Enter system instructions for this console..."
+                        />
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>Character count: {systemInstructions.length}</span>
+                          {systemInstructions !== selectedConsole.systemInstructions && (
+                            <span className="text-amber-600 font-medium">Unsaved changes</span>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="behavior" className="mt-6">
+                      {selectedConsole.behaviorRules && selectedConsole.behaviorRules.length > 0 ? (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <pre className="text-sm text-gray-700 overflow-x-auto">
+                            {JSON.stringify(selectedConsole.behaviorRules, null, 2)}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Info className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm">No behavior rules defined for this console</p>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="info" className="mt-6">
+                      <div className="space-y-4 text-sm text-gray-600">
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-2">System Instructions</h4>
+                          <p>
+                            The base prompt that defines the agent&apos;s behavior and capabilities.
+                            This is passed to OpenAI as the system message.
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-2">Behavior Rules</h4>
+                          <p>
+                            Additional constraints and rules in JSON format. Currently stored but not
+                            actively used in the system.
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-2">Live Updates</h4>
+                          <p>
+                            When you save changes, they are immediately available for new
+                            conversations but don&apos;t affect ongoing sessions.
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-2">Versioning</h4>
+                          <p>
+                            Each save increments the version number for tracking changes over time.
+                          </p>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 mt-6">
+                    <Button
+                      onClick={saveConsole}
+                      disabled={loading.save || systemInstructions === selectedConsole.systemInstructions}
+                      className="flex-1"
+                    >
+                      {loading.save ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+
+                    <Button
+                      onClick={() => selectConsole(selectedConsole)}
+                      variant="outline"
+                      disabled={systemInstructions === selectedConsole.systemInstructions}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12 text-gray-500">
+                <FileCode className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p>Select a console from the list to edit</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

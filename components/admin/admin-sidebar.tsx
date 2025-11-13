@@ -16,7 +16,8 @@ import {
   UserCircle,
   LogOut,
   Megaphone,
-  Activity
+  Activity,
+  FileCode
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -28,6 +29,7 @@ interface AdminSidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'System Health', href: '/admin/system-health', icon: Activity },
+  { name: 'Console Config', href: '/admin/console-config', icon: FileCode },
   { name: 'Clients', href: '/admin/clients', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
@@ -47,7 +49,8 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
   }
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r border-gray-200">
+    <div className="flex flex-col h-screen w-64 bg-white border-r border-gray-200">
+      {/* Logo/Agency Header */}
       <div className="flex items-center gap-3 p-6 border-b border-gray-200">
         {agency?.logo_url ? (
           <Image
@@ -69,6 +72,7 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
         </div>
       </div>
 
+      {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
           {navigation.map((item) => {
@@ -80,7 +84,7 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
                   isActive
-                    ? 'bg-gray-100 text-gray-900 font-semibold'
+                    ? 'bg-blue-50 text-blue-900 font-semibold'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 )}
               >
@@ -89,40 +93,40 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
               </Link>
             )
           })}
-
-          {/* Divider */}
-          <div className="my-4 border-t border-gray-200"></div>
-
-          {/* User Profile Section */}
-          <div className="px-3 py-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-3 mb-3">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.avatar_url} />
-                <AvatarFallback>
-                  {user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-900 truncate">
-                  {user?.full_name || user?.email}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">
-                  {user?.role?.replace('_', ' ')}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
         </nav>
       </ScrollArea>
+
+      {/* User Info at Bottom - Fixed Position */}
+      <div className="border-t border-gray-200 bg-white p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={user?.avatar_url} />
+            <AvatarFallback className="bg-blue-600 text-white">
+              {user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {user?.full_name || user?.email?.split('@')[0] || 'Admin User'}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {user?.email || 'admin@example.com'}
+            </p>
+            <p className="text-xs text-gray-400 capitalize">
+              {user?.role?.replace('_', ' ') || 'Agency Admin'}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-xs"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-3 w-3 mr-2" />
+          Sign Out
+        </Button>
+      </div>
     </div>
   )
 }
