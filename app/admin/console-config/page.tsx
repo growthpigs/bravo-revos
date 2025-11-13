@@ -13,12 +13,16 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getCurrentAdminUser } from '@/lib/auth/admin-check';
-import type { ConsoleConfig } from '@/lib/console/console-loader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown, Info } from 'lucide-react';
+import { deepMerge, deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
+import { ConsoleConfig, safeParseConsoleConfig } from '@/lib/validation/console-validation';
 
 interface LoadingState {
   consoles: boolean;
@@ -35,6 +39,9 @@ export default function ConsoleConfigPage() {
   const supabase = createClient();
   const [consoles, setConsoles] = useState<ConsoleConfig[]>([]);
   const [selectedConsole, setSelectedConsole] = useState<ConsoleConfig | null>(null);
+  const [editedConsole, setEditedConsole] = useState<ConsoleConfig | null>(null);
+  const [activeTab, setActiveTab] = useState('operations');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [systemInstructions, setSystemInstructions] = useState('');
   const [loading, setLoading] = useState<LoadingState>({ consoles: true, save: false });
   const [error, setError] = useState<string | null>(null);
