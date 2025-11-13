@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown, Info } from 'lucide-react';
 import { deepMerge, deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
-import { ConsoleConfig, safeParseConsoleConfig } from '@/lib/validation/console-validation';
+import { ConsoleConfig, safeParseConsoleConfig, validateCartridgeSize } from '@/lib/validation/console-validation';
 
 interface LoadingState {
   consoles: boolean;
@@ -146,7 +146,7 @@ export default function ConsoleConfigPage() {
   function selectConsole(console: ConsoleConfig) {
     setSelectedConsole(console);
     setEditedConsole(JSON.parse(JSON.stringify(console))); // Deep copy
-    setSystemInstructions(console.systemInstructions);
+    setSystemInstructions(console.systemInstructions || '');
     setValidationError(null);
     setError(null);
     setDropdownOpen(false);
