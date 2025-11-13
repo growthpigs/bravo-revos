@@ -112,6 +112,22 @@ if (typeof crypto === 'undefined' || !crypto.randomUUID) {
   };
 }
 
+// Polyfill TextEncoder/TextDecoder for gpt-3-encoder
+if (typeof TextEncoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
+
+// Mock React cache() for Next.js server components (not available in test env)
+jest.mock('react', () => {
+  const originalReact = jest.requireActual('react');
+  return {
+    ...originalReact,
+    cache: (fn) => fn, // Identity function - just returns the function as-is
+  };
+});
+
 // Mock scrollIntoView for jsdom (not implemented by default)
 if (typeof Element !== 'undefined') {
   Element.prototype.scrollIntoView = jest.fn();
