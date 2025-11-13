@@ -11,6 +11,7 @@
 
 import { cache } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { encode } from 'gpt-3-encoder';
 import {
   ConsoleConfig,
   safeParseConsoleConfig,
@@ -191,3 +192,96 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
     throw new Error(`[loadAllConsoles] Unexpected error: ${error.message}`);
   }
 });
+
+/**
+ * Assemble comprehensive system prompt from all 8 cartridges
+ *
+ * FEATURES:
+ * - Backward compatibility fallback to system_instructions
+ * - Token counting (warns if > 8000 tokens = ~50% of GPT-4 context)
+ * - Combines all 8 cartridges into structured prompt
+ *
+ * @param config - Console configuration with all cartridges
+ * @returns Comprehensive system prompt string
+ */
+export function assembleSystemPrompt(config: ConsoleConfig): string {
+  const { systemCartridge, contextCartridge, skillsCartridge, pluginsCartridge,
+          knowledgeCartridge, memoryCartridge, uiCartridge, systemInstructions } = config;
+
+  // Backward compatibility: If cartridges empty, fall back to legacy field
+  if (!systemCartridge?.systemPrompt && systemInstructions) {
+    console.warn('[assembleSystemPrompt] Using legacy system_instructions field (cartridges empty)');
+    return systemInstructions;
+  }
+
+  const prompt = `
+${systemCartridge?.systemPrompt || 'You are a helpful AI assistant.'}
+
+ROLE: ${systemCartridge?.role || 'Assistant'}
+
+BEHAVIORAL RULES:
+${systemCartridge?.rules || 'Be helpful and professional.'}
+
+CONTEXT:
+Domain: ${contextCartridge?.domain || 'General assistance'}
+Structure: ${contextCartridge?.structure || 'Standard application'}
+
+${contextCartridge?.appFeatures && contextCartridge.appFeatures.length > 0 ? `
+APP FEATURES:
+${contextCartridge.appFeatures.map(f => `- ${f}`).join('\n')}
+` : ''}
+
+AVAILABLE CAPABILITIES:
+${skillsCartridge?.chips && skillsCartridge.chips.length > 0
+  ? skillsCartridge.chips.map(c => `- ${c.name}: ${c.description}`).join('\n')
+  : 'No specific capabilities defined'}
+
+UI GUIDELINES - INLINE BUTTONS (CRITICAL):
+- Frequency: ${uiCartridge?.inlineButtons?.frequency || '80% of responses'}
+- Style: ${uiCartridge?.inlineButtons?.style || 'Standard button styling'}
+- Placement: ${uiCartridge?.inlineButtons?.placement || 'Below message'}
+${uiCartridge?.inlineButtons?.examples && uiCartridge.inlineButtons.examples.length > 0 ? `
+- Examples:
+${uiCartridge.inlineButtons.examples.map(ex => `  ${ex}`).join('\n')}
+` : ''}
+- Button Actions: ${uiCartridge?.buttonActions?.navigation || 'Navigate to relevant pages'}
+- Philosophy: ${uiCartridge?.buttonActions?.philosophy || 'Buttons are helpful shortcuts'}
+
+UI PRINCIPLE:
+${uiCartridge?.principle || 'Conversational by default. Use inline buttons to guide user actions.'}
+
+MEMORY GUIDELINES:
+Scoping: ${memoryCartridge?.scoping || 'User-specific'}
+${memoryCartridge?.whatToRemember && memoryCartridge.whatToRemember.length > 0 ? `
+Remember:
+${memoryCartridge.whatToRemember.map(item => `- ${item}`).join('\n')}
+` : ''}
+Context Injection: ${memoryCartridge?.contextInjection || 'Retrieve relevant memories before each request'}
+
+PLUGINS REQUIRED:
+${pluginsCartridge?.required && pluginsCartridge.required.length > 0
+  ? pluginsCartridge.required.join(', ')
+  : 'None'} - ${pluginsCartridge?.description || 'Must be configured'}
+
+BEST PRACTICES:
+${knowledgeCartridge?.bestPractices || 'Follow standard best practices for user assistance.'}
+`.trim();
+
+  // Token counting and warning
+  const tokens = encode(prompt);
+  const tokenCount = tokens.length;
+
+  if (tokenCount > 8000) {
+    console.warn(
+      `[assembleSystemPrompt] Prompt very large: ${tokenCount} tokens ` +
+      `(>50% of GPT-4 8K context). Consider shortening cartridges.`
+    );
+  } else if (tokenCount > 4000) {
+    console.info(
+      `[assembleSystemPrompt] Prompt size: ${tokenCount} tokens ` +
+      `(~${Math.round(tokenCount / 8192 * 100)}% of GPT-4 8K context)`
+    );
+  }
+
+  return prompt;
+}
