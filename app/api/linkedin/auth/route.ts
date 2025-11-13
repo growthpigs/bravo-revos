@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         username,
         password: `[${password.length} chars] starts:"${password.slice(0,3)}" ends:"${password.slice(-3)}"`,
         passwordHasSpecialChars: /[!@#$%^&*(),.?":{}|<>\\/[\]+=_-]/.test(password),
-        passwordBytes: Array.from(password).map((c: string) => c.charCodeAt(0))
+        passwordBytes: [...password].map((c) => c.charCodeAt(0))
       });
     }
 

@@ -1,388 +1,117 @@
-# Bravo revOS - Project-Specific Instructions
+# Bravo revOS - Project Instructions
 
----
+## HGC ARCHITECTURE NON-NEGOTIABLES (VIOLATIONS = REWRITE)
 
-## 🚨 HGC ARCHITECTURE - NON-NEGOTIABLES (CTO MANDATE)
+1. **AgentKit ONLY** - Never use `openai.chat.completions.create()` with manual tools
+2. **Mem0 REQUIRED** - Scope: `agencyId::clientId::userId`, persistent memory
+3. **Console DB Architecture** - Load with `loadConsolePrompt('marketing-console-v1')`, >50 lines hardcoded = violation, table: `console_prompts`
+4. **Session Persistence** - `getOrCreateSession()`, `saveMessages()`, return `sessionId`, tables: `chat_sessions`, `chat_messages`
+5. **Supabase RLS** - Backend: service role key, Frontend: anon key, always respect `auth.uid()`
+6. **Admin Control** - Table `admin_users` only, never JWT claims, check with `isUserAdmin(userId)`
 
-**CRITICAL: These rules are ABSOLUTE and keep getting violated. REWRITE if broken.**
-
-### Core Rules
-1. **AgentKit ONLY** - Use `@openai/agentkit` SDK exclusively
-   - ❌ NEVER use `openai.chat.completions.create()` with manual tool handling
-   - ✅ AgentKit orchestrates all tools and function calling
-
-2. **Mem0 REQUIRED** - Persistent memory system
-   - Scope: `agencyId::clientId::userId`
-   - Store conversation context, preferences, history
-
-3. **Console Architecture** - Personality and tools load from Console objects
-   - ❌ NEVER hardcode tools/personality in API routes
-   - ✅ Load from `/lib/consoles/*.ts` files
-   - Console defines personality → Loads cartridges → Chips expose tools → AgentKit orchestrates
-
-4. **Supabase RLS Enforcement** - Row Level Security ALWAYS
-   - Backend uses service role key
-   - Frontend uses anon key
-   - Every query respects auth.uid()
-
-5. **UniPile for LinkedIn** - External social media integration
-   - Poll every 5 minutes (NO comment webhooks)
-   - Use official UniPile SDK
-
-### Immutable Hierarchy
-```
-LifeOS (root) → 3 Desks (Wealth/Health/Relationships) → Consoles → Cartridges → Chips
+Hierarchy: LifeOS → 3 Desks (Wealth/Health/Relationships) → Consoles → Cartridges → Chips
 RevOS = Marketing Console under Wealth Desk
-```
+Full spec: `/docs/HGC_COMPREHENSIVE_SPEC_FINAL.md`
 
-### What This Means
-- Console defines personality and available cartridges
-- Cartridges contain domain logic
-- Chips expose specific tools/capabilities
-- AgentKit routes all user inputs through this hierarchy
-- NO custom orchestration, NO hardcoding
+## RevOS Tech Stack
 
-### Violation = Complete Rewrite
-If custom orchestration is found, the entire route must be rewritten to use AgentKit + Console architecture.
+**LinkedIn:** UniPile API ($5.50/account/month), poll every 5 min (NO webhooks), store: `unipile_account_id` + `linkedin_account_id`
+**Queue:** BullMQ + Upstash Redis (DM scraper 5min, campaign queue, email extraction, webhooks)
+**Voice:** 4-tier hierarchy: request → campaign → user → default
+**Health:** Services: AgentKit, Mem0, Console, Database, Supabase, UniPile, Cache, API, System | Admin UI: `/admin/system-health`
 
-**Full Spec:** `/docs/HGC_COMPREHENSIVE_SPEC_FINAL.md`
+## Required MCP Servers (Non-Negotiable)
 
----
+Playwright (browser automation), Sentry (errors), Supabase (DB), Archon (tasks)
+Verify: `mcp list` shows all 4 connected
 
-## 🔄 MANDATORY RULE: Branch Status on Completion
+## Archon-First Task Management (Never TodoWrite)
 
-**EVERY TIME work is marked complete and tested:**
-1. State the **branch name** explicitly
-2. State **what was completed**
-3. State **current status** (testing, review, ready to merge)
-4. Keep it brief but complete
+Workflow: `find_tasks(filter_by="status", filter_value="todo")` → `manage_task(status="doing")` → [Research RAG] → [Code] → `manage_task(status="review")` → [User marks done]
 
-**Format Example:**
-```
-[BRANCH: feat/chat-improvements] ✅ Chat auto-scroll + conversation history + ESC hierarchy - tested and ready for review
-```
+RAG Research: `rag_get_available_sources()` → `rag_search_knowledge_base(query="2-5 keywords", source_id="src_xyz")` → `rag_search_code_examples()`
 
-**Why:** Status line doesn't work, so we track manually. This ensures every completed feature is properly tracked across sessions and branches.
+Status flow: todo → doing → review → done
 
----
+## Skills Auto-Activation (No Permission Needed)
 
-## 📌 CURRENT SESSION STATUS (2025-11-06)
+Ideas phase → `/superpowers-brainstorm`
+Planning phase → `/superpowers-write-plan`
+Execution phase → `/superpowers-execute-plan`
 
-### F-01 AgentKit Orchestration: ✅ COMPLETE
-- Browser testing UI created: `/admin/orchestration-dashboard`
-- 30 comprehensive tests passing (100%)
-- TypeScript validation: ZERO errors
-- Database: Migration 005 applied, test data ready
-- **Ready for**: Colm browser testing with COMET_COMPREHENSIVE_TESTING_SCRIPT
+## Development Workflow
 
-### Voice Cartridge Bug: 🔴 IDENTIFIED (Root Cause Found)
-- **Issue**: User can't create voice cartridges (tier='user')
-- **Root Cause**: API doesn't set `user_id` from authenticated user, RLS policy blocks insert
-- **File**: `/app/api/cartridges/route.ts` line 125
-- **Fix**: Force `user_id = user.id` instead of using client value
-- **Time to Fix**: ~10 minutes
-- **Analysis Doc**: `docs/projects/bravo-revos/VOICE_CARTRIDGE_FAILURE_ANALYSIS.md` (in chat, not .md)
+**Branch Strategy:** feat/name → main (dev) → staging (review) → production (live)
 
-### Testing Scripts Created (In Chat Only - No .md Files):
-- F-01 Testing: 6 phases, complete checklist
-- Voice Cartridge Debugging: Error collection guide
-- Summary in chat for easy copy/paste
+**New Feature:**
+1. `git checkout -b feat/name`
+2. Create `docs/branches/YYYY-MM-DD-name/` (plan.md, sitrep.md, validation.md)
+3. Code with regular commits
+4. Test: `npm test && npx tsc --noEmit`
+5. `git push -u origin feat/name`
+6. Upload all .md to Archon: `manage_document('create', project_id='...', ...)`
 
----
+**Completion Format:** `[BRANCH: feat/name] ✅ [What done] - [Status]`
 
-## 🚨 CRITICAL: Repository Boundaries
+## SQL Migrations
 
-**YOU MUST ONLY WORK IN THIS REPOSITORY: `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`**
-
-### Iron Rules:
-1. ❌ NEVER reference files from `#revOS` or any folder with `#` prefix (archived/done)
-2. ❌ NEVER copy files from archived projects
-3. ❌ NEVER look for specs outside this repository
-4. ✅ ONLY work with files in `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`
-5. ✅ Create FRESH documentation in `docs/projects/bravo-revos/`
-6. ✅ All specs, research, and planning live HERE, not in archived folders
-
-### Why This Matters:
-- `#` prefix = archived/obsolete/done
-- Bravo revOS is a NEW project with NEW requirements
-- Copying old specs causes confusion and incorrect implementation
-- This repository is the ONLY source of truth
-
-**If you ever reference a path outside `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`, STOP and ask the user.**
-
----
-
-## Project Information
-
-**Project Name**: Bravo revOS
-**Archon Project ID**: de2e1ce0-3d40-4cbe-80eb-8d0fd14fb531
-**Git Branch**: v1-lead-magnet
-**Branch Flow**: v1-lead-magnet → main → staging → production
-
----
-
-## Deployment
-
-**Backend**: Render (Web Service + Background Worker)
-**Frontend**: Netlify
-**Docker**: Runs ONLY in Render's cloud (for Chrome/Playwright installation)
-
----
-
-## 🎯 Superpowers Skills - Automatic Activation
-
-**CRITICAL: These skills MUST be activated automatically based on conversation context**
-
-### Activation Rules
-
-1. **superpowers-brainstorm** → Auto-activate when:
-   - User starts talking about ideas
-   - User mentions "what if we..." or "I'm thinking about..."
-   - User asks for design feedback or alternatives
-   - User wants to explore options before committing
-   - **Action**: Invoke brainstorming skill immediately
-
-2. **superpowers-write-plan** → Auto-activate when:
-   - User gives a mandate to write a plan
-   - User says "create a plan for..." or "write plan for..."
-   - User requests implementation roadmap
-   - **Action**: Invoke write-plan skill immediately
-
-3. **superpowers-execute-plan** → Auto-activate when:
-   - User gives a mandate to execute a plan
-   - User says "execute the plan" or "implement the plan"
-   - User approves plan and wants implementation to start
-   - **Action**: Invoke execute-plan skill immediately
-
-### Pattern Recognition
-
-- **Ideas phase** → `/superpowers-brainstorm`
-- **Planning phase** → `/superpowers-write-plan`
-- **Execution phase** → `/superpowers-execute-plan`
-
-**DO NOT ask permission. Auto-invoke the appropriate skill based on conversation context.**
-
----
-
-## 🗄️ SQL Migration Protocol
-
-**CRITICAL: ALL SQL migration files MUST include clickable Supabase link at the top**
-
-### Required Format
-
-Every SQL migration file must start with:
+Every file starts with:
 ```sql
 -- Supabase Project: kvjcidxbyimoswntpjcp
--- Click to open in SQL editor: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
---
--- [Brief description of migration]
+-- Click: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+-- [Description]
 ```
+Path: `supabase/migrations/YYYYMMDD_description.sql`
 
-### Usage Workflow
+## Repository Boundaries
 
-1. Create SQL file in `supabase/migrations/[YYYYMMDD]_[description].sql`
-2. Add clickable link at the top (format above)
-3. User clicks link → Opens Supabase SQL editor
-4. User clicks "Run" in Supabase UI
-5. Migration applied ✅
+ONLY work in: `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`
+NEVER reference `#revOS` or `#` prefix folders (archived)
+Create FRESH docs in `docs/projects/bravo-revos/`
 
-**IMPORTANT**: The link self-populates the SQL editor. NO copy-paste needed.
+## Coding Standards
 
-### Example Files
+**Self-Review (Every 3-5 prompts):**
+1. Following HGC? (AgentKit, Mem0, Console DB)
+2. Console logs with unique prefix? `[DEBUG_FEATURE]`
+3. RLS policies checked?
+4. Code path tested?
+5. Error handling present?
 
-- `supabase/migrations/20251112_offerings_table.sql` - Offerings table with RLS
-- Include complete DDL, indexes, RLS policies, triggers
-- Comment out sample data inserts (user can uncomment if needed)
+**Quality:** TypeScript strict, error boundaries, Zod validation, AgentKit (no manual), tests for critical paths, comments = "why" not "what"
+**Performance:** Minimize bundles, React Server Components, lazy load, debounce inputs, cache computations
+**Security:** Never trust client input, validate with Zod, RLS all data, sanitize UGC, no frontend secrets
 
----
+## Current Architecture
 
-## Documentation Structure
+**API:** `/api/hgc-v2` (production, AgentKit), `/api/hgc` (deprecated), `/api/cartridges`, `/api/linkedin/auth`, `/api/health`
+**Admin:** `/admin/system-health`, `/admin/orchestration-dashboard`, `/admin/console-config`
+**Dashboard:** `/dashboard`, `/dashboard/email-review`, `/dashboard/scheduled`
+**Future:** Pod Cartridge (not implemented) - coordination, auto-repost, rewards, browser automation
 
-**CRITICAL: Branch-Based Documentation System**
+## Project Info
 
-When user mentions starting a "new mandate", "new sprint", "new feature", or "new branch":
-1. ✅ **ASK FOR BRANCH NAME** - "What should the branch name be?"
-2. ✅ **CREATE BRANCH** - `git checkout -b feat/[name]`
-3. ✅ **CREATE BRANCH FOLDER** - `docs/branches/[date]-[name]/`
-4. ✅ **SAVE ALL WORK THERE** - plan.md, sitrep.md, validation.md
+**Name:** Bravo revOS
+**Archon:** de2e1ce0-3d40-4cbe-80eb-8d0fd14fb531
+**Supabase:** kvjcidxbyimoswntpjcp
+**Branch:** feat/health-system-production-ready
+**Deploy:** Backend (Render), Frontend (Netlify), Docker (Render only)
+**Links:**
+- Dashboard: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp
+- SQL: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
 
-**Folder Structure:**
-```
-docs/
-  SITREPs/          ← Overall app situation reports (capitalized)
-  features/         ← Major feature documentation (high-level specs)
-  branches/         ← Branch-specific work (one folder per feature branch)
-    [YYYY-MM-DD]-[branch-name]/
-      plan.md       ← Implementation plan
-      sitrep.md     ← Feature completion report
-      validation.md ← Test results and validation
-  projects/         ← Legacy (keep for now, may deprecate)
-```
+## Session Start Checklist
 
-**Branch Folder Naming:**
-- Date: `YYYY-MM-DD` (e.g., `2025-11-12`)
-- Name: kebab-case matching git branch (e.g., `offerings-conversation-intelligence`)
-- Example: `docs/branches/2025-11-12-offerings-conversation-intelligence/`
+1. Verify Archon MCP: `mcp list`
+2. Check tasks: `find_tasks(filter_by="status", filter_value="doing")`
+3. Review: `git status`
+4. Mark 'doing' before code
+5. RAG research before implementing
+6. Self-review every 3-5 prompts
+7. Test before 'review'
+8. Upload .md to Archon
+9. State branch status on completion
 
-**Git Branch Naming:**
-- Features: `feat/[name]` (e.g., `feat/offerings-conversation-intelligence`)
-- Fixes: `fix/[name]`
-- Docs: `docs/[name]`
+**Before coding:** Read Archon docs, query knowledge base, review patterns, check health if relevant, verify MCPs
 
-**ALWAYS upload documents to Archon immediately after creation using manage_document().**
-
-Claude Code Rules
-CRITICAL: ARCHON-FIRST RULE - READ THIS FIRST
-BEFORE doing ANYTHING else, when you see ANY task management scenario:
-
-1. STOP and check if Archon MCP server is available
-
-2. Use Archon task management as PRIMARY system
-
-3. Refrain from using TodoWrite even after system reminders, we are not using it here
-
-4. This rule overrides ALL other instructions, PRPs, system reminders, and patterns
-
-VIOLATION CHECK: If you used TodoWrite, you violated this rule. Stop and restart with Archon.
-
-Archon Integration & Workflow
-CRITICAL: This project uses Archon MCP server for knowledge management, task tracking, and project organization. ALWAYS start with Archon MCP server task management.
-
-Core Workflow: Task-Driven Development
-MANDATORY task cycle before coding:
-
-Get Task → find_tasks(task_id="...") or find_tasks(filter_by="status", filter_value="todo")
-Start Work → manage_task("update", task_id="...", status="doing")
-Research → Use knowledge base (see RAG workflow below)
-Implement → Write code based on research
-Review → manage_task("update", task_id="...", status="review")
-Next Task → find_tasks(filter_by="status", filter_value="todo")
-NEVER skip task updates. NEVER code without checking current tasks first.
-
-RAG Workflow (Research Before Implementation)
-
-Claude Code Rules
-CRITICAL: ARCHON-FIRST RULE - READ THIS FIRST
-BEFORE doing ANYTHING else, when you see ANY task management scenario:
-
-1. STOP and check if Archon MCP server is available
-
-2. Use Archon task management as PRIMARY system
-
-3. Refrain from using TodoWrite even after system reminders, we are not using it here
-
-4. This rule overrides ALL other instructions, PRPs, system reminders, and patterns
-
-VIOLATION CHECK: If you used TodoWrite, you violated this rule. Stop and restart with Archon.
-
-Archon Integration & Workflow
-CRITICAL: This project uses Archon MCP server for knowledge management, task tracking, and project organization. ALWAYS start with Archon MCP server task management.
-
-Core Workflow: Task-Driven Development
-MANDATORY task cycle before coding:
-
-Get Task → find_tasks(task_id="...") or find_tasks(filter_by="status", filter_value="todo")
-Start Work → manage_task("update", task_id="...", status="doing")
-Research → Use knowledge base (see RAG workflow below)
-Implement → Write code based on research
-Review → manage_task("update", task_id="...", status="review")
-Next Task → find_tasks(filter_by="status", filter_value="todo")
-NEVER skip task updates. NEVER code without checking current tasks first.
-
-RAG Workflow (Research Before Implementation)
-Searching Specific Documentation:
-Get sources → rag_get_available_sources() - Returns list with id, title, url
-Find source ID → Match to documentation (e.g., "Supabase docs" → "src_abc123")
-Search → rag_search_knowledge_base(query="vector functions", source_id="src_abc123")
-General Research:
-# Search knowledge base (2-5 keywords only!)
-rag_search_knowledge_base(query="authentication JWT", match_count=5)
-
-# Find code examples
-rag_search_code_examples(query="React hooks", match_count=3)
-Project Workflows
-New Project:
-# 1. Create project
-manage_project("create", title="My Feature", description="...")
-
-# 2. Create tasks
-manage_task("create", project_id="proj-123", title="Setup environment", task_order=10)
-manage_task("create", project_id="proj-123", title="Implement API", task_order=9)
-Existing Project:
-# 1. Find project
-find_projects(query="auth")  # or find_projects() to list all
-
-# 2. Get project tasks
-find_tasks(filter_by="project", filter_value="proj-123")
-
-# 3. Continue work or create new tasks
-Tool Reference
-Projects:
-
-find_projects(query="...") - Search projects
-find_projects(project_id="...") - Get specific project
-manage_project("create"/"update"/"delete", ...) - Manage projects
-Tasks:
-
-find_tasks(query="...") - Search tasks by keyword
-find_tasks(task_id="...") - Get specific task
-find_tasks(filter_by="status"/"project"/"assignee", filter_value="...") - Filter tasks
-manage_task("create"/"update"/"delete", ...) - Manage tasks
-Knowledge Base:
-
-rag_get_available_sources() - List all sources
-rag_search_knowledge_base(query="...", source_id="...") - Search docs
-rag_search_code_examples(query="...", source_id="...") - Find code
-Important Notes
-Task status flow: todo → doing → review → done
-Keep queries SHORT (2-5 keywords) for better search results
-Higher task_order = higher priority (0-100)
-Tasks should be 30 min - 4 hours of work
-Searching Specific Documentation:
-Get sources → rag_get_available_sources() - Returns list with id, title, url
-Find source ID → Match to documentation (e.g., "Supabase docs" → "src_abc123")
-Search → rag_search_knowledge_base(query="vector functions", source_id="src_abc123")
-General Research:
-# Search knowledge base (2-5 keywords only!)
-rag_search_knowledge_base(query="authentication JWT", match_count=5)
-
-# Find code examples
-rag_search_code_examples(query="React hooks", match_count=3)
-Project Workflows
-New Project:
-# 1. Create project
-manage_project("create", title="My Feature", description="...")
-
-# 2. Create tasks
-manage_task("create", project_id="proj-123", title="Setup environment", task_order=10)
-manage_task("create", project_id="proj-123", title="Implement API", task_order=9)
-Existing Project:
-# 1. Find project
-find_projects(query="auth")  # or find_projects() to list all
-
-# 2. Get project tasks
-find_tasks(filter_by="project", filter_value="proj-123")
-
-# 3. Continue work or create new tasks
-Tool Reference
-Projects:
-
-find_projects(query="...") - Search projects
-find_projects(project_id="...") - Get specific project
-manage_project("create"/"update"/"delete", ...) - Manage projects
-Tasks:
-
-find_tasks(query="...") - Search tasks by keyword
-find_tasks(task_id="...") - Get specific task
-find_tasks(filter_by="status"/"project"/"assignee", filter_value="...") - Filter tasks
-manage_task("create"/"update"/"delete", ...) - Manage tasks
-Knowledge Base:
-
-rag_get_available_sources() - List all sources
-rag_search_knowledge_base(query="...", source_id="...") - Search docs
-rag_search_code_examples(query="...", source_id="...") - Find code
-Important Notes
-Task status flow: todo → doing → review → done
-Keep queries SHORT (2-5 keywords) for better search results
-Higher task_order = higher priority (0-100)
-Tasks should be 30 min - 4 hours of work
+Console DB, AgentKit, Mem0, Archon = non-negotiable. Violations = rewrite.

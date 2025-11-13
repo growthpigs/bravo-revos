@@ -76,7 +76,7 @@ export default async function ScheduledActionsPage() {
                 No scheduled actions
               </h3>
               <p className="text-gray-500 max-w-sm mx-auto">
-                Use the chat to schedule posts and they'll appear here.
+                Use the chat to schedule posts and they&apos;ll appear here.
               </p>
             </div>
           </CardContent>

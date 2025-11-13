@@ -1,112 +1,45 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { SystemHealthSnapshot } from '@/lib/health-checks/types';
 
-interface ServiceStatus {
-  state: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
-  label: string;
+interface HealthCheck {
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
   latency?: number;
-  error?: string;
 }
 
-interface HealthStatus {
-  agentkit: ServiceStatus;
-  mem0: ServiceStatus;
-  console: ServiceStatus;
-  database: ServiceStatus;
-  supabase: ServiceStatus;
-  unipile: ServiceStatus;
-  cache: ServiceStatus;
-  api: ServiceStatus;
-  system: ServiceStatus;
+interface HealthData {
+  status: string;
+  checks: {
+    database: HealthCheck;
+    supabase: HealthCheck;
+    api: HealthCheck;
+    timestamp: string;
+  };
 }
 
 export function useHealthStatus(refreshInterval = 30000) {
-  const [status, setStatus] = useState<HealthStatus>({
-    agentkit: { state: 'unknown', label: 'UNKNOWN' },
-    mem0: { state: 'unknown', label: 'UNKNOWN' },
-    console: { state: 'unknown', label: 'UNKNOWN' },
-    database: { state: 'unknown', label: 'UNKNOWN' },
-    supabase: { state: 'unknown', label: 'UNKNOWN' },
-    unipile: { state: 'unknown', label: 'UNKNOWN' },
-    cache: { state: 'unknown', label: 'UNKNOWN' },
-    api: { state: 'unknown', label: 'UNKNOWN' },
-    system: { state: 'unknown', label: 'UNKNOWN' },
-  });
-  const [lastCheck, setLastCheck] = useState<Date>(new Date());
+  const [data, setData] = useState<HealthData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchHealthStatus = async () => {
+  const fetchHealth = async () => {
     try {
-      const response = await fetch('/api/health?public=true');
+      const response = await fetch('/api/health');
       if (response.ok) {
-        const data = await response.json();
-        const snapshot = data.data as SystemHealthSnapshot;
-
-        // Map health check results to service status
-        const services = snapshot?.services as any; // Type-safe access to services
-
-        const newStatus: HealthStatus = {
-          // TODO: These services need verifiers (Batch 2)
-          agentkit: mapServiceStatus(services?.agentkit),
-          mem0: mapServiceStatus(services?.mem0),
-          console: mapServiceStatus(services?.console),
-
-          // Existing services with verifiers
-          database: { state: 'healthy', label: 'CONNECTED' }, // Placeholder
-          supabase: mapServiceStatus(services?.supabase),
-          unipile: mapServiceStatus(services?.unipile),
-          cache: mapServiceStatus(services?.redis),
-          api: { state: 'healthy', label: 'ACTIVE' }, // Placeholder
-          system: {
-            state: snapshot?.overallStatus || 'unknown',
-            label: (snapshot?.overallStatus || 'UNKNOWN').toUpperCase(),
-          },
-        };
-
-        setStatus(newStatus);
-        setLastCheck(new Date());
+        const result = await response.json();
+        setData(result);
       }
     } catch (error) {
-      console.error('[Health Hook] Failed to fetch:', error);
+      console.error('[Health] Failed to fetch:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHealthStatus();
-
-    // Set up polling
-    const interval = setInterval(fetchHealthStatus, refreshInterval);
+    fetchHealth();
+    const interval = setInterval(fetchHealth, refreshInterval);
     return () => clearInterval(interval);
   }, [refreshInterval]);
 
-  return {
-    status,
-    lastCheck,
-    isLoading,
-    refresh: fetchHealthStatus,
-  };
-}
-
-function mapServiceStatus(service: any): ServiceStatus {
-  if (!service) {
-    return { state: 'unknown', label: 'UNKNOWN' };
-  }
-
-  const statusMap: Record<string, string> = {
-    healthy: 'CONNECTED',
-    degraded: 'DEGRADED',
-    unhealthy: 'FAILED',
-    unknown: 'UNKNOWN',
-  };
-
-  return {
-    state: service.status || 'unknown',
-    label: statusMap[service.status] || 'UNKNOWN',
-    latency: service.responseTimeMs,
-    error: service.errorMessage,
-  };
+  return { data, isLoading, refresh: fetchHealth };
 }

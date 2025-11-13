@@ -37,11 +37,12 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
 /**
  * Legacy v1 format schema (for backward compatibility)
- * Format: { message: string, conversationHistory?: Message[] }
+ * Format: { message: string, conversationHistory?: Message[], sessionId?: string }
  */
 export const LegacyV1RequestSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty'),
   conversationHistory: z.array(ChatMessageSchema).optional(),
+  sessionId: z.string().uuid().optional(), // Session ID for continuation - generates new if not provided
   voiceId: z.string().uuid().optional(),
   metadata: z.record(z.any()).optional(),
 });

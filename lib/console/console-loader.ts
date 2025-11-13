@@ -3,8 +3,13 @@
  *
  * Loads system instructions and behavior rules for agents from the
  * console_prompts table instead of hardcoding them in routes.
+ *
+ * CACHING: Uses React's cache() to memoize results within request scope,
+ * preventing duplicate database queries when multiple parts of the same
+ * request load the same console configuration.
  */
 
+import { cache } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface ConsoleConfig {
@@ -19,12 +24,15 @@ export interface ConsoleConfig {
 /**
  * Load console configuration from database by name
  *
+ * CACHED: Results are memoized within the request scope. Multiple calls with the
+ * same consoleName in a single request will return the cached result.
+ *
  * @param consoleName - Name of console to load (e.g., 'marketing-console-v1')
  * @param supabase - Supabase client instance
  * @returns ConsoleConfig object
  * @throws Error if console not found or database error
  */
-export async function loadConsolePrompt(
+export const loadConsolePrompt = cache(async function loadConsolePrompt(
   consoleName: string,
   supabase: SupabaseClient
 ): Promise<ConsoleConfig> {
@@ -85,15 +93,18 @@ export async function loadConsolePrompt(
       `[loadConsolePrompt] Unexpected error loading console '${consoleName}': ${error.message}`
     );
   }
-}
+});
 
 /**
  * Load all active consoles from database
  *
+ * CACHED: Results are memoized within the request scope. Multiple calls
+ * in a single request will return the cached result.
+ *
  * @param supabase - Supabase client instance
  * @returns Array of ConsoleConfig objects
  */
-export async function loadAllConsoles(
+export const loadAllConsoles = cache(async function loadAllConsoles(
   supabase: SupabaseClient
 ): Promise<ConsoleConfig[]> {
   if (!supabase) {
@@ -134,4 +145,4 @@ export async function loadAllConsoles(
 
     throw new Error(`[loadAllConsoles] Unexpected error: ${error.message}`);
   }
-}
+});

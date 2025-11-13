@@ -52,8 +52,8 @@ async function runTests() {
   console.log(`\n🔗 Supabase URL: ${SUPABASE_URL}`);
   console.log(`👤 Test User ID: ${TEST_USER_ID}\n`);
 
-  let sessionId: string;
-  let sessionId2: string;
+  let sessionId: string = '';
+  let sessionId2: string = '';
 
   // Test 1: Create a session
   await test('Create new session', async () => {
@@ -197,8 +197,8 @@ async function runTests() {
 
   // Cleanup: Delete test data
   console.log(`\n🧹 Cleaning up test data...`);
-  await supabase.from('chat_messages').delete().eq('session_id', sessionId);
-  await supabase.from('chat_messages').delete().eq('session_id', sessionId2);
+  if (sessionId) await supabase.from('chat_messages').delete().eq('session_id', sessionId);
+  if (sessionId2) await supabase.from('chat_messages').delete().eq('session_id', sessionId2);
   await supabase.from('chat_sessions').delete().eq('user_id', TEST_USER_ID);
   console.log(`   ✅ Cleanup complete\n`);
 

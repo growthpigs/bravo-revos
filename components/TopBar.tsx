@@ -1,18 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useHealthStatus } from '@/hooks/use-health-status';
-import { HealthSummary } from '@/components/health/health-summary';
 
 interface TopBarProps {
   showLogo?: boolean;
 }
 
 export function TopBar({ showLogo = true }: TopBarProps) {
-  const { status } = useHealthStatus();
-  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const { data } = useHealthStatus();
 
   // Get current date in DD-MM-YYYY format
   const currentDate = new Date().toLocaleDateString('en-GB', {
@@ -42,15 +40,36 @@ export function TopBar({ showLogo = true }: TopBarProps) {
         </div>
       </div>
 
-      {/* Right: Health Summary */}
-      <HealthSummary
-        status={status}
-        onStatusClick={(serviceName) => {
-          setSelectedService(serviceName);
-          // TODO: Open diagnostic modal
-          console.log('Clicked service:', serviceName);
-        }}
-      />
+      {/* Right: Health Status */}
+      {data && (
+        <div className="font-mono text-[8pt] uppercase text-gray-500 flex gap-4">
+          <span>
+            DATABASE: <span className={getStatusColor(data.checks.database.status)}>●</span> {data.checks.database.status}
+          </span>
+          <span>
+            SUPABASE: <span className={getStatusColor(data.checks.supabase.status)}>●</span> {data.checks.supabase.status}
+          </span>
+          <span>
+            API: <span className={getStatusColor(data.checks.api.status)}>●</span> {data.checks.api.status}
+          </span>
+          <span>
+            SYSTEM: <span className={getStatusColor(data.status)}>●</span> {data.status}
+          </span>
+        </div>
+      )}
     </header>
   );
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'healthy':
+      return 'text-green-500';
+    case 'degraded':
+      return 'text-orange-500';
+    case 'unhealthy':
+      return 'text-red-500';
+    default:
+      return 'text-gray-400';
+  }
 }

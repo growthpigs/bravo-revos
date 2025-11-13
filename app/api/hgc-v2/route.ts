@@ -19,11 +19,28 @@ import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
 import type { Message } from '@/lib/cartridges/types';
 import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
 import { loadConsolePrompt } from '@/lib/console/console-loader';
+import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/session-manager';
 import { ZodError } from 'zod';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+/**
+ * Fallback console configuration
+ * Used when database-driven config is unavailable
+ */
+const DEFAULT_CONSOLE = {
+  id: 'fallback',
+  name: 'fallback-console',
+  displayName: 'Fallback Console',
+  systemInstructions: `You are RevOS Intelligence, a helpful AI assistant specializing in marketing and lead generation.
+Your role is to help users identify, qualify, and nurture leads through LinkedIn and other professional networks.
+You provide strategic guidance on lead generation campaigns, LinkedIn outreach, and sales enablement.
+Always be professional, data-driven, and focused on measurable business outcomes.`,
+  behaviorRules: [],
+  version: 0,
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,12 +66,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, conversationHistory = [], voiceId, metadata } = validation.data;
+    const { message, conversationHistory = [], voiceId, metadata, sessionId } = validation.data;
 
     console.log('[HGC_V2] Received validated request:', {
       message_length: message.length,
       history_length: conversationHistory?.length || 0,
       has_voice_id: !!voiceId,
+      session_id: sessionId || 'new',
     });
 
     // 2. Authenticate user
@@ -69,8 +87,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 3. Load console configuration from database
+    // 2a. Get or create chat session
+    console.log('[HGC_V2] Creating or retrieving session...');
+    const session = await getOrCreateSession(supabase, user.id, sessionId, voiceId);
+    console.log('[HGC_V2] Session:', { id: session.id, is_new: !sessionId });
+
+    // 3. Load console configuration from database (with fallback)
     let consoleConfig;
+    let consoleSource: 'database' | 'fallback' = 'database';
     try {
       consoleConfig = await loadConsolePrompt('marketing-console-v1', supabase);
       console.log('[HGC_V2] Console config loaded from database:', {
@@ -78,15 +102,13 @@ export async function POST(request: NextRequest) {
         version: consoleConfig.version,
       });
     } catch (error: any) {
-      console.error('[HGC_V2] Failed to load console config:', error.message);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to load console configuration',
-          details: error.message,
-        },
-        { status: 500 }
-      );
+      console.error('[HGC_V2] Failed to load console config from database, using fallback:', {
+        error: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+      });
+      consoleConfig = DEFAULT_CONSOLE;
+      consoleSource = 'fallback';
     }
 
     // 4. Initialize MarketingConsole with database-driven config
@@ -121,34 +143,68 @@ export async function POST(request: NextRequest) {
     */
 
     // 7. Build messages for agent
-    const messages: Message[] = [
-      ...conversationHistory.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content,
-        tool_calls: msg.tool_calls,
-        tool_call_id: msg.tool_call_id,
-        name: msg.name,
-      })),
-      {
-        role: 'user' as const,
-        content: message,
-      },
-    ];
+    let messages: Message[];
+
+    if (sessionId) {
+      // Continuing existing conversation - load history from DB
+      console.log('[HGC_V2] Loading conversation history from database...');
+      const dbHistory = await getConversationHistory(supabase, session.id);
+      messages = [
+        ...dbHistory,
+        {
+          role: 'user' as const,
+          content: message,
+        },
+      ];
+      console.log('[HGC_V2] Loaded', dbHistory.length, 'messages from history');
+    } else {
+      // New conversation - use provided history or start fresh
+      messages = [
+        ...conversationHistory.map((msg: any) => ({
+          role: msg.role,
+          content: msg.content,
+          tool_calls: msg.tool_calls,
+          tool_call_id: msg.tool_call_id,
+          name: msg.name,
+        })),
+        {
+          role: 'user' as const,
+          content: message,
+        },
+      ];
+    }
 
     // 8. Execute via MarketingConsole
     console.log('[HGC_V2] Executing agent...');
-    const result = await console_instance.execute(user.id, generateSessionId(), messages);
+    const result = await console_instance.execute(user.id, session.id, messages);
 
     console.log('[HGC_V2] Execution complete:', {
       response_length: result.response.length,
       has_interactive: !!result.interactive,
     });
 
-    // 9. Return FloatingChatBar-compatible response
+    // 9. Save messages to database
+    console.log('[HGC_V2] Saving messages to session...');
+    try {
+      await saveMessages(supabase, session.id, [
+        { role: 'user' as const, content: message },
+        { role: 'assistant' as const, content: result.response },
+      ]);
+      console.log('[HGC_V2] Messages saved successfully');
+    } catch (saveError: any) {
+      console.error('[HGC_V2] Error saving messages:', saveError.message);
+      // Don't fail the request - still return response to client
+    }
+
+    // 10. Return FloatingChatBar-compatible response with sessionId
     return NextResponse.json({
       success: true,
       response: result.response,
+      sessionId: session.id, // Client should save and send back for continuation
       interactive: result.interactive, // Campaign selector, decision buttons, etc.
+      meta: {
+        consoleSource, // 'database' or 'fallback' - helps identify configuration issues
+      },
     });
   } catch (error: any) {
     console.error('[HGC_V2] Error:', error);
@@ -163,31 +219,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Generate session ID
- *
- * In production, this should be persistent per conversation.
- * For now, generate a new one each time.
- */
-function generateSessionId(): string {
-  return `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-}
-
-/**
- * Extract voice cartridge ID from context
- *
- * TODO: Implement logic to determine which voice cartridge to use:
- * 1. Check if message mentions a campaign
- * 2. If campaign has voice_id, use that
- * 3. Otherwise, check user's default voice cartridge
- * 4. Otherwise, use no voice cartridge
- */
-function extractVoiceIdFromContext(message: string, history: any[]): string | null {
-  // Placeholder implementation
-  // Real implementation would:
-  // - Parse message for campaign references
-  // - Query database for campaign voice_id
-  // - Fall back to user's default voice cartridge
-
-  return null;
-}

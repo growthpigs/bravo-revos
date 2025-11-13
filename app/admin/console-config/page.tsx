@@ -5,10 +5,14 @@
  *
  * Allows administrators to manage console prompts and system instructions
  * directly from the database. Changes take effect immediately.
+ *
+ * PROTECTED: Only accessible to admin users. Non-admins are redirected to /dashboard.
  */
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { getCurrentAdminUser } from '@/lib/auth/admin-check';
 import type { ConsoleConfig } from '@/lib/console/console-loader';
 
 interface LoadingState {
@@ -22,6 +26,7 @@ interface SuccessMessage {
 }
 
 export default function ConsoleConfigPage() {
+  const router = useRouter();
   const supabase = createClient();
   const [consoles, setConsoles] = useState<ConsoleConfig[]>([]);
   const [selectedConsole, setSelectedConsole] = useState<ConsoleConfig | null>(null);
@@ -29,11 +34,38 @@ export default function ConsoleConfigPage() {
   const [loading, setLoading] = useState<LoadingState>({ consoles: true, save: false });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<SuccessMessage | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Load all consoles on mount
+  // Check admin status on mount
   useEffect(() => {
-    loadConsoles();
-  }, []);
+    async function checkAdmin() {
+      try {
+        const adminUser = await getCurrentAdminUser(supabase);
+        if (!adminUser) {
+          // Not an admin - redirect to dashboard
+          router.replace('/dashboard');
+          return;
+        }
+        // User is admin, allow access
+        setIsAdmin(true);
+      } catch (err) {
+        console.error('[ConsoleConfig] Error checking admin status:', err);
+        // On error, redirect to be safe
+        router.replace('/dashboard');
+      } finally {
+        setAuthChecking(false);
+      }
+    }
+    checkAdmin();
+  }, [router]);
+
+  // Load all consoles on mount (only after auth is verified)
+  useEffect(() => {
+    if (!authChecking && isAdmin) {
+      loadConsoles();
+    }
+  }, [authChecking, isAdmin]);
 
   // Clear success message after 3 seconds
   useEffect(() => {
@@ -137,6 +169,32 @@ export default function ConsoleConfigPage() {
     } finally {
       setLoading((prev) => ({ ...prev, save: false }));
     }
+  }
+
+  // Show loading while checking auth
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin mb-4 text-4xl">⏳</div>
+          <h2 className="text-xl font-semibold mb-2">Verifying Admin Access</h2>
+          <p className="text-slate-400">Please wait while we verify your permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // This shouldn't happen (redirect should occur), but failsafe
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🚫</div>
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-slate-400">You do not have permission to access this page.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -315,7 +373,7 @@ export default function ConsoleConfigPage() {
           <h3 className="text-lg font-semibold mb-3">About Console Configuration</h3>
           <div className="text-sm text-slate-300 space-y-2">
             <p>
-              <strong>System Instructions:</strong> The base prompt that defines the agent's
+              <strong>System Instructions:</strong> The base prompt that defines the agent&apos;s
               behavior and capabilities. This is passed to OpenAI as the system message.
             </p>
             <p>
@@ -324,7 +382,7 @@ export default function ConsoleConfigPage() {
             </p>
             <p>
               <strong>Live Updates:</strong> When you save changes, they are immediately available
-              for new conversations but don't affect ongoing sessions.
+              for new conversations but don&apos;t affect ongoing sessions.
             </p>
             <p>
               <strong>Versioning:</strong> Each save increments the version number for tracking
