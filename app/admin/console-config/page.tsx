@@ -9,7 +9,7 @@
  * PROTECTED: Only accessible to admin users. Non-admins are redirected to /dashboard.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getCurrentAdminUser } from '@/lib/auth/admin-check';
@@ -43,44 +43,8 @@ export default function ConsoleConfigPage() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Check admin status on mount
-  useEffect(() => {
-    async function checkAdmin() {
-      try {
-        const adminUser = await getCurrentAdminUser(supabase);
-        if (!adminUser) {
-          router.replace('/dashboard');
-          return;
-        }
-        setIsAdmin(true);
-      } catch (err) {
-        console.error('[ConsoleConfig] Error checking admin status:', err);
-        router.replace('/dashboard');
-      } finally {
-        setAuthChecking(false);
-      }
-    }
-    checkAdmin();
-  }, [router]);
-
-  // Load all consoles on mount (only after auth is verified)
-  useEffect(() => {
-    if (!authChecking && isAdmin) {
-      loadConsoles();
-    }
-  }, [authChecking, isAdmin]);
-
-  // Clear success message after 3 seconds
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        setSuccess(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  async function loadConsoles() {
+  // Define loadConsoles before useEffects to avoid forward reference
+  const loadConsoles = useCallback(async function loadConsoles() {
     try {
       setLoading((prev) => ({ ...prev, consoles: true }));
       setError(null);
@@ -120,7 +84,44 @@ export default function ConsoleConfigPage() {
     } finally {
       setLoading((prev) => ({ ...prev, consoles: false }));
     }
-  }
+  }, [supabase]);
+
+  // Check admin status on mount
+  useEffect(() => {
+    async function checkAdmin() {
+      try {
+        const adminUser = await getCurrentAdminUser(supabase);
+        if (!adminUser) {
+          router.replace('/dashboard');
+          return;
+        }
+        setIsAdmin(true);
+      } catch (err) {
+        console.error('[ConsoleConfig] Error checking admin status:', err);
+        router.replace('/dashboard');
+      } finally {
+        setAuthChecking(false);
+      }
+    }
+    checkAdmin();
+  }, [router, supabase]);
+
+  // Load all consoles on mount (only after auth is verified)
+  useEffect(() => {
+    if (!authChecking && isAdmin) {
+      loadConsoles();
+    }
+  }, [authChecking, isAdmin, loadConsoles]);
+
+  // Clear success message after 3 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   function selectConsole(console: ConsoleConfig) {
     setSelectedConsole(console);
