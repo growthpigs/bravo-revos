@@ -319,9 +319,9 @@ export default function ConsoleConfigPage() {
         <CardHeader className="border-b">
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>Edit Console Prompt</CardTitle>
+              <CardTitle>Console Configuration</CardTitle>
               <CardDescription>
-                Update the system instructions that guide the AI agent&apos;s behavior
+                Edit AI agent configuration across 8 cartridges
               </CardDescription>
             </div>
             <Button
@@ -335,14 +335,13 @@ export default function ConsoleConfigPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="pt-6 space-y-6">
+        <CardContent className="pt-6">
           {/* Console Selector */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Select Console
-            </label>
+          <div className="space-y-2 mb-6">
+            <Label htmlFor="console-select">Select Console</Label>
             <div className="relative">
               <button
+                id="console-select"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 disabled={loading.consoles}
                 className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500 flex items-center justify-between"
@@ -387,73 +386,416 @@ export default function ConsoleConfigPage() {
             )}
           </div>
 
-          {/* Textarea Editor */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700">
-                System Instructions
-              </label>
-              <span className="text-xs text-gray-500">
-                {systemInstructions.length} characters
-              </span>
+          {/* Validation Error Alert */}
+          {validationError && (
+            <Alert className="mb-4 bg-red-50 border-red-200">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">
+                <strong>Validation Error:</strong> {validationError}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* 8-Tab System */}
+          {editedConsole && (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList className="grid grid-cols-8 gap-1">
+                <TabsTrigger value="operations">Operations</TabsTrigger>
+                <TabsTrigger value="system">System</TabsTrigger>
+                <TabsTrigger value="context">Context</TabsTrigger>
+                <TabsTrigger value="skills">Skills</TabsTrigger>
+                <TabsTrigger value="plugins">Plugins</TabsTrigger>
+                <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
+                <TabsTrigger value="memory">Memory</TabsTrigger>
+                <TabsTrigger value="ui">UI</TabsTrigger>
+              </TabsList>
+
+              {/* Operations Tab */}
+              <TabsContent value="operations" className="space-y-4">
+                <div>
+                  <Label htmlFor="prd">Product Requirements Document</Label>
+                  <Textarea
+                    id="prd"
+                    value={editedConsole.operationsCartridge?.prd || ''}
+                    onChange={(e) => updateCartridge('operationsCartridge.prd', e.target.value)}
+                    rows={8}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Product overview, key capabilities, target users..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(editedConsole.operationsCartridge?.prd || '').length} / 10,000 chars
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="userStories">User Stories (JSON Array)</Label>
+                  <Textarea
+                    id="userStories"
+                    value={JSON.stringify(editedConsole.operationsCartridge?.userStories || [], null, 2)}
+                    onChange={(e) => updateJSONField('operationsCartridge.userStories', e.target.value)}
+                    rows={8}
+                    className="font-mono text-sm mt-2"
+                    placeholder='["As a user, I want...", "As an admin, I need..."]'
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="requirements">Requirements</Label>
+                  <Textarea
+                    id="requirements"
+                    value={editedConsole.operationsCartridge?.requirements || ''}
+                    onChange={(e) => updateCartridge('operationsCartridge.requirements', e.target.value)}
+                    rows={6}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Technical requirements, constraints, dependencies..."
+                  />
+                </div>
+              </TabsContent>
+
+              {/* System Tab */}
+              <TabsContent value="system" className="space-y-4">
+                <div>
+                  <Label htmlFor="systemPrompt">System Prompt</Label>
+                  <Textarea
+                    id="systemPrompt"
+                    value={editedConsole.systemCartridge?.systemPrompt || ''}
+                    onChange={(e) => updateCartridge('systemCartridge.systemPrompt', e.target.value)}
+                    rows={10}
+                    className="font-mono text-sm mt-2"
+                    placeholder="You are RevOS Intelligence, an AI agent for..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(editedConsole.systemCartridge?.systemPrompt || '').length} / 10,000 chars
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="role">Role</Label>
+                  <Textarea
+                    id="role"
+                    value={editedConsole.systemCartridge?.role || ''}
+                    onChange={(e) => updateCartridge('systemCartridge.role', e.target.value)}
+                    rows={3}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Strategic marketing partner with deep LinkedIn expertise..."
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="rules">Behavioral Rules</Label>
+                  <Textarea
+                    id="rules"
+                    value={editedConsole.systemCartridge?.rules || ''}
+                    onChange={(e) => updateCartridge('systemCartridge.rules', e.target.value)}
+                    rows={8}
+                    className="font-mono text-sm mt-2"
+                    placeholder="AGENCY PRINCIPLES: Use judgment over rigid scripts..."
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Context Tab */}
+              <TabsContent value="context" className="space-y-4">
+                <div>
+                  <Label htmlFor="domain">Domain</Label>
+                  <Textarea
+                    id="domain"
+                    value={editedConsole.contextCartridge?.domain || ''}
+                    onChange={(e) => updateCartridge('contextCartridge.domain', e.target.value)}
+                    rows={4}
+                    className="font-mono text-sm mt-2"
+                    placeholder="LinkedIn B2B marketing, lead generation..."
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="appFeatures">App Features (JSON Array)</Label>
+                  <Textarea
+                    id="appFeatures"
+                    value={JSON.stringify(editedConsole.contextCartridge?.appFeatures || [], null, 2)}
+                    onChange={(e) => updateJSONField('contextCartridge.appFeatures', e.target.value)}
+                    rows={10}
+                    className="font-mono text-sm mt-2"
+                    placeholder='["Campaigns: Create and manage LinkedIn outreach", ...]'
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="structure">Application Structure</Label>
+                  <Textarea
+                    id="structure"
+                    value={editedConsole.contextCartridge?.structure || ''}
+                    onChange={(e) => updateCartridge('contextCartridge.structure', e.target.value)}
+                    rows={4}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Agency → Client → User hierarchy. Multi-tenant with RLS..."
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Skills Tab */}
+              <TabsContent value="skills" className="space-y-4">
+                <Alert className="bg-blue-50 border-blue-200">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800">
+                    <strong>Editable JSON:</strong> Add chips as JSON objects with name and description fields.
+                  </AlertDescription>
+                </Alert>
+
+                <div>
+                  <Label htmlFor="chips">Chips (JSON Array of Objects)</Label>
+                  <Textarea
+                    id="chips"
+                    value={JSON.stringify(editedConsole.skillsCartridge?.chips || [], null, 2)}
+                    onChange={(e) => updateJSONField('skillsCartridge.chips', e.target.value)}
+                    rows={15}
+                    className="font-mono text-sm mt-2"
+                    placeholder={'[\n  {"name": "create_campaign", "description": "Create new LinkedIn campaign"},\n  {"name": "schedule_post", "description": "Schedule LinkedIn post"}\n]'}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(editedConsole.skillsCartridge?.chips || []).length} chips defined
+                  </p>
+                </div>
+              </TabsContent>
+
+              {/* Plugins Tab */}
+              <TabsContent value="plugins" className="space-y-4">
+                <div>
+                  <Label htmlFor="enabled">Enabled Plugins (JSON Array)</Label>
+                  <Textarea
+                    id="enabled"
+                    value={JSON.stringify(editedConsole.pluginsCartridge?.enabled || [], null, 2)}
+                    onChange={(e) => updateJSONField('pluginsCartridge.enabled', e.target.value)}
+                    rows={5}
+                    className="font-mono text-sm mt-2"
+                    placeholder='["playwright", "sentry", "supabase", "archon"]'
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pluginConfig">Plugin Configuration (JSON Object)</Label>
+                  <Textarea
+                    id="pluginConfig"
+                    value={JSON.stringify(editedConsole.pluginsCartridge?.config || {}, null, 2)}
+                    onChange={(e) => updateJSONField('pluginsCartridge.config', e.target.value)}
+                    rows={10}
+                    className="font-mono text-sm mt-2"
+                    placeholder='{"playwright": {"headless": true}, "sentry": {"environment": "production"}}'
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="required">Required Plugins (JSON Array)</Label>
+                  <Textarea
+                    id="required"
+                    value={JSON.stringify(editedConsole.pluginsCartridge?.required || [], null, 2)}
+                    onChange={(e) => updateJSONField('pluginsCartridge.required', e.target.value)}
+                    rows={5}
+                    className="font-mono text-sm mt-2"
+                    placeholder='["playwright", "sentry", "supabase"]'
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pluginDescription">Description</Label>
+                  <Textarea
+                    id="pluginDescription"
+                    value={editedConsole.pluginsCartridge?.description || ''}
+                    onChange={(e) => updateCartridge('pluginsCartridge.description', e.target.value)}
+                    rows={3}
+                    className="font-mono text-sm mt-2"
+                    placeholder="MCP servers must be configured and working. Non-negotiable."
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Knowledge Tab */}
+              <TabsContent value="knowledge" className="space-y-4">
+                <div>
+                  <Label htmlFor="documentation">Documentation</Label>
+                  <Textarea
+                    id="documentation"
+                    value={editedConsole.knowledgeCartridge?.documentation || ''}
+                    onChange={(e) => updateCartridge('knowledgeCartridge.documentation', e.target.value)}
+                    rows={6}
+                    className="font-mono text-sm mt-2"
+                    placeholder="See /docs for RevOS architecture, /docs/AGENTKIT_ENFORCEMENT.md for rules"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="examples">Examples (JSON Array)</Label>
+                  <Textarea
+                    id="examples"
+                    value={JSON.stringify(editedConsole.knowledgeCartridge?.examples || [], null, 2)}
+                    onChange={(e) => updateJSONField('knowledgeCartridge.examples', e.target.value)}
+                    rows={10}
+                    className="font-mono text-sm mt-2"
+                    placeholder='["Campaign creation: Create campaign targeting CTOs...", ...]'
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="bestPractices">Best Practices</Label>
+                  <Textarea
+                    id="bestPractices"
+                    value={editedConsole.knowledgeCartridge?.bestPractices || ''}
+                    onChange={(e) => updateCartridge('knowledgeCartridge.bestPractices', e.target.value)}
+                    rows={8}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Always verify user intent before major actions. Provide specific next steps..."
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Memory Tab */}
+              <TabsContent value="memory" className="space-y-4">
+                <div>
+                  <Label htmlFor="scoping">Memory Scoping</Label>
+                  <Textarea
+                    id="scoping"
+                    value={editedConsole.memoryCartridge?.scoping || ''}
+                    onChange={(e) => updateCartridge('memoryCartridge.scoping', e.target.value)}
+                    rows={3}
+                    className="font-mono text-sm mt-2"
+                    placeholder="agencyId::clientId::userId (3-tier isolation via Mem0)"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="whatToRemember">What to Remember (JSON Array)</Label>
+                  <Textarea
+                    id="whatToRemember"
+                    value={JSON.stringify(editedConsole.memoryCartridge?.whatToRemember || [], null, 2)}
+                    onChange={(e) => updateJSONField('memoryCartridge.whatToRemember', e.target.value)}
+                    rows={10}
+                    className="font-mono text-sm mt-2"
+                    placeholder='["User communication style", "Past campaigns and performance", ...]'
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="contextInjection">Context Injection Strategy</Label>
+                  <Textarea
+                    id="contextInjection"
+                    value={editedConsole.memoryCartridge?.contextInjection || ''}
+                    onChange={(e) => updateCartridge('memoryCartridge.contextInjection', e.target.value)}
+                    rows={5}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Retrieve relevant memories before each request. Include in system prompt..."
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="guidelines">Memory Guidelines</Label>
+                  <Textarea
+                    id="guidelines"
+                    value={editedConsole.memoryCartridge?.guidelines || ''}
+                    onChange={(e) => updateCartridge('memoryCartridge.guidelines', e.target.value)}
+                    rows={5}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Remember outcomes, not just actions. Focus on what helps user succeed."
+                  />
+                </div>
+              </TabsContent>
+
+              {/* UI Tab (CRITICAL) */}
+              <TabsContent value="ui" className="space-y-4">
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    <strong>Critical Cartridge:</strong> UI configuration affects user experience directly. Edit with care.
+                  </AlertDescription>
+                </Alert>
+
+                <div>
+                  <Label htmlFor="inlineButtons">Inline Buttons Configuration (JSON Object)</Label>
+                  <Textarea
+                    id="inlineButtons"
+                    value={JSON.stringify(editedConsole.uiCartridge?.inlineButtons || {}, null, 2)}
+                    onChange={(e) => updateJSONField('uiCartridge.inlineButtons', e.target.value)}
+                    rows={15}
+                    className="font-mono text-sm mt-2"
+                    placeholder={'{\n  "style": "JetBrains Mono, 9pt, UPPERCASE, black bg (#000), white text (#FFF), 4px padding, left-justified",\n  "frequency": "80% of responses should include action buttons",\n  "placement": "Directly below AI message, stacked vertically, jagged edges (left-justified)",\n  "examples": ["User: I have a post about AI → [EDIT POST] [ADD IMAGE] [POST TO LINKEDIN]"]\n}'}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="buttonActions">Button Actions (JSON Object)</Label>
+                  <Textarea
+                    id="buttonActions"
+                    value={JSON.stringify(editedConsole.uiCartridge?.buttonActions || {}, null, 2)}
+                    onChange={(e) => updateJSONField('uiCartridge.buttonActions', e.target.value)}
+                    rows={8}
+                    className="font-mono text-sm mt-2"
+                    placeholder={'{\n  "navigation": "Clicking button navigates to relevant page (campaigns, offers, system-health, etc.)",\n  "verification": "User SEES page change - builds trust and transparency",\n  "philosophy": "Chat is primary. Buttons are shortcuts. User never NEEDS buttons but they help."\n}'}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="fullscreenTriggers">Fullscreen Triggers (JSON Object)</Label>
+                  <Textarea
+                    id="fullscreenTriggers"
+                    value={JSON.stringify(editedConsole.uiCartridge?.fullscreenTriggers || {}, null, 2)}
+                    onChange={(e) => updateJSONField('uiCartridge.fullscreenTriggers', e.target.value)}
+                    rows={8}
+                    className="font-mono text-sm mt-2"
+                    placeholder={'{\n  "when": ["write", "create", "draft", "compose"],\n  "never": ["hi", "hello", "thanks", "yes", "no", "ok", "sure"]\n}'}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="principle">UI Principle</Label>
+                  <Textarea
+                    id="principle"
+                    value={editedConsole.uiCartridge?.principle || ''}
+                    onChange={(e) => updateCartridge('uiCartridge.principle', e.target.value)}
+                    rows={5}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Agent decides UI dynamically. Conversational by default. Fullscreen only when explicitly writing. Inline buttons almost always."
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  onClick={saveConsole}
+                  disabled={loading.save || !editedConsole || deepEqual(editedConsole, selectedConsole)}
+                  className="flex-1"
+                  size="lg"
+                >
+                  {loading.save ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save All Cartridges
+                    </>
+                  )}
+                </Button>
+
+                {editedConsole && !deepEqual(editedConsole, selectedConsole) && (
+                  <Button
+                    onClick={() => selectConsole(selectedConsole!)}
+                    variant="outline"
+                    size="lg"
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </Tabs>
+          )}
+
+          {!editedConsole && (
+            <div className="text-center py-12 text-gray-500">
+              <p>Select a console to begin editing cartridges</p>
             </div>
-            <Textarea
-              value={systemInstructions}
-              onChange={(e) => setSystemInstructions(e.target.value)}
-              placeholder="Enter the system instructions for this console agent..."
-              className="font-mono text-sm min-h-[300px] max-h-[500px] resize-none"
-              disabled={!selectedConsole}
-            />
-            {systemInstructions !== selectedConsole?.systemInstructions && (
-              <p className="text-sm text-amber-600 flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-amber-600" />
-                Unsaved changes
-              </p>
-            )}
-          </div>
-
-          {/* Info Section */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
-            <p className="font-medium mb-2">How it works:</p>
-            <ul className="space-y-1 text-blue-800 ml-4 list-disc">
-              <li>Changes take effect immediately for new conversations</li>
-              <li>Existing sessions use the previous prompt version</li>
-              <li>Version increments with each save for audit trail</li>
-              <li>Only active consoles appear here</li>
-            </ul>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t">
-            <Button
-              onClick={saveConsole}
-              disabled={loading.save || systemInstructions === selectedConsole?.systemInstructions || !selectedConsole}
-              className="flex-1"
-              size="lg"
-            >
-              {loading.save ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-
-            {systemInstructions !== selectedConsole?.systemInstructions && (
-              <Button
-                onClick={() => selectConsole(selectedConsole!)}
-                variant="outline"
-                size="lg"
-              >
-                Reset
-              </Button>
-            )}
-          </div>
+          )}
         </CardContent>
       </Card>
 
