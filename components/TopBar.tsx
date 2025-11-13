@@ -41,44 +41,58 @@ export function TopBar({ showLogo = true }: TopBarProps) {
         </div>
       </div>
 
-      {/* Right: Health Status - 4 columns × 3 rows, just dots */}
+      {/* Right: Health Status - 6 columns × 2 rows, dots before names */}
       {data && isVisible && (
         <div className="font-mono text-[8pt] uppercase text-gray-600 flex items-start gap-3">
           {/* Column 1 */}
           <div className="flex flex-col gap-0.5">
-            <span>DATABASE <span className={getStatusColor(data.checks.database.status)}>●</span></span>
-            <span>SUPABASE <span className={getStatusColor(data.checks.supabase.status)}>●</span></span>
-            <span>API <span className={getStatusColor(data.checks.api.status)}>●</span></span>
+            <span><span className={getStatusColor(data.checks.database.status)}>●</span> DATABASE</span>
+            <span><span className={getStatusColor(data.checks.supabase.status)}>●</span> SUPABASE</span>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-300"></div>
+          <div className="w-px h-5 bg-gray-300"></div>
 
           {/* Column 2 */}
           <div className="flex flex-col gap-0.5">
-            <span>AGENTKIT <span className={getStatusColor(data.checks.agentkit.status)}>●</span></span>
-            <span>MEM0 <span className={getStatusColor(data.checks.mem0.status)}>●</span></span>
-            <span>UNIPILE <span className={getStatusColor(data.checks.unipile.status)}>●</span></span>
+            <span><span className={getStatusColor(data.checks.api.status)}>●</span> API</span>
+            <span><span className={getStatusColor(data.checks.agentkit.status)}>●</span> AGENTKIT</span>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-300"></div>
+          <div className="w-px h-5 bg-gray-300"></div>
 
           {/* Column 3 */}
           <div className="flex flex-col gap-0.5">
-            <span>CONSOLE <span className={getStatusColor(data.checks.console.status)}>●</span></span>
-            <span>CACHE <span className={getStatusColor(data.checks.cache.status)}>●</span></span>
-            <span>QUEUE <span className={getStatusColor(data.checks.queue.status)}>●</span></span>
+            <span><span className={getStatusColor(data.checks.mem0.status)}>●</span> MEM0</span>
+            <span><span className={getStatusColor(data.checks.unipile.status)}>●</span> UNIPILE</span>
           </div>
 
           {/* Divider */}
-          <div className="w-px h-8 bg-gray-300"></div>
+          <div className="w-px h-5 bg-gray-300"></div>
 
           {/* Column 4 */}
           <div className="flex flex-col gap-0.5">
-            <span>CRON <span className={getStatusColor(data.checks.cron.status)}>●</span></span>
-            <span>WEBHOOKS <span className={getStatusColor(data.checks.webhooks.status)}>●</span></span>
-            <span>EMAIL <span className={getStatusColor(data.checks.email.status)}>●</span></span>
+            <span><span className={getStatusColor(data.checks.console.status)}>●</span> CONSOLE</span>
+            <span><span className={getStatusColor(data.checks.cache.status)}>●</span> CACHE</span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-300"></div>
+
+          {/* Column 5 */}
+          <div className="flex flex-col gap-0.5">
+            <span><span className={getStatusColor(data.checks.queue.status)}>●</span> QUEUE</span>
+            <span><span className={getStatusColor(data.checks.cron.status)}>●</span> CRON</span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-300"></div>
+
+          {/* Column 6 */}
+          <div className="flex flex-col gap-0.5">
+            <span><span className={getStatusColor(data.checks.webhooks.status)}>●</span> WEBHOOKS</span>
+            <span><span className={getStatusColor(data.checks.email.status)}>●</span> EMAIL</span>
           </div>
         </div>
       )}
