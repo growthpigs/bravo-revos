@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getMem0Client } from '@/lib/mem0/client';
 import { OpenAI } from 'openai';
-import pdf from 'pdf-parse';
+const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
 
 const LOG_PREFIX = '[STYLE_ANALYZE]';
