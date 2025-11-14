@@ -1,6 +1,113 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getMem0Client } from '@/lib/mem0/client';
+import { OpenAI } from 'openai';
+import pdf from 'pdf-parse';
+import mammoth from 'mammoth';
+
+const LOG_PREFIX = '[STYLE_ANALYZE]';
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+/**
+ * Extract text from various file types
+ */
+async function extractTextFromFile(
+  fileBuffer: ArrayBuffer,
+  fileType: string,
+  fileName: string
+): Promise<string> {
+  try {
+    // PDF extraction
+    if (fileType === 'application/pdf') {
+      const buffer = Buffer.from(fileBuffer);
+      const data = await pdf(buffer);
+      return data.text;
+    }
+
+    // DOCX extraction
+    if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      const buffer = Buffer.from(fileBuffer);
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
+    }
+
+    // TXT/MD extraction
+    if (fileType === 'text/plain' || fileType === 'text/markdown') {
+      const decoder = new TextDecoder('utf-8');
+      return decoder.decode(fileBuffer);
+    }
+
+    throw new Error(`Unsupported file type: ${fileType}`);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Error extracting text from ${fileName}:`, error);
+    throw new Error(`Failed to extract text from ${fileName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Analyze writing style using GPT-4
+ */
+async function analyzeWritingStyle(texts: string[]): Promise<any> {
+  const combinedText = texts.join('\n\n---\n\n');
+
+  // Truncate if too long (GPT-4 context limit)
+  const maxChars = 30000; // ~7500 tokens
+  const textToAnalyze = combinedText.length > maxChars
+    ? combinedText.substring(0, maxChars) + '...'
+    : combinedText;
+
+  const prompt = `You are a writing style analyst. Analyze the following text samples and provide a detailed breakdown of the writing style.
+
+Text to analyze:
+${textToAnalyze}
+
+Provide your analysis in the following JSON format (respond ONLY with valid JSON, no markdown):
+{
+  "tone": "description of overall tone (e.g., professional, casual, conversational, authoritative)",
+  "sentence_structure": "analysis of sentence patterns (e.g., short and punchy, long and flowing, varied)",
+  "vocabulary_level": "vocabulary sophistication (e.g., simple, intermediate, advanced, technical)",
+  "common_patterns": ["pattern 1", "pattern 2", "pattern 3"],
+  "stylistic_devices": ["device 1", "device 2"],
+  "paragraph_structure": "how paragraphs are organized",
+  "voice": "first person, third person, etc.",
+  "formality": "scale from casual to formal",
+  "examples": ["quote 1", "quote 2", "quote 3"]
+}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a professional writing style analyst. Provide precise, actionable analysis in valid JSON format only.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 1500
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response from GPT-4');
+    }
+
+    // Parse JSON response
+    const analysis = JSON.parse(content);
+    return analysis;
+  } catch (error) {
+    console.error(`${LOG_PREFIX} GPT-4 analysis error:`, error);
+    throw new Error(`Style analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +125,8 @@ export async function POST(request: NextRequest) {
     if (!cartridgeId) {
       return NextResponse.json({ error: 'Cartridge ID is required' }, { status: 400 });
     }
+
+    console.log(`${LOG_PREFIX} Starting analysis for cartridge ${cartridgeId}`);
 
     // Fetch the cartridge with its files
     const { data: cartridge, error: cartridgeError } = await supabase
@@ -42,41 +151,91 @@ export async function POST(request: NextRequest) {
       .eq('id', cartridgeId);
 
     try {
+      // Create service role client for storage access
+      const storageClient = await createClient({ isServiceRole: true });
+
+      // Extract text from all files
+      const extractedTexts: string[] = [];
+      console.log(`${LOG_PREFIX} Extracting text from ${cartridge.source_files.length} files`);
+
+      for (const file of cartridge.source_files) {
+        try {
+          // Download file from storage
+          const { data: fileData, error: downloadError } = await storageClient.storage
+            .from('style-documents')
+            .download(file.file_path);
+
+          if (downloadError) {
+            console.error(`${LOG_PREFIX} Failed to download ${file.file_name}:`, downloadError);
+            continue; // Skip this file but continue with others
+          }
+
+          // Extract text based on file type
+          const arrayBuffer = await fileData.arrayBuffer();
+          const text = await extractTextFromFile(arrayBuffer, file.file_type, file.file_name);
+
+          if (text.trim().length > 0) {
+            extractedTexts.push(text);
+            console.log(`${LOG_PREFIX} Extracted ${text.length} characters from ${file.file_name}`);
+          }
+        } catch (fileError) {
+          console.error(`${LOG_PREFIX} Error processing ${file.file_name}:`, fileError);
+          // Continue with other files
+        }
+      }
+
+      if (extractedTexts.length === 0) {
+        throw new Error('No text could be extracted from any files');
+      }
+
+      console.log(`${LOG_PREFIX} Successfully extracted text from ${extractedTexts.length} files`);
+
+      // Analyze writing style using GPT-4
+      console.log(`${LOG_PREFIX} Analyzing writing style with GPT-4`);
+      const styleAnalysis = await analyzeWritingStyle(extractedTexts);
+
+      // Build learned style object
+      const learnedStyle = {
+        ...styleAnalysis,
+        analyzed_at: new Date().toISOString(),
+        file_count: extractedTexts.length,
+        total_characters: extractedTexts.reduce((sum, text) => sum + text.length, 0)
+      };
+
       // Initialize Mem0 client
       const mem0 = getMem0Client();
       const namespace = cartridge.mem0_namespace || `style::marketing::${user.id}`;
 
-      // Placeholder for AI analysis
-      // In production, this would:
-      // 1. Download files from Supabase storage
-      // 2. Extract text content from PDFs/DOCX
-      // 3. Send to AI for style analysis
-      // 4. Extract patterns like vocabulary, sentence structure, tone
-      // 5. Store learned patterns in Mem0
-
-      // Simulated learned style
-      const learnedStyle = {
-        vocabulary_level: 'professional',
-        average_sentence_length: 18,
-        tone_patterns: ['confident', 'informative', 'approachable'],
-        common_phrases: [],
-        paragraph_structure: 'medium',
-        stylistic_devices: ['metaphors', 'statistics', 'storytelling'],
-        analyzed_at: new Date().toISOString(),
-        file_count: cartridge.source_files.length
-      };
-
-      // Store in Mem0 for persistence
+      // Store in Mem0 for long-term memory
+      console.log(`${LOG_PREFIX} Storing analysis in Mem0 with namespace: ${namespace}`);
       try {
         await mem0.add([{
-          role: 'assistant',
-          content: `Writing style analysis for user ${user.id}: ${JSON.stringify(learnedStyle)}`
+          role: 'user',
+          content: `Writing style analysis for user ${user.id}:
+
+Tone: ${styleAnalysis.tone}
+Sentence structure: ${styleAnalysis.sentence_structure}
+Vocabulary: ${styleAnalysis.vocabulary_level}
+Common patterns: ${styleAnalysis.common_patterns?.join(', ')}
+Stylistic devices: ${styleAnalysis.stylistic_devices?.join(', ')}
+Voice: ${styleAnalysis.voice}
+Formality: ${styleAnalysis.formality}
+
+Examples from the writing:
+${styleAnalysis.examples?.join('\n')}
+`
         }], {
-          user_id: namespace
+          user_id: namespace,
+          metadata: {
+            type: 'style_analysis',
+            cartridge_id: cartridgeId,
+            analyzed_at: new Date().toISOString()
+          }
         });
+        console.log(`${LOG_PREFIX} Successfully stored in Mem0`);
       } catch (mem0Error) {
-        console.error('Mem0 storage error:', mem0Error);
-        // Continue even if Mem0 fails
+        console.error(`${LOG_PREFIX} Mem0 storage error:`, mem0Error);
+        // Continue even if Mem0 fails - we still have DB storage
       }
 
       // Update cartridge with learned style
@@ -93,13 +252,15 @@ export async function POST(request: NextRequest) {
         throw updateError;
       }
 
+      console.log(`${LOG_PREFIX} Analysis completed successfully`);
+
       return NextResponse.json({
         message: 'Style analysis completed',
         learned_style: learnedStyle
       });
 
     } catch (analysisError) {
-      console.error('Analysis error:', analysisError);
+      console.error(`${LOG_PREFIX} Analysis error:`, analysisError);
 
       // Update status to failed
       await supabase
@@ -113,7 +274,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
   } catch (error) {
-    console.error('Error in POST /api/cartridges/style/analyze:', error);
+    console.error(`${LOG_PREFIX} Error in POST /api/cartridges/style/analyze:`, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
