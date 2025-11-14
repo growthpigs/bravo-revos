@@ -1,9 +1,14 @@
 /**
  * Cartridge System Type Definitions
  *
- * Comprehensive types for voice cartridges with 4-tier hierarchy:
- * system → agency → client → user
+ * Part 1: Voice cartridges with 4-tier hierarchy (existing system)
+ * Part 2: Base cartridge interfaces for Atari-style plugin system (NEW)
  */
+
+import { SupabaseClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
+
+// ===== PART 1: VOICE CARTRIDGE TYPES (EXISTING) =====
 
 export type CartridgeTier = 'system' | 'agency' | 'client' | 'user';
 
@@ -46,7 +51,7 @@ export interface VoiceParams {
   content_preferences?: ContentPreferencesParams;
 }
 
-export interface Cartridge {
+export interface VoiceCartridge {
   id: string;
   name: string;
   description?: string;
@@ -105,8 +110,8 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export interface CartridgeResponse extends ApiResponse<Cartridge> {
-  cartridge?: Cartridge;
+export interface CartridgeResponse extends ApiResponse<VoiceCartridge> {
+  cartridge?: VoiceCartridge;
   resolved_voice_params?: VoiceParams;
   hierarchy?: Array<{
     id: string;
@@ -114,4 +119,135 @@ export interface CartridgeResponse extends ApiResponse<Cartridge> {
     tier: CartridgeTier;
     level: number;
   }>;
+}
+
+// ===== PART 2: AGENTKIT CARTRIDGE SYSTEM (Chips + Cartridges) =====
+
+import { Tool } from '@openai/agents';
+
+/**
+ * Message structure for conversation history
+ */
+export interface Message {
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+  tool_call_id?: string;
+  name?: string;
+}
+
+/**
+ * Agent Context - passed to all chips
+ *
+ * Contains authenticated user info and dependencies.
+ */
+export interface AgentContext {
+  userId: string;
+  sessionId: string;
+  conversationHistory: Message[];
+  supabase: SupabaseClient;
+  openai: OpenAI;
+  metadata: Record<string, any>;
+}
+
+/**
+ * Chip Interface - Reusable skill/capability
+ *
+ * Chips are the atomic units of functionality.
+ * They provide AgentKit Tools that can be used across cartridges.
+ */
+export interface Chip {
+  id: string;
+  name: string;
+  description: string;
+
+  /**
+   * Returns AgentKit Tool for this chip
+   */
+  getTool(): Tool;
+
+  /**
+   * Executes the chip's functionality
+   */
+  execute(input: any, context: AgentContext): Promise<any>;
+}
+
+/**
+ * Cartridge Interface - Container for capabilities
+ *
+ * Cartridges package chips together with context/instructions.
+ * They define how a set of capabilities work together.
+ */
+export interface Cartridge {
+  id: string;
+  name: string;
+  type: 'marketing' | 'voice' | 'utility';
+  chips: Chip[];
+
+  /**
+   * Inject capabilities into MarketingConsole
+   */
+  inject(): {
+    tools: Tool[];
+    instructions: string;
+    model?: string;
+    temperature?: number;
+  };
+}
+
+// Type aliases for loader compatibility
+export type BaseCartridge = Cartridge;
+export type CartridgeTool = Tool;
+
+/**
+ * Slash Command Interface - Interactive commands
+ */
+export interface SlashCommand {
+  command: string;
+  description: string;
+  handler: (args: string[], context: AgentContext) => Promise<string>;
+}
+
+// ===== PART 3: TYPE SAFETY UTILITIES =====
+
+/**
+ * Type guard to validate RunContext contains our AgentContext
+ *
+ * This safely bridges AgentKit's RunContext to our AgentContext type.
+ * Replaces the unsafe double-cast pattern (context as unknown as AgentContext).
+ */
+export function isAgentContext(context: unknown): context is AgentContext {
+  if (!context || typeof context !== 'object') return false;
+
+  const ctx = context as any;
+  return (
+    typeof ctx.userId === 'string' &&
+    typeof ctx.sessionId === 'string' &&
+    Array.isArray(ctx.conversationHistory) &&
+    ctx.supabase !== undefined &&
+    ctx.openai !== undefined &&
+    typeof ctx.metadata === 'object'
+  );
+}
+
+/**
+ * Extract AgentContext from AgentKit's RunContext safely
+ *
+ * @throws {Error} If RunContext does not contain valid AgentContext
+ * @example
+ * ```ts
+ * execute: async (input, context) => {
+ *   const agentContext = extractAgentContext(context);
+ *   return this.execute(input, agentContext);
+ * }
+ * ```
+ */
+export function extractAgentContext(runContext: unknown): AgentContext {
+  if (!isAgentContext(runContext)) {
+    throw new Error(
+      'RunContext does not contain valid AgentContext. ' +
+      'Required fields: userId, sessionId, conversationHistory, supabase, openai, metadata'
+    );
+  }
+  return runContext;
 }

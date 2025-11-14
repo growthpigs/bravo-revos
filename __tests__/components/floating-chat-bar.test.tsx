@@ -1,683 +1,759 @@
-/**
- * FloatingChatBar Component Tests
- *
- * Tests the three-state chat system: floating bar, sidebar, and fullscreen modes.
- * Validates state transitions, visual icon navigation, animations, message rendering,
- * auto-fullscreen detection, and input bar behavior.
- *
- * Component Features:
- * - Three states: floating bar (default), sidebar, fullscreen
- * - Visual icon navigation between states
- * - Smooth transitions with animations
- * - Auto-fullscreen trigger with keywords
- * - Compact input bar design
- * - Message rendering with ChatMessage component
- * - Chat history sidebar in fullscreen mode
- */
-
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { FloatingChatBar } from '@/components/chat/FloatingChatBar';
 
-// Mock fetch for API calls
+// Mock fetch
 global.fetch = jest.fn();
 
 describe('FloatingChatBar Component', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      body: {
-        getReader: () => ({
-          read: jest.fn()
-            .mockResolvedValueOnce({
-              done: false,
-              value: new TextEncoder().encode('Hello '),
-            })
-            .mockResolvedValueOnce({
-              done: false,
-              value: new TextEncoder().encode('world!'),
-            })
-            .mockResolvedValueOnce({
-              done: true,
-            }),
-        }),
-      },
-    });
+    // Clear localStorage before each test
+    localStorage.clear();
+
+    // Reset fetch mock
+    (global.fetch as jest.Mock).mockClear();
   });
 
-  describe('State Management - Three States', () => {
-    test('renders in floating bar mode by default', () => {
-      const { container } = render(<FloatingChatBar />);
+  describe('Auto-Fullscreen Functionality', () => {
+    it('should trigger fullscreen when assistant message > 500 chars (JSON response)', async () => {
+      const longContent = 'a'.repeat(501);
 
-      // Floating bar has specific positioning classes
-      const floatingBar = container.querySelector('.fixed.bottom-8');
-      expect(floatingBar).toBeInTheDocument();
-
-      // Should NOT have sidebar or fullscreen classes
-      expect(container.querySelector('.w-96')).not.toBeInTheDocument(); // Sidebar width
-      expect(container.querySelector('.inset-0')).not.toBeInTheDocument(); // Fullscreen
-    });
-
-    test('transitions to sidebar mode when sidebar icon clicked', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Find and click sidebar icon (vertical rectangle)
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      expect(sidebarButton).toBeInTheDocument();
-      fireEvent.click(sidebarButton!);
-
-      // Should now show sidebar layout
-      const sidebar = container.querySelector('.w-96.bg-white.border-l');
-      expect(sidebar).toBeInTheDocument();
-    });
-
-    test('transitions to fullscreen mode when fullscreen icon clicked', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Find and click fullscreen icon (square with rounded corners)
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      expect(fullscreenButton).toBeInTheDocument();
-      fireEvent.click(fullscreenButton!);
-
-      // Should now show fullscreen layout
-      const fullscreen = container.querySelector('.absolute.inset-0');
-      expect(fullscreen).toBeInTheDocument();
-    });
-
-    test('transitions from sidebar back to floating bar', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Go to sidebar
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      fireEvent.click(sidebarButton!);
-
-      // Click floating bar icon in sidebar
-      const floatingBarButton = container.querySelector('button[aria-label="Floating bar"]');
-      expect(floatingBarButton).toBeInTheDocument();
-      fireEvent.click(floatingBarButton!);
-
-      // Should be back to floating bar
-      const floatingBar = container.querySelector('.fixed.bottom-8');
-      expect(floatingBar).toBeInTheDocument();
-    });
-
-    test('transitions from fullscreen to sidebar', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Go to fullscreen
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      // Click sidebar icon in fullscreen
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      fireEvent.click(sidebarButton!);
-
-      // Should now show sidebar
-      const sidebar = container.querySelector('.w-96.bg-white.border-l');
-      expect(sidebar).toBeInTheDocument();
-    });
-
-    test('transitions from fullscreen to floating bar', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Go to fullscreen
-      let fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      // Click floating bar icon in fullscreen
-      const floatingBarButton = container.querySelector('button[aria-label="Floating bar"]');
-      fireEvent.click(floatingBarButton!);
-
-      // Should be back to floating bar
-      const floatingBar = container.querySelector('.fixed.bottom-8');
-      expect(floatingBar).toBeInTheDocument();
-    });
-  });
-
-  describe('Visual Icon Navigation', () => {
-    test('floating bar shows sidebar and fullscreen icons', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const sidebarIcon = container.querySelector('button[aria-label="Sidebar view"]');
-      const fullscreenIcon = container.querySelector('button[aria-label="Fullscreen"]');
-
-      expect(sidebarIcon).toBeInTheDocument();
-      expect(fullscreenIcon).toBeInTheDocument();
-    });
-
-    test('sidebar shows fullscreen and floating bar icons', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Go to sidebar
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      fireEvent.click(sidebarButton!);
-
-      const fullscreenIcon = container.querySelector('button[aria-label="Fullscreen"]');
-      const floatingBarIcon = container.querySelector('button[aria-label="Floating bar"]');
-
-      expect(fullscreenIcon).toBeInTheDocument();
-      expect(floatingBarIcon).toBeInTheDocument();
-    });
-
-    test('fullscreen shows sidebar and floating bar icons', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Go to fullscreen
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      const sidebarIcon = container.querySelector('button[aria-label="Sidebar view"]');
-      const floatingBarIcon = container.querySelector('button[aria-label="Floating bar"]');
-
-      expect(sidebarIcon).toBeInTheDocument();
-      expect(floatingBarIcon).toBeInTheDocument();
-    });
-
-    test('icons have hover states', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      expect(sidebarButton).toHaveClass('hover:bg-gray-100');
-    });
-
-    test('icons have proper visual representations', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Sidebar icon: vertical rectangle (w-2 h-4)
-      const sidebarIcon = container.querySelector('.w-2.h-4.border-2');
-      expect(sidebarIcon).toBeInTheDocument();
-
-      // Fullscreen icon: square (w-3 h-3)
-      const fullscreenIcon = container.querySelector('.w-3.h-3.border-2');
-      expect(fullscreenIcon).toBeInTheDocument();
-    });
-  });
-
-  describe('Animations and Transitions', () => {
-    test('sidebar has slide-in animation', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      fireEvent.click(sidebarButton!);
-
-      const sidebar = container.querySelector('.animate-in.slide-in-from-right');
-      expect(sidebar).toBeInTheDocument();
-    });
-
-    test('fullscreen has fade-in animation', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      const fullscreen = container.querySelector('.animate-in.fade-in');
-      expect(fullscreen).toBeInTheDocument();
-    });
-
-    test('messages panel slides up from bottom', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Hello' } });
-      fireEvent.submit(textarea!.closest('form')!);
-
-      // After message is sent, panel should appear with animation
-      waitFor(() => {
-        const messagesPanel = container.querySelector('.animate-in.slide-in-from-bottom');
-        expect(messagesPanel).toBeInTheDocument();
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: longContent }),
       });
-    });
-  });
 
-  describe('Message Rendering', () => {
-    test('shows empty state when no messages', () => {
       render(<FloatingChatBar />);
 
-      // Switch to sidebar to see messages area
-      const sidebarButton = screen.getAllByRole('button')[0];
-      fireEvent.click(sidebarButton);
+      // Type and send message
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test message' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
-      expect(screen.getByText('Start a conversation with your AI assistant')).toBeInTheDocument();
+      // Wait for response and auto-fullscreen
+      await waitFor(() => {
+        // Check if document viewer is rendered (fullscreen mode)
+        expect(screen.getByText('Working Document')).toBeInTheDocument();
+      }, { timeout: 3000 });
     });
 
-    test('renders user message after submission', async () => {
-      const { container } = render(<FloatingChatBar />);
+    it('should NOT trigger fullscreen when message ≤ 500 chars', async () => {
+      const shortContent = 'a'.repeat(500);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Hello AI' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: shortContent }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test message' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        expect(screen.getByText('Hello AI')).toBeInTheDocument();
+        // Should show message but NOT fullscreen
+        expect(screen.queryByText('Working Document')).not.toBeInTheDocument();
       });
     });
 
-    test('renders assistant response from streaming API', async () => {
-      const { container } = render(<FloatingChatBar />);
+    it('should trigger fullscreen for streaming responses > 500 chars', async () => {
+      const longContent = 'a'.repeat(501);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Hello' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      // Mock streaming response
+      const chunks = [longContent.slice(0, 250), longContent.slice(250)];
+      const stream = new ReadableStream({
+        start(controller) {
+          chunks.forEach(chunk => {
+            controller.enqueue(new TextEncoder().encode(chunk));
+          });
+          controller.close();
+        },
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'text/plain' }),
+        body: stream,
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test message' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        expect(screen.getByText(/Hello world!/)).toBeInTheDocument();
+        expect(screen.getByText('Working Document')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Document Title Extraction', () => {
+    it('should extract title from h1 markdown syntax', async () => {
+      const content = '# My Document Title\n\nBody content here';
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: content }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write a post' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        // Title should be extracted and displayed
+        expect(screen.getByText('My Document Title')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should use default title if no h1 found', async () => {
+      const content = 'a'.repeat(501); // Long content, no heading
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: content }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        expect(screen.getByText('Working Document')).toBeInTheDocument();
       });
     });
 
-    test('shows loading animation while streaming', async () => {
-      const { container } = render(<FloatingChatBar />);
+    it('should extract title with special characters', async () => {
+      const content = '# Document: "Special" & <Title>\n\n' + 'a'.repeat(500);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Hello' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: content }),
+      });
 
-      // Should show loading dots initially
-      const loadingDots = container.querySelectorAll('.animate-bounce');
-      expect(loadingDots.length).toBeGreaterThan(0);
-    });
+      render(<FloatingChatBar />);
 
-    test('messages appear in floating bar message panel', async () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test message' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        const messagePanel = container.querySelector('.max-h-\\[480px\\]');
-        expect(messagePanel).toBeInTheDocument();
+        expect(screen.getByText('Document: "Special" & <Title>')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Intro Text Stripping', () => {
+    it('should strip "Here\'s a..." intro text', async () => {
+      const intro = "Here's a great LinkedIn post for you:\n\n";
+      const actualContent = '# Post Title\n\n' + 'a'.repeat(500);
+      const fullResponse = intro + actualContent;
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: fullResponse }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write a post' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        // Intro should be stripped in document content
+        const documentContent = screen.getByText('Post Title');
+        expect(documentContent).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should strip "Sure, here\'s..." intro text', async () => {
+      const intro = "Sure, here's what you asked for:\n\n";
+      const actualContent = '# Document\n\n' + 'a'.repeat(500);
+      const fullResponse = intro + actualContent;
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: fullResponse }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Create content' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        expect(screen.getByText('Document')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should strip "I\'ve created..." intro text', async () => {
+      const intro = "I've created a document for you:\n\n";
+      const actualContent = '# My Doc\n\n' + 'a'.repeat(500);
+      const fullResponse = intro + actualContent;
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: fullResponse }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Make something' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        expect(screen.getByText('My Doc')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Message Panel Auto-Open', () => {
+    it('should auto-open message panel when exiting fullscreen', async () => {
+      const longContent = '# Test\n\n' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: longContent }),
+      });
+
+      render(<FloatingChatBar />);
+
+      // Send message to trigger fullscreen
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        expect(screen.getByText('Test')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Exit fullscreen
+      const closeButton = screen.getByRole('button', { name: /close fullscreen/i });
+      fireEvent.click(closeButton);
+
+      // Message panel should be visible (not hidden)
+      await waitFor(() => {
+        // Check if messages are visible in floating mode
+        expect(screen.getByPlaceholderText(/Revvy wants to help/i)).toBeInTheDocument();
       });
     });
   });
 
-  describe('Auto-Fullscreen Detection', () => {
-    test('triggers fullscreen for "write a post"', async () => {
-      const { container } = render(<FloatingChatBar />);
+  describe('Two-Panel Fullscreen Layout', () => {
+    it('should display chat panel and document panel in fullscreen', async () => {
+      const longContent = '# Document\n\nBody content' + 'a'.repeat(500);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'write a post about AI' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: longContent }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Create doc' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        const fullscreen = container.querySelector('.absolute.inset-0');
-        expect(fullscreen).toBeInTheDocument();
+        // Both panels should exist
+        expect(screen.getByText('Document')).toBeInTheDocument();
+        expect(screen.getByText('Create doc')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should render document content with ReactMarkdown', async () => {
+      const markdownContent = '# Heading\n\n**Bold** text\n\n- List item' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: markdownContent }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        // Check for markdown rendering
+        expect(screen.getByText('Heading')).toBeInTheDocument();
+        expect(screen.getByText('Bold')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Styling and Layout', () => {
+    it('should render headings with correct sizes (h1: text-6xl)', async () => {
+      const content = '# Large Heading\n\n' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: content }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        const heading = screen.getAllByText('Large Heading')[0]; // Get first instance
+        expect(heading).toHaveClass('text-6xl');
+      }, { timeout: 3000 });
+    });
+
+    it('should render h2 with text-5xl class', async () => {
+      const content = '# Title\n\n## Subtitle\n\n' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: content }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        const subtitle = screen.getByText('Subtitle');
+        expect(subtitle).toHaveClass('text-5xl');
+      }, { timeout: 3000 });
+    });
+
+    it('should render h3 with text-4xl class', async () => {
+      const content = '# Title\n\n### Section\n\n' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: content }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        const section = screen.getByText('Section');
+        expect(section).toHaveClass('text-4xl');
+      }, { timeout: 3000 });
+    });
+
+    it('should NOT render horizontal rules', async () => {
+      const content = '# Title\n\n---\n\nContent after rule' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: content }),
+      });
+
+      const { container } = render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        const hr = container.querySelector('hr');
+        expect(hr).not.toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('State Management', () => {
+    it('should transition isFullscreen state correctly', async () => {
+      const longContent = '# Doc\n\n' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: longContent }),
+      });
+
+      render(<FloatingChatBar />);
+
+      // Start in floating mode
+      expect(screen.getByPlaceholderText(/Revvy wants to help/i)).toBeInTheDocument();
+
+      // Send message
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      // Should enter fullscreen
+      await waitFor(() => {
+        expect(screen.getByText('Doc')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Exit fullscreen
+      const closeButton = screen.getByRole('button', { name: /close fullscreen/i });
+      fireEvent.click(closeButton);
+
+      // Should return to floating
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/Revvy wants to help/i)).toBeInTheDocument();
       });
     });
 
-    test('triggers fullscreen for "write a linkedin post"', async () => {
-      const { container } = render(<FloatingChatBar />);
+    it('should update documentContent state with new messages', async () => {
+      const firstContent = '# First\n\n' + 'a'.repeat(500);
+      const secondContent = '# Second\n\n' + 'b'.repeat(500);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'write a linkedin post' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ success: true, response: firstContent }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ success: true, response: secondContent }),
+        });
+
+      render(<FloatingChatBar />);
+
+      // First message
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'First' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        const fullscreen = container.querySelector('.absolute.inset-0');
-        expect(fullscreen).toBeInTheDocument();
+        expect(screen.getByText('First')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Exit fullscreen
+      const closeButton = screen.getByRole('button', { name: /close fullscreen/i });
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/Revvy wants to help/i)).toBeInTheDocument();
       });
-    });
 
-    test('triggers fullscreen for "draft"', async () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'draft an article' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      // Second message
+      const textareaAgain = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textareaAgain, { target: { value: 'Second' } });
+      fireEvent.keyDown(textareaAgain, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        const fullscreen = container.querySelector('.absolute.inset-0');
-        expect(fullscreen).toBeInTheDocument();
+        expect(screen.getByText('Second')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('handleMessageExpand Function', () => {
+    it('should find last long message and enter fullscreen when expand clicked', async () => {
+      const longContent = 'a'.repeat(501);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: longContent }),
       });
-    });
 
-    test('does NOT trigger fullscreen for regular messages', async () => {
-      const { container } = render(<FloatingChatBar />);
+      render(<FloatingChatBar />);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Hello, how are you?' } });
-      fireEvent.submit(textarea!.closest('form')!);
-
-      await waitFor(() => {
-        // Should still be in floating bar mode
-        const floatingBar = container.querySelector('.fixed.bottom-8');
-        expect(floatingBar).toBeInTheDocument();
-      });
-    });
-
-    test('keyword detection is case-insensitive', async () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'WRITE A POST' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      // Send long message but prevent auto-fullscreen by staying in floating
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        const fullscreen = container.querySelector('.absolute.inset-0');
-        expect(fullscreen).toBeInTheDocument();
+        // Message received, look for expand button
+        const expandButtons = screen.getAllByRole('button', { name: /expand document/i });
+        expect(expandButtons.length).toBeGreaterThan(0);
+      }, { timeout: 3000 });
+
+      // Click expand button
+      const expandButton = screen.getAllByRole('button', { name: /expand document/i })[0];
+      fireEvent.click(expandButton);
+
+      // Should enter fullscreen
+      await waitFor(() => {
+        expect(screen.getByText('Working Document')).toBeInTheDocument();
       });
     });
   });
 
-  describe('Input Bar Behavior', () => {
-    test('textarea has correct placeholder in floating bar', () => {
-      const { container } = render(<FloatingChatBar />);
+  describe('Edge Cases', () => {
+    it('should handle empty message submission', () => {
+      render(<FloatingChatBar />);
 
-      const textarea = container.querySelector('textarea');
-      expect(textarea).toHaveAttribute('placeholder', 'Revvy wants to help! Type...');
-    });
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
 
-    test('placeholder disappears after first message', async () => {
-      const { container } = render(<FloatingChatBar />);
+      // Try to send empty message
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      fireEvent.change(textarea, { target: { value: 'Hello' } });
-      fireEvent.submit(textarea.closest('form')!);
-
-      await waitFor(() => {
-        expect(textarea.placeholder).toBe('');
-      });
-    });
-
-    test('textarea auto-resizes with content', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      const longText = 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5';
-
-      fireEvent.change(textarea, { target: { value: longText } });
-
-      // Height should increase but be capped at 120px
-      const height = parseInt(textarea.style.height);
-      expect(height).toBeGreaterThan(0);
-      expect(height).toBeLessThanOrEqual(120);
-    });
-
-    test('submit button is disabled when input is empty', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const submitButton = container.querySelector('button[type="submit"]');
-      expect(submitButton).toBeDisabled();
-    });
-
-    test('submit button is enabled when input has text', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Hello' } });
-
-      const submitButton = container.querySelector('button[type="submit"]');
-      expect(submitButton).not.toBeDisabled();
-    });
-
-    test('Enter key submits message', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test' } });
-      fireEvent.keyDown(textarea!, { key: 'Enter', shiftKey: false });
-
-      waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/hgc', expect.any(Object));
-      });
-    });
-
-    test('Shift+Enter creates new line without submitting', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      fireEvent.change(textarea, { target: { value: 'Line 1' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
-
-      // Should NOT call API
+      // Should not call fetch
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    test('input clears after successful submission', async () => {
-      const { container } = render(<FloatingChatBar />);
+    it('should handle API error gracefully', async () => {
+      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
 
-      const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-      fireEvent.change(textarea, { target: { value: 'Hello' } });
-      fireEvent.submit(textarea.closest('form')!);
+      render(<FloatingChatBar />);
 
-      await waitFor(() => {
-        expect(textarea.value).toBe('');
-      });
-    });
-
-    test('loading state shows bouncing dots in input area', async () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test' } });
-      fireEvent.submit(textarea!.closest('form')!);
-
-      // Should show loading animation
-      const loadingDots = container.querySelectorAll('.animate-bounce');
-      expect(loadingDots.length).toBeGreaterThan(0);
-    });
-
-    test('input height is compact (38px)', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      // Check for h-[38px] class in loading state
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test' } });
-      fireEvent.submit(textarea!.closest('form')!);
-
-      const loadingContainer = container.querySelector('.h-\\[38px\\]');
-      expect(loadingContainer).toBeInTheDocument();
-    });
-  });
-
-  describe('Chat History Sidebar (Fullscreen)', () => {
-    test('shows chat history sidebar in fullscreen by default', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      const historyHeader = screen.getByText('Chat History');
-      expect(historyHeader).toBeInTheDocument();
-    });
-
-    test('chat history sidebar has correct width (w-80)', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      const historySidebar = container.querySelector('.w-80.border-r');
-      expect(historySidebar).toBeInTheDocument();
-    });
-
-    test('shows "New Conversation" button in history sidebar', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      expect(screen.getByText('+ New Conversation')).toBeInTheDocument();
-    });
-
-    test('shows placeholder conversations', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      expect(screen.getByText('Current conversation')).toBeInTheDocument();
-      expect(screen.getByText('LinkedIn campaign help')).toBeInTheDocument();
-      expect(screen.getByText('Pod engagement analysis')).toBeInTheDocument();
-    });
-
-    test('can toggle chat history sidebar with menu button', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      fireEvent.click(fullscreenButton!);
-
-      const menuButton = container.querySelector('button[aria-label="Toggle chat history"]');
-      expect(menuButton).toBeInTheDocument();
-      fireEvent.click(menuButton!);
-
-      // History sidebar should be hidden
-      const historyHeader = screen.queryByText('Chat History');
-      expect(historyHeader).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Error Handling', () => {
-    test('shows error message when API call fails', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      });
-
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        expect(screen.getByText(/HTTP 500/)).toBeInTheDocument();
+        expect(screen.getByText(/API Error/i)).toBeInTheDocument();
       });
     });
 
-    test('shows authentication error for 401 status', async () => {
+    it('should handle 401 unauthorized error', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
+        headers: new Headers(),
       });
 
-      const { container } = render(<FloatingChatBar />);
+      render(<FloatingChatBar />);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       await waitFor(() => {
-        expect(screen.getByText('Please log in to use the chat')).toBeInTheDocument();
+        expect(screen.getByText(/Please log in to use the chat/i)).toBeInTheDocument();
       });
     });
 
-    test('can clear error message', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Error',
-      });
+    it('should handle messages with only whitespace', () => {
+      render(<FloatingChatBar />);
 
-      const { container } = render(<FloatingChatBar />);
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: '   \n\n   ' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test' } });
-      fireEvent.submit(textarea!.closest('form')!);
-
-      await waitFor(() => {
-        const clearButton = screen.getByText('Clear');
-        fireEvent.click(clearButton);
-      });
-
-      expect(screen.queryByText(/HTTP 500/)).not.toBeInTheDocument();
+      // Should not call fetch
+      expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    test('removes empty assistant message on error', async () => {
+    it('should handle Shift+Enter for new line', () => {
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i) as HTMLTextAreaElement;
+      fireEvent.change(textarea, { target: { value: 'First line' } });
+
+      // Shift+Enter should NOT submit
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
+
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Integration Tests', () => {
+    it('should complete full workflow: ask -> AI writes -> auto-fullscreen -> expand button -> close', async () => {
+      const longContent = '# LinkedIn Post\n\nGreat content here!' + 'a'.repeat(500);
+
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Error',
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: longContent }),
       });
 
-      const { container } = render(<FloatingChatBar />);
+      render(<FloatingChatBar />);
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'Test' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      // 1. User asks for post
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write a LinkedIn post' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      // 2. AI writes > 500 chars
+      await waitFor(() => {
+        expect(screen.getByText('LinkedIn Post')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // 3. Auto-fullscreen triggered
+      expect(screen.getByText('LinkedIn Post')).toBeInTheDocument();
+
+      // 4. User can see expand button in chat (if we exit fullscreen)
+      const closeButton = screen.getByRole('button', { name: /close fullscreen/i });
+      fireEvent.click(closeButton);
 
       await waitFor(() => {
-        // Should only show user message, not empty assistant message
-        expect(screen.getByText('Test')).toBeInTheDocument();
+        const expandButtons = screen.queryAllByRole('button', { name: /expand document/i });
+        expect(expandButtons.length).toBeGreaterThan(0);
+      });
+
+      // 5. Message panel auto-opens
+      expect(screen.getByPlaceholderText(/Revvy wants to help/i)).toBeInTheDocument();
+    });
+
+    it('should show clean message in chat without intro text', async () => {
+      const intro = "Here's a great post:\n\n";
+      const content = '# Post\n\nContent';
+      const fullResponse = intro + content;
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: fullResponse }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        // Intro text should be stripped
+        expect(screen.queryByText(/Here's a great post/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Post')).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should display formatted content in document viewer without raw markdown', async () => {
+      const markdownContent = '# Title\n\n**Bold text**\n\n- Item 1\n- Item 2' + 'a'.repeat(500);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: markdownContent }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Write' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        // Should see formatted content, NOT raw markdown syntax
+        expect(screen.getByText('Title')).toBeInTheDocument();
+        expect(screen.getByText('Bold text')).toBeInTheDocument();
+
+        // Should NOT see raw markdown symbols
+        expect(screen.queryByText('# Title')).not.toBeInTheDocument();
+        expect(screen.queryByText('**Bold text**')).not.toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Conversation Management', () => {
+    it('should create new conversation when sending first message', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: 'Hello!' }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Hi' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        expect(screen.getByText('Hi')).toBeInTheDocument();
+      });
+    });
+
+    it('should persist conversations to localStorage', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ success: true, response: 'Response' }),
+      });
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test message' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      await waitFor(() => {
+        const stored = localStorage.getItem('chat_conversations');
+        expect(stored).not.toBeNull();
       });
     });
   });
 
-  describe('Accessibility', () => {
-    test('all icon buttons have aria-labels', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      const fullscreenButton = container.querySelector('button[aria-label="Fullscreen"]');
-      const submitButton = container.querySelector('button[aria-label="Send message"]');
-
-      expect(sidebarButton).toBeInTheDocument();
-      expect(fullscreenButton).toBeInTheDocument();
-      expect(submitButton).toBeInTheDocument();
-    });
-
-    test('all icon buttons have title tooltips', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const sidebarButton = container.querySelector('button[title="Switch to sidebar"]');
-      const fullscreenButton = container.querySelector('button[title="Switch to fullscreen"]');
-
-      expect(sidebarButton).toBeInTheDocument();
-      expect(fullscreenButton).toBeInTheDocument();
-    });
-
-    test('textarea is properly labeled', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const textarea = container.querySelector('textarea');
-      expect(textarea).toHaveAttribute('placeholder');
-    });
-
-    test('submit button is properly labeled', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const submitButton = container.querySelector('button[aria-label="Send message"]');
-      expect(submitButton).toBeInTheDocument();
-    });
-  });
-
-  describe('Console Logging (Debug)', () => {
-    let consoleLogSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-    });
-
-    afterEach(() => {
-      consoleLogSpy.mockRestore();
-    });
-
-    test('logs state transitions for debugging', () => {
-      const { container } = render(<FloatingChatBar />);
-
-      const sidebarButton = container.querySelector('button[aria-label="Sidebar view"]');
-      fireEvent.click(sidebarButton!);
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('SIDEBAR BUTTON')
+  describe('Loading States', () => {
+    it('should show loading animation while waiting for response', async () => {
+      // Delay the response
+      (global.fetch as jest.Mock).mockImplementation(() =>
+        new Promise(resolve =>
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              headers: new Headers({ 'content-type': 'application/json' }),
+              json: async () => ({ success: true, response: 'Done' }),
+            });
+          }, 100)
+        )
       );
+
+      render(<FloatingChatBar />);
+
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      // Should show loading animation
+      await waitFor(() => {
+        const loadingDots = document.querySelectorAll('.animate-bounce');
+        expect(loadingDots.length).toBeGreaterThan(0);
+      });
     });
 
-    test('logs auto-fullscreen triggers', async () => {
-      const { container } = render(<FloatingChatBar />);
+    it('should disable submit button while loading', async () => {
+      (global.fetch as jest.Mock).mockImplementation(() =>
+        new Promise(resolve =>
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              headers: new Headers({ 'content-type': 'application/json' }),
+              json: async () => ({ success: true, response: 'Done' }),
+            });
+          }, 100)
+        )
+      );
 
-      const textarea = container.querySelector('textarea');
-      fireEvent.change(textarea!, { target: { value: 'write a post' } });
-      fireEvent.submit(textarea!.closest('form')!);
+      render(<FloatingChatBar />);
 
+      const textarea = screen.getByPlaceholderText(/Revvy wants to help/i);
+      fireEvent.change(textarea, { target: { value: 'Test' } });
+
+      const sendButton = screen.getByRole('button', { name: /send message/i });
+      fireEvent.click(sendButton);
+
+      // Button should be disabled during loading
       await waitFor(() => {
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          expect.stringContaining('[AUTO-FULLSCREEN]'),
-          expect.any(String)
-        );
+        expect(sendButton).toBeDisabled();
       });
     });
   });

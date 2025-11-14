@@ -11,7 +11,7 @@ interface AdminLayoutWrapperProps {
 
 export default function AdminLayoutWrapper({ user, agency, children }: AdminLayoutWrapperProps) {
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-blue-50/20">
       {/* Sidebar - Always visible */}
       <div className="w-64 flex-shrink-0">
         <AdminSidebar user={user} agency={agency} />

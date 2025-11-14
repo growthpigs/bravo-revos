@@ -261,12 +261,12 @@ export default function WebhooksPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Webhooks</h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-muted-foreground mt-2">
             Configure webhooks to send lead data to your CRM or email service provider
           </p>
         </div>
@@ -388,15 +388,15 @@ export default function WebhooksPage() {
             <p className="text-xs font-mono text-gray-700">
               Payload format: {'{'}
               <br />
-              &nbsp;&nbsp;"event": "lead.captured",
+              &nbsp;&nbsp;&quot;event&quot;: &quot;lead.captured&quot;,
               <br />
-              &nbsp;&nbsp;"lead_id": "uuid",
+              &nbsp;&nbsp;&quot;lead_id&quot;: &quot;uuid&quot;,
               <br />
-              &nbsp;&nbsp;"email": "user@example.com",
+              &nbsp;&nbsp;&quot;email&quot;: &quot;user@example.com&quot;,
               <br />
-              &nbsp;&nbsp;"campaign_id": "uuid",
+              &nbsp;&nbsp;&quot;campaign_id&quot;: &quot;uuid&quot;,
               <br />
-              &nbsp;&nbsp;"timestamp": "ISO8601"
+              &nbsp;&nbsp;&quot;timestamp&quot;: &quot;ISO8601&quot;
               <br />
               {'}'}
             </p>

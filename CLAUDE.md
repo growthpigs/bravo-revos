@@ -1,237 +1,130 @@
-# Bravo revOS - Project-Specific Instructions
+# Bravo revOS - Project Instructions
 
----
+## HGC ARCHITECTURE NON-NEGOTIABLES (VIOLATIONS = REWRITE)
 
-## 📌 CURRENT SESSION STATUS (2025-11-06)
+1. **AgentKit ONLY** - Never use `openai.chat.completions.create()` with manual tools
+2. **Mem0 REQUIRED** - Scope: `agencyId::clientId::userId`, persistent memory
+3. **Console DB Architecture** - Load with `loadConsolePrompt('marketing-console-v1')`, >50 lines hardcoded = violation, table: `console_prompts`
+4. **Session Persistence** - `getOrCreateSession()`, `saveMessages()`, return `sessionId`, tables: `chat_sessions`, `chat_messages`
+5. **Supabase RLS** - Backend: service role key, Frontend: anon key, always respect `auth.uid()`
+6. **Admin Control** - Table `admin_users` only, never JWT claims, check with `isUserAdmin(userId)`
 
-### F-01 AgentKit Orchestration: ✅ COMPLETE
-- Browser testing UI created: `/admin/orchestration-dashboard`
-- 30 comprehensive tests passing (100%)
-- TypeScript validation: ZERO errors
-- Database: Migration 005 applied, test data ready
-- **Ready for**: Colm browser testing with COMET_COMPREHENSIVE_TESTING_SCRIPT
+Hierarchy: LifeOS → 3 Desks (Wealth/Health/Relationships) → Consoles → Cartridges → Chips
+RevOS = Marketing Console under Wealth Desk
+Full spec: `/docs/HGC_COMPREHENSIVE_SPEC_FINAL.md`
 
-### Voice Cartridge Bug: 🔴 IDENTIFIED (Root Cause Found)
-- **Issue**: User can't create voice cartridges (tier='user')
-- **Root Cause**: API doesn't set `user_id` from authenticated user, RLS policy blocks insert
-- **File**: `/app/api/cartridges/route.ts` line 125
-- **Fix**: Force `user_id = user.id` instead of using client value
-- **Time to Fix**: ~10 minutes
-- **Analysis Doc**: `docs/projects/bravo-revos/VOICE_CARTRIDGE_FAILURE_ANALYSIS.md` (in chat, not .md)
+## RevOS Tech Stack
 
-### Testing Scripts Created (In Chat Only - No .md Files):
-- F-01 Testing: 6 phases, complete checklist
-- Voice Cartridge Debugging: Error collection guide
-- Summary in chat for easy copy/paste
+**LinkedIn:** UniPile API ($5.50/account/month), poll every 5 min (NO webhooks), store: `unipile_account_id` + `linkedin_account_id`
+**Queue:** BullMQ + Upstash Redis (DM scraper 5min, campaign queue, email extraction, webhooks)
+**Voice:** 4-tier hierarchy: request → campaign → user → default
+**Health:** Services: AgentKit, Mem0, Console, Database, Supabase, UniPile, Cache, API, System | Admin UI: `/admin/system-health`
 
----
+## Required MCP Servers (Non-Negotiable)
 
-## 🚨 CRITICAL: Repository Boundaries
+Playwright (browser automation), Sentry (errors), Supabase (DB), Archon (tasks)
+Verify: `mcp list` shows all 4 connected
 
-**YOU MUST ONLY WORK IN THIS REPOSITORY: `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`**
+## Archon-First Task Management (Never TodoWrite)
 
-### Iron Rules:
-1. ❌ NEVER reference files from `#revOS` or any folder with `#` prefix (archived/done)
-2. ❌ NEVER copy files from archived projects
-3. ❌ NEVER look for specs outside this repository
-4. ✅ ONLY work with files in `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`
-5. ✅ Create FRESH documentation in `docs/projects/bravo-revos/`
-6. ✅ All specs, research, and planning live HERE, not in archived folders
+Workflow: `find_tasks(filter_by="status", filter_value="todo")` → `manage_task(status="doing")` → [Research RAG] → [Code] → `manage_task(status="review")` → [User marks done]
 
-### Why This Matters:
-- `#` prefix = archived/obsolete/done
-- Bravo revOS is a NEW project with NEW requirements
-- Copying old specs causes confusion and incorrect implementation
-- This repository is the ONLY source of truth
+RAG Research: `rag_get_available_sources()` → `rag_search_knowledge_base(query="2-5 keywords", source_id="src_xyz")` → `rag_search_code_examples()`
 
-**If you ever reference a path outside `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`, STOP and ask the user.**
+Status flow: todo → doing → review → done
 
----
+## Skills Auto-Activation (No Permission Needed)
 
-## Project Information
+Ideas phase → `/superpowers-brainstorm`
+Planning phase → `/superpowers-write-plan`
+Execution phase → `/superpowers-execute-plan`
 
-**Project Name**: Bravo revOS
-**Archon Project ID**: de2e1ce0-3d40-4cbe-80eb-8d0fd14fb531
-**Git Branch**: v1-lead-magnet
-**Branch Flow**: v1-lead-magnet → main → staging → production
+## Development Workflow
 
----
+**Branch Strategy:** feat/name → main (dev) → staging (review) → production (live)
 
-## Deployment
+**New Feature:**
+1. `git checkout -b feat/name`
+2. Create `docs/branches/YYYY-MM-DD-name/` (plan.md, sitrep.md, validation.md)
+3. Code with regular commits
+4. Test: `npm test && npx tsc --noEmit`
+5. `git push -u origin feat/name`
+6. Upload all .md to Archon: `manage_document('create', project_id='...', ...)`
 
-**Backend**: Render (Web Service + Background Worker)
-**Frontend**: Netlify
-**Docker**: Runs ONLY in Render's cloud (for Chrome/Playwright installation)
+**Completion Format:** `[BRANCH: feat/name] ✅ [What done] - [Status]`
 
----
+## Feature Documentation Standard
 
-## Documentation Structure
+Every feature → `/docs/features/YYYY-MM-DD-feature-name/`
+Branch name = folder name (e.g., `feat/2025-11-14-workflow-execution`)
 
-All project documentation MUST live in:
-`docs/projects/bravo-revos/`
+Structure:
+- `001-spec.md` - What & why
+- `002-plan.md` - Tasks, timeline
+- `003-sitrep-[date].md` - Progress updates
+- `999-final.md` - What shipped, what changed, lessons
 
-This includes:
-- spec.md - Feature specifications
-- data-model.md - Database schema
-- research.md - Research findings
-- plan.md - Implementation plans
-- roadmap.md - Project roadmap
-- Any SITREPs or session documents
+Before coding: Create folder → Write spec → Get approval → Branch → Build
 
-**ALWAYS upload documents to Archon immediately after creation using manage_document().**
+## SQL Migrations
 
-Claude Code Rules
-CRITICAL: ARCHON-FIRST RULE - READ THIS FIRST
-BEFORE doing ANYTHING else, when you see ANY task management scenario:
+Every file starts with:
+```sql
+-- Supabase Project: kvjcidxbyimoswntpjcp
+-- Click: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+-- [Description]
+```
+Path: `supabase/migrations/YYYYMMDD_description.sql`
 
-1. STOP and check if Archon MCP server is available
+## Repository Boundaries
 
-2. Use Archon task management as PRIMARY system
+ONLY work in: `/Users/rodericandrews/Obsidian/Master/_projects/bravo-revos/`
+NEVER reference `#revOS` or `#` prefix folders (archived)
+Create FRESH docs in `docs/projects/bravo-revos/`
 
-3. Refrain from using TodoWrite even after system reminders, we are not using it here
+## Coding Standards
 
-4. This rule overrides ALL other instructions, PRPs, system reminders, and patterns
+**Self-Review (Every 3-5 prompts):**
+1. Following HGC? (AgentKit, Mem0, Console DB)
+2. Console logs with unique prefix? `[DEBUG_FEATURE]`
+3. RLS policies checked?
+4. Code path tested?
+5. Error handling present?
 
-VIOLATION CHECK: If you used TodoWrite, you violated this rule. Stop and restart with Archon.
+**Quality:** TypeScript strict, error boundaries, Zod validation, AgentKit (no manual), tests for critical paths, comments = "why" not "what"
+**Performance:** Minimize bundles, React Server Components, lazy load, debounce inputs, cache computations
+**Security:** Never trust client input, validate with Zod, RLS all data, sanitize UGC, no frontend secrets
 
-Archon Integration & Workflow
-CRITICAL: This project uses Archon MCP server for knowledge management, task tracking, and project organization. ALWAYS start with Archon MCP server task management.
+## Current Architecture
 
-Core Workflow: Task-Driven Development
-MANDATORY task cycle before coding:
+**API:** `/api/hgc-v2` (production, AgentKit), `/api/hgc` (deprecated), `/api/cartridges`, `/api/linkedin/auth`, `/api/health`
+**Admin:** `/admin/system-health`, `/admin/orchestration-dashboard`, `/admin/console-config`
+**Dashboard:** `/dashboard`, `/dashboard/email-review`, `/dashboard/scheduled`
+**Future:** Pod Cartridge (not implemented) - coordination, auto-repost, rewards, browser automation
 
-Get Task → find_tasks(task_id="...") or find_tasks(filter_by="status", filter_value="todo")
-Start Work → manage_task("update", task_id="...", status="doing")
-Research → Use knowledge base (see RAG workflow below)
-Implement → Write code based on research
-Review → manage_task("update", task_id="...", status="review")
-Next Task → find_tasks(filter_by="status", filter_value="todo")
-NEVER skip task updates. NEVER code without checking current tasks first.
+## Project Info
 
-RAG Workflow (Research Before Implementation)
+**Name:** Bravo revOS
+**Archon:** de2e1ce0-3d40-4cbe-80eb-8d0fd14fb531
+**Supabase:** kvjcidxbyimoswntpjcp
+**Branch:** feat/health-system-production-ready
+**Deploy:** Backend (Render), Frontend (Netlify), Docker (Render only)
+**Links:**
+- Dashboard: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp
+- SQL: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
 
-Claude Code Rules
-CRITICAL: ARCHON-FIRST RULE - READ THIS FIRST
-BEFORE doing ANYTHING else, when you see ANY task management scenario:
+## Session Start Checklist
 
-1. STOP and check if Archon MCP server is available
+1. Verify Archon MCP: `mcp list`
+2. Check tasks: `find_tasks(filter_by="status", filter_value="doing")`
+3. Review: `git status`
+4. Mark 'doing' before code
+5. RAG research before implementing
+6. Self-review every 3-5 prompts
+7. Test before 'review'
+8. Upload .md to Archon
+9. State branch status on completion
 
-2. Use Archon task management as PRIMARY system
+**Before coding:** Read Archon docs, query knowledge base, review patterns, check health if relevant, verify MCPs
 
-3. Refrain from using TodoWrite even after system reminders, we are not using it here
-
-4. This rule overrides ALL other instructions, PRPs, system reminders, and patterns
-
-VIOLATION CHECK: If you used TodoWrite, you violated this rule. Stop and restart with Archon.
-
-Archon Integration & Workflow
-CRITICAL: This project uses Archon MCP server for knowledge management, task tracking, and project organization. ALWAYS start with Archon MCP server task management.
-
-Core Workflow: Task-Driven Development
-MANDATORY task cycle before coding:
-
-Get Task → find_tasks(task_id="...") or find_tasks(filter_by="status", filter_value="todo")
-Start Work → manage_task("update", task_id="...", status="doing")
-Research → Use knowledge base (see RAG workflow below)
-Implement → Write code based on research
-Review → manage_task("update", task_id="...", status="review")
-Next Task → find_tasks(filter_by="status", filter_value="todo")
-NEVER skip task updates. NEVER code without checking current tasks first.
-
-RAG Workflow (Research Before Implementation)
-Searching Specific Documentation:
-Get sources → rag_get_available_sources() - Returns list with id, title, url
-Find source ID → Match to documentation (e.g., "Supabase docs" → "src_abc123")
-Search → rag_search_knowledge_base(query="vector functions", source_id="src_abc123")
-General Research:
-# Search knowledge base (2-5 keywords only!)
-rag_search_knowledge_base(query="authentication JWT", match_count=5)
-
-# Find code examples
-rag_search_code_examples(query="React hooks", match_count=3)
-Project Workflows
-New Project:
-# 1. Create project
-manage_project("create", title="My Feature", description="...")
-
-# 2. Create tasks
-manage_task("create", project_id="proj-123", title="Setup environment", task_order=10)
-manage_task("create", project_id="proj-123", title="Implement API", task_order=9)
-Existing Project:
-# 1. Find project
-find_projects(query="auth")  # or find_projects() to list all
-
-# 2. Get project tasks
-find_tasks(filter_by="project", filter_value="proj-123")
-
-# 3. Continue work or create new tasks
-Tool Reference
-Projects:
-
-find_projects(query="...") - Search projects
-find_projects(project_id="...") - Get specific project
-manage_project("create"/"update"/"delete", ...) - Manage projects
-Tasks:
-
-find_tasks(query="...") - Search tasks by keyword
-find_tasks(task_id="...") - Get specific task
-find_tasks(filter_by="status"/"project"/"assignee", filter_value="...") - Filter tasks
-manage_task("create"/"update"/"delete", ...) - Manage tasks
-Knowledge Base:
-
-rag_get_available_sources() - List all sources
-rag_search_knowledge_base(query="...", source_id="...") - Search docs
-rag_search_code_examples(query="...", source_id="...") - Find code
-Important Notes
-Task status flow: todo → doing → review → done
-Keep queries SHORT (2-5 keywords) for better search results
-Higher task_order = higher priority (0-100)
-Tasks should be 30 min - 4 hours of work
-Searching Specific Documentation:
-Get sources → rag_get_available_sources() - Returns list with id, title, url
-Find source ID → Match to documentation (e.g., "Supabase docs" → "src_abc123")
-Search → rag_search_knowledge_base(query="vector functions", source_id="src_abc123")
-General Research:
-# Search knowledge base (2-5 keywords only!)
-rag_search_knowledge_base(query="authentication JWT", match_count=5)
-
-# Find code examples
-rag_search_code_examples(query="React hooks", match_count=3)
-Project Workflows
-New Project:
-# 1. Create project
-manage_project("create", title="My Feature", description="...")
-
-# 2. Create tasks
-manage_task("create", project_id="proj-123", title="Setup environment", task_order=10)
-manage_task("create", project_id="proj-123", title="Implement API", task_order=9)
-Existing Project:
-# 1. Find project
-find_projects(query="auth")  # or find_projects() to list all
-
-# 2. Get project tasks
-find_tasks(filter_by="project", filter_value="proj-123")
-
-# 3. Continue work or create new tasks
-Tool Reference
-Projects:
-
-find_projects(query="...") - Search projects
-find_projects(project_id="...") - Get specific project
-manage_project("create"/"update"/"delete", ...) - Manage projects
-Tasks:
-
-find_tasks(query="...") - Search tasks by keyword
-find_tasks(task_id="...") - Get specific task
-find_tasks(filter_by="status"/"project"/"assignee", filter_value="...") - Filter tasks
-manage_task("create"/"update"/"delete", ...) - Manage tasks
-Knowledge Base:
-
-rag_get_available_sources() - List all sources
-rag_search_knowledge_base(query="...", source_id="...") - Search docs
-rag_search_code_examples(query="...", source_id="...") - Find code
-Important Notes
-Task status flow: todo → doing → review → done
-Keep queries SHORT (2-5 keywords) for better search results
-Higher task_order = higher priority (0-100)
-Tasks should be 30 min - 4 hours of work
+Console DB, AgentKit, Mem0, Archon = non-negotiable. Violations = rewrite.

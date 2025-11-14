@@ -13,10 +13,22 @@ global.React = require('react');
 if (typeof Request === 'undefined') {
   global.Request = class Request {
     constructor(url, init = {}) {
-      this.url = url;
-      this.method = init.method || 'GET';
-      this.headers = new Map(Object.entries(init.headers || {}));
+      this._url = url;
+      this._method = init.method || 'GET';
+      this._headers = new Map(Object.entries(init.headers || {}));
       this._bodyInit = init.body;
+    }
+
+    get url() {
+      return this._url;
+    }
+
+    get method() {
+      return this._method;
+    }
+
+    get headers() {
+      return this._headers;
     }
 
     async json() {
@@ -36,9 +48,18 @@ if (typeof Response === 'undefined') {
   global.Response = class Response {
     constructor(body, init = {}) {
       this.body = body;
-      this.status = init.status || 200;
+      this._status = init.status || 200;
       this.statusText = init.statusText || '';
-      this.headers = new Map(Object.entries(init.headers || {}));
+      this._headers = new Map(Object.entries(init.headers || {}));
+      this._init = init;
+    }
+
+    get status() {
+      return this._status;
+    }
+
+    get headers() {
+      return this._headers;
     }
 
     async json() {
@@ -50,6 +71,18 @@ if (typeof Response === 'undefined') {
 
     async text() {
       return this.body;
+    }
+
+    // Static method for Response.json() (Node 18+ feature)
+    static json(data, init = {}) {
+      const body = JSON.stringify(data);
+      return new Response(body, {
+        ...init,
+        headers: {
+          'Content-Type': 'application/json',
+          ...init.headers,
+        },
+      });
     }
   };
 }
@@ -80,4 +113,37 @@ if (typeof crypto === 'undefined' || !crypto.randomUUID) {
       );
     },
   };
+}
+
+// Polyfill TextEncoder/TextDecoder for gpt-3-encoder
+if (typeof TextEncoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
+
+// Mock React cache() for Next.js server components (not available in test env)
+jest.mock('react', () => {
+  const originalReact = jest.requireActual('react');
+  return {
+    ...originalReact,
+    cache: (fn) => fn, // Identity function - just returns the function as-is
+  };
+});
+
+// Mock scrollIntoView for jsdom (not implemented by default)
+if (typeof Element !== 'undefined') {
+  Element.prototype.scrollIntoView = jest.fn();
+}
+
+// Mock fetch for OpenAI SDK
+if (typeof global.fetch === 'undefined') {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => '',
+    })
+  );
 }

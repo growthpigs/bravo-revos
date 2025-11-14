@@ -1,0 +1,32 @@
+@keyframes ai-highlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+    border-color: rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    border-color: initial;
+  }
+}
+
+.ai-highlight {
+  animation: ai-highlight 2s ease-out;
+  transition: all 0.3s ease;
+}
+
+/* AI typing indicator */
+.ai-typing::after {
+  content: '|';
+  animation: blink 1s infinite;
+  color: rgb(59, 130, 246);
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}

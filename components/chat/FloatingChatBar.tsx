@@ -1,14 +1,79 @@
 'use client';
 
+// @refresh reset
+// ^ This disables Fast Refresh for this component to prevent build cache corruption
+// due to the component's size and complexity. Use full page reload instead.
+
+import React from 'react';
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
-import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock } from 'lucide-react';
+import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock, Copy, Save, Sparkles } from 'lucide-react';
+import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
+import { SaveToCampaignModal } from '../SaveToCampaignModal';
+import ReactMarkdown from 'react-markdown';
+import { toast } from 'sonner';
+import { InlineDecisionButtons } from './InlineDecisionButtons';
+import { InlineCampaignSelector } from './InlineCampaignSelector';
+import { InlineDateTimePicker } from './InlineDateTimePicker';
+import { SlashCommandAutocomplete } from './SlashCommandAutocomplete';
+import { getCommand, type SlashCommand, type SlashCommandContext } from '@/lib/slash-commands';
+import { sandboxFetch } from '@/lib/sandbox/sandbox-wrapper';
+import { SandboxIndicator } from './SandboxIndicator';
+
+// Feature Flag: Use AgentKit v2 (Cartridge Architecture)
+const USE_AGENTKIT_V2 = process.env.NEXT_PUBLIC_USE_AGENTKIT_V2 === 'true';
+const HGC_API_ENDPOINT = USE_AGENTKIT_V2 ? '/api/hgc-v2' : '/api/hgc';
+
+console.log('[FloatingChatBar] Using API endpoint:', HGC_API_ENDPOINT, USE_AGENTKIT_V2 ? '(AgentKit v2)' : '(Legacy)');
+
+// Unique ID generator using crypto.randomUUID for truly unique IDs
+const generateUniqueId = () => {
+  // Use crypto.randomUUID() for guaranteed uniqueness
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers: timestamp + random + counter
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${Date.now()}`;
+};
+
+interface DecisionOption {
+  label: string;
+  value: string;
+  icon?: 'plus' | 'list';
+  variant?: 'primary' | 'secondary';
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+interface InteractiveData {
+  type: 'decision' | 'campaign_select' | 'datetime_select' | 'confirm';
+  workflow_id?: string;
+  campaigns?: Campaign[];
+  decision_options?: DecisionOption[];
+  initial_datetime?: string;
+  initial_content?: string;
+  campaign_id?: string;
+  content?: string;
+}
+
+interface ActionButton {
+  id: string;
+  label: string;
+  action: 'post_linkedin' | 'regenerate' | 'change_voice' | 'try_copywriting' | 'save' | 'schedule';
+  primary?: boolean;
+}
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  interactive?: InteractiveData;
+  actions?: ActionButton[];
   createdAt: Date;
 }
 
@@ -28,11 +93,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(true);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Slash command state
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
 
   // Conversation management
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -42,24 +113,71 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesPanelRef = useRef<HTMLDivElement>(null);
   const floatingBarRef = useRef<HTMLFormElement>(null);
-  const floatingBarContainerRef = useRef<HTMLDivElement>(null);
+  const floatingChatContainerRef = useRef<HTMLDivElement>(null);
+  const isLoadingConversation = useRef(false);
   const [showMessages, setShowMessages] = useState(false);
-  const [chatWidth, setChatWidth] = useState(240); // Resizable chat width in expanded view
-  const [isResizing, setIsResizing] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Initialize conversations from localStorage
+  // Draggable sidebar resizers
+  const [sidebarWidth, setSidebarWidth] = useState(600); // Total sidebar width
+  const [chatWidth, setChatWidth] = useState(408); // Default chat width in pixels
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartWidthRef = useRef(0);
+  const resizerTypeRef = useRef<'left' | 'middle' | null>(null);
+
+  // Document viewer state
+  const [documentContent, setDocumentContent] = useState<string>('');
+  const [documentTitle, setDocumentTitle] = useState<string>('Working Document');
+  const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [documentSourceMessageId, setDocumentSourceMessageId] = useState<string | null>(null); // Track which message is in document
+  const [editedContent, setEditedContent] = useState<string>('');
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
+  const [showSaveToCampaignModal, setShowSaveToCampaignModal] = useState(false);
+
+  // Handle clicks outside the floating chat to close message panel
+  useEffect(() => {
+    if (!showMessages) return;
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      // Check if click is inside the floating chat container
+      if (floatingChatContainerRef.current && floatingChatContainerRef.current.contains(target)) {
+        // Click is inside chat - keep panel open
+        return;
+      }
+
+      // Click is outside chat - close the panel
+      setShowMessages(false);
+    };
+
+    // Attach listener to document using capture phase for reliability
+    document.addEventListener('click', handleDocumentClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleDocumentClick, true);
+    };
+  }, [showMessages]);
+
+  // Initialize conversations and sidebar widths from localStorage
   useEffect(() => {
     setIsMounted(true);
 
-    // Restore expanded state from localStorage
-    const savedExpanded = localStorage.getItem('chat_expanded');
-    if (savedExpanded === 'true') {
-      setIsExpanded(true);
-      console.log('[FloatingChatBar] Restored expanded state from localStorage');
+    // Load saved sidebar widths
+    const savedSidebarWidth = localStorage.getItem('chat_sidebar_width_total');
+    if (savedSidebarWidth) {
+      setSidebarWidth(parseInt(savedSidebarWidth, 10));
     }
 
+    const savedChatWidth = localStorage.getItem('chat_sidebar_width_chat');
+    if (savedChatWidth) {
+      setChatWidth(parseInt(savedChatWidth, 10));
+    }
+
+    // Load conversations
     const stored = localStorage.getItem('chat_conversations');
     if (stored) {
       try {
@@ -92,13 +210,56 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [conversations, isMounted]);
 
-  // Persist expanded state to localStorage
+  // Handle resizer drag events (both left and middle resizers)
   useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('chat_expanded', isExpanded.toString());
-      console.log('[FloatingChatBar] Saved expanded state:', isExpanded);
-    }
-  }, [isExpanded, isMounted]);
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !resizerTypeRef.current) {
+        return;
+      }
+
+      const delta = e.clientX - dragStartXRef.current;
+
+      if (resizerTypeRef.current === 'left') {
+        // Left resizer: expand/shrink entire sidebar, chat grows, history stays fixed at 192px
+        const newSidebarWidth = dragStartWidthRef.current + delta;
+
+        // Constraints: Min 343px (150 chat min + 192 history + 1px divider), Max 800px
+        const constrainedWidth = Math.max(343, Math.min(800, newSidebarWidth));
+        setSidebarWidth(constrainedWidth);
+        localStorage.setItem('chat_sidebar_width_total', constrainedWidth.toString());
+      } else if (resizerTypeRef.current === 'middle') {
+        // Middle resizer: redistribute fixed total width between chat and history
+        const newChatWidth = dragStartWidthRef.current + delta;
+
+        // Constraints:
+        // - Chat history minimum: 150px
+        // - Chat minimum: 150px
+        // - Calculate max chat based on sidebar width: (sidebar - 150 history - 8px divider)
+        const minChatWidth = 150;
+        const minHistoryWidth = 150;
+        const maxChatWidth = sidebarWidth - minHistoryWidth - 8; // 8px for divider
+
+        const constrainedWidth = Math.max(minChatWidth, Math.min(maxChatWidth, newChatWidth));
+        setChatWidth(constrainedWidth);
+        localStorage.setItem('chat_sidebar_width_chat', constrainedWidth.toString());
+      }
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      resizerTypeRef.current = null;
+      document.body.style.userSelect = 'auto';
+      document.body.style.cursor = 'auto';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -109,61 +270,128 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   }, [input]);
 
-  // Scroll to bottom when messages update or panel opens
+  // Unified scroll handler for all chat panels
   useEffect(() => {
-    // Scroll sidebar when expanded
-    if (scrollAreaRef.current && isExpanded && messages.length > 0) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-    // Scroll floating messages panel when NOT expanded and messages are showing
-    if (messagesPanelRef.current && !isExpanded && showMessages && messages.length > 0) {
-      messagesPanelRef.current.scrollTop = messagesPanelRef.current.scrollHeight;
-    }
-  }, [messages, isExpanded, showMessages]);
+    // Scroll fullscreen/expanded left panel to bottom
+    if (scrollAreaRef.current && (isExpanded || isFullscreen)) {
+      // Use longer delay to ensure DOM fully rendered + animation complete
+      const timeout = setTimeout(() => {
+        if (scrollAreaRef.current) {
+          const scrollElement = scrollAreaRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Fullscreen panel scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 200); // 200ms accounts for fullscreen animation duration
 
-  // Save current conversation when messages change
+      return () => clearTimeout(timeout);
+    }
+
+    // Scroll floating message panel to bottom
+    if (messagesPanelRef.current && !isExpanded && !isFullscreen && messages.length > 0) {
+      const timeout = setTimeout(() => {
+        if (messagesPanelRef.current) {
+          const scrollElement = messagesPanelRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Floating panel scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 100);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [messages, isExpanded, isFullscreen, showMessages]);
+
+  // Special handler: When fullscreen opens, scroll after animation completes
   useEffect(() => {
-    if (isMounted && currentConversationId) {
+    if (isFullscreen && scrollAreaRef.current && messages.length > 0) {
+      // Wait for fullscreen animation to complete (200ms CSS transition)
+      const timeout = setTimeout(() => {
+        if (scrollAreaRef.current) {
+          const scrollElement = scrollAreaRef.current;
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          console.log('[FCB_SCROLL] Fullscreen opened, scrolled to:', scrollElement.scrollHeight);
+        }
+      }, 250); // 250ms = 200ms animation + 50ms buffer
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isFullscreen]); // Only re-run when isFullscreen changes (not on every message)
+
+  // Save current conversation when messages change (but not while loading a conversation)
+  useEffect(() => {
+    if (isMounted && currentConversationId && !isLoadingConversation.current) {
       saveCurrentConversation();
     }
   }, [messages]);
 
-  // Click outside to close message panel in floating bar
+  // Maintain focus in textarea after sending message (all states)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Only handle if in floating bar mode (not expanded or minimized) and messages are showing
-      if (!isExpanded && !isMinimized && showMessages && floatingBarContainerRef.current) {
-        if (!floatingBarContainerRef.current.contains(event.target as Node)) {
+    if (!isLoading && textareaRef.current) {
+      // Small timeout to ensure DOM has updated after state changes
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
+    }
+  }, [isLoading]);
+
+  // Auto-focus chat input when chat opens in any mode
+  useEffect(() => {
+    // Chat is visible when: showMessages OR isExpanded OR isFullscreen
+    const chatIsVisible = showMessages || isExpanded || isFullscreen;
+    const chatIsNotCollapsed = !isCollapsed;
+
+    if (chatIsVisible && chatIsNotCollapsed && textareaRef.current) {
+      // Longer timeout to ensure DOM has fully rendered in all modes (sidebar/fullscreen)
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+    }
+  }, [showMessages, isExpanded, isFullscreen, isCollapsed]);
+
+  // ESC key hierarchy: Fullscreen → Floating → Collapsed Button
+  useEffect(() => {
+    const handleEscape = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isFullscreen) {
+          // From fullscreen: go to floating chat
+          console.log('[FCB] ESC pressed - exiting fullscreen to floating chat');
+          setIsFullscreen(false);
+          setIsExpanded(false);
+          setShowMessages(true);
+          setIsCollapsed(false);
+        } else if (isExpanded) {
+          // From expanded/sidebar: go to floating chat (stay open, just collapse sidebar)
+          console.log('[FCB] ESC pressed - exiting sidebar to floating chat');
+          setIsExpanded(false);
+          setShowMessages(true);
+          setIsCollapsed(false);
+        } else if (showMessages && !isCollapsed) {
+          // From floating chat: collapse to button
+          console.log('[FCB] ESC pressed - collapsing floating chat to button');
+          setIsCollapsed(true);
           setShowMessages(false);
         }
       }
     };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isFullscreen, isExpanded, showMessages, isCollapsed]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isExpanded, isMinimized, showMessages]);
-
-  // Handle resizing the chat width in expanded view
+  // Auto-sync document content when fullscreen opens (if no content loaded yet)
   useEffect(() => {
-    if (!isResizing) return;
+    if (isFullscreen && !documentContent && messages.length > 0) {
+      // Find the most recent assistant message with substantial content (> 500 chars)
+      const latestContent = [...messages].reverse().find(
+        msg => msg.role === 'assistant' && msg.content.length > 500
+      );
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Calculate new chat width based on mouse movement
-      const newWidth = Math.max(200, Math.min(e.clientX, 400)); // Min 200px, max 400px
-      setChatWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
+      if (latestContent) {
+        console.log('[FCB] Auto-syncing latest content to document area on fullscreen open');
+        setDocumentContent(latestContent.content);
+        setDocumentSourceMessageId(latestContent.id);
+        extractDocumentTitle(latestContent.content);
+      }
+    }
+  }, [isFullscreen, documentContent, messages]);
 
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
@@ -173,7 +401,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Helper: Create new conversation
   const createNewConversation = () => {
     const newConv: Conversation = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       title: 'New Chat',
       messages: [],
       createdAt: new Date(),
@@ -183,6 +411,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setCurrentConversationId(newConv.id);
     setMessages([]);
     setInput('');
+    // Clear document state for new conversation
+    setDocumentContent('');
+    setDocumentTitle('Working Document');
   };
 
   // Helper: Save current messages to conversation
@@ -209,9 +440,20 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const loadConversation = (conversationId: string) => {
     const conv = conversations.find(c => c.id === conversationId);
     if (conv) {
+      // Flag that we're loading a conversation to prevent auto-save race condition
+      isLoadingConversation.current = true;
+
       setCurrentConversationId(conversationId);
       setMessages(conv.messages);
       setInput('');
+      // Clear document state when switching conversations
+      setDocumentContent('');
+      setDocumentTitle('Working Document');
+
+      // Clear the flag after state updates complete
+      setTimeout(() => {
+        isLoadingConversation.current = false;
+      }, 100);
     }
   };
 
@@ -229,6 +471,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         setMessages([]);
       }
     }
+  };
+
+  // Helper: Deduplicate consecutive identical lines (prevents "selected campaign" 3x)
+  const deduplicateLines = (text: string): string => {
+    const lines = text.split('\n');
+    return lines.filter((line, i) => {
+      if (i === 0) return true; // Always keep first line
+      const trimmedCurrent = line.trim();
+      const trimmedPrevious = lines[i - 1].trim();
+      // Remove line if it's identical to previous line (consecutive duplicates)
+      return trimmedCurrent !== trimmedPrevious;
+    }).join('\n');
   };
 
   // Helper: Get conversations grouped by time
@@ -265,19 +519,82 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return groups;
   };
 
-  // Auto-fullscreen detection
-  const shouldGoFullscreen = (message: string) => {
-    const keywords = [
-      'write a post',
-      'write a linkedin post',
-      'create a post',
-      'draft a post',
-      'write an article',
-      'write an essay',
-      'create a document',
-      'draft',
+  // Extract document title from markdown content
+  const extractDocumentTitle = (markdown: string) => {
+    // Look for markdown heading: # Title
+    const h1Match = markdown.match(/^#\s+(.+)$/m);
+    if (h1Match && h1Match[1]) {
+      setDocumentTitle(h1Match[1].trim());
+    }
+  };
+
+  // Fixed buttons - always present at bottom of chat when there's document content
+  const getFixedBarButtons = (): ActionButton[] => {
+    return [
+      { id: 'post_linkedin', label: 'POST TO LINKEDIN', action: 'post_linkedin', primary: true },
+      { id: 'save', label: 'SAVE', action: 'save' },
+      { id: 'schedule', label: 'SCHEDULE POST', action: 'schedule' },
     ];
-    return keywords.some(k => message.toLowerCase().includes(k));
+  };
+
+  // Content-specific buttons - only under messages that synced to document area
+  const getContentButtons = (): ActionButton[] => {
+    return [
+      { id: 'try_new_style', label: 'TRY NEW STYLE', action: 'regenerate' },
+      { id: 'change_voice', label: 'DIFFERENT VOICE', action: 'change_voice' },
+    ];
+  };
+
+  // Get background color for action button (consistent gray shades)
+  const getButtonColor = (isPrimary?: boolean): string => {
+    if (isPrimary) return 'bg-gray-800 text-white hover:bg-gray-900';
+    return 'bg-gray-400 text-gray-800 hover:bg-gray-500';
+  };
+
+  // Handle action button clicks
+  const handleActionClick = async (action: string, messageId?: string) => {
+    console.log('[FCB] Action clicked:', action, 'messageId:', messageId);
+
+    switch (action) {
+      case 'post_linkedin':
+        // TODO: Implement post to LinkedIn
+        toast.success('Post to LinkedIn - Coming soon!');
+        break;
+      case 'regenerate':
+        // Send "try a new style" to HGC
+        setInput('Try a new style for this content');
+        handleSubmit(new Event('submit') as any);
+        break;
+      case 'change_voice':
+        // TODO: Show voice cartridge selector
+        toast.info('Voice cartridge selector - Coming soon!');
+        break;
+      case 'try_copywriting':
+        // TODO: Show copywriting cartridge selector (future feature)
+        toast.info('Copywriting cartridge - Coming soon!');
+        break;
+      case 'save':
+        // Open save to campaign modal
+        setShowSaveToCampaignModal(true);
+        break;
+      case 'schedule':
+        // TODO: Implement schedule post
+        toast.info('Schedule post - Coming soon!');
+        break;
+      default:
+        console.warn('[FCB] Unknown action:', action);
+    }
+  };
+
+  // Strip intro explanation text before the actual content
+  const stripIntroText = (content: string) => {
+    // Remove common intro patterns like "Here's a...", "Sure, here's...", etc.
+    // Strip everything before the first markdown heading or real content
+    const cleanContent = content
+      .replace(/^(Here's|Sure,\s+here's|I've\s+created|I'll\s+create)[^#\n]*[\n]+/i, '')
+      .replace(/^.*?(?=^#{1,6}\s)/m, '');
+
+    return cleanContent.trim() || content;
   };
 
   // Handle form submission
@@ -298,7 +615,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       role: 'user',
       content: input.trim(),
       createdAt: new Date(),
@@ -309,10 +626,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
 
-    // Check if should auto-expand to fullscreen
-    if (shouldGoFullscreen(userMessage.content)) {
-      console.log('[AUTO-FULLSCREEN] Triggered by keywords in:', userMessage.content);
+    // Check if user's message contains trigger keywords
+    // Open fullscreen immediately BEFORE waiting for assistant response
+    const shouldTriggerFullscreen = hasDocumentCreationTrigger();
+    if (shouldTriggerFullscreen && !isFullscreen) {
+      console.log('[FCB] User message triggered fullscreen mode:', input.trim());
       setIsFullscreen(true);
+      // Document area stays blank until real content arrives
     }
 
     setInput('');
@@ -320,18 +640,41 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setError(null);
 
     try {
-      console.log('[HGC_STREAM] Starting fetch request to /api/hgc');
-      const response = await fetch('/api/hgc', {
+      const requestPayload = {
+        messages: [...messages, userMessage]
+          .slice(-40) // Keep only last 40 messages to stay under 50-message API limit
+          .map(m => {
+            let cleanContent = m.content;
+
+            // Sanitize: If content is a JSON string (from old broken responses), extract the actual text
+            if (typeof cleanContent === 'string' && cleanContent.trim().startsWith('{')) {
+              try {
+                const parsed = JSON.parse(cleanContent);
+                if (parsed.response) {
+                  cleanContent = parsed.response;
+                  console.log('[HGC_STREAM] Sanitized JSON message, extracted response text');
+                }
+              } catch (e) {
+                // Not valid JSON, keep content as-is
+              }
+            }
+
+            return {
+              role: m.role,
+              content: cleanContent,
+            };
+          }),
+      };
+
+      console.log(`[HGC_STREAM] Starting fetch request to ${HGC_API_ENDPOINT}`);
+      console.log('[HGC_STREAM] Request payload:', JSON.stringify(requestPayload, null, 2));
+
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       console.log('[HGC_STREAM] Response received:', {
@@ -344,16 +687,98 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         if (response.status === 401) {
           throw new Error('Please log in to use the chat');
         }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        // Try to get detailed error message from response body
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error || errorData.message || errorData.detail) {
+            errorMessage = errorData.error || errorData.message || errorData.detail;
+          }
+        } catch (e) {
+          // If response isn't JSON, try text
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage = errorText.substring(0, 200); // Limit length
+            }
+          } catch (e2) {
+            // Keep default error message
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
+      // Detect response type by Content-Type header
+      const contentType = response.headers.get('content-type') || '';
+      const isJsonResponse = contentType.includes('application/json');
+
+      console.log('[HGC_STREAM] Response Content-Type:', contentType, 'Is JSON:', isJsonResponse);
+
+      // HANDLE JSON RESPONSES (no tool calls)
+      if (isJsonResponse) {
+        console.log('[HGC_STREAM] Handling JSON response');
+        const data = await response.json();
+        console.log('[HGC_STREAM] JSON data:', { response: data.response?.substring(0, 100), success: data.success });
+
+        if (data.response) {
+          const assistantContent = data.response;
+          const cleanContent = deduplicateLines(
+            stripIntroText(assistantContent)
+              .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments (safety net for backend leakage)
+          );
+
+          // Create assistant message with cleaned content (intro text removed)
+          const assistantMessage: Message = {
+            id: generateUniqueId(),
+            role: 'assistant',
+            content: cleanContent,
+            interactive: data.interactive, // CRITICAL: Attach interactive field for inline forms
+            createdAt: new Date(),
+          };
+
+          // Deduplicate: Only add if message with this ID doesn't already exist
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === assistantMessage.id);
+            if (exists) {
+              console.log('[HGC_STREAM] ⚠️  Message with ID', assistantMessage.id, 'already exists, skipping duplicate');
+              return prev;
+            }
+            return [...prev, assistantMessage];
+          });
+          console.log('[HGC_STREAM] JSON response added to messages. Length:', cleanContent.length);
+
+          if (data.interactive) {
+            console.log('[HGC_STREAM] 🎯 INTERACTIVE response detected:', data.interactive.type);
+          }
+
+          // Auto-fullscreen if content > 500 chars AND user triggered document creation
+          console.log('[FCB] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
+          if (cleanContent.length > 500 && !isFullscreen) {
+            const shouldTrigger = hasDocumentCreationTrigger();
+            console.log('[FCB] Checking trigger for JSON response, result:', shouldTrigger);
+            if (shouldTrigger) {
+              console.log('[FCB] Assistant response triggered fullscreen (JSON mode)');
+              setIsFullscreen(true);
+              setDocumentContent(cleanContent);
+              setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
+              extractDocumentTitle(cleanContent);
+            }
+          }
+        }
+        setIsLoading(false);
+        return; // Exit early - JSON response is complete
+      }
+
+      // HANDLE STREAMING RESPONSES (with tool calls)
       if (!response.body) {
         throw new Error('No response body');
       }
 
       // Create assistant message placeholder
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         role: 'assistant',
         content: '',
         createdAt: new Date(),
@@ -384,6 +809,34 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
         assistantContent += chunk;
 
+        // Auto-fullscreen when document content starts (>500 chars = actual document) AND trigger keywords matched
+        if (assistantContent.length > 500 && !isFullscreen) {
+          const shouldTrigger = hasDocumentCreationTrigger();
+          console.log('[FCB] Streaming - content length:', assistantContent.length, 'shouldTrigger:', shouldTrigger);
+          if (shouldTrigger) {
+            console.log('[FCB] Assistant response triggered fullscreen (streaming mode)');
+            setIsFullscreen(true);
+            const cleanContent = deduplicateLines(
+              stripIntroText(assistantContent)
+                .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
+            );
+            setDocumentContent(cleanContent);
+            setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
+            extractDocumentTitle(cleanContent);
+          }
+        }
+
+        // Keep document in sync if already in fullscreen
+        if (isFullscreen && assistantContent.length > 500) {
+          const cleanContent = deduplicateLines(
+            stripIntroText(assistantContent)
+              .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments
+          );
+          setDocumentContent(cleanContent);
+          setDocumentSourceMessageId(assistantMessage.id); // Keep tracking the same message
+          extractDocumentTitle(cleanContent);
+        }
+
         // Update the assistant message in place
         setMessages(prev => {
           const newMessages = [...prev];
@@ -397,9 +850,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('[HGC_STREAM] Request was aborted');
+        toast.info('Request cancelled');
       } else {
         console.error('[HGC_STREAM] Error:', error);
-        setError(error.message || 'An error occurred');
+        const errorMessage = error.message || 'An error occurred';
+        setError(errorMessage);
+
+        // Show error toast with system context
+        toast.error('Chat Error', {
+          description: errorMessage,
+          duration: 5000,
+        });
+
         // Remove the empty assistant message if there was an error
         setMessages(prev => {
           const newMessages = [...prev];
@@ -416,8 +878,157 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
   };
 
+  // ========================================
+  // SLASH COMMAND HANDLERS
+  // ========================================
+
+  // Handle input change - detect slash commands
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+
+    // Detect "/" at start of input
+    if (value.startsWith('/') && !showSlashMenu) {
+      // Calculate dropdown position above textarea
+      if (textareaRef.current) {
+        const rect = textareaRef.current.getBoundingClientRect();
+        setSlashMenuPosition({
+          top: rect.top - 10, // Position above textarea
+          left: rect.left,
+        });
+      }
+      setShowSlashMenu(true);
+      setSlashQuery(value.slice(1)); // Remove "/" for query
+    } else if (value.startsWith('/') && showSlashMenu) {
+      // Update query as user types
+      setSlashQuery(value.slice(1));
+    } else if (!value.startsWith('/') && showSlashMenu) {
+      // Hide menu if "/" is removed
+      setShowSlashMenu(false);
+      setSlashQuery('');
+    }
+  };
+
+  // Handle slash command selection
+  const handleSlashCommandSelect = async (command: SlashCommand) => {
+    console.log('[SLASH_CMD] Executing command:', command.name);
+
+    // Close menu
+    setShowSlashMenu(false);
+    setSlashQuery('');
+
+    // Extract args (text after command name)
+    const commandText = `/${command.name}`;
+    const args = input.slice(commandText.length).trim();
+
+    // Clear input immediately
+    setInput('');
+
+    // Create command context
+    const context: SlashCommandContext = {
+      sendMessage: async (message: string) => {
+        // Create user message directly (bypass input state timing issue)
+        const userMessage: Message = {
+          id: generateUniqueId(),
+          role: 'user',
+          content: message.trim(),
+          createdAt: new Date(),
+        };
+
+        console.log('[SLASH_CMD] Sending message as user:', userMessage.content);
+
+        // Add to messages and show panel
+        setMessages(prev => [...prev, userMessage]);
+        setShowMessages(true);
+
+        // Check if should trigger fullscreen
+        const lowerContent = message.toLowerCase();
+        const shouldTriggerFullscreen =
+          lowerContent.includes('write') ||
+          lowerContent.includes('draft') ||
+          lowerContent.includes('compose') ||
+          lowerContent.startsWith('/write') ||
+          lowerContent.startsWith('/generate');
+
+        if (shouldTriggerFullscreen && !isFullscreen) {
+          console.log('[SLASH_CMD] Triggering fullscreen for:', message);
+          setIsFullscreen(true);
+        }
+
+        // Start loading and call API
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          const response = await fetch(HGC_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [...messages, userMessage].slice(-40).map(m => ({
+                role: m.role,
+                content: m.content,
+              })),
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // Add assistant response
+          const assistantMessage: Message = {
+            id: generateUniqueId(),
+            role: 'assistant',
+            content: data.response,
+            createdAt: new Date(),
+            interactive: data.interactive,
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+
+        } catch (error) {
+          console.error('[SLASH_CMD] API error:', error);
+          setError('Failed to send message');
+          toast.error('Failed to send message');
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      clearInput: () => {
+        setInput('');
+      },
+      setFullscreen: (enabled: boolean) => {
+        setIsFullscreen(enabled);
+      },
+      clearMessages: () => {
+        setMessages([]);
+        setCurrentConversationId(null);
+        toast.success('Conversation cleared');
+      },
+      clearDocument: () => {
+        setDocumentContent('');
+        setDocumentTitle('Working Document');
+      },
+    };
+
+    // Execute command handler
+    try {
+      await command.handler(args, context);
+    } catch (error) {
+      console.error('[SLASH_CMD] Error executing command:', error);
+      toast.error(`Failed to execute /${command.name}`);
+    }
+  };
+
   // Handle Enter key (send) and Shift+Enter (new line)
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // If slash menu is open, don't handle Enter (let autocomplete handle it)
+    if (showSlashMenu && e.key === 'Enter') {
+      return; // Let SlashCommandAutocomplete handle Enter
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (input.trim() && !isLoading) {
@@ -447,6 +1058,464 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     parts: [{ type: 'text' as const, text: msg.content }],
   });
 
+  // Handle expand button click - find last long message and show in fullscreen
+  // Check if user's last message contains trigger keywords for document creation
+  const hasDocumentCreationTrigger = () => {
+    console.log('[FULLSCREEN_DEBUG] hasDocumentCreationTrigger called, messages.length:', messages.length);
+
+    if (messages.length === 0) {
+      console.log('[FULLSCREEN_DEBUG] No messages, returning false');
+      return false;
+    }
+
+    // Look at last 3 user messages (not just the last one)
+    // User might say "write" then later say "generate" or "finished"
+    const recentUserMessages = [...messages]
+      .reverse()
+      .filter(msg => msg.role === 'user')
+      .slice(0, 3);
+
+    if (recentUserMessages.length === 0) {
+      console.log('[FULLSCREEN_DEBUG] No user messages found, returning false');
+      return false;
+    }
+
+    const recentText = recentUserMessages.map(msg => msg.content.toLowerCase()).join(' ');
+    console.log('[FULLSCREEN_DEBUG] Recent user messages (last 3):', recentText);
+
+    // Trigger keywords that indicate creative/document writing
+    const triggerKeywords = [
+      'write', 'compose', 'draft', 'generate', 'create a post', 'create an article',
+      'create a document', 'post', 'article', 'blog', 'newsletter', 'email',
+      'finished', 'go ahead', 'do it', 'let\'s go'
+    ];
+
+    // Block keywords that should NOT trigger fullscreen
+    const blockKeywords = ['create a campaign', 'create a cartridge', 'explain', 'tell me', 'analyze', 'help me', 'what is', 'how to', 'describe', 'summarize', 'list', 'show me'];
+
+    // Check if any block keyword is present
+    const hasBlockKeyword = blockKeywords.some(keyword => recentText.includes(keyword));
+    if (hasBlockKeyword) {
+      console.log('[FULLSCREEN_DEBUG] Block keyword found, returning false');
+      return false;
+    }
+
+    // Check if any trigger keyword is present
+    const hasTriggerKeyword = triggerKeywords.some(keyword => recentText.includes(keyword));
+    console.log('[FULLSCREEN_DEBUG] Trigger keyword found:', hasTriggerKeyword);
+
+    return hasTriggerKeyword;
+  };
+
+  const handleMessageExpand = () => {
+    // Find the last assistant message with content > 500 chars
+    const longMessage = [...messages].reverse().find(
+      msg => msg.role === 'assistant' && msg.content.length > 500
+    );
+
+    // User explicitly clicked expand - open regardless of trigger keywords
+    if (longMessage) {
+      setIsFullscreen(true);
+      setDocumentContent(longMessage.content);
+      setDocumentSourceMessageId(longMessage.id); // Track which message is in document
+      extractDocumentTitle(longMessage.content);
+    }
+  };
+
+  // Enter edit mode - copy current content to editor
+  const handleEditClick = () => {
+    setEditedContent(documentContent);
+    setIsEditMode(true);
+  };
+
+  // Save edited content and exit edit mode
+  const handleSaveEdit = () => {
+    setDocumentContent(editedContent);
+    setIsEditMode(false);
+    setEditedContent('');
+  };
+
+  // Cancel edit mode without saving
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedContent('');
+  };
+
+  // Copy document content to clipboard
+  const handleCopyContent = async () => {
+    try {
+      await navigator.clipboard.writeText(documentContent);
+      setCopiedFeedback(true);
+      setTimeout(() => setCopiedFeedback(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  // ========================================
+  // INLINE WORKFLOW HANDLERS
+  // ========================================
+
+  // Handle user selecting a decision (e.g., "Create New Campaign" vs "Select Existing")
+  const handleDecisionSelect = async (decision: string, workflowId?: string) => {
+    console.log('[INLINE_FORM] Decision selected:', decision, 'workflow:', workflowId);
+
+    // Special handling for "continue" - close workflow and continue chat
+    if (decision === 'continue') {
+      // Remove the decision buttons
+      setMessages(prev => {
+        const newMessages = [...prev];
+        for (let i = newMessages.length - 1; i >= 0; i--) {
+          if (newMessages[i].interactive?.type === 'decision') {
+            newMessages.splice(i, 1);
+            break;
+          }
+        }
+        return newMessages;
+      });
+
+      // Add user's choice
+      const userMessage: Message = {
+        id: generateUniqueId(),
+        role: 'user',
+        content: 'Continue writing',
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      // Get backend response to continue the flow
+      try {
+        const response = await sandboxFetch(HGC_API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              ...messages.filter(m => !m.interactive),
+              userMessage,
+            ].slice(-40), // Keep last 40 messages to stay under API limit
+            decision: 'continue',
+            workflow_id: workflowId,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.response) {
+          const assistantMessage: Message = {
+            id: generateUniqueId(),
+            role: 'assistant',
+            content: data.response,
+            createdAt: new Date(),
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        }
+      } catch (error) {
+        console.error('Error continuing chat:', error);
+      }
+      return;
+    }
+
+    // Special handling for "just write first" - close workflow and let user write
+    if (decision === 'just_write') {
+      // Clear the interactive form by removing the last message with decision buttons
+      setMessages(prev => {
+        const newMessages = [...prev];
+        // Find and remove the last message with interactive elements
+        for (let i = newMessages.length - 1; i >= 0; i--) {
+          if (newMessages[i].interactive?.type === 'decision') {
+            newMessages.splice(i, 1);
+            break;
+          }
+        }
+        return newMessages;
+      });
+
+      // Add a friendly message
+      const userMessage: Message = {
+        id: generateUniqueId(),
+        role: 'user',
+        content: 'Just write',
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      const assistantMessage: Message = {
+        id: generateUniqueId(),
+        role: 'assistant',
+        content: 'Got it! Go ahead and write your post. You can save it and link it to a campaign anytime.',
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+      return; // Don't call backend
+    }
+
+    // Add user message showing their choice
+    const userMessage: Message = {
+      id: generateUniqueId(),
+      role: 'user',
+      content: decision === 'create_new' ? 'Create a new campaign' : 'Select from existing campaigns',
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Send decision to backend with workflow context
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
+          workflow_id: workflowId,
+          decision: decision,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Add assistant response (may contain next step of workflow)
+      const assistantMessage: Message = {
+        id: generateUniqueId(),
+        role: 'assistant',
+        content: data.response || 'Got it!',
+        interactive: data.interactive, // Next step (e.g., campaign selector)
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (data.interactive) {
+        console.log('[INLINE_FORM] 🎯 Next step:', data.interactive.type);
+      }
+    } catch (err) {
+      console.error('[INLINE_FORM] Error handling decision:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to process your selection';
+      toast.error(errorMsg);
+    }
+  };
+
+  // Handle user selecting a campaign
+  const handleCampaignSelect = async (campaignId: string, workflowId?: string) => {
+    console.log('[INLINE_FORM] Campaign selected:', campaignId, 'workflow:', workflowId);
+
+    // Add user message
+    const userMessage: Message = {
+      id: generateUniqueId(),
+      role: 'user',
+      content: `Selected campaign: ${campaignId}`,
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Send campaign selection to backend
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
+          workflow_id: workflowId,
+          campaign_id: campaignId,
+        }),
+      });
+
+      const data = await response.json();
+
+      // Add assistant response (may contain datetime picker)
+      const assistantMessage: Message = {
+        id: generateUniqueId(),
+        role: 'assistant',
+        content: data.response || 'Great choice!',
+        interactive: data.interactive, // Next step (e.g., datetime picker)
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (data.interactive) {
+        console.log('[INLINE_FORM] 🎯 Next step:', data.interactive.type);
+      }
+    } catch (err) {
+      console.error('[INLINE_FORM] Error handling campaign selection:', err);
+      toast.error('Failed to process campaign selection');
+    }
+  };
+
+  // Handle user selecting a datetime
+  const handleDateTimeSelect = async (datetime: string, workflowId?: string, campaignId?: string, content?: string) => {
+    console.log('[INLINE_FORM] DateTime selected:', datetime, 'workflow:', workflowId, 'campaign:', campaignId, 'content:', content);
+
+    // Add user message
+    const userMessage: Message = {
+      id: generateUniqueId(),
+      role: 'user',
+      content: `Schedule for: ${new Date(datetime).toLocaleString()}`,
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Send datetime selection to backend (final step - should execute schedule)
+      const response = await sandboxFetch(HGC_API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
+          workflow_id: workflowId,
+          schedule_time: datetime,
+          campaign_id: campaignId,
+          content: content,
+        }),
+      });
+
+      const data = await response.json();
+
+      // Add assistant response (should be success message)
+      const assistantMessage: Message = {
+        id: generateUniqueId(),
+        role: 'assistant',
+        content: data.response || 'Post scheduled successfully!',
+        interactive: data.interactive,
+        createdAt: new Date(),
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      if (data.success) {
+        toast.success('Post scheduled successfully!');
+      }
+    } catch (err) {
+      console.error('[INLINE_FORM] Error handling datetime selection:', err);
+      toast.error('Failed to schedule post');
+    }
+  };
+
+  // ========================================
+  // MESSAGE RENDERING WITH INLINE COMPONENTS
+  // ========================================
+
+  const renderMessage = (message: Message, index: number) => {
+    // Check if this message has interactive elements
+    if (message.interactive && message.role === 'assistant') {
+      return (
+        <div key={message.id} className="space-y-3">
+          {/* Show the message text */}
+          <ChatMessage
+            message={convertToUIMessage(message)}
+            isLoading={isLoading && index === messages.length - 1}
+            onExpand={handleMessageExpand}
+          />
+
+          {/* Render the appropriate inline component */}
+          {message.interactive.type === 'decision' && message.interactive.decision_options && (
+            <InlineDecisionButtons
+              options={message.interactive.decision_options}
+              workflowId={message.interactive.workflow_id}
+              onSelect={handleDecisionSelect}
+            />
+          )}
+
+          {message.interactive.type === 'campaign_select' && message.interactive.campaigns && (
+            <InlineCampaignSelector
+              campaigns={message.interactive.campaigns}
+              workflowId={message.interactive.workflow_id}
+              onSelect={handleCampaignSelect}
+            />
+          )}
+
+          {message.interactive.type === 'datetime_select' && (
+            <InlineDateTimePicker
+              initialDatetime={message.interactive.initial_datetime}
+              workflowId={message.interactive.workflow_id}
+              campaignId={message.interactive.campaign_id}
+              content={message.interactive.initial_content}
+              onSelect={handleDateTimeSelect}
+            />
+          )}
+
+          {/* Content-specific buttons - only show if this message is synced to document */}
+          {isFullscreen && documentSourceMessageId === message.id && (
+            <div className="mt-2.5">
+              {/* 2px separator line */}
+              <div className="h-[2px] bg-gray-300 mb-2.5 w-full" />
+              <div className="flex flex-wrap gap-[7px]">
+                {getContentButtons().map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action.action, message.id)}
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                      getButtonColor(action.primary)
+                    )}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Regular message without interactive elements
+    return (
+      <div key={message.id}>
+        <ChatMessage
+          message={convertToUIMessage(message)}
+          isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
+          onExpand={handleMessageExpand}
+        />
+
+        {/* Content-specific buttons - only show if this message is synced to document */}
+        {message.role === 'assistant' && isFullscreen && documentSourceMessageId === message.id && (
+          <div className="mt-2.5">
+            {/* 2px separator line */}
+            <div className="h-[2px] bg-gray-300 mb-2.5 w-full" />
+            <div className="flex flex-wrap gap-[7px]">
+              {getContentButtons().map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => handleActionClick(action.action, message.id)}
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                    getButtonColor(action.primary)
+                  )}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Handle left resizer mousedown (expand/shrink entire sidebar)
+  // NOTE: Direction may feel backwards - user drags right to expand left side, etc
+  const handleLeftResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    resizerTypeRef.current = 'left';
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = sidebarWidth;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  };
+
+  // Handle middle resizer mousedown (redistribute chat/history within fixed total)
+  // NOTE: Direction may feel backwards - user drags right to shrink chat area, etc
+  const handleMiddleResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    resizerTypeRef.current = 'middle';
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = chatWidth;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  };
+
   // Don't render if minimized
   if (isMinimized) {
     return (
@@ -463,25 +1532,41 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Fullscreen embedded view - ChatSDK-style two-panel layout
   // Left: Chat panel | Right: Document viewer
   if (isFullscreen) {
-    console.log('[FloatingChatBar] FULLSCREEN VIEW RENDERING!');
     return (
-      <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white flex z-30 animate-in fade-in slide-in-from-right duration-200">
+      <>
+        {/* Slash Command Autocomplete - Fullscreen Mode */}
+        <SlashCommandAutocomplete
+          visible={showSlashMenu}
+          query={slashQuery}
+          onSelect={handleSlashCommandSelect}
+          onClose={() => {
+            setShowSlashMenu(false);
+            setSlashQuery('');
+          }}
+          position={slashMenuPosition}
+        />
 
-        {/* LEFT PANEL: Chat */}
-        <div className="w-96 border-r border-gray-200 flex flex-col bg-white">
+        <div className="absolute inset-0 left-0 right-0 top-16 bottom-0 bg-white z-30 animate-in fade-in slide-in-from-left duration-200">
+          <PanelGroup direction="horizontal">
+            {/* LEFT PANEL: Chat - Collapsible */}
+            <Panel defaultSize={40} minSize={30} maxSize={60} collapsible={true}>
+              <div className="h-full border-r border-gray-200 flex flex-col bg-white">
           {/* Top Navigation Bar - Document Title & Actions */}
-          <div className="h-14 px-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <h2 className="text-sm font-semibold text-gray-900 truncate">Working Document</h2>
+              <h2 className="text-sm font-semibold text-gray-900 truncate">{documentTitle}</h2>
             </div>
             <div className="flex items-center gap-1 ml-2">
               {/* Close/Back to floating */}
               <button
                 onClick={() => {
-                  console.log('[FULLSCREEN->FLOATING] Clicked!');
                   setIsFullscreen(false);
                   setIsExpanded(false);
                   setIsMinimized(false);
+                  setIsDocumentMaximized(false);
+                  setShowMessages(true);  // Auto-open message panel
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-colors"
                 aria-label="Close fullscreen"
@@ -502,13 +1587,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 <p className="text-sm">Start a conversation with your AI assistant</p>
               </div>
             ) : (
-              messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={convertToUIMessage(message)}
-                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-                />
-              ))
+              messages.map((message, index) => renderMessage(message, index))
             )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
@@ -523,13 +1602,33 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             )}
           </div>
 
+          {/* Fixed Action Button Bar - Always visible when there's document content */}
+          {documentContent && (
+            <div className="p-3 bg-gray-50 border-t border-gray-200">
+              <div className="flex gap-[7px]">
+                {getFixedBarButtons().map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action.action)}
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                      getButtonColor(action.primary)
+                    )}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Input Area */}
-          <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 bg-white">
+          <form onSubmit={handleSubmit} className="p-3 bg-white">
             <div className="flex gap-2 items-flex-end">
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Send a message..."
                 className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none resize-none text-gray-700 placeholder-gray-500"
@@ -556,45 +1655,171 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </div>
           </form>
         </div>
+            </Panel>
 
-        {/* RIGHT PANEL: Document Viewer */}
-        <div className="flex-1 overflow-hidden bg-gray-50 flex flex-col">
-          {/* Document Content Area */}
-          <div className="flex-1 overflow-y-auto p-12">
-            <div className="max-w-3xl mx-auto text-gray-600">
-              <div className="prose prose-sm max-w-none">
-                <p className="text-sm text-gray-500 mb-4">Document content will appear here</p>
-                <p className="text-sm text-gray-400 leading-relaxed">
-                  When you ask me to "write a post", "draft an article", or create content,
-                  the document will display here on the right while you chat with me on the left.
-                </p>
-              </div>
+            {/* RESIZE HANDLE */}
+            <PanelResizeHandle className="w-1 bg-gray-200 hover:bg-blue-500 transition-colors cursor-col-resize active:bg-blue-600" />
+
+            {/* RIGHT PANEL: Document Viewer */}
+            <Panel defaultSize={60} minSize={30}>
+              <div className="h-full overflow-hidden bg-white flex flex-col">
+          {/* Document Header */}
+          <div className="h-14 px-6 bg-gray-50 flex items-center justify-between flex-shrink-0">
+            <h2 className="text-sm font-semibold text-gray-900">{documentTitle}</h2>
+            <div className="flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-3 py-1 text-xs font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+                    aria-label="Save changes"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                    aria-label="Cancel editing"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleEditClick}
+                    className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                    aria-label="Edit document"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={handleCopyContent}
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    aria-label={copiedFeedback ? "Copied!" : "Copy document"}
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <button
+                    onClick={() => setShowSaveToCampaignModal(true)}
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    aria-label="Save document"
+                    title="Save to knowledge base (optionally link to campaign)"
+                  >
+                    <Save className="w-4 h-4 text-gray-600" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
+          {/* Document Content Area */}
+          <div className="flex-1 overflow-y-auto">
+            {isEditMode ? (
+              // Edit mode - show textarea with markdown
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full h-full p-6 text-sm text-gray-700 font-mono border-0 rounded-none focus:outline-none resize-none bg-white"
+                placeholder="Enter your markdown content here..."
+                spellCheck="false"
+              />
+            ) : (
+              // View mode - show formatted markdown
+              <div className="px-16 py-12">
+                <div className="max-w-4xl mx-auto">
+                  {documentContent ? (
+                    <div className="prose prose-lg max-w-none">
+                      <ReactMarkdown
+                        components={{
+                        strong: ({ children }) => (
+                          <strong className="font-bold text-gray-900">{children}</strong>
+                        ),
+                        p: ({ children }) => (
+                          <p className="mb-4 last:mb-0 text-gray-700 leading-relaxed">{children}</p>
+                        ),
+                        h1: ({ children }) => (
+                          <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-5xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">{children}</ol>
+                        ),
+                        li: ({ children }) => (
+                          <li className="text-gray-700">{children}</li>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
+                        ),
+                        hr: () => null,
+                      }}
+                      >
+                        {documentContent}
+                      </ReactMarkdown>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+            </Panel>
+          </PanelGroup>
+
+        {/* Save to Campaign Modal */}
+        <SaveToCampaignModal
+          isOpen={showSaveToCampaignModal}
+          onClose={() => setShowSaveToCampaignModal(false)}
+          documentContent={documentContent}
+          documentTitle={documentTitle}
+        />
+        </div>
+      </>
     );
   }
 
   // Expanded sidebar view (RIGHT side, embedded) - with ChatSDK-style history
-  // This is a sidebar that sits on the right WITHOUT covering the main app content
   if (isExpanded) {
-    console.log('[FloatingChatBar] EXPANDED VIEW RENDERING - Banner should be visible!');
     const groupedConversations = getGroupedConversations();
     const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
-    const historyWidth = 384 - chatWidth - 4; // Total 384px (w-96), minus chat width, minus divider
+
+    const historyWidth = showChatHistory && hasAnyConversations ? 192 : 0;
 
     return (
-      <div className="fixed right-0 top-16 bottom-0 flex gap-0 bg-white animate-in slide-in-from-right duration-200 z-20 border-l-2 border-gray-300" style={{ width: '384px' }}>
-        {/* Main Chat Area - LEFT side (resizable) */}
-        <div style={{ width: `${chatWidth}px` }} className="flex flex-col bg-white">
-          {/* Minimal Top Banner with icon navigation */}
-          <div className="px-2 py-1.5 border-b border-gray-200 flex items-center gap-1">
+      <>
+        {/* Slash Command Autocomplete - Expanded Sidebar Mode */}
+        <SlashCommandAutocomplete
+          visible={showSlashMenu}
+          query={slashQuery}
+          onSelect={handleSlashCommandSelect}
+          onClose={() => {
+            setShowSlashMenu(false);
+            setSlashQuery('');
+          }}
+          position={slashMenuPosition}
+        />
+
+        <div className="fixed right-0 top-16 bottom-0 bg-white border-l border-gray-200 animate-in slide-in-from-right duration-200 flex">
+          <PanelGroup direction="horizontal">
+            {/* MAIN CHAT AREA - Flexible width */}
+            <Panel defaultSize={70} minSize={50} maxSize={90}>
+              <div className="h-full flex flex-col bg-white relative">
+          {/* Minimal Top Banner with icon navigation - match history banner height */}
+          <div className="h-16 px-2 border-b border-gray-200 flex items-center gap-1">
             {/* Fullscreen icon (square with rounded corners) */}
             <button
               onClick={() => {
-                console.log('[SIDEBAR->FULLSCREEN] Clicked!');
                 setIsFullscreen(true);
+                setShowSlashMenu(false);  // Close slash menu
+                setSlashQuery('');
               }}
               className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
               aria-label="Fullscreen"
@@ -606,9 +1831,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             {/* Floating bar icon (horizontal rectangle) */}
             <button
               onClick={() => {
-                console.log('[SIDEBAR->FLOATING] Clicked!');
                 setIsExpanded(false);
                 setIsMinimized(false);
+                setShowSlashMenu(false);  // Close slash menu
+                setSlashQuery('');
               }}
               className="p-1 hover:bg-gray-100 rounded transition-all duration-200"
               aria-label="Floating bar"
@@ -641,13 +1867,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 <p className="text-sm">Start a conversation with your AI assistant</p>
               </div>
             ) : (
-              messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={convertToUIMessage(message)}
-                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-                />
-              ))
+              messages.map((message, index) => renderMessage(message, index))
             )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
@@ -663,10 +1883,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 bg-gray-50">
-            <div className="bg-white border border-gray-200 rounded-lg">
+          <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="bg-white border border-gray-200 rounded-xl">
               {isLoading ? (
-                <div className="flex items-center gap-1.5 px-3 py-2 h-[34px]">
+                <div className="flex items-center gap-1.5 px-4 py-3 h-[38px]">
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
@@ -675,7 +1895,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 <textarea
                   ref={textareaRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Revy wants to help! Type..."
                   className="w-full px-4 py-3 text-gray-700 text-sm outline-none resize-none rounded-t-xl"
@@ -683,159 +1903,184 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   disabled={isLoading}
                 />
               )}
-              <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-gray-100">
-                <div className="flex gap-0.5">
+              <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+                <div className="flex gap-1">
                   <button
                     type="button"
-                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label="Attach file"
                     disabled
                   >
-                    <Paperclip className="w-3.5 h-3.5 text-gray-400" />
+                    <Paperclip className="w-4 h-4 text-gray-400" />
                   </button>
                   <button
                     type="button"
-                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label="Voice input"
                     disabled
                   >
-                    <Mic className="w-3.5 h-3.5 text-gray-400" />
+                    <Mic className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
                   className={cn(
-                    "w-7 h-7 rounded-full flex items-center justify-center transition-colors",
+                    "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
                     input.trim() && !isLoading
                       ? "bg-gray-900 text-white hover:bg-gray-800"
                       : "bg-gray-200 text-gray-400"
                   )}
                   aria-label="Send message"
                 >
-                  <ArrowUp className="w-3.5 h-3.5" />
+                  <ArrowUp className="w-4 h-4" />
                 </button>
               </div>
             </div>
-          </form>
-        </div>
-
-        {/* Resize Divider Handle - MIDDLE */}
-        <div
-          onMouseDown={() => setIsResizing(true)}
-          className="w-1 bg-gray-300 hover:bg-blue-500 hover:shadow-sm cursor-col-resize transition-all duration-200 group"
-          style={{
-            cursor: 'col-resize',
-          }}
-          aria-label="Resize chat width"
-          title="Drag to resize chat area"
-        />
-
-        {/* Chat History Sidebar - RIGHT side (dynamic width) */}
-        {showChatHistory && hasAnyConversations && (
-          <div style={{ width: `${historyWidth}px` }} className="flex flex-col bg-gray-50 overflow-hidden">
-            {/* Header */}
-            <div className="px-3 py-2.5 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Chatbot</h3>
-              <div className="flex gap-1">
-                <button
-                  onClick={createNewConversation}
-                  className="p-1 hover:bg-gray-200 rounded transition-colors"
-                  aria-label="New conversation"
-                  title="Start new conversation"
-                >
-                  <Plus className="w-4 h-4 text-gray-600" />
-                </button>
-                <button
-                  onClick={() => {
-                    if (conversations.length > 0) {
-                      const confirmDelete = window.confirm('Delete all conversations? This cannot be undone.');
-                      if (confirmDelete) {
-                        setConversations([]);
-                        setCurrentConversationId(null);
-                        setMessages([]);
-                      }
-                    }
-                  }}
-                  className="p-1 hover:bg-gray-200 rounded transition-colors"
-                  aria-label="Delete all conversations"
-                  title="Delete all conversations"
-                >
-                  <Trash2 className="w-4 h-4 text-gray-600" />
-                </button>
-              </div>
+              </form>
             </div>
+            </Panel>
 
-            {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto">
-              {Object.entries(groupedConversations).map(([group, convs]) => (
-                <div key={group}>
-                  <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">
-                    {group}
-                  </div>
-                  {convs.map((conv) => (
-                    <div
-                      key={conv.id}
-                      onClick={() => loadConversation(conv.id)}
-                      className={cn(
-                        'px-3 py-1.5 text-xs cursor-pointer group hover:bg-gray-200 transition-colors',
-                        currentConversationId === conv.id ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-700'
-                      )}
-                      title={conv.title}
+            {/* RESIZE HANDLE - Between chat and history */}
+            {showChatHistory && hasAnyConversations && (
+              <PanelResizeHandle className="w-1 bg-gray-200 hover:bg-blue-500 transition-colors cursor-col-resize active:bg-blue-600" />
+            )}
+
+            {/* CHAT HISTORY PANEL - Always pinned to RIGHT edge */}
+            {showChatHistory && hasAnyConversations && (
+              <Panel defaultSize={30} minSize={12} maxSize={37} collapsible={false}>
+                <div className="h-full flex flex-col bg-gray-50 border-l border-gray-200">
+                  {/* History Header */}
+                  <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                    <h3 className="text-sm font-semibold text-gray-900">History</h3>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete all conversations?')) {
+                          setConversations([]);
+                          setCurrentConversationId(null);
+                          setMessages([]);
+                        }
+                      }}
+                      className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                      aria-label="Delete all"
+                      title="Delete all conversations"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate flex-1">{conv.title}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteConversation(conv.id);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-300 rounded"
-                          aria-label="Delete conversation"
-                        >
-                          <X className="w-3 h-3 text-gray-600" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                      <Trash2 className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
 
-            {/* Footer */}
-            <div className="px-3 py-2 border-t border-gray-200 text-center">
-              <p className="text-xs text-gray-500">
-                You have reached the end of your chat history
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+                  {/* Conversations List - Time grouped */}
+                  <div className="flex-1 overflow-y-auto">
+                    {Object.entries(groupedConversations).map(([timeGroup, convs]) =>
+                      convs.length > 0 ? (
+                        <div key={timeGroup}>
+                          {/* Time Group Label */}
+                          <div className="px-3 pt-3 pb-2">
+                            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {timeGroup}
+                            </h4>
+                          </div>
+
+                          {/* Conversations in this group */}
+                          {convs.map(conv => (
+                            <button
+                              key={conv.id}
+                              onClick={() => loadConversation(conv.id)}
+                              className={cn(
+                                "w-full text-left px-3 py-2 text-xs hover:bg-gray-200 transition-colors group flex items-center justify-between",
+                                currentConversationId === conv.id ? "bg-gray-200 text-gray-900 font-medium" : "text-gray-700"
+                              )}
+                            >
+                              <span className="truncate flex-1">{conv.title}</span>
+                              {/* Delete button appears on hover */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteConversation(conv.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-gray-300 rounded"
+                                aria-label="Delete conversation"
+                              >
+                                <X className="w-3 h-3 text-gray-600" />
+                              </button>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null
+                    )}
+
+                    {/* End of history message */}
+                    {hasAnyConversations && (
+                      <div className="px-3 py-4 text-center">
+                        <p className="text-xs text-gray-500">End of history</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Panel>
+            )}
+          </PanelGroup>
+        </div>
+      </>
     );
   }
 
   // Floating bar view (default)
   return (
-    <div className={cn(
-      "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
-      className
-    )}>
-      {/* Single cohesive container */}
-      <div ref={floatingBarContainerRef} className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+    <>
+      {/* Blur overlay for canvas when chat is active - visual only, non-interactive */}
+      {showMessages && (
+        <div
+          className="fixed inset-0 left-64 bg-black/0 backdrop-blur-lg z-40 transition-all duration-200"
+          style={{
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
+      {/* Slash Command Autocomplete */}
+      <SlashCommandAutocomplete
+        visible={showSlashMenu}
+        query={slashQuery}
+        onSelect={handleSlashCommandSelect}
+        onClose={() => {
+          setShowSlashMenu(false);
+          setSlashQuery('');
+        }}
+        position={slashMenuPosition}
+      />
+
+      {!isCollapsed && (
+      <div
+        ref={floatingChatContainerRef}
+        className={cn(
+          "fixed bottom-8 left-64 right-0 mx-auto w-[calc((100vw-256px)*0.8-2rem)] max-w-5xl z-50",
+          className
+        )}
+      >
+        {/* Single cohesive container */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
         {/* Messages Panel - Slides up from behind input */}
         {messages.length > 0 && showMessages && (
           <div
             ref={messagesPanelRef}
-            className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200"
+            className="max-h-[480px] overflow-y-auto border-b border-gray-200 animate-in fade-in slide-in-from-bottom duration-200 relative"
           >
+            {/* Close button - Top right corner */}
+            <button
+              onClick={() => {
+                setIsCollapsed(true);
+                setShowMessages(false);
+              }}
+              className="absolute top-2 right-2 z-10 p-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Collapse chat"
+              title="Collapse chat (or press ESC)"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <div className="p-4 space-y-3">
-              {messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={convertToUIMessage(message)}
-                  isLoading={isLoading && message.role === 'assistant' && index === messages.length - 1}
-                />
-              ))}
+              <SandboxIndicator />
+              {messages.map((message, index) => renderMessage(message, index))}
             </div>
           </div>
         )}
@@ -861,8 +2106,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  if (messages.length > 0) {
+                    setShowMessages(true);
+                  }
+                }}
                 placeholder={messages.length === 0 ? "Revvy wants to help! Type..." : ""}
                 className="w-full bg-white text-gray-700 text-base outline-none resize-none placeholder-gray-500"
                 rows={1}
@@ -887,8 +2137,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <button
                 type="button"
                 onClick={() => {
-                  console.log('[SIDEBAR BUTTON] Clicked! Setting isExpanded to true');
                   setIsExpanded(true);
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
                 aria-label="Sidebar view"
@@ -901,8 +2152,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <button
                 type="button"
                 onClick={() => {
-                  console.log('[FULLSCREEN BUTTON] Clicked! Setting isFullscreen to true');
                   setIsFullscreen(true);
+                  setShowSlashMenu(false);  // Close slash menu
+                  setSlashQuery('');
                 }}
                 className="p-1.5 hover:bg-gray-100 rounded transition-all duration-200"
                 aria-label="Fullscreen"
@@ -961,6 +2213,23 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           </button>
         </div>
       )}
-    </div>
+      </div>
+      )}
+
+      {/* Collapsed chat button - Minimized square with cool icon */}
+      {isCollapsed && (
+        <button
+          onClick={() => {
+            setIsCollapsed(false);
+            setShowMessages(true);
+          }}
+          className="fixed bottom-5 right-5 z-50"
+        >
+          <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center hover:shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer group">
+            <Sparkles className="w-6 h-6 text-white group-hover:text-yellow-300 transition-colors" />
+          </div>
+        </button>
+      )}
+    </>
   );
 }

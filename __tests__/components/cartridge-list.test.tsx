@@ -28,12 +28,30 @@ describe('CartridgeList Component - HTML Structure Fix', () => {
       description: 'Base voice settings',
       is_active: true,
       created_at: '2024-11-01T10:00:00Z',
+      updated_at: '2024-11-01T10:00:00Z',
       created_by: 'admin-1',
       voice_params: {
-        tone: 'professional',
-        style: 'formal',
-        personality: 'authoritative',
-        vocabulary: 'technical',
+        tone: {
+          formality: 'professional',
+          enthusiasm: 5,
+          empathy: 3
+        },
+        style: {
+          sentence_length: 'medium',
+          paragraph_structure: 'multi',
+          use_emojis: false,
+          use_hashtags: false
+        },
+        personality: {
+          traits: ['authoritative', 'professional'],
+          voice_description: 'Professional and authoritative'
+        },
+        vocabulary: {
+          complexity: 'advanced',
+          industry_terms: ['technical', 'enterprise'],
+          banned_words: [],
+          preferred_phrases: []
+        }
       },
       parent_id: null,
       agency_id: null,
@@ -47,12 +65,30 @@ describe('CartridgeList Component - HTML Structure Fix', () => {
       description: 'My personal voice',
       is_active: true,
       created_at: '2024-11-02T10:00:00Z',
+      updated_at: '2024-11-02T10:00:00Z',
       created_by: 'user-123',
       voice_params: {
-        tone: 'casual',
-        style: 'brief',
-        personality: 'witty',
-        vocabulary: 'informal',
+        tone: {
+          formality: 'casual',
+          enthusiasm: 8,
+          empathy: 7
+        },
+        style: {
+          sentence_length: 'short',
+          paragraph_structure: 'single',
+          use_emojis: true,
+          use_hashtags: false
+        },
+        personality: {
+          traits: ['witty', 'friendly'],
+          voice_description: 'Casual and witty'
+        },
+        vocabulary: {
+          complexity: 'simple',
+          industry_terms: [],
+          banned_words: [],
+          preferred_phrases: []
+        }
       },
       parent_id: 'cart-1',
       agency_id: null,
@@ -66,12 +102,30 @@ describe('CartridgeList Component - HTML Structure Fix', () => {
       description: 'Different voice',
       is_active: true,
       created_at: '2024-11-03T10:00:00Z',
+      updated_at: '2024-11-03T10:00:00Z',
       created_by: 'user-456',
       voice_params: {
-        tone: 'friendly',
-        style: 'detailed',
-        personality: 'empathetic',
-        vocabulary: 'simple',
+        tone: {
+          formality: 'friendly',
+          enthusiasm: 9,
+          empathy: 9
+        },
+        style: {
+          sentence_length: 'long',
+          paragraph_structure: 'multi',
+          use_emojis: false,
+          use_hashtags: true
+        },
+        personality: {
+          traits: ['empathetic', 'supportive'],
+          voice_description: 'Friendly and empathetic'
+        },
+        vocabulary: {
+          complexity: 'simple',
+          industry_terms: [],
+          banned_words: [],
+          preferred_phrases: []
+        }
       },
       parent_id: null,
       agency_id: null,

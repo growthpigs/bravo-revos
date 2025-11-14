@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
+import { hgcRequestSchema } from '@/lib/validations/hgc'
+import { createLinkedInPost } from '@/lib/unipile-client'
 
 /**
  * POST /api/hgc
- * Holy Grail Chat - Native TypeScript Implementation
+ * Holy Grail Chat - Native TypeScript with OpenAI Function Calling
  *
- * NO Python backend. Uses OpenAI function calling directly with Supabase queries.
- * Architecture: Next.js → OpenAI → Tools → Supabase → Response
+ * Architecture: Next.js → OpenAI → 8 Tools → Supabase → Response
+ * NO Python backend. AgentKit = chat orchestration interface.
  */
 
 // Initialize OpenAI client
@@ -15,12 +17,16 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!
 })
 
-// Tool: Get all campaigns
+// ============================================================
+// TOOL DEFINITIONS (OpenAI Function Calling)
+// ============================================================
+
+// Tool 1: Get all campaigns
 const get_all_campaigns = {
   type: 'function' as const,
   function: {
     name: 'get_all_campaigns',
-    description: 'Get ALL campaigns for current user with basic metrics. NO parameters needed. Use when user asks to show, list, or see their campaigns.',
+    description: 'Get ALL campaigns for current user with basic info. Use when user asks to show, list, or see their campaigns.',
     parameters: {
       type: 'object',
       properties: {},
@@ -29,12 +35,12 @@ const get_all_campaigns = {
   }
 }
 
-// Tool: Get specific campaign
+// Tool 2: Get specific campaign
 const get_campaign_by_id = {
   type: 'function' as const,
   function: {
     name: 'get_campaign_by_id',
-    description: 'Get detailed metrics for ONE specific campaign by ID. Use when user mentions a specific campaign name or asks for campaign details.',
+    description: 'Get detailed info for ONE specific campaign by ID.',
     parameters: {
       type: 'object',
       properties: {
@@ -48,12 +54,12 @@ const get_campaign_by_id = {
   }
 }
 
-// Tool: Create campaign
+// Tool 3: Create campaign
 const create_campaign = {
   type: 'function' as const,
   function: {
     name: 'create_campaign',
-    description: 'Create a new campaign in DRAFT status. User must review and activate in dashboard.',
+    description: 'Create a new campaign in DRAFT status.',
     parameters: {
       type: 'object',
       properties: {
@@ -70,39 +76,180 @@ const create_campaign = {
           description: 'Campaign description (optional)'
         }
       },
-      required: ['name', 'voice_id']
+      required: ['name']
     }
   }
 }
 
-// Tool: Schedule post
+// Tool 4: Schedule post
 const schedule_post = {
   type: 'function' as const,
   function: {
     name: 'schedule_post',
-    description: 'Queue a post for review. User must approve in dashboard before publishing.',
+    description: 'Queue a post for review. All parameters are optional - if missing, user will be prompted with inline forms.',
     parameters: {
       type: 'object',
       properties: {
         content: {
           type: 'string',
-          description: 'Post content'
+          description: 'Post content (optional - will be prompted if missing)'
         },
         schedule_time: {
           type: 'string',
-          description: 'ISO timestamp for when to publish'
+          description: 'ISO timestamp for when to publish (optional - will be prompted if missing)'
         },
         campaign_id: {
           type: 'string',
-          description: 'Campaign ID (optional)'
+          description: 'Campaign ID (optional - will show campaign selector if missing)'
         }
       },
-      required: ['content', 'schedule_time']
+      required: []
     }
   }
 }
 
-// Tool handlers
+// Tool 5: Trigger DM scraper (NEW)
+const trigger_dm_scraper = {
+  type: 'function' as const,
+  function: {
+    name: 'trigger_dm_scraper',
+    description: 'Start monitoring LinkedIn post for DMs. Creates scrape job that runs every 5 minutes. Use when user wants to monitor comments or track leads.',
+    parameters: {
+      type: 'object',
+      properties: {
+        post_id: {
+          type: 'string',
+          description: 'Post UUID to monitor'
+        },
+        trigger_word: {
+          type: 'string',
+          description: 'Word to detect in comments (e.g., "interested", "guide"). Default: "guide"'
+        },
+        lead_magnet_url: {
+          type: 'string',
+          description: 'Backup link to send if webhook fails (optional)'
+        }
+      },
+      required: ['post_id']
+    }
+  }
+}
+
+// Tool 6: Get all pods (NEW)
+const get_all_pods = {
+  type: 'function' as const,
+  function: {
+    name: 'get_all_pods',
+    description: 'Get all engagement pods the user belongs to. Use this first when user asks about pods without specifying which pod.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
+  }
+}
+
+// Tool 7: Get pod members (NEW)
+const get_pod_members = {
+  type: 'function' as const,
+  function: {
+    name: 'get_pod_members',
+    description: 'Get all active members in a specific engagement pod.',
+    parameters: {
+      type: 'object',
+      properties: {
+        pod_id: {
+          type: 'string',
+          description: 'Pod UUID'
+        }
+      },
+      required: ['pod_id']
+    }
+  }
+}
+
+// Tool 8: Send pod repost links (NEW)
+const send_pod_repost_links = {
+  type: 'function' as const,
+  function: {
+    name: 'send_pod_repost_links',
+    description: 'Queue repost links to be sent to pod members via email/Slack. Use when user wants to share post with pod for engagement.',
+    parameters: {
+      type: 'object',
+      properties: {
+        post_id: {
+          type: 'string',
+          description: 'Post UUID'
+        },
+        pod_id: {
+          type: 'string',
+          description: 'Pod UUID'
+        },
+        linkedin_url: {
+          type: 'string',
+          description: 'LinkedIn post URL to share'
+        }
+      },
+      required: ['post_id', 'pod_id', 'linkedin_url']
+    }
+  }
+}
+
+// Tool 8: Update campaign status (NEW)
+const update_campaign_status = {
+  type: 'function' as const,
+  function: {
+    name: 'update_campaign_status',
+    description: 'Change campaign status. Use when user wants to activate, pause, or complete a campaign.',
+    parameters: {
+      type: 'object',
+      properties: {
+        campaign_id: {
+          type: 'string',
+          description: 'Campaign UUID'
+        },
+        status: {
+          type: 'string',
+          enum: ['draft', 'active', 'paused', 'completed'],
+          description: 'New status'
+        }
+      },
+      required: ['campaign_id', 'status']
+    }
+  }
+}
+
+// Tool 9: POST TO LINKEDIN NOW (Creates actual LinkedIn post visible on profile)
+const execute_linkedin_campaign = {
+  type: 'function' as const,
+  function: {
+    name: 'execute_linkedin_campaign',
+    description: 'POST CONTENT TO LINKEDIN RIGHT NOW - creates an actual LinkedIn post visible on user\'s profile + starts monitoring for trigger words. Use when user wants to post campaign content to LinkedIn. ALWAYS call this after getting content from user.',
+    parameters: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: 'LinkedIn post content'
+        },
+        campaign_id: {
+          type: 'string',
+          description: 'Campaign UUID to associate with'
+        },
+        trigger_word: {
+          type: 'string',
+          description: 'Word to monitor in comments (e.g., "interested", "guide"). Default: "interested"'
+        }
+      },
+      required: ['content', 'campaign_id']
+    }
+  }
+}
+
+// ============================================================
+// TOOL HANDLERS (Database Operations Only)
+// ============================================================
+
 async function handleGetAllCampaigns() {
   const supabase = await createClient()
 
@@ -159,7 +306,7 @@ async function handleGetCampaignById(campaign_id: string) {
   }
 }
 
-async function handleCreateCampaign(name: string, voice_id: string, description?: string) {
+async function handleCreateCampaign(name: string, voice_id?: string, description?: string) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -168,20 +315,28 @@ async function handleCreateCampaign(name: string, voice_id: string, description?
   }
 
   // Get user's client_id
-  const { data: userData } = await supabase
+  const { data: userData, error: userError } = await supabase
     .from('users')
     .select('client_id')
     .eq('id', user.id)
     .single()
 
+  if (userError || !userData?.client_id) {
+    console.error('[HGC_TS] User client_id not found:', userError?.message)
+    return {
+      success: false,
+      error: 'User client not found. Please ensure your account is properly configured.'
+    }
+  }
+
   const { data, error } = await supabase
     .from('campaigns')
     .insert({
       name,
-      voice_id,
+      voice_id: voice_id || null,
       description,
       status: 'draft',
-      client_id: userData?.client_id,
+      client_id: userData.client_id,
       created_by: user.id
     })
     .select()
@@ -191,10 +346,16 @@ async function handleCreateCampaign(name: string, voice_id: string, description?
     return { success: false, error: error.message }
   }
 
+  // Warning if no voice cartridge
+  let message = 'Campaign created in DRAFT status. Review in dashboard to activate.'
+  if (!voice_id) {
+    message += '\n\n⚠️ WARNING: This campaign is not using a voice cartridge. We recommend adding one for better content generation quality.'
+  }
+
   return {
     success: true,
     campaign: data,
-    message: 'Campaign created in DRAFT status. Review in dashboard to activate.'
+    message
   }
 }
 
@@ -210,7 +371,7 @@ async function handleSchedulePost(content: string, schedule_time: string, campai
     .from('posts')
     .insert({
       content,
-      scheduled_at: schedule_time,
+      scheduled_for: schedule_time,
       campaign_id,
       status: 'scheduled',
       user_id: user.id
@@ -225,11 +386,347 @@ async function handleSchedulePost(content: string, schedule_time: string, campai
   return {
     success: true,
     post: data,
-    message: 'Post scheduled for review. Approve in dashboard to publish.'
+    message: 'Post queued for review. Approve in dashboard to publish.'
   }
 }
 
-// Main POST handler
+// NEW TOOL HANDLERS
+
+async function handleTriggerDMScraper(post_id: string, trigger_word?: string, lead_magnet_url?: string) {
+  const supabase = await createClient()
+
+  // Get post details to extract unipile info
+  const { data: post } = await supabase
+    .from('posts')
+    .select('unipile_post_id, linkedin_account_id, campaign_id')
+    .eq('id', post_id)
+    .single()
+
+  if (!post) {
+    return { success: false, error: 'Post not found' }
+  }
+
+  // Get linkedin account unipile ID
+  const { data: linkedinAccount } = await supabase
+    .from('linkedin_accounts')
+    .select('unipile_account_id')
+    .eq('id', post.linkedin_account_id)
+    .single()
+
+  if (!linkedinAccount) {
+    return { success: false, error: 'LinkedIn account not found' }
+  }
+
+  // Create scrape job
+  const { data, error } = await supabase
+    .from('scrape_jobs')
+    .insert({
+      post_id,
+      campaign_id: post.campaign_id,
+      unipile_post_id: post.unipile_post_id,
+      unipile_account_id: linkedinAccount.unipile_account_id,
+      trigger_word: trigger_word || 'guide',
+      lead_magnet_url,
+      status: 'scheduled',
+      next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 min from now
+      poll_interval_minutes: 5
+    })
+    .select()
+    .single()
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  return {
+    success: true,
+    job: data,
+    message: `DM monitoring started. Checking every 5 minutes for trigger word "${trigger_word || 'guide'}".`
+  }
+}
+
+async function handleGetAllPods() {
+  const supabase = await createClient()
+
+  // Get authenticated user
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  // Get all pods where user is a member
+  const { data: pods, error } = await supabase
+    .from('pods')
+    .select(`
+      id,
+      name,
+      description,
+      status,
+      pod_members (
+        id,
+        status
+      )
+    `)
+    .eq('status', 'active')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  if (!pods || pods.length === 0) {
+    return {
+      success: true,
+      pods: [],
+      message: "You're not in any engagement pods yet. Pods help boost your LinkedIn posts through coordinated engagement."
+    }
+  }
+
+  // Format pods with member counts
+  const formattedPods = pods.map((pod: any) => ({
+    id: pod.id,
+    name: pod.name,
+    description: pod.description,
+    member_count: pod.pod_members?.length || 0,
+    active_members: pod.pod_members?.filter((m: any) => m.status === 'active').length || 0
+  }))
+
+  return {
+    success: true,
+    pods: formattedPods
+  }
+}
+
+async function handleGetPodMembers(pod_id: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('pod_members')
+    .select('user_id, linkedin_account_id, status')
+    .eq('pod_id', pod_id)
+    .eq('status', 'active')
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  // Get user details for each member
+  const memberIds = data.map(m => m.user_id)
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, email, full_name')
+    .in('id', memberIds)
+
+  const members = data.map(m => {
+    const user = users?.find(u => u.id === m.user_id)
+    return {
+      user_id: m.user_id,
+      name: user?.full_name || user?.email || 'Unknown',
+      status: m.status
+    }
+  })
+
+  return {
+    success: true,
+    members,
+    count: members.length
+  }
+}
+
+async function handleSendPodLinks(post_id: string, pod_id: string, linkedin_url: string) {
+  const supabase = await createClient()
+
+  // Get pod members
+  const { data: members } = await supabase
+    .from('pod_members')
+    .select('user_id')
+    .eq('pod_id', pod_id)
+    .eq('status', 'active')
+
+  if (!members || members.length === 0) {
+    return { success: false, error: 'No active pod members found' }
+  }
+
+  // Create notification records (background worker will send actual emails)
+  const notifications = members.map(m => ({
+    user_id: m.user_id,
+    type: 'pod_repost',
+    post_id,
+    linkedin_url,
+    status: 'pending',
+    created_at: new Date().toISOString()
+  }))
+
+  const { error } = await supabase
+    .from('notifications')
+    .insert(notifications)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  return {
+    success: true,
+    message: `Repost links queued for ${members.length} pod members. They'll receive notifications shortly.`,
+    members_count: members.length
+  }
+}
+
+async function handleUpdateCampaignStatus(campaign_id: string, status: string) {
+  const supabase = await createClient()
+
+  // Validate status
+  const validStatuses = ['draft', 'active', 'paused', 'completed']
+  if (!validStatuses.includes(status)) {
+    return { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }
+  }
+
+  const { data, error} = await supabase
+    .from('campaigns')
+    .update({
+      status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', campaign_id)
+    .select()
+    .single()
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  return {
+    success: true,
+    campaign: data,
+    message: `Campaign status updated to ${status}.`
+  }
+}
+
+async function handleExecuteLinkedInCampaign(
+  content: string,
+  campaign_id: string,
+  trigger_word?: string
+) {
+  const supabase = await createClient()
+
+  try {
+    console.log('[EXECUTE_CAMPAIGN] Starting campaign execution:', {
+      campaign_id,
+      content_length: content.length,
+      trigger_word: trigger_word || 'interested'
+    })
+
+    // Get user's LinkedIn account
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, error: 'User not authenticated' }
+    }
+
+    const { data: linkedinAccounts } = await supabase
+      .from('linkedin_accounts')
+      .select('unipile_account_id')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .limit(1)
+
+    if (!linkedinAccounts || linkedinAccounts.length === 0) {
+      return {
+        success: false,
+        error: 'No active LinkedIn account found. Please connect your LinkedIn account first.'
+      }
+    }
+
+    const unipileAccountId = linkedinAccounts[0].unipile_account_id
+
+    // 1. Post to LinkedIn via Unipile
+    console.log('[EXECUTE_CAMPAIGN] Posting to LinkedIn...')
+    const post = await createLinkedInPost(unipileAccountId, content)
+
+    console.log('[EXECUTE_CAMPAIGN] Post created:', {
+      id: post.id,
+      url: post.url
+    })
+
+    // 2. Store post in database
+    const { data: dbPost, error: postError } = await supabase
+      .from('posts')
+      .insert({
+        campaign_id,
+        unipile_post_id: post.id,
+        content,
+        status: 'published',
+        published_at: new Date().toISOString(),
+        post_url: post.url
+      })
+      .select()
+      .single()
+
+    if (postError) {
+      console.error('[EXECUTE_CAMPAIGN] Failed to store post:', postError)
+      return {
+        success: false,
+        error: `Post published but failed to save to database: ${postError.message}`
+      }
+    }
+
+    console.log('[EXECUTE_CAMPAIGN] Post stored in database:', dbPost.id)
+
+    // 3. Create monitoring job
+    const effectiveTriggerWord = trigger_word || 'interested'
+    const { data: job, error: jobError } = await supabase
+      .from('scrape_jobs')
+      .insert({
+        post_id: dbPost.id,
+        linkedin_post_id: post.id,
+        trigger_word: effectiveTriggerWord,
+        status: 'scheduled',
+        next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString() // Check in 5 minutes
+      })
+      .select()
+      .single()
+
+    if (jobError) {
+      console.error('[EXECUTE_CAMPAIGN] Failed to create monitoring job:', jobError)
+      // Post is live, so return partial success
+      return {
+        success: true,
+        post_url: post.url,
+        post_id: post.id,
+        monitoring: 'failed',
+        warning: `Post is live but monitoring setup failed: ${jobError.message}`
+      }
+    }
+
+    console.log('[EXECUTE_CAMPAIGN] Monitoring job created:', job.id)
+
+    // Update campaign to active if it was draft
+    await supabase
+      .from('campaigns')
+      .update({ status: 'active' })
+      .eq('id', campaign_id)
+      .eq('status', 'draft')
+
+    return {
+      success: true,
+      post_url: post.url,
+      post_id: post.id,
+      linkedin_id: post.id,
+      monitoring: 'active',
+      trigger_word: effectiveTriggerWord,
+      message: `✅ Campaign launched! Post is live on LinkedIn and monitoring for "${effectiveTriggerWord}" responses.`
+    }
+  } catch (error) {
+    console.error('[EXECUTE_CAMPAIGN] Error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to execute campaign'
+    }
+  }
+}
+
+// ============================================================
+// MAIN POST HANDLER
+// ============================================================
+
 export async function POST(request: NextRequest) {
   const requestStartTime = Date.now()
 
@@ -246,15 +743,392 @@ export async function POST(request: NextRequest) {
 
     console.log('[HGC_TS] User authenticated:', user.id)
 
-    // Parse request
-    const { messages } = await request.json()
+    // Parse and validate request
+    const body = await request.json()
+    const validationResult = hgcRequestSchema.safeParse(body)
+
+    if (!validationResult.success) {
+      console.log('[HGC_TS] Invalid request:', validationResult.error.message)
+      return NextResponse.json(
+        { error: 'Invalid request format', details: validationResult.error.format() },
+        { status: 400 }
+      )
+    }
+
+    const { messages } = validationResult.data
     console.log('[HGC_TS] Messages received:', messages.length)
 
-    // Convert messages to OpenAI format
-    const formattedMessages = messages.map((msg: any) => ({
-      role: msg.role || 'user',
-      content: msg.content || msg.message || msg
-    }))
+    // Ensure messages alternate between user and assistant roles
+    // OpenAI requires strict alternation, so merge consecutive messages with same role
+    const formattedMessages = messages.reduce((acc, msg, idx) => {
+      if (idx === 0) {
+        return [msg]
+      }
+
+      const lastMsg = acc[acc.length - 1]
+
+      // If same role as previous message, merge content
+      if (lastMsg.role === msg.role) {
+        console.log(`[HGC_TS] Merging consecutive ${msg.role} messages`)
+        lastMsg.content = lastMsg.content + '\n\n' + msg.content
+        return acc
+      }
+
+      return [...acc, msg]
+    }, [] as typeof messages)
+
+    console.log('[HGC_TS] Formatted to', formattedMessages.length, 'alternating messages')
+
+    // ========================================
+    // INLINE WORKFLOW HANDLING
+    // Handle decision/campaign/datetime selections from inline forms
+    // ========================================
+
+    // Check if this is a workflow step (decision made, campaign selected, or datetime selected)
+    const workflowId = body.workflow_id as string | undefined
+    const decision = body.decision as string | undefined
+    const selectedCampaignId = body.campaign_id as string | undefined
+    const selectedScheduleTime = body.schedule_time as string | undefined
+
+    // STEP 1: User made a decision (just write, create new, or select existing)
+    if (workflowId && decision) {
+      console.log('[HGC_INLINE] Decision received:', decision, 'workflow:', workflowId)
+
+      if (decision === 'continue') {
+        // User wants to continue writing - just dismiss the workflow
+        return NextResponse.json({
+          success: true,
+          response: 'Got it! Keep writing.',
+        })
+      } else if (decision === 'just_write') {
+        // User wants to write without campaign - handled on frontend
+        return NextResponse.json({
+          success: true,
+          response: 'Got it! Go ahead and write your post. You can save it and link it to a campaign anytime.',
+        })
+      } else if (decision === 'select_existing') {
+        // Fetch user's campaigns
+        const campaignsResult = await handleGetAllCampaigns()
+
+        if (!campaignsResult.success) {
+          return NextResponse.json({
+            success: false,
+            response: 'Failed to fetch campaigns. Please try again.',
+          })
+        }
+
+        // Return campaign selector
+        return NextResponse.json({
+          success: true,
+          response: 'Here are your campaigns. Which one would you like to use?',
+          interactive: {
+            type: 'campaign_select',
+            workflow_id: workflowId,
+            campaigns: (campaignsResult.campaigns || []).map((c: any) => ({
+              id: c.id,
+              name: c.name || 'Untitled Campaign',
+              description: c.status === 'draft' ? 'Draft campaign' : undefined,
+            })),
+          },
+        })
+      } else if (decision === 'create_new') {
+        // TODO: Implement inline campaign creation
+        return NextResponse.json({
+          success: true,
+          response: 'Campaign creation coming soon! For now, please select an existing campaign.',
+        })
+      }
+    }
+
+    // STEP 2: User selected a campaign
+    if (workflowId && selectedCampaignId && !selectedScheduleTime) {
+      console.log('[HGC_INLINE] Campaign selected:', selectedCampaignId, 'workflow:', workflowId)
+
+      // Check if user selected "Start a new post" (no campaign)
+      if (selectedCampaignId === 'new_post') {
+        console.log('[HGC_INLINE] New post selected - asking for topic')
+
+        return NextResponse.json({
+          success: true,
+          response: `Perfect! Let's write a fresh post.\n\nWhat would you like to write about? You can:\n1. Give me a topic (e.g., "AI in healthcare", "leadership tips")\n2. Provide your own content\n3. Describe what you want to say and I'll draft it`,
+          workflow_id: workflowId,
+          campaign_id: null, // No campaign for standalone posts (tracked separately, not in response text)
+        })
+      }
+
+      // Check if this is a LAUNCH workflow (post NOW) or SCHEDULE workflow (post later)
+      const isLaunchWorkflow = workflowId.startsWith('launch-')
+
+      if (isLaunchWorkflow) {
+        // LAUNCH workflow: Ask for content to post NOW
+        console.log('[HGC_INLINE] Launch workflow detected - asking for content')
+
+        // Get campaign details for context
+        const campaignResult = await handleGetCampaignById(selectedCampaignId)
+        const campaignName = campaignResult.success ? campaignResult.campaign?.name : 'this campaign'
+
+        return NextResponse.json({
+          success: true,
+          response: `Great! What content should I post to LinkedIn for **${campaignName}**?\n\nYou can either:\n1. Provide the exact content you want to post\n2. Say "generate it" and I'll create content from the campaign description`,
+          workflow_id: workflowId, // Keep workflow active
+          campaign_id: selectedCampaignId, // Store for next step (tracked separately, not in response text)
+        })
+      } else {
+        // SCHEDULE workflow: Show datetime picker
+        // Extract post content from conversation history (for final step)
+        const postContentMatch = messages
+          .filter(m => m.role === 'user')
+          .find(m => m.content.match(/schedule.*post|post.*about/i))
+
+        const postContent = postContentMatch
+          ? postContentMatch.content.replace(/schedule.*post|post.*about/i, '').trim() || 'Untitled post'
+          : 'Untitled post'
+
+        // Return datetime picker WITH campaign_id and content stored
+        return NextResponse.json({
+          success: true,
+          response: 'When would you like to schedule this post?',
+          interactive: {
+            type: 'datetime_select',
+            workflow_id: workflowId,
+            campaign_id: selectedCampaignId, // Store for next step
+            content: postContent, // Store for next step
+            initial_datetime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // Tomorrow
+          },
+        })
+      }
+    }
+
+    // STEP 3: User selected a datetime (final step - execute schedule)
+    if (workflowId && selectedScheduleTime) {
+      console.log('[HGC_INLINE] DateTime selected:', selectedScheduleTime, 'workflow:', workflowId)
+
+      // Get campaign_id and content from the message with datetime picker
+      // The frontend should have sent these back
+      let campaignId = selectedCampaignId
+      let postContent = body.content as string | undefined
+
+      // Fallback: Extract from message history if not in request
+      if (!postContent) {
+        const postContentMatch = messages
+          .filter(m => m.role === 'user')
+          .find(m => m.content.match(/schedule.*post|post.*about/i))
+
+        postContent = postContentMatch
+          ? postContentMatch.content.replace(/schedule.*post|post.*about/i, '').trim() || 'Untitled post'
+          : 'Untitled post'
+      }
+
+      if (!campaignId) {
+        // Try to extract from previous messages
+        const campaignMatch = messages
+          .filter(m => m.role === 'user')
+          .find(m => m.content.match(/Selected campaign:/i))
+
+        if (campaignMatch) {
+          campaignId = campaignMatch.content.replace(/Selected campaign:\s*/i, '').trim()
+        }
+      }
+
+      // EXECUTE THE SCHEDULE
+      if (campaignId && postContent && selectedScheduleTime) {
+        console.log('[HGC_INLINE] Executing schedule_post:', {
+          content: postContent,
+          campaign_id: campaignId,
+          schedule_time: selectedScheduleTime,
+        })
+
+        const scheduleResult = await handleSchedulePost(
+          postContent,
+          selectedScheduleTime,
+          campaignId
+        )
+
+        if (scheduleResult.success) {
+          return NextResponse.json({
+            success: true,
+            response: `✅ Post scheduled successfully for ${new Date(selectedScheduleTime).toLocaleString()}!\n\nContent: "${postContent}"\nCampaign: ${campaignId}`,
+          })
+        } else {
+          return NextResponse.json({
+            success: false,
+            response: `Failed to schedule post: ${scheduleResult.error}`,
+          })
+        }
+      } else {
+        return NextResponse.json({
+          success: false,
+          response: `Missing required information: campaign_id=${!!campaignId}, content=${!!postContent}`,
+        })
+      }
+    }
+
+    // ========================================
+    // LAUNCH WORKFLOW CONTENT HANDLER
+    // Detect if user is providing content after campaign selection in launch workflow
+    // ========================================
+    const recentMessages = formattedMessages.slice(-3) // Check last 3 messages
+    const hasLaunchContentRequest = recentMessages.some(m =>
+      m.role === 'assistant' && m.content.includes('What content should I post to LinkedIn')
+    )
+
+    if (hasLaunchContentRequest) {
+      console.log('[HGC_LAUNCH] Detected content response in launch workflow')
+
+      // Extract campaign_id from recent assistant message
+      // It was included in the response at line 796-797
+      const assistantMsg = recentMessages.find(m => m.role === 'assistant' && m.content.includes('What content should I post'))
+
+      // Try to find campaign_id in message history
+      // Look for the most recent campaign selection
+      let campaignId: string | undefined
+
+      // Check if there's a campaign_id in the request body (from button click context)
+      if (body.campaign_id) {
+        campaignId = body.campaign_id
+      }
+
+      // Fallback: Try to extract from message that mentions campaign selection
+      if (!campaignId) {
+        for (let i = formattedMessages.length - 1; i >= 0; i--) {
+          const msg = formattedMessages[i]
+          if (msg.content && typeof msg.content === 'string') {
+            // Look for campaign UUID pattern
+            const uuidMatch = msg.content.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+            if (uuidMatch) {
+              campaignId = uuidMatch[0]
+              console.log('[HGC_LAUNCH] Found campaign_id in message history:', campaignId)
+              break
+            }
+          }
+        }
+      }
+
+      // DON'T auto-post! Let GPT-4o handle content generation in chat
+      // User says "generate" → AI drafts → User refines → User says "post it" → THEN post
+      // So we just fall through to GPT-4o here
+    }
+
+    // ========================================
+    // INTENT ROUTER - Bypass GPT-4o for known workflows
+    // ========================================
+    const lastMessage = formattedMessages[formattedMessages.length - 1]
+    if (lastMessage && lastMessage.role === 'user') {
+      const userMessage = lastMessage.content.toLowerCase()
+
+      // INTENT: Schedule Post
+      // DISABLED: This Intent Router was too aggressive and removed agent agency
+      // It matched patterns like "post.*about" which intercepted generic "write a post" requests
+      // Now letting GPT-4o handle all "write" requests naturally with full agency
+      // User can say "No, I don't want a campaign" and agent will respect it
+      /*
+      if (userMessage.match(/schedule.*post|create.*post|post.*about|post.*tomorrow|post.*\d{1,2}(am|pm)/i)) {
+        console.log('[HGC_INTENT] Detected schedule_post intent - bypassing GPT-4o')
+
+        // Generate workflow ID
+        const workflowId = `workflow-${Date.now()}`
+
+        // Return decision buttons directly
+        return NextResponse.json({
+          success: true,
+          response: 'Would you like to create a new campaign or use an existing one?',
+          interactive: {
+            type: 'decision',
+            workflow_id: workflowId,
+            decision_options: [
+              {
+                label: 'Create New Campaign',
+                value: 'create_new',
+                icon: 'plus',
+                variant: 'primary',
+              },
+              {
+                label: 'Select From Existing Campaigns',
+                value: 'select_existing',
+                icon: 'list',
+                variant: 'secondary',
+              },
+              {
+                label: 'Continue Writing',
+                value: 'continue',
+                variant: 'secondary',
+              },
+            ],
+          },
+        })
+      }
+      */
+
+      // INTENT: EXPLICIT Campaign Launch (Post to LinkedIn) + Slash commands
+      // NOTE: Removed generic "write" keywords - those fall through to natural GPT-4o conversation
+      if (userMessage.match(/launch.*campaign|post.*campaign|post.*to linkedin|^\/li-campaign|^\/launch|^\/campaign/i)) {
+        console.log('[HGC_INTENT] Detected EXPLICIT campaign launch intent - showing campaign selector')
+
+        // Fetch campaigns
+        const campaignsResult = await handleGetAllCampaigns()
+
+        if (!campaignsResult.success || !campaignsResult.campaigns || campaignsResult.campaigns.length === 0) {
+          return NextResponse.json({
+            success: false,
+            response: 'You don\'t have any campaigns yet. Create one first with "create campaign".',
+          })
+        }
+
+        // Generate workflow ID
+        const workflowId = `launch-${Date.now()}`
+
+        // Add "Start a new post" option + existing campaigns
+        const campaignOptions = [
+          {
+            id: 'new_post',
+            name: '✨ Start a new post',
+            description: 'Write a post without linking to a campaign',
+          },
+          ...campaignsResult.campaigns.map((c: any) => ({
+            id: c.id,
+            name: c.name || 'Untitled Campaign',
+            description: c.status === 'draft' ? 'Draft campaign' : undefined,
+          })),
+        ];
+
+        // Return campaign selector directly (skip decision step)
+        return NextResponse.json({
+          success: true,
+          response: 'Which campaign would you like to post to?',
+          interactive: {
+            type: 'campaign_select',
+            workflow_id: workflowId,
+            campaigns: campaignOptions,
+          },
+        })
+      }
+
+      // INTENT: Create Campaign (future expansion)
+      if (userMessage.match(/create.*campaign|new campaign|start.*campaign/i)) {
+        console.log('[HGC_INTENT] Detected create_campaign intent - bypassing GPT-4o')
+        // TODO: Add inline campaign creation flow
+        // For now, fall through to GPT-4o
+      }
+
+      // INTENT: Pod commands (slash commands)
+      if (userMessage.match(/^\/pod-members|^\/pod-share|^\/pod-engage|^\/pod-stats/i)) {
+        console.log('[HGC_INTENT] Detected pod slash command')
+        // Let OpenAI handle these via function calling with clear instruction
+        formattedMessages.push({
+          role: 'system',
+          content: `User executed slash command: ${userMessage}. Use the appropriate pod-related tool (get_pod_members, share_with_pod, etc.) to fulfill this request immediately. Do not ask for clarification - execute the action.`,
+        })
+      }
+
+      // INTENT: Show campaigns (slash command)
+      if (userMessage.match(/^\/campaigns|show.*campaigns|list.*campaigns|my campaigns/i)) {
+        console.log('[HGC_INTENT] Detected campaigns slash command')
+        formattedMessages.push({
+          role: 'system',
+          content: `User wants to see all campaigns. Use get_all_campaigns() tool immediately and display them with stats.`,
+        })
+      }
+    }
 
     console.log('[HGC_TS] Calling OpenAI with function calling...')
     const aiStartTime = Date.now()
@@ -267,11 +1141,43 @@ export async function POST(request: NextRequest) {
           role: 'system',
           content: `You are RevOS Intelligence, an AI co-founder helping with LinkedIn growth and campaign management.
 
+MANDATORY EXECUTION RULE (CRITICAL):
+
+When user requests an ACTION (schedule, create, send, trigger, update, delete):
+1. Call the appropriate tool IMMEDIATELY - DO NOT discuss or describe what you will do
+2. Wait for the tool result
+3. ONLY THEN respond to user with the actual result
+
+NEVER say you will do something without calling the tool FIRST.
+
+Example WRONG:
+User: "Schedule a post"
+You: "Perfect! I'll schedule that for you now!" ← NO! You didn't call schedule_post()
+
+Example CORRECT:
+User: "Schedule a post"
+You: [IMMEDIATELY call schedule_post(), get result]
+You: "✅ Post scheduled successfully for Nov 11 at 10am" ← Only after tool confirms
+
+If the tool returns an error, tell the user the exact error. Never pretend success.
+
+INLINE WORKFLOW (CRITICAL):
+When user wants to schedule a post but hasn't specified campaign:
+1. Call schedule_post() with content and time (campaign_id can be undefined/null)
+2. The system will show inline buttons asking them to choose a campaign
+3. DO NOT ask questions - just call the tool immediately
+
+Example:
+User: "Schedule a post about AI"
+You: [IMMEDIATELY call schedule_post(content="post about AI", schedule_time=null, campaign_id=null)]
+System: [Shows inline buttons automatically]
+
 PERSONALITY & COMMUNICATION:
 - Be conversational, insightful, and strategic (NOT a data dump bot)
 - Synthesize information into actionable insights
 - Use markdown for clarity: **bold** for emphasis, bullet lists for multiple items
 - Think like a growth strategist, not a database query
+- ALWAYS execute actions immediately via tools, NEVER just discuss them
 
 TOOL SELECTION RULES (FOLLOW EXACTLY):
 
@@ -281,23 +1187,160 @@ When user asks about CAMPAIGNS/BUSINESS DATA:
 - "how is campaign X doing?" → get_campaign_by_id(campaign_id="...")
 - "tell me about campaign [name]" → get_all_campaigns() then identify campaign
 
-When user wants to CREATE or SCHEDULE:
+When user wants to WRITE/POST CONTENT:
+
+CONVERSATIONAL FLOW (for generic "write", "compose", "draft"):
+- First ASK: "What would you like to write about?" or "What topic interests you?"
+- User provides topic/content
+- After content is clear, ASK: "Would you like to link this to a campaign?"
+- If yes → call get_all_campaigns() to show campaign selector
+- If no → proceed with standalone post
+
+EXPLICIT CAMPAIGN LAUNCH (for "launch campaign", "post to campaign", "post to linkedin"):
+- Immediately call get_all_campaigns() to show campaign selector (already handled by intent router)
+- User selects campaign → Then ask for content
+
+The key difference:
+- Generic "write" → Ask about CONTENT first, campaign second (optional)
+- Specific "launch campaign" → Show campaigns first, get content second (required)
+
+When user wants to CREATE or MANAGE:
 - "create a campaign" → create_campaign(name, voice_id, description)
-- "schedule a post" → schedule_post(content, time, campaign_id)
+- "schedule a post" / "schedule post" / "post about X" → IMMEDIATELY call schedule_post() with whatever info you have
+  * Even if content/time/campaign_id are missing → call schedule_post(content, null, null)
+  * The system will show inline forms to collect missing info
+  * NEVER ask questions - just call the tool
+- "start DM monitoring" / "monitor post for leads" → trigger_dm_scraper(post_id, trigger_word)
+- "activate campaign" / "pause campaign" → update_campaign_status(campaign_id, status)
+
+When user wants POD ENGAGEMENT:
+
+🎯 What are Engagement Pods?
+- Pods = Private groups of LinkedIn creators who boost each other's content
+- Members commit to like/comment/repost each other's posts for algorithm visibility
+- RevOS manages pod coordination, tracking, and repost link distribution
+
+Pod Slash Commands (HANDLE THESE IMMEDIATELY):
+- /pod-members → Show all members in user's pod
+- /pod-share [post_url] → Share post URL with pod for engagement
+- /pod-engage → Get list of repost links from pod to engage with
+- /pod-stats → Show pod engagement metrics and participation rates
+
+Natural Language Pod Requests:
+- "who's in my pod?" → get_pod_members(pod_id)
+- "show pod members" / "list pod" → get_pod_members(pod_id)
+- "send repost links to pod" / "share with pod" → send_pod_repost_links(post_id, pod_id, linkedin_url)
+- "what are my pod obligations?" / "pod links" → send_pod_repost_links (to get pending links)
+
+🚨 IMPORTANT: If pod_id is missing:
+1. User likely doesn't know their pod_id (it's a UUID)
+2. Say: "Let me check your pods..." (don't ask them for pod_id)
+3. Future: Call get_all_pods() to list their pods
+4. For now: Use default pod_id or explain they need to set up pods first
+
+🚨 POSTING TO LINKEDIN - WORKING DOCUMENT FLOW 🚨
+
+CAMPAIGNS ARE OPTIONAL - User has full choice:
+
+When user says "launch campaign" / "post to campaign" (EXPLICIT campaign intent):
+- STEP 1: IMMEDIATELY call get_all_campaigns() to show campaign selector
+- User selects campaign → Then work on content
+
+When user says "write a post" / "create a post" / "compose" (GENERIC writing intent):
+- STEP 1: Ask "What would you like to write about?"
+- User provides topic/content idea
+- STEP 2: Draft the content OR ask clarifying questions
+- STEP 3: Ask ONCE: "Would you like to link this to a campaign, or post it standalone?"
+- If user says "standalone" / "no" / "just post it" → Respect that, proceed without campaign
+- If user says "yes" / mentions campaign → call get_all_campaigns() to show selector
+- If user already said "no campaign" earlier, DO NOT ask again
+
+STEP 2 - After campaign selected (handled by backend):
+- Backend asks: "What content should I post for [Campaign Name]?"
+- User can:
+  a) Provide content directly → Go to STEP 3
+  b) Say "generate it" → Go to drafting workflow
+
+DRAFTING WORKFLOW (Working Documents):
+- User: "generate it" / "write a post"
+- You: Draft content based on campaign description/context
+- 🚨 CRITICAL: ALWAYS end your response with a clear question offering options:
+  * "What would you like to do next? I can refine it, post it to LinkedIn, or start over."
+  * "Happy with this? I can post it now, make it shorter, or try a different angle."
+  * Give user clear next steps - don't just stop after showing content!
+- User: Reviews, refines ("make it shorter", "add emojis", etc.)
+- You: Iterate on the content in chat
+- User: "post it" / "send it" → Go to STEP 3
+
+STEP 3 - Post to LinkedIn:
+- User says "post it" / "send it" / "publish it"
+- Extract campaign_id from recent message history (embedded in HTML comment)
+- Call execute_linkedin_campaign(content, campaign_id, trigger_word)
+- NO confirmation - just POST IT
+
+Example flow:
+User: "Launch campaign"
+You: [Shows campaign buttons via get_all_campaigns()]
+User: [Clicks "Future of AI in Design"]
+Backend: "What content should I post for Future of AI in Design?"
+User: "Generate it"
+You: "Here's a draft: [content]. What would you like to do next? I can post it to LinkedIn, make it shorter, or start over with a different angle."
+User: "Make it shorter and add emojis"
+You: "Better? [refined content]. Ready to post this? Or want more changes?"
+User: "Perfect, post it"
+You: [Extracts campaign_id, calls execute_linkedin_campaign()]
+
+CRITICAL:
+- NEVER auto-post when user says "generate" - let them review first!
+- Campaign_id is embedded in assistant message as HTML comment
+- Working documents = iterative drafting in chat before posting
+
+- "post and monitor" / "go live with campaign [ID]" → execute_linkedin_campaign(content, campaign_id, trigger_word)
+  * For when user has existing campaign + content ready
+  * This posts to LinkedIn + starts monitoring automatically
+  * Returns live post URL and monitoring status
+
+CAMPAIGN SELECTION (MANDATORY FORMAT):
+
+When listing campaigns, ALWAYS include full UUID in this exact format:
+"1. [Campaign Name] (ID: [full-uuid])"
+
+Then tell user: "Reply with the campaign ID you want to use"
+
+Example response:
+"Available campaigns:
+1. AI Leadership Campaign (ID: 550e8400-e29b-41d4-a716-446655440000)
+2. Content Marketing (ID: 6ba7b810-9dad-11d1-80b4-00c04fd430c8)
+
+Reply with the campaign ID (the UUID) you want to use, or copy-paste the full line."
+
+User can respond with:
+- Just the UUID: "550e8400-e29b-41d4-a716-446655440000"
+- The full line: "1. AI Leadership Campaign (ID: 550e8400...)"
+- Natural language: "Use campaign 550e8400..."
+
+You MUST extract the UUID from their message and pass it to schedule_post().
 
 IMPORTANT:
 1. ALWAYS call the appropriate tool - NEVER respond without using tools for campaign queries
 2. Campaigns = database tools (get_all_campaigns, get_campaign_by_id)
 3. Be helpful and ALWAYS use your tools to fetch real data!
-4. If user asks about campaigns, use get_all_campaigns() to see what exists first`
+4. If user asks about campaigns, use get_all_campaigns() to see what exists first
+5. ALWAYS show campaign IDs (UUIDs) when listing campaigns - this is CRITICAL for scheduling`
         },
-        ...formattedMessages
+        ...formattedMessages.filter(msg => msg.role !== 'tool')
       ],
       tools: [
         get_all_campaigns,
         get_campaign_by_id,
         create_campaign,
-        schedule_post
+        schedule_post,
+        trigger_dm_scraper,
+        get_all_pods,
+        get_pod_members,
+        send_pod_repost_links,
+        update_campaign_status,
+        execute_linkedin_campaign
       ],
       tool_choice: 'auto'
     })
@@ -316,8 +1359,69 @@ IMPORTANT:
         if (toolCall.type !== 'function') continue
 
         const functionName = toolCall.function.name
-        const functionArgs = JSON.parse(toolCall.function.arguments)
+
+        // Parse function arguments with error handling
+        let functionArgs
+        try {
+          functionArgs = JSON.parse(toolCall.function.arguments)
+        } catch (e) {
+          console.error('[HGC_TS] Invalid function arguments JSON:', e)
+          toolResults.push({
+            tool_call_id: toolCall.id,
+            role: 'tool' as const,
+            name: functionName,
+            content: JSON.stringify({
+              success: false,
+              error: 'Invalid tool arguments format'
+            })
+          })
+          continue
+        }
+
         console.log(`[HGC_TS] Tool call: ${functionName}`, functionArgs)
+
+        // WORKFLOW DETECTION: Intercept schedule_post without campaign_id
+        // DISABLED: This forced campaign workflows even when user explicitly said "no campaign"
+        // Now letting schedule_post() work without campaign_id for standalone posts
+        /*
+        if (functionName === 'schedule_post' && !functionArgs.campaign_id) {
+          console.log('[HGC_WORKFLOW] schedule_post called without campaign_id - returning decision buttons')
+
+          // Generate unique workflow ID
+          const workflowId = `workflow-${Date.now()}`
+
+          // Return decision buttons: Just Write, Create New, or Select Existing
+          return NextResponse.json({
+            success: true,
+            response: 'Would you like to create a new campaign or use an existing one?',
+            interactive: {
+              type: 'decision',
+              workflow_id: workflowId,
+              decision_options: [
+                {
+                  label: 'Create New Campaign',
+                  value: 'create_new',
+                  icon: 'plus',
+                  variant: 'primary',
+                },
+                {
+                  label: 'Select From Existing Campaigns',
+                  value: 'select_existing',
+                  icon: 'list',
+                  variant: 'secondary',
+                },
+                {
+                  label: 'Continue Writing',
+                  value: 'continue',
+                  variant: 'secondary',
+                },
+              ],
+              initial_content: functionArgs.content || '',
+              initial_datetime: functionArgs.schedule_time || '',
+            },
+          })
+        }
+        */
 
         let result
         switch (functionName) {
@@ -339,6 +1443,39 @@ IMPORTANT:
               functionArgs.content,
               functionArgs.schedule_time,
               functionArgs.campaign_id
+            )
+            break
+          case 'trigger_dm_scraper':
+            result = await handleTriggerDMScraper(
+              functionArgs.post_id,
+              functionArgs.trigger_word,
+              functionArgs.lead_magnet_url
+            )
+            break
+          case 'get_all_pods':
+            result = await handleGetAllPods()
+            break
+          case 'get_pod_members':
+            result = await handleGetPodMembers(functionArgs.pod_id)
+            break
+          case 'send_pod_repost_links':
+            result = await handleSendPodLinks(
+              functionArgs.post_id,
+              functionArgs.pod_id,
+              functionArgs.linkedin_url
+            )
+            break
+          case 'update_campaign_status':
+            result = await handleUpdateCampaignStatus(
+              functionArgs.campaign_id,
+              functionArgs.status
+            )
+            break
+          case 'execute_linkedin_campaign':
+            result = await handleExecuteLinkedInCampaign(
+              functionArgs.content,
+              functionArgs.campaign_id,
+              functionArgs.trigger_word
             )
             break
           default:
@@ -380,7 +1517,7 @@ EXAMPLES:
 
 Present tool results with intelligence, context, and strategic value.`
           },
-          ...formattedMessages,
+          ...formattedMessages.filter(msg => msg.role !== 'tool'),
           assistantMessage,
           ...toolResults
         ]
@@ -441,9 +1578,20 @@ export async function GET() {
   return Response.json({
     status: 'ok',
     service: 'Holy Grail Chat',
-    version: '4.0.0-typescript',
+    version: '5.0.0-typescript-agentkit',
     mode: 'native-typescript',
     backend: 'OpenAI Function Calling',
-    features: ['OpenAI gpt-4o', 'Direct Supabase', 'No Python', 'Fast Response'],
+    features: ['OpenAI gpt-4o', 'Direct Supabase', '8 AgentKit Tools', 'Fast Response'],
+    tools: [
+      'get_all_campaigns',
+      'get_campaign_by_id',
+      'create_campaign',
+      'schedule_post',
+      'trigger_dm_scraper',
+      'get_all_pods',
+      'get_pod_members',
+      'send_pod_repost_links',
+      'update_campaign_status'
+    ]
   })
 }

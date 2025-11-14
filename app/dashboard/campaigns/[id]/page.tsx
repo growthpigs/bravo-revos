@@ -21,6 +21,9 @@ import {
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import CampaignActions from '@/components/dashboard/campaign-actions'
+import { CampaignPostsSection } from '@/components/dashboard/CampaignPostsSection'
+import { CampaignDocumentsSection } from '@/components/dashboard/CampaignDocumentsSection'
+import { TriggerPodButton } from '@/components/dashboard/trigger-pod-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -133,6 +136,12 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             <Badge className={statusColors[campaign.status]} variant="secondary">
               {campaign.status}
             </Badge>
+            <TriggerPodButton
+              campaignId={campaign.id}
+              campaignName={campaign.name}
+              lastPostUrl={campaign.last_post_url}
+              podId={campaign.pod_id}
+            />
             <CampaignActions campaignId={campaign.id} currentStatus={campaign.status} />
           </div>
         </div>
@@ -177,6 +186,16 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             <p className="text-xs text-gray-600 mt-1">Lead to conversion</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Campaign Posts Section - Posts to publish */}
+      <div className="mb-8">
+        <CampaignPostsSection campaignId={campaign.id} />
+      </div>
+
+      {/* Knowledge Base Documents Section - Reference materials */}
+      <div className="mb-8">
+        <CampaignDocumentsSection campaignId={campaign.id} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

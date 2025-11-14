@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/dm-scraper",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/dm-delivery",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/webhook-retry",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/pod-notifications",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

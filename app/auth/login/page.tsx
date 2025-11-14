@@ -8,11 +8,14 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { createClient } from '@/lib/supabase/client'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
@@ -55,6 +58,7 @@ export default function LoginPage() {
           body: JSON.stringify({
             userId: authData.user.id,
             email: authData.user.email,
+            fullName,
             password, // Not needed but included for context
           }),
         })
@@ -105,15 +109,29 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleAuth}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {error && (
               <Alert variant={error.includes('successful') ? 'default' : 'destructive'}>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            {isSignUp && (
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName" className="text-sm text-slate-500 font-normal">Full Name (optional)</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="h-11"
+                />
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm text-slate-500 font-normal">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -121,26 +139,41 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="h-11"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm text-slate-500 font-normal">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 pt-2">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
               <button
                 type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => {
+                  setIsSignUp(!isSignUp)
+                  setFullName('')
+                  setError('')
+                }}
                 className="text-blue-600 hover:text-blue-700 font-medium"
               >
                 {isSignUp ? 'Sign in' : 'Sign up'}
@@ -148,7 +181,7 @@ export default function LoginPage() {
             </p>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-11" disabled={loading}>
               {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
             </Button>
           </CardFooter>

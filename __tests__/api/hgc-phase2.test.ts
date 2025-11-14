@@ -193,7 +193,9 @@ describe('POST /api/hgc - Phase 2 Python Orchestrator', () => {
 
       // Verify context passed to Python
       const spawnCall = mockSpawn.mock.calls[0]
-      const context = JSON.parse(spawnCall[2].env.HGC_CONTEXT)
+      expect(spawnCall).toBeDefined()
+      expect(spawnCall[2]).toBeDefined()
+      const context = JSON.parse(spawnCall[2]!.env!.HGC_CONTEXT!)
       expect(context.user_id).toBe('user-123')
       expect(context.pod_id).toBe('pod-456')
       expect(context.messages).toEqual(messages)
@@ -345,7 +347,10 @@ describe('POST /api/hgc - Phase 2 Python Orchestrator', () => {
       await POST(request)
 
       // Verify default pod_id used
-      const context = JSON.parse(mockSpawn.mock.calls[0][2].env.HGC_CONTEXT)
+      const spawnCall = mockSpawn.mock.calls[0]
+      expect(spawnCall).toBeDefined()
+      expect(spawnCall[2]).toBeDefined()
+      const context = JSON.parse(spawnCall[2]!.env!.HGC_CONTEXT!)
       expect(context.pod_id).toBe('default')
     })
   })
