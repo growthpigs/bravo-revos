@@ -134,3 +134,36 @@ export function validateCartridgeSize(cartridge: any, name: string): void {
 export function safeParseConsoleConfig(data: unknown) {
   return ConsoleConfigSchema.safeParse(data);
 }
+
+/**
+ * Create Console Input Schema
+ * For creating new console configurations
+ */
+export const CreateConsoleInputSchema = z.object({
+  name: z
+    .string()
+    .min(3, 'Name must be at least 3 characters')
+    .max(50, 'Name must be at most 50 characters')
+    .regex(/^[a-z0-9-]+$/, 'Name must be lowercase letters, numbers, and hyphens only'),
+  displayName: z
+    .string()
+    .min(3, 'Display name must be at least 3 characters')
+    .max(100, 'Display name must be at most 100 characters'),
+  systemInstructions: z.string().optional(),
+  isActive: z.boolean().default(true),
+});
+
+/**
+ * Update Metadata Input Schema
+ * For updating console metadata (display name and status)
+ */
+export const UpdateMetadataInputSchema = z.object({
+  displayName: z
+    .string()
+    .min(3, 'Display name must be at least 3 characters')
+    .max(100, 'Display name must be at most 100 characters'),
+  isActive: z.boolean(),
+});
+
+export type CreateConsoleInput = z.infer<typeof CreateConsoleInputSchema>;
+export type UpdateMetadataInput = z.infer<typeof UpdateMetadataInputSchema>;

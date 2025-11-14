@@ -20,9 +20,20 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown, Info, Plus, Edit2, Trash2 } from 'lucide-react';
 import { deepMerge, deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
 import { ConsoleConfig, safeParseConsoleConfig, validateCartridgeSize } from '@/lib/validation/console-validation';
+import { ConsoleMetadataModal, ConsoleMetadataInput } from './components/ConsoleMetadataModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface LoadingState {
   consoles: boolean;
@@ -48,6 +59,10 @@ export default function ConsoleConfigPage() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [consoleToDelete, setConsoleToDelete] = useState<ConsoleConfig | null>(null);
 
   // Define loadConsoles before useEffects
   const loadConsoles = useCallback(async function loadConsoles() {
@@ -262,6 +277,174 @@ export default function ConsoleConfigPage() {
     }
   }
 
+  /**
+   * Create new console configuration
+   */
+  async function handleCreateConsole(data: { name?: string; displayName: string; systemInstructions?: string; isActive: boolean }) {
+    try {
+      setLoading((prev) => ({ ...prev, save: true }));
+      setError(null);
+
+      const { data: newConsole, error: err } = await supabase
+        .from('console_prompts')
+        .insert({
+          name: data.name,
+          display_name: data.displayName,
+          system_instructions: data.systemInstructions || 'Default system instructions',
+          version: 1,
+          is_active: data.isActive,
+          // Initialize all 8 cartridges with empty objects
+          operations_cartridge: {},
+          system_cartridge: {},
+          context_cartridge: {},
+          skills_cartridge: {},
+          plugins_cartridge: {},
+          knowledge_cartridge: {},
+          memory_cartridge: {},
+          ui_cartridge: {},
+        })
+        .select()
+        .single();
+
+      if (err) throw err;
+
+      setSuccess({
+        text: `Console "${data.displayName}" created successfully`,
+        timestamp: Date.now(),
+      });
+
+      await loadConsoles();
+      setModalOpen(false);
+
+      // Select the newly created console
+      if (newConsole) {
+        const converted: ConsoleConfig = {
+          id: newConsole.id,
+          name: newConsole.name,
+          displayName: newConsole.display_name,
+          systemInstructions: newConsole.system_instructions,
+          behaviorRules: newConsole.behavior_rules || [],
+          version: newConsole.version,
+          operationsCartridge: newConsole.operations_cartridge || {},
+          systemCartridge: newConsole.system_cartridge || {},
+          contextCartridge: newConsole.context_cartridge || {},
+          skillsCartridge: newConsole.skills_cartridge || {},
+          pluginsCartridge: newConsole.plugins_cartridge || {},
+          knowledgeCartridge: newConsole.knowledge_cartridge || {},
+          memoryCartridge: newConsole.memory_cartridge || {},
+          uiCartridge: newConsole.ui_cartridge || {},
+        };
+        selectConsole(converted);
+      }
+    } catch (err: any) {
+      const message = err?.message || 'Failed to create console';
+      console.error('[ConsoleConfig] Error creating console:', err);
+      setError(message);
+      throw err; // Re-throw for modal error handling
+    } finally {
+      setLoading((prev) => ({ ...prev, save: false }));
+    }
+  }
+
+  /**
+   * Update console metadata (display name and active status)
+   */
+  async function handleUpdateMetadata(data: { displayName: string; isActive: boolean }) {
+    if (!selectedConsole) {
+      setError('No console selected');
+      return;
+    }
+
+    try {
+      setLoading((prev) => ({ ...prev, save: true }));
+      setError(null);
+
+      const { error: err } = await supabase
+        .from('console_prompts')
+        .update({
+          display_name: data.displayName,
+          is_active: data.isActive,
+        })
+        .eq('id', selectedConsole.id);
+
+      if (err) throw err;
+
+      setSuccess({
+        text: `Console "${data.displayName}" updated successfully`,
+        timestamp: Date.now(),
+      });
+
+      await loadConsoles();
+      setModalOpen(false);
+    } catch (err: any) {
+      const message = err?.message || 'Failed to update console';
+      console.error('[ConsoleConfig] Error updating console:', err);
+      setError(message);
+      throw err; // Re-throw for modal error handling
+    } finally {
+      setLoading((prev) => ({ ...prev, save: false }));
+    }
+  }
+
+  /**
+   * Soft delete console (set is_active = false)
+   */
+  async function handleDeleteConsole() {
+    if (!consoleToDelete) {
+      setError('No console selected for deletion');
+      return;
+    }
+
+    try {
+      setLoading((prev) => ({ ...prev, save: true }));
+      setError(null);
+
+      const { error: err } = await supabase
+        .from('console_prompts')
+        .update({ is_active: false })
+        .eq('id', consoleToDelete.id);
+
+      if (err) throw err;
+
+      setSuccess({
+        text: `Console "${consoleToDelete.displayName}" deleted successfully`,
+        timestamp: Date.now(),
+      });
+
+      setDeleteConfirmOpen(false);
+      setConsoleToDelete(null);
+
+      // Reload and select first available console
+      await loadConsoles();
+    } catch (err: any) {
+      const message = err?.message || 'Failed to delete console';
+      console.error('[ConsoleConfig] Error deleting console:', err);
+      setError(message);
+    } finally {
+      setLoading((prev) => ({ ...prev, save: false }));
+    }
+  }
+
+  /**
+   * Open modal in create mode
+   */
+  function openCreateModal() {
+    setModalMode('create');
+    setModalOpen(true);
+  }
+
+  /**
+   * Open modal in edit mode
+   */
+  function openEditModal() {
+    if (!selectedConsole) {
+      setError('No console selected');
+      return;
+    }
+    setModalMode('edit');
+    setModalOpen(true);
+  }
+
   // Show loading while checking auth
   if (authChecking) {
     return (
@@ -347,48 +530,91 @@ export default function ConsoleConfigPage() {
         </CardHeader>
 
         <CardContent className="pt-6">
-          {/* Console Selector */}
+          {/* Console Selector with Actions */}
           <div className="space-y-2 mb-6">
             <Label htmlFor="console-select">Select Console</Label>
-            <div className="relative">
-              <button
-                id="console-select"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                disabled={loading.consoles}
-                className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500 flex items-center justify-between"
-              >
-                <span className="text-sm">
-                  {selectedConsole ? selectedConsole.displayName : 'Select a console...'}
-                </span>
-                <ChevronDown className="h-4 w-4" />
-              </button>
+            <div className="flex gap-2">
+              {/* Dropdown (not full width) */}
+              <div className="relative flex-1 max-w-md">
+                <button
+                  id="console-select"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  disabled={loading.consoles}
+                  className="w-full px-4 py-2 text-left border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-500 flex items-center justify-between"
+                >
+                  <span className="text-sm">
+                    {selectedConsole ? selectedConsole.displayName : 'Select a console...'}
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
 
-              {dropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white shadow-lg z-10">
-                  {consoles.length === 0 ? (
-                    <div className="p-3 text-sm text-gray-500">No consoles available</div>
-                  ) : (
-                    consoles.map((console) => (
-                      <button
-                        key={console.id}
-                        onClick={() => selectConsole(console)}
-                        className={`w-full text-left px-4 py-2 hover:bg-blue-50 border-b last:border-b-0 transition-colors ${
-                          selectedConsole?.id === console.id ? 'bg-blue-50' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900">
-                            {console.displayName}
-                          </span>
-                          <Badge variant="secondary" className="text-xs">
-                            v{console.version}
-                          </Badge>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
+                {dropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 border border-gray-300 rounded-lg bg-white shadow-lg z-10">
+                    {consoles.length === 0 ? (
+                      <div className="p-3 text-sm text-gray-500">No consoles available</div>
+                    ) : (
+                      consoles.map((console) => (
+                        <button
+                          key={console.id}
+                          onClick={() => selectConsole(console)}
+                          className={`w-full text-left px-4 py-2 hover:bg-blue-50 border-b last:border-b-0 transition-colors ${
+                            selectedConsole?.id === console.id ? 'bg-blue-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900">
+                              {console.displayName}
+                            </span>
+                            <Badge variant="secondary" className="text-xs">
+                              v{console.version}
+                            </Badge>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={openCreateModal}
+                  variant="outline"
+                  size="default"
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Console
+                </Button>
+
+                {selectedConsole && (
+                  <>
+                    <Button
+                      onClick={openEditModal}
+                      variant="outline"
+                      size="default"
+                      className="flex items-center gap-2"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      Edit
+                    </Button>
+
+                    <Button
+                      onClick={() => {
+                        setConsoleToDelete(selectedConsole);
+                        setDeleteConfirmOpen(true);
+                      }}
+                      variant="outline"
+                      size="default"
+                      className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
             {selectedConsole && (
               <p className="text-xs text-gray-500 mt-1">
@@ -814,6 +1040,52 @@ export default function ConsoleConfigPage() {
       <div className="mt-8 text-xs text-gray-500 text-center">
         <p>For support or questions, contact the development team</p>
       </div>
+
+      {/* Console Metadata Modal */}
+      <ConsoleMetadataModal
+        open={modalOpen}
+        mode={modalMode}
+        initialData={
+          modalMode === 'edit' && selectedConsole
+            ? {
+                name: selectedConsole.name,
+                displayName: selectedConsole.displayName,
+                systemInstructions: selectedConsole.systemInstructions,
+                isActive: true, // Active consoles only (filtered by loadConsoles)
+              }
+            : undefined
+        }
+        onClose={() => setModalOpen(false)}
+        onSave={async (data: ConsoleMetadataInput) => {
+          if (modalMode === 'create') {
+            await handleCreateConsole(data);
+          } else {
+            await handleUpdateMetadata(data);
+          }
+        }}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Console Configuration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{consoleToDelete?.displayName}&quot;? This will hide
+              the console from the dropdown. Data will be preserved but marked as inactive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConsole}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Console
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
