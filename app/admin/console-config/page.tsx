@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown, Info, Plus, Edit2, Trash2 } from 'lucide-react';
 import { deepMerge, deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
 import { ConsoleConfig, safeParseConsoleConfig, validateCartridgeSize } from '@/lib/validation/console-validation';
@@ -51,7 +52,7 @@ export default function ConsoleConfigPage() {
   const [consoles, setConsoles] = useState<ConsoleConfig[]>([]);
   const [selectedConsole, setSelectedConsole] = useState<ConsoleConfig | null>(null);
   const [editedConsole, setEditedConsole] = useState<ConsoleConfig | null>(null);
-  const [activeTab, setActiveTab] = useState('operations');
+  const [activeTab, setActiveTab] = useState('instructions');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [loading, setLoading] = useState<LoadingState>({ consoles: true, save: false });
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +64,17 @@ export default function ConsoleConfigPage() {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [consoleToDelete, setConsoleToDelete] = useState<ConsoleConfig | null>(null);
+
+  // Workflow state
+  const [selectedWorkflow, setSelectedWorkflow] = useState<string>('');
+  const [workflowContent, setWorkflowContent] = useState<string>('{}');
+  const [availableWorkflows] = useState([
+    { id: 'linkedin-campaign', name: 'LinkedIn Campaign Flow' },
+    { id: 'pod-alert', name: 'Pod Alert System' },
+    { id: 'lead-nurture', name: 'Lead Nurture Sequence' },
+    { id: 'email-extraction', name: 'Email Extraction Pipeline' },
+    { id: 'webhook-delivery', name: 'Webhook Delivery Chain' }
+  ]);
 
   // Define loadConsoles before useEffects
   const loadConsoles = useCallback(async function loadConsoles() {
@@ -636,18 +648,87 @@ export default function ConsoleConfigPage() {
           {/* 8-Tab System */}
           {editedConsole && (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid grid-cols-8 gap-1">
-                <TabsTrigger value="operations">Operations</TabsTrigger>
-                <TabsTrigger value="system">System</TabsTrigger>
-                <TabsTrigger value="context">Context</TabsTrigger>
-                <TabsTrigger value="skills">Skills</TabsTrigger>
+              <TabsList className="grid grid-cols-7 gap-1">
+                <TabsTrigger value="instructions">Instructions</TabsTrigger>
+                <TabsTrigger value="skills">Chips</TabsTrigger>
                 <TabsTrigger value="plugins">Plugins</TabsTrigger>
                 <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
                 <TabsTrigger value="memory">Memory</TabsTrigger>
                 <TabsTrigger value="ui">UI</TabsTrigger>
+                <TabsTrigger value="workflows">Workflows</TabsTrigger>
               </TabsList>
 
-              {/* Operations Tab */}
+              {/* Consolidated Instructions Tab (was Operations + System + Context) */}
+              <TabsContent value="instructions" className="space-y-4">
+                <Alert className="bg-green-50 border-green-200">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    <strong>Consolidated Instructions:</strong> All core system instructions in one place - no more duplication across multiple tabs.
+                  </AlertDescription>
+                </Alert>
+
+                <div>
+                  <Label htmlFor="system_instructions">System Instructions</Label>
+                  <Textarea
+                    id="system_instructions"
+                    value={editedConsole.systemInstructions || ''}
+                    onChange={(e) => updateCartridge('systemInstructions', e.target.value)}
+                    rows={10}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Core system instructions for the AI agent..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Primary instructions that define the agent's personality, capabilities, and behavior
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="behavior_rules">Behavior Rules (JSON Array)</Label>
+                  <Textarea
+                    id="behavior_rules"
+                    value={JSON.stringify(editedConsole.behaviorRules || [], null, 2)}
+                    onChange={(e) => updateJSONField('behaviorRules', e.target.value)}
+                    rows={6}
+                    className="font-mono text-sm mt-2"
+                    placeholder='["Always be helpful", "Never share personal data", "Maintain professional tone"]'
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Specific rules and constraints the agent must follow
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="prd">Product Requirements (Combined from Operations)</Label>
+                  <Textarea
+                    id="prd"
+                    value={editedConsole.operationsCartridge?.prd || ''}
+                    onChange={(e) => updateCartridge('operationsCartridge.prd', e.target.value)}
+                    rows={6}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Product overview, key capabilities, target users..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    High-level product requirements and capabilities
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="context">Context & Environment (Combined from System/Context)</Label>
+                  <Textarea
+                    id="context"
+                    value={editedConsole.systemCartridge?.contextOverview || ''}
+                    onChange={(e) => updateCartridge('systemCartridge.contextOverview', e.target.value)}
+                    rows={6}
+                    className="font-mono text-sm mt-2"
+                    placeholder="Environment context, system capabilities, available tools..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Context about the environment, available tools, and system capabilities
+                  </p>
+                </div>
+              </TabsContent>
+
+              {/* Old Operations Tab - DEPRECATED */}
               <TabsContent value="operations" className="space-y-4">
                 <div>
                   <Label htmlFor="prd">Product Requirements Document</Label>
@@ -770,7 +851,7 @@ export default function ConsoleConfigPage() {
                 </div>
               </TabsContent>
 
-              {/* Skills Tab */}
+              {/* Chips Tab */}
               <TabsContent value="skills" className="space-y-4">
                 <Alert className="bg-blue-50 border-blue-200">
                   <Info className="h-4 w-4 text-blue-600" />
@@ -992,6 +1073,136 @@ export default function ConsoleConfigPage() {
                     placeholder="Agent decides UI dynamically. Conversational by default. Fullscreen only when explicitly writing. Inline buttons almost always."
                   />
                 </div>
+              </TabsContent>
+
+              {/* Workflows Tab */}
+              <TabsContent value="workflows" className="space-y-4">
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800">
+                    <strong>Workflow Management:</strong> Define and manage automated workflow sequences for campaigns and operations.
+                  </AlertDescription>
+                </Alert>
+
+                <div>
+                  <Label htmlFor="workflow-select">Select Workflow</Label>
+                  <Select
+                    value={selectedWorkflow}
+                    onValueChange={(value) => {
+                      setSelectedWorkflow(value);
+                      // Load workflow from console_workflows table
+                      // For now, using sample data
+                      const sampleWorkflows: Record<string, any> = {
+                        'linkedin-campaign': {
+                          name: 'LinkedIn Campaign Flow',
+                          steps: [
+                            { id: 'create-post', type: 'content', action: 'generate' },
+                            { id: 'schedule-post', type: 'scheduling', action: 'queue' },
+                            { id: 'monitor-engagement', type: 'monitoring', action: 'track' },
+                            { id: 'extract-emails', type: 'extraction', action: 'parse' },
+                            { id: 'send-webhook', type: 'delivery', action: 'webhook' }
+                          ],
+                          triggers: ['manual', 'scheduled', 'api'],
+                          config: {
+                            retryAttempts: 3,
+                            timeout: 300000,
+                            parallelProcessing: true
+                          }
+                        },
+                        'pod-alert': {
+                          name: 'Pod Alert System',
+                          steps: [
+                            { id: 'detect-post', type: 'detection', action: 'monitor' },
+                            { id: 'notify-pod', type: 'notification', action: 'broadcast' },
+                            { id: 'track-engagement', type: 'tracking', action: 'record' }
+                          ],
+                          triggers: ['post-published'],
+                          config: {
+                            alertChannels: ['slack', 'discord', 'email'],
+                            priorityLevels: ['urgent', 'normal', 'low']
+                          }
+                        }
+                      };
+                      setWorkflowContent(JSON.stringify(sampleWorkflows[value] || {}, null, 2));
+                    }}
+                  >
+                    <SelectTrigger className="w-full mt-2">
+                      <SelectValue placeholder="Choose a workflow to edit..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableWorkflows.map((workflow) => (
+                        <SelectItem key={workflow.id} value={workflow.id}>
+                          {workflow.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select a workflow to view and edit its configuration
+                  </p>
+                </div>
+
+                {selectedWorkflow && (
+                  <>
+                    <div>
+                      <Label htmlFor="workflow-json">Workflow Configuration (JSON)</Label>
+                      <Textarea
+                        id="workflow-json"
+                        value={workflowContent}
+                        onChange={(e) => setWorkflowContent(e.target.value)}
+                        rows={20}
+                        className="font-mono text-sm mt-2"
+                        placeholder='{\n  "name": "Workflow Name",\n  "steps": [...],\n  "triggers": [...],\n  "config": {...}\n}'
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Edit the workflow configuration in JSON format
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={async () => {
+                          try {
+                            // Validate JSON
+                            const parsed = JSON.parse(workflowContent);
+
+                            // Save to console_workflows table
+                            const { error } = await supabase
+                              .from('console_workflows')
+                              .upsert({
+                                id: selectedWorkflow,
+                                name: parsed.name || selectedWorkflow,
+                                workflow_data: parsed,
+                                updated_at: new Date().toISOString()
+                              }, { onConflict: 'id' });
+
+                            if (error) throw error;
+
+                            setSuccess({ text: 'Workflow saved successfully', timestamp: Date.now() });
+                          } catch (err: any) {
+                            setError(err.message || 'Invalid JSON or save failed');
+                          }
+                        }}
+                        className="flex-1"
+                        variant="default"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Workflow
+                      </Button>
+
+                      <Button
+                        onClick={() => {
+                          setSelectedWorkflow('');
+                          setWorkflowContent('{}');
+                        }}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </>
+                )}
               </TabsContent>
 
               {/* Action Buttons */}

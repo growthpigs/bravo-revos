@@ -29,7 +29,7 @@ interface AdminSidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'System Health', href: '/admin/system-health', icon: Activity },
-  { name: 'Console Config', href: '/admin/console-config', icon: FileCode },
+  { name: 'Cartridges', href: '/admin/console-config', icon: FileCode },
   { name: 'Clients', href: '/admin/clients', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },

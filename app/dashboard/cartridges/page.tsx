@@ -1,270 +1,218 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import {
-  Plus,
-  Zap,
-  Mail,
-  Users,
-  Mic,
-  Globe,
-  MessageSquare,
-  BarChart3,
-  Settings,
-  ChevronRight,
-  Cpu,
-  Package
-} from 'lucide-react'
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Settings, Mic, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-interface Cartridge {
-  id: string
-  name: string
-  description: string
-  category: string
-  chips: Chip[]
-  status: 'active' | 'inactive' | 'coming_soon'
-  icon: any
-}
-
-interface Chip {
-  id: string
-  name: string
-  description: string
-  status: 'active' | 'error' | 'disabled'
+interface VoiceCartridge {
+  id: string;
+  name: string;
+  display_name: string;
+  system_instructions: string;
+  tier: 'user' | 'campaign' | 'request' | 'default';
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 export default function CartridgesPage() {
-  const [activeTab, setActiveTab] = useState('all')
+  const [cartridges, setCartridges] = useState<VoiceCartridge[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // This represents our full cartridge system
-  const cartridges: Cartridge[] = [
-    {
-      id: 'linkedin',
-      name: 'LinkedIn Cartridge',
-      description: 'Complete LinkedIn automation and engagement',
-      category: 'channel',
-      status: 'active',
-      icon: Globe,
-      chips: [
-        { id: 'campaign', name: 'Campaign Chip', description: 'Create and manage campaigns', status: 'active' },
-        { id: 'publishing', name: 'Publishing Chip', description: 'Schedule and post content', status: 'active' },
-        { id: 'dm-scraper', name: 'DM Scraper Chip', description: 'Extract emails from messages', status: 'active' },
-        { id: 'analytics', name: 'Analytics Chip', description: 'Track performance', status: 'active' }
-      ]
-    },
-    {
-      id: 'pod',
-      name: 'Pod Cartridge',
-      description: 'Viral amplification through coordinated engagement',
-      category: 'amplification',
-      status: 'active',
-      icon: Users,
-      chips: [
-        { id: 'coordination', name: 'Pod Coordination Chip', description: 'Manage pod activities', status: 'active' },
-        { id: 'auto-repost', name: 'Auto-Repost Chip', description: 'Automated resharing', status: 'disabled' },
-        { id: 'rewards', name: 'Rewards Chip', description: 'Credit system for participation', status: 'active' }
-      ]
-    },
-    {
-      id: 'voice',
-      name: 'Voice Cartridge',
-      description: 'AI personality and tone management',
-      category: 'personality',
-      status: 'active',
-      icon: Mic,
-      chips: [
-        { id: 'tone-matching', name: 'Tone Matching Chip', description: 'Adapt to prospect style', status: 'active' },
-        { id: 'personality', name: 'Personality Chip', description: 'Define AI character', status: 'active' }
-      ]
-    },
-    {
-      id: 'email',
-      name: 'Email Cartridge',
-      description: 'Multi-step email sequences and automation',
-      category: 'channel',
-      status: 'coming_soon',
-      icon: Mail,
-      chips: [
-        { id: 'sequence', name: 'Sequence Chip', description: 'Drip campaigns', status: 'disabled' },
-        { id: 'template', name: 'Template Chip', description: 'Email templates', status: 'disabled' },
-        { id: 'deliverability', name: 'Deliverability Chip', description: 'Inbox optimization', status: 'disabled' }
-      ]
+  useEffect(() => {
+    fetchCartridges();
+  }, []);
+
+  const fetchCartridges = async () => {
+    try {
+      const supabase = createClient();
+
+      // Get current user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('Auth error:', authError);
+        router.push('/auth/login');
+        return;
+      }
+
+      // Fetch user's voice cartridges
+      const { data, error } = await supabase
+        .from('voice_cartridges')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('tier', 'user')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching cartridges:', error);
+        toast.error('Failed to load cartridges');
+        return;
+      }
+
+      setCartridges(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An error occurred');
+    } finally {
+      setLoading(false);
     }
-  ]
+  };
 
-  const categories = [
-    { id: 'all', label: 'All Cartridges', count: cartridges.length },
-    { id: 'channel', label: 'Channels', count: 2 },
-    { id: 'amplification', label: 'Amplification', count: 1 },
-    { id: 'personality', label: 'Personality', count: 1 },
-    { id: 'analytics', label: 'Analytics', count: 0 }
-  ]
+  const getTierBadgeVariant = (tier: string) => {
+    switch (tier) {
+      case 'user': return 'default';
+      case 'campaign': return 'secondary';
+      case 'request': return 'outline';
+      case 'default': return 'ghost';
+      default: return 'default';
+    }
+  };
 
-  const filteredCartridges = activeTab === 'all'
-    ? cartridges
-    : cartridges.filter(c => c.category === activeTab)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="container mx-auto py-8 px-4">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex justify-between items-start">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Cartridge System</h1>
+            <h1 className="text-3xl font-bold">Voice Cartridges</h1>
             <p className="text-muted-foreground mt-2">
-              Hot-swappable capabilities for your Marketing Console. Each cartridge provides specific context and skills.
+              Customize AI voice and behavior for your campaigns
             </p>
           </div>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Install Cartridge
+          <Button onClick={() => router.push('/dashboard/cartridges/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Cartridge
           </Button>
-        </div>
-
-        {/* Architecture Breadcrumb */}
-        <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-          <span>RevOS</span>
-          <ChevronRight className="w-4 h-4" />
-          <span>Marketing Console</span>
-          <ChevronRight className="w-4 h-4" />
-          <span className="text-foreground">Cartridges</span>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
-          {categories.map(cat => (
-            <TabsTrigger key={cat.id} value={cat.id} className="gap-2">
-              {cat.label}
-              {cat.count > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1">
-                  {cat.count}
-                </Badge>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value={activeTab} className="space-y-6">
-          {filteredCartridges.map(cartridge => (
-            <Card key={cartridge.id} className="p-6 bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <div className="space-y-4">
-                {/* Cartridge Header */}
-                <div className="flex justify-between items-start">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-gray-100 rounded-lg">
-                      <cartridge.icon className="w-6 h-6 text-gray-700" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-semibold text-gray-900">{cartridge.name}</h3>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          cartridge.status === 'active'
-                            ? 'bg-gray-100 text-gray-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {cartridge.status === 'coming_soon' ? 'Coming Soon' : cartridge.status}
-                        </span>
-                      </div>
-                      <p className="text-gray-600 mt-1">
-                        {cartridge.description}
-                      </p>
-                    </div>
+      {/* Cartridge Grid */}
+      {cartridges.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Mic className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Voice Cartridges</h3>
+            <p className="text-muted-foreground text-center mb-6 max-w-md">
+              Create custom voice personalities for different campaigns and contexts.
+              Each cartridge can have its own tone, style, and behavior.
+            </p>
+            <Button onClick={() => router.push('/dashboard/cartridges/new')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Your First Cartridge
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {cartridges.map((cartridge) => (
+            <Card
+              key={cartridge.id}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => router.push(`/dashboard/cartridges/${cartridge.id}`)}
+            >
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Mic className="h-4 w-4" />
+                      {cartridge.display_name || cartridge.name}
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      {cartridge.name}
+                    </CardDescription>
                   </div>
-
-                  <div className="flex gap-2">
-                    {cartridge.status === 'active' && (
-                      <>
-                        <Button variant="outline" size="sm">
-                          <Settings className="w-4 h-4 mr-1" />
-                          Configure
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          View Docs
-                        </Button>
-                      </>
+                  <Badge variant={getTierBadgeVariant(cartridge.tier)}>
+                    {cartridge.tier}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {/* Status */}
+                  <div className="flex items-center gap-2">
+                    {cartridge.is_active ? (
+                      <Badge variant="success" className="bg-green-500/10 text-green-600">
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">
+                        Inactive
+                      </Badge>
                     )}
                   </div>
-                </div>
 
-                {/* Chips Grid */}
-                <div className="pl-14">
-                  <div className="text-sm font-medium mb-3 text-muted-foreground">
-                    Chips ({cartridge.chips.length} modules)
+                  {/* Instructions Preview */}
+                  <div className="text-sm text-muted-foreground">
+                    <p className="line-clamp-2">
+                      {cartridge.system_instructions || 'No instructions configured'}
+                    </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {cartridge.chips.map(chip => (
-                      <div
-                        key={chip.id}
-                        className={`p-3 border rounded-lg ${
-                          chip.status === 'active'
-                            ? 'border-gray-200 bg-white shadow-sm'
-                            : 'border-gray-200 bg-gray-50 opacity-60'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <Cpu className="w-4 h-4 text-gray-600" />
-                              <span className="font-medium text-sm text-gray-900">{chip.name}</span>
-                            </div>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {chip.description}
-                            </p>
-                          </div>
-                          {chip.status === 'active' && (
-                            <div className="text-xs font-medium text-gray-500">Active</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+
+                  {/* Dates */}
+                  <div className="text-xs text-muted-foreground">
+                    Created: {new Date(cartridge.created_at).toLocaleDateString()}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/cartridges/${cartridge.id}`);
+                      }}
+                    >
+                      <Settings className="mr-2 h-3 w-3" />
+                      Configure
+                    </Button>
                   </div>
                 </div>
-
-                {/* Cartridge Actions */}
-                {cartridge.status === 'active' && (
-                  <div className="flex items-center gap-4 pl-14 pt-2">
-                    <Button variant="link" size="sm" className="text-xs">
-                      View API Endpoints
-                    </Button>
-                    <Button variant="link" size="sm" className="text-xs">
-                      Usage Analytics
-                    </Button>
-                    <Button variant="link" size="sm" className="text-xs">
-                      Test Cartridge
-                    </Button>
-                  </div>
-                )}
-              </div>
+              </CardContent>
             </Card>
           ))}
-        </TabsContent>
-      </Tabs>
-
-      {/* Future Vision Card */}
-      <Card className="mt-8 p-6 bg-gray-50 border-gray-200">
-        <div className="flex items-start gap-4">
-          <Package className="w-6 h-6 text-gray-600 mt-1" />
-          <div>
-            <h3 className="font-semibold text-gray-900">Future Cartridge Marketplace</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Soon you&apos;ll be able to browse and install community-created cartridges.
-              Build your own cartridges with our SDK and monetize them in the marketplace.
-            </p>
-            <div className="flex gap-4 mt-3">
-              <Badge variant="outline" className="text-gray-700">Twitter Cartridge</Badge>
-              <Badge variant="outline" className="text-gray-700">Slack Cartridge</Badge>
-              <Badge variant="outline" className="text-gray-700">SEO Cartridge</Badge>
-              <Badge variant="outline" className="text-gray-700">+ 50 more</Badge>
-            </div>
-          </div>
         </div>
+      )}
+
+      {/* Info Card */}
+      <Card className="mt-8 border-blue-200 bg-blue-50/50 dark:bg-blue-900/10">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-100">
+            <AlertCircle className="h-5 w-5" />
+            About Voice Cartridges
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-blue-800 dark:text-blue-200">
+          <p className="mb-3">
+            Voice cartridges define how the AI communicates in your campaigns. They work in a hierarchy:
+          </p>
+          <ul className="space-y-2 ml-4">
+            <li>• <strong>Request:</strong> Highest priority, set per API call</li>
+            <li>• <strong>Campaign:</strong> Campaign-specific voice settings</li>
+            <li>• <strong>User:</strong> Your personal default voice (shown here)</li>
+            <li>• <strong>Default:</strong> System fallback voice</li>
+          </ul>
+          <p className="mt-3">
+            The system uses the most specific cartridge available for each interaction.
+          </p>
+        </CardContent>
       </Card>
     </div>
-  )
+  );
 }
