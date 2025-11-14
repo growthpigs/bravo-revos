@@ -3,22 +3,41 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[TRACE_API] 9. API: Brand GET started');
+    console.log('[TRACE_API] 10. API: Headers:', Object.fromEntries(request.headers.entries()));
+    console.log('[TRACE_API] 11. API: Cookies:', request.cookies.getAll());
+
     const supabase = await createClient();
+    console.log('[TRACE_API] 12. API: Supabase client created:', !!supabase);
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[TRACE_API] 13. API: Auth result:', { user: !!user, error: authError?.message });
+
     if (authError || !user) {
+      console.error('[TRACE_API] 14. API: Auth failed:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('[TRACE_API] 15. API: User authenticated:', user.id);
+
     // Fetch user's brand cartridge (should only have one)
+    console.log('[TRACE_API] 16. API: Querying brand_cartridges for user:', user.id);
+
     const { data, error } = await supabase
       .from('brand_cartridges')
       .select('*')
       .eq('user_id', user.id)
       .single();
 
+    console.log('[TRACE_API] 17. API: Query result:', {
+      data: !!data,
+      error: error?.code,
+      errorMessage: error?.message
+    });
+
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('[TRACE_API] 18. API: Database error:', error);
       console.error('Error fetching brand:', error);
       return NextResponse.json({ error: 'Failed to fetch brand' }, { status: 500 });
     }

@@ -57,7 +57,7 @@ interface PreferencesCartridge {
   updated_at?: string;
 }
 
-interface InstructionsCartridge {
+interface InstructionCartridge {
   id: string;
   user_id: string;
   name: string;
@@ -106,9 +106,19 @@ export default function CartridgesPage() {
   // Preferences state
   const [preferencesCartridge, setPreferencesCartridge] = useState<PreferencesCartridge | null>(null);
   const [editingPreferences, setEditingPreferences] = useState(false);
+  const [preferencesFormData, setPreferencesFormData] = useState({
+    language: 'English',
+    platform: 'LinkedIn',
+    tone: 'Professional',
+    content_length: 'Medium',
+    hashtag_count: 3,
+    emoji_usage: 'Moderate',
+    call_to_action: 'Subtle',
+    personalization_level: 'Medium'
+  });
 
   // Instructions state
-  const [instructionCartridges, setInstructionCartridges] = useState<InstructionsCartridge[]>([]);
+  const [instructionCartridges, setInstructionCartridges] = useState<InstructionCartridge[]>([]);
   const [newInstructionName, setNewInstructionName] = useState('');
   const [newInstructionDescription, setNewInstructionDescription] = useState('');
 
@@ -116,36 +126,69 @@ export default function CartridgesPage() {
   const [brandCartridge, setBrandCartridge] = useState<BrandCartridge | null>(null);
   const [editingBrand, setEditingBrand] = useState(false);
   const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null);
+  const [brandFormData, setBrandFormData] = useState({
+    name: '',
+    company_name: '',
+    company_description: '',
+    company_tagline: '',
+    industry: '',
+    target_audience: ''
+  });
 
   useEffect(() => {
     fetchAllCartridges();
   }, []);
 
   const fetchAllCartridges = async () => {
+    console.log('[TRACE_INIT] ========== CARTRIDGE FETCH SESSION START ==========');
+    console.log('[TRACE_INIT] 1. Window location:', window.location.href);
+    console.log('[TRACE_INIT] 2. Document cookies present:', document.cookie ? 'YES' : 'NO');
+    console.log('[TRACE_INIT] 3. Cookie details:', document.cookie);
+
+    // Check localStorage for Supabase auth
+    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase'));
+    console.log('[TRACE_INIT] 4. LocalStorage auth keys:', authKeys);
+    authKeys.forEach(key => {
+      console.log('[TRACE_INIT]   -', key, ':', localStorage.getItem(key)?.substring(0, 50) + '...');
+    });
+
     setLoading(true);
     try {
       const supabase = createClient();
+      console.log('[TRACE_INIT] 5. Supabase client created');
+
       const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('[TRACE_INIT] 6. Auth check result:', {
+        hasUser: !!user,
+        userId: user?.id,
+        error: authError?.message
+      });
 
       if (authError || !user) {
-        console.error('Auth error:', authError);
+        console.error('[TRACE_INIT] 7. Auth failed, redirecting to login:', authError);
         router.push('/auth/login');
         return;
       }
 
+      console.log('[TRACE_INIT] 8. Starting parallel fetches...');
       // Fetch all cartridge types in parallel
-      await Promise.all([
-        fetchVoiceCartridges(),
-        fetchStyleCartridge(),
-        fetchPreferencesCartridge(),
-        fetchInstructionCartridges(),
-        fetchBrandCartridge()
+      const results = await Promise.allSettled([
+        fetchVoiceCartridges().catch(e => { console.log('[TRACE_ERROR] Voice failed:', e); return 'failed'; }),
+        fetchStyleCartridge().catch(e => { console.log('[TRACE_ERROR] Style failed:', e); return 'failed'; }),
+        fetchPreferencesCartridge().catch(e => { console.log('[TRACE_ERROR] Preferences failed:', e); return 'failed'; }),
+        fetchInstructionCartridges().catch(e => { console.log('[TRACE_ERROR] Instructions failed:', e); return 'failed'; }),
+        fetchBrandCartridge().catch(e => { console.log('[TRACE_ERROR] Brand failed:', e); return 'failed'; })
       ]);
+
+      console.log('[TRACE_INIT] 9. Fetch results:', results.map((r, i) =>
+        `${['Voice', 'Style', 'Preferences', 'Instructions', 'Brand'][i]}: ${r.status}`
+      ));
     } catch (error) {
-      console.error('Error fetching cartridges:', error);
+      console.error('[TRACE_INIT] 10. CRITICAL ERROR:', error);
       toast.error('Failed to load cartridges');
     } finally {
       setLoading(false);
+      console.log('[TRACE_INIT] ========== CARTRIDGE FETCH SESSION END ==========');
     }
   };
 
@@ -172,48 +215,109 @@ export default function CartridgesPage() {
 
   const fetchStyleCartridge = async () => {
     try {
-      const response = await fetch('/api/cartridges/style');
-      if (response.ok) {
-        const data = await response.json();
-        setStyleCartridge(data.cartridge);
+      console.log('[TRACE_STYLE] 1. Starting style fetch');
+      const response = await fetch('/api/cartridges/style', {
+        credentials: 'include', // CRITICAL: Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('[TRACE_STYLE] 2. Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[TRACE_STYLE] 3. Error response:', errorText);
+        throw new Error(`Style fetch failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('[TRACE_STYLE] 4. Success, got data:', data);
+      setStyleCartridge(data.cartridge);
     } catch (error) {
-      console.error('Error fetching style cartridge:', error);
+      console.error('[TRACE_STYLE] 5. FULL ERROR:', error);
+      throw error; // Re-throw to be caught by Promise.allSettled
     }
   };
 
   const fetchPreferencesCartridge = async () => {
     try {
-      const response = await fetch('/api/cartridges/preferences');
-      if (response.ok) {
-        const data = await response.json();
-        setPreferencesCartridge(data.preferences);
+      console.log('[TRACE_PREFS] 1. Starting preferences fetch');
+      const response = await fetch('/api/cartridges/preferences', {
+        credentials: 'include', // CRITICAL: Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('[TRACE_PREFS] 2. Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[TRACE_PREFS] 3. Error response:', errorText);
+        throw new Error(`Preferences fetch failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('[TRACE_PREFS] 4. Success, got data:', data);
+      setPreferencesCartridge(data.preferences);
     } catch (error) {
-      console.error('Error fetching preferences:', error);
+      console.error('[TRACE_PREFS] 5. FULL ERROR:', error);
+      throw error; // Re-throw to be caught by Promise.allSettled
     }
   };
 
   const fetchInstructionCartridges = async () => {
     try {
-      const response = await fetch('/api/cartridges/instructions');
-      if (response.ok) {
-        const data = await response.json();
-        setInstructionCartridges(data.cartridges || []);
+      console.log('[TRACE_INSTR] 1. Starting instructions fetch');
+      const response = await fetch('/api/cartridges/instructions', {
+        credentials: 'include', // CRITICAL: Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('[TRACE_INSTR] 2. Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[TRACE_INSTR] 3. Error response:', errorText);
+        throw new Error(`Instructions fetch failed: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('[TRACE_INSTR] 4. Success, got data:', data);
+      setInstructionCartridges(data.cartridges || []);
     } catch (error) {
-      console.error('Error fetching instruction cartridges:', error);
+      console.error('[TRACE_INSTR] 5. FULL ERROR:', error);
+      throw error; // Re-throw to be caught by Promise.allSettled
     }
   };
 
   const fetchBrandCartridge = async () => {
     try {
-      const response = await fetch('/api/cartridges/brand');
-      if (response.ok) {
-        const data = await response.json();
-        setBrandCartridge(data.brand);
+      console.log('[TRACE_API] 1. Frontend: Starting brand fetch');
+      console.log('[TRACE_API] 2. Frontend: Current URL:', window.location.href);
+      console.log('[TRACE_API] 3. Frontend: Cookies present:', document.cookie ? 'YES' : 'NO');
+
+      const response = await fetch('/api/cartridges/brand', {
+        credentials: 'include', // CRITICAL: Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      console.log('[TRACE_API] 4. Frontend: Response status:', response.status);
+      console.log('[TRACE_API] 5. Frontend: Response headers:', response.headers.get('content-type'));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[TRACE_API] 6. Frontend: Error response body:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      const data = await response.json();
+      console.log('[TRACE_API] 7. Frontend: Success, got data:', data);
+      setBrandCartridge(data.brand);
     } catch (error) {
+      console.error('[TRACE_API] 8. Frontend: FULL ERROR:', error);
       console.error('Error fetching brand cartridge:', error);
     }
   };
@@ -329,7 +433,267 @@ export default function CartridgesPage() {
     }
   };
 
+  const handleInstructionUpload = async (instructionId: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.pdf,.txt,.docx,.md';
+
+    input.onchange = async (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (!files || files.length === 0) return;
+
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+      formData.append('instructionId', instructionId);
+
+      try {
+        const response = await fetch('/api/cartridges/instructions/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          toast.success('Documents uploaded successfully');
+          await fetchInstructionCartridges();
+        } else {
+          const error = await response.json();
+          toast.error(error.error || 'Upload failed');
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast.error('Failed to upload documents');
+      }
+    };
+
+    input.click();
+  };
+
+  const handleInstructionProcess = async (instructionId: string) => {
+    try {
+      const response = await fetch('/api/cartridges/instructions/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instructionId })
+      });
+
+      if (response.ok) {
+        toast.success('Processing started');
+        await fetchInstructionCartridges();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Process failed');
+      }
+    } catch (error) {
+      console.error('Process error:', error);
+      toast.error('Failed to process instruction');
+    }
+  };
+
+  const handleInstructionDelete = async (instructionId: string) => {
+    // Find the instruction name for better UX
+    const instruction = instructionCartridges.find(i => i.id === instructionId);
+    const name = instruction?.name || 'instruction set';
+
+    // Show confirmation toast
+    toast.custom(
+      (t) => (
+        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
+          <p className="font-medium">Delete "{name}"?</p>
+          <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={async () => {
+                toast.dismiss(t);
+                try {
+                  const response = await fetch(`/api/cartridges/instructions/${instructionId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                  });
+
+                  if (response.ok) {
+                    toast.success('Instruction deleted');
+                    await fetchInstructionCartridges();
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || 'Delete failed');
+                  }
+                } catch (error) {
+                  console.error('Delete error:', error);
+                  toast.error('Failed to delete instruction');
+                }
+              }}
+              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 10000,
+        position: 'top-center' as const
+      }
+    );
+  };
+
+  // Preferences handlers
+  const handlePreferencesDelete = async () => {
+    // Show confirmation toast
+    toast.custom(
+      (t) => (
+        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
+          <p className="font-medium">Delete your preferences?</p>
+          <p className="text-sm text-muted-foreground">This will reset to default settings.</p>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={async () => {
+                toast.dismiss(t);
+                try {
+                  const response = await fetch('/api/cartridges/preferences', {
+                    method: 'DELETE',
+                    credentials: 'include'
+                  });
+
+                  if (response.ok) {
+                    toast.success('Preferences deleted');
+                    await fetchPreferencesCartridge();
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || 'Delete failed');
+                  }
+                } catch (error) {
+                  console.error('Delete error:', error);
+                  toast.error('Failed to delete preferences');
+                }
+              }}
+              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 10000,
+        position: 'top-center' as const
+      }
+    );
+  };
+
+  // Style handlers
+  const handleStyleDelete = async () => {
+    toast.custom(
+      (t) => (
+        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
+          <p className="font-medium">Delete style guide?</p>
+          <p className="text-sm text-muted-foreground">This will remove all uploaded style documents.</p>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={async () => {
+                toast.dismiss(t);
+                try {
+                  const response = await fetch(`/api/cartridges/style/${styleCartridge?.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                  });
+
+                  if (response.ok) {
+                    toast.success('Style guide deleted');
+                    await fetchStyleCartridge();
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || 'Delete failed');
+                  }
+                } catch (error) {
+                  console.error('Delete error:', error);
+                  toast.error('Failed to delete style guide');
+                }
+              }}
+              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 10000,
+        position: 'top-center' as const
+      }
+    );
+  };
+
   // Brand handlers
+  const handleBrandDelete = async () => {
+    toast.custom(
+      (t) => (
+        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
+          <p className="font-medium">Delete brand information?</p>
+          <p className="text-sm text-muted-foreground">This will remove all brand settings.</p>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={async () => {
+                toast.dismiss(t);
+                try {
+                  const response = await fetch('/api/cartridges/brand', {
+                    method: 'DELETE',
+                    credentials: 'include'
+                  });
+
+                  if (response.ok) {
+                    toast.success('Brand information deleted');
+                    await fetchBrandCartridge();
+                    setEditingBrand(false);
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || 'Delete failed');
+                  }
+                } catch (error) {
+                  console.error('Delete error:', error);
+                  toast.error('Failed to delete brand information');
+                }
+              }}
+              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        duration: 10000,
+        position: 'top-center' as const
+      }
+    );
+  };
+
   const handleBrandSave = async (data: Partial<BrandCartridge>) => {
     try {
       const response = await fetch('/api/cartridges/brand', {
@@ -568,22 +932,32 @@ export default function CartridgesPage() {
                         Status: {styleCartridge.analysis_status}
                       </p>
                     </div>
-                    <Button
-                      onClick={handleStyleAnalyze}
-                      disabled={analyzingStyle}
-                    >
-                      {analyzingStyle ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Analyze Style
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleStyleAnalyze}
+                        disabled={analyzingStyle}
+                      >
+                        {analyzingStyle ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Analyze Style
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="default"
+                        onClick={handleStyleDelete}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
 
                   {styleCartridge.learned_style && (
@@ -615,7 +989,9 @@ export default function CartridgesPage() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Language</Label>
-                      <Select defaultValue={preferencesCartridge?.language || 'English'}>
+                      <Select
+                        value={preferencesFormData.language}
+                        onValueChange={(value) => setPreferencesFormData(prev => ({ ...prev, language: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -631,7 +1007,9 @@ export default function CartridgesPage() {
 
                     <div className="space-y-2">
                       <Label>Platform</Label>
-                      <Select defaultValue={preferencesCartridge?.platform || 'LinkedIn'}>
+                      <Select
+                        value={preferencesFormData.platform}
+                        onValueChange={(value) => setPreferencesFormData(prev => ({ ...prev, platform: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -646,7 +1024,9 @@ export default function CartridgesPage() {
 
                     <div className="space-y-2">
                       <Label>Tone</Label>
-                      <Select defaultValue={preferencesCartridge?.tone || 'Professional'}>
+                      <Select
+                        value={preferencesFormData.tone}
+                        onValueChange={(value) => setPreferencesFormData(prev => ({ ...prev, tone: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -662,7 +1042,9 @@ export default function CartridgesPage() {
 
                     <div className="space-y-2">
                       <Label>Content Length</Label>
-                      <Select defaultValue={preferencesCartridge?.content_length || 'Medium'}>
+                      <Select
+                        value={preferencesFormData.content_length}
+                        onValueChange={(value) => setPreferencesFormData(prev => ({ ...prev, content_length: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -677,7 +1059,9 @@ export default function CartridgesPage() {
 
                     <div className="space-y-2">
                       <Label>Emoji Usage</Label>
-                      <Select defaultValue={preferencesCartridge?.emoji_usage || 'Moderate'}>
+                      <Select
+                        value={preferencesFormData.emoji_usage}
+                        onValueChange={(value) => setPreferencesFormData(prev => ({ ...prev, emoji_usage: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -692,7 +1076,9 @@ export default function CartridgesPage() {
 
                     <div className="space-y-2">
                       <Label>Call to Action</Label>
-                      <Select defaultValue={preferencesCartridge?.call_to_action || 'Subtle'}>
+                      <Select
+                        value={preferencesFormData.call_to_action}
+                        onValueChange={(value) => setPreferencesFormData(prev => ({ ...prev, call_to_action: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -710,28 +1096,28 @@ export default function CartridgesPage() {
                     <Button
                       onClick={() => {
                         // Collect form data and save
-                        handlePreferencesSave({
-                          language: 'English',
-                          platform: 'LinkedIn',
-                          tone: 'Professional',
-                          content_length: 'Medium',
-                          hashtag_count: 3,
-                          emoji_usage: 'Moderate',
-                          call_to_action: 'Subtle',
-                          personalization_level: 'Medium'
-                        });
+                        handlePreferencesSave(preferencesFormData);
                       }}
                     >
                       <Check className="mr-2 h-4 w-4" />
                       Save Preferences
                     </Button>
                     {preferencesCartridge && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setEditingPreferences(false)}
-                      >
-                        Cancel
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditingPreferences(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handlePreferencesDelete}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete All
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -831,13 +1217,30 @@ export default function CartridgesPage() {
                             </Badge>
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleInstructionUpload(instruction.id)}
+                            >
                               <Upload className="mr-2 h-3 w-3" />
                               Upload Docs
                             </Button>
-                            <Button size="sm" variant="outline">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleInstructionProcess(instruction.id)}
+                              disabled={instruction.process_status === 'processing'}
+                            >
                               <Eye className="mr-2 h-3 w-3" />
                               Process
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleInstructionDelete(instruction.id)}
+                            >
+                              <Trash2 className="mr-2 h-3 w-3" />
+                              Delete
                             </Button>
                           </div>
                         </div>
@@ -867,21 +1270,24 @@ export default function CartridgesPage() {
                       <Label>Brand Name</Label>
                       <Input
                         placeholder="Your Brand"
-                        defaultValue={brandCartridge?.name || ''}
+                        value={brandFormData.name || brandCartridge?.name || ''}
+                        onChange={(e) => setBrandFormData(prev => ({ ...prev, name: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Company Name</Label>
                       <Input
                         placeholder="Company Inc."
-                        defaultValue={brandCartridge?.company_name || ''}
+                        value={brandFormData.company_name || brandCartridge?.company_name || ''}
+                        onChange={(e) => setBrandFormData(prev => ({ ...prev, company_name: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label>Company Description</Label>
                       <Textarea
                         placeholder="What does your company do?"
-                        defaultValue={brandCartridge?.company_description || ''}
+                        value={brandFormData.company_description || brandCartridge?.company_description || ''}
+                        onChange={(e) => setBrandFormData(prev => ({ ...prev, company_description: e.target.value }))}
                         rows={3}
                       />
                     </div>
@@ -889,21 +1295,24 @@ export default function CartridgesPage() {
                       <Label>Tagline</Label>
                       <Input
                         placeholder="Your memorable tagline"
-                        defaultValue={brandCartridge?.company_tagline || ''}
+                        value={brandFormData.company_tagline || brandCartridge?.company_tagline || ''}
+                        onChange={(e) => setBrandFormData(prev => ({ ...prev, company_tagline: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Industry</Label>
                       <Input
                         placeholder="Technology, Healthcare, etc."
-                        defaultValue={brandCartridge?.industry || ''}
+                        value={brandFormData.industry || brandCartridge?.industry || ''}
+                        onChange={(e) => setBrandFormData(prev => ({ ...prev, industry: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Target Audience</Label>
                       <Input
                         placeholder="B2B SaaS, Consumers, etc."
-                        defaultValue={brandCartridge?.target_audience || ''}
+                        value={brandFormData.target_audience || brandCartridge?.target_audience || ''}
+                        onChange={(e) => setBrandFormData(prev => ({ ...prev, target_audience: e.target.value }))}
                       />
                     </div>
                   </div>
@@ -930,8 +1339,7 @@ export default function CartridgesPage() {
                     <Button
                       onClick={() => {
                         handleBrandSave({
-                          name: 'My Brand',
-                          company_name: 'Company Inc.',
+                          ...brandFormData,
                           core_values: [],
                           brand_personality: []
                         });
@@ -941,12 +1349,21 @@ export default function CartridgesPage() {
                       Save Brand
                     </Button>
                     {brandCartridge && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setEditingBrand(false)}
-                      >
-                        Cancel
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditingBrand(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleBrandDelete}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>

@@ -17,6 +17,11 @@ import {
   safeParseConsoleConfig,
   validateCartridgeSize,
 } from '@/lib/validation/console-validation';
+import {
+  CartridgeMemories,
+  formatStyleForPrompt,
+  formatInstructionsForPrompt,
+} from '@/lib/cartridges/retrieval';
 
 /**
  * Load console configuration from database by name
@@ -201,16 +206,19 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
  * **Cartridge Precedence & Purpose:**
  * 1. System: Base prompt, role, behavioral rules (foundation)
  * 2. Context: Domain knowledge, app features, structure (environment)
- * 3. Skills: Available capabilities/chips (what AI can do)
- * 4. Plugins: MCP server requirements (external integrations)
- * 5. Knowledge: Docs, examples, best practices (reference material)
- * 6. Memory: Mem0 scoping and guidelines (what to remember)
- * 7. UI: Inline buttons, fullscreen triggers (interaction patterns)
+ * 3. Style (from Mem0): User's writing style preferences (if available)
+ * 4. Instructions (from Mem0): User's content generation rules (if available)
+ * 5. Skills: Available capabilities/chips (what AI can do)
+ * 6. Plugins: MCP server requirements (external integrations)
+ * 7. Knowledge: Docs, examples, best practices (reference material)
+ * 8. Memory: Mem0 scoping and guidelines (what to remember)
+ * 9. UI: Inline buttons, fullscreen triggers (interaction patterns)
  *
  * **Fallback Logic:**
  * - If systemCartridge.systemPrompt is empty, uses legacy `system_instructions` field
  * - Each section provides safe defaults (e.g., "Assistant" for missing role)
  * - Empty arrays render as "No specific capabilities defined"
+ * - cartridgeMemories parameter is optional (graceful if not provided)
  *
  * **Token Management:**
  * - Uses gpt-3-encoder to count tokens in final prompt
@@ -218,16 +226,21 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
  * - Info log if >4000 tokens (helps track prompt growth)
  *
  * @param config - Console configuration with all 8 cartridges loaded from database
+ * @param cartridgeMemories - Optional Style and Instructions cartridges from Mem0
  * @returns Comprehensive system prompt string (never undefined, always returns valid prompt)
  *
  * @example
  * ```typescript
  * const config = await loadConsolePrompt('marketing-console-v1', supabase);
- * const prompt = assembleSystemPrompt(config);
- * // Returns: "You are RevOS Intelligence...\n\nROLE: Strategic marketing partner..."
+ * const cartridges = await retrieveAllCartridges(userId);
+ * const prompt = assembleSystemPrompt(config, cartridges);
+ * // Returns: "You are RevOS Intelligence...\n\nWRITING STYLE\nTone: Professional..."
  * ```
  */
-export function assembleSystemPrompt(config: ConsoleConfig): string {
+export function assembleSystemPrompt(
+  config: ConsoleConfig,
+  cartridgeMemories?: CartridgeMemories
+): string {
   const { systemCartridge, contextCartridge, skillsCartridge, pluginsCartridge,
           knowledgeCartridge, memoryCartridge, uiCartridge, systemInstructions } = config;
 
@@ -239,58 +252,89 @@ export function assembleSystemPrompt(config: ConsoleConfig): string {
     return systemInstructions;
   }
 
-  const prompt = `
-${systemCartridge?.systemPrompt || 'You are a helpful AI assistant.'}
+  // Build base prompt sections
+  const sections: string[] = [];
 
-ROLE: ${systemCartridge?.role || 'Assistant'}
+  // 1. System prompt and role
+  sections.push(systemCartridge?.systemPrompt || 'You are a helpful AI assistant.');
+  sections.push(`\nROLE: ${systemCartridge?.role || 'Assistant'}`);
 
-BEHAVIORAL RULES:
-${systemCartridge?.rules || 'Be helpful and professional.'}
+  // 2. Behavioral rules
+  sections.push(`\nBEHAVIORAL RULES:\n${systemCartridge?.rules || 'Be helpful and professional.'}`);
 
-CONTEXT:
-Domain: ${contextCartridge?.domain || 'General assistance'}
-Structure: ${contextCartridge?.structure || 'Standard application'}
+  // 3. Context
+  sections.push(`\nCONTEXT:\nDomain: ${contextCartridge?.domain || 'General assistance'}`);
+  sections.push(`Structure: ${contextCartridge?.structure || 'Standard application'}`);
 
-${contextCartridge?.appFeatures && contextCartridge.appFeatures.length > 0 ? `
-APP FEATURES:
-${contextCartridge.appFeatures.map(f => `- ${f}`).join('\n')}
-` : ''}
+  if (contextCartridge?.appFeatures && contextCartridge.appFeatures.length > 0) {
+    sections.push(`\nAPP FEATURES:\n${contextCartridge.appFeatures.map(f => `- ${f}`).join('\n')}`);
+  }
 
-AVAILABLE CAPABILITIES:
-${skillsCartridge?.chips && skillsCartridge.chips.length > 0
-  ? skillsCartridge.chips.map(c => `- ${c.name}: ${c.description}`).join('\n')
-  : 'No specific capabilities defined'}
+  // 4. WRITING STYLE (from Mem0 Style cartridge) - INJECTED HERE
+  if (cartridgeMemories?.style) {
+    const stylePrompt = formatStyleForPrompt(cartridgeMemories.style);
+    if (stylePrompt) {
+      sections.push(`\nWRITING STYLE:\n${stylePrompt}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CONSOLE_LOADER] Injected Style cartridge into system prompt');
+      }
+    }
+  }
 
-UI GUIDELINES - INLINE BUTTONS (CRITICAL):
+  // 5. Available capabilities
+  sections.push(`\nAVAILABLE CAPABILITIES:\n${
+    skillsCartridge?.chips && skillsCartridge.chips.length > 0
+      ? skillsCartridge.chips.map(c => `- ${c.name}: ${c.description}`).join('\n')
+      : 'No specific capabilities defined'
+  }`);
+
+  // 6. CONTENT INSTRUCTIONS (from Mem0 Instructions cartridge) - INJECTED HERE
+  if (cartridgeMemories?.instructions) {
+    const instructionsPrompt = formatInstructionsForPrompt(cartridgeMemories.instructions);
+    if (instructionsPrompt) {
+      sections.push(`\nCONTENT INSTRUCTIONS:\n${instructionsPrompt}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CONSOLE_LOADER] Injected Instructions cartridge into system prompt');
+      }
+    }
+  }
+
+  // 7. UI guidelines
+  sections.push(`\nUI GUIDELINES - INLINE BUTTONS (CRITICAL):
 - Frequency: ${uiCartridge?.inlineButtons?.frequency || '80% of responses'}
 - Style: ${uiCartridge?.inlineButtons?.style || 'Standard button styling'}
-- Placement: ${uiCartridge?.inlineButtons?.placement || 'Below message'}
-${uiCartridge?.inlineButtons?.examples && uiCartridge.inlineButtons.examples.length > 0 ? `
-- Examples:
-${uiCartridge.inlineButtons.examples.map(ex => `  ${ex}`).join('\n')}
-` : ''}
+- Placement: ${uiCartridge?.inlineButtons?.placement || 'Below message'}${
+    uiCartridge?.inlineButtons?.examples && uiCartridge.inlineButtons.examples.length > 0
+      ? `\n- Examples:\n${uiCartridge.inlineButtons.examples.map(ex => `  ${ex}`).join('\n')}`
+      : ''
+  }
 - Button Actions: ${uiCartridge?.buttonActions?.navigation || 'Navigate to relevant pages'}
 - Philosophy: ${uiCartridge?.buttonActions?.philosophy || 'Buttons are helpful shortcuts'}
 
 UI PRINCIPLE:
-${uiCartridge?.principle || 'Conversational by default. Use inline buttons to guide user actions.'}
+${uiCartridge?.principle || 'Conversational by default. Use inline buttons to guide user actions.'}`);
 
-MEMORY GUIDELINES:
-Scoping: ${memoryCartridge?.scoping || 'User-specific'}
-${memoryCartridge?.whatToRemember && memoryCartridge.whatToRemember.length > 0 ? `
-Remember:
-${memoryCartridge.whatToRemember.map(item => `- ${item}`).join('\n')}
-` : ''}
-Context Injection: ${memoryCartridge?.contextInjection || 'Retrieve relevant memories before each request'}
+  // 8. Memory guidelines
+  sections.push(`\nMEMORY GUIDELINES:
+Scoping: ${memoryCartridge?.scoping || 'User-specific'}${
+    memoryCartridge?.whatToRemember && memoryCartridge.whatToRemember.length > 0
+      ? `\nRemember:\n${memoryCartridge.whatToRemember.map(item => `- ${item}`).join('\n')}`
+      : ''
+  }
+Context Injection: ${memoryCartridge?.contextInjection || 'Retrieve relevant memories before each request'}`);
 
-PLUGINS REQUIRED:
-${pluginsCartridge?.required && pluginsCartridge.required.length > 0
-  ? pluginsCartridge.required.join(', ')
-  : 'None'} - ${pluginsCartridge?.description || 'Must be configured'}
+  // 9. Plugins
+  sections.push(`\nPLUGINS REQUIRED:
+${
+  pluginsCartridge?.required && pluginsCartridge.required.length > 0
+    ? pluginsCartridge.required.join(', ')
+    : 'None'
+} - ${pluginsCartridge?.description || 'Must be configured'}`);
 
-BEST PRACTICES:
-${knowledgeCartridge?.bestPractices || 'Follow standard best practices for user assistance.'}
-`.trim();
+  // 10. Best practices
+  sections.push(`\nBEST PRACTICES:\n${knowledgeCartridge?.bestPractices || 'Follow standard best practices for user assistance.'}`);
+
+  const prompt = sections.join('\n').trim();
 
   // Token counting and warning
   const tokens = encode(prompt);

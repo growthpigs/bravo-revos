@@ -21,6 +21,7 @@ import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
 import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
 import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/session-manager';
 import { OrchestrationResponseBuilder } from '@/lib/orchestration/response-builder';
+import { retrieveAllCartridges } from '@/lib/cartridges/retrieval';
 import { ZodError } from 'zod';
 
 const openai = new OpenAI({
@@ -112,11 +113,32 @@ export async function POST(request: NextRequest) {
       consoleSource = 'fallback';
     }
 
-    // 4. Initialize MarketingConsole with database-driven config
+    // 3a. Retrieve user's Style and Instructions cartridges from Mem0
+    console.log('[HGC_V2] Retrieving cartridge memories from Mem0...');
+    let cartridgeMemories;
+    let cartridgesRetrieved = false;
+    try {
+      cartridgeMemories = await retrieveAllCartridges(user.id);
+      cartridgesRetrieved = !!(cartridgeMemories.style || cartridgeMemories.instructions);
+
+      if (cartridgesRetrieved) {
+        console.log('[HGC_V2] Cartridge memories retrieved:', {
+          hasStyle: !!cartridgeMemories.style,
+          hasInstructions: !!cartridgeMemories.instructions,
+        });
+      } else {
+        console.log('[HGC_V2] No cartridge memories found for user');
+      }
+    } catch (error: any) {
+      console.error('[HGC_V2] Failed to retrieve cartridge memories:', error.message);
+      cartridgeMemories = {}; // Graceful degradation - continue without cartridges
+    }
+
+    // 4. Initialize MarketingConsole with database-driven config + cartridge memories
     const console_instance = new MarketingConsole({
       model: 'gpt-4o-mini',
       temperature: 0.7,
-      baseInstructions: assembleSystemPrompt(consoleConfig),
+      baseInstructions: assembleSystemPrompt(consoleConfig, cartridgeMemories),
       openai,
       supabase,
     });
@@ -223,6 +245,7 @@ export async function POST(request: NextRequest) {
         meta: {
           consoleSource,
           orchestrationDetected: true,
+          cartridgesRetrieved,
         },
       });
     }
@@ -258,6 +281,7 @@ export async function POST(request: NextRequest) {
       meta: {
         consoleSource, // 'database' or 'fallback' - helps identify configuration issues
         messagePersisted, // CRITICAL - client MUST check this
+        cartridgesRetrieved, // Whether Style/Instructions cartridges were found
         ...(messagePersisted === false && {
           warning: 'Conversation was not saved - do not continue this session',
           persistenceError: 'Database save failed',

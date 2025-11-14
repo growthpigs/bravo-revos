@@ -103,6 +103,186 @@ export interface Database {
         }
         Relationships: []
       }
+      brand_cartridges: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          company_name: string | null
+          company_description: string | null
+          company_tagline: string | null
+          industry: string | null
+          target_audience: string | null
+          core_values: string[] | null
+          brand_voice: string | null
+          brand_personality: string[] | null
+          logo_url: string | null
+          brand_colors: Json | null
+          social_links: Json | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          company_name?: string | null
+          company_description?: string | null
+          company_tagline?: string | null
+          industry?: string | null
+          target_audience?: string | null
+          core_values?: string[] | null
+          brand_voice?: string | null
+          brand_personality?: string[] | null
+          logo_url?: string | null
+          brand_colors?: Json | null
+          social_links?: Json | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          company_name?: string | null
+          company_description?: string | null
+          company_tagline?: string | null
+          industry?: string | null
+          target_audience?: string | null
+          core_values?: string[] | null
+          brand_voice?: string | null
+          brand_personality?: string[] | null
+          logo_url?: string | null
+          brand_colors?: Json | null
+          social_links?: Json | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      style_cartridges: {
+        Row: {
+          id: string
+          user_id: string
+          source_files: Json | null
+          learned_style: Json | null
+          mem0_namespace: string
+          analysis_status: string
+          last_analyzed_at: string | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          source_files?: Json | null
+          learned_style?: Json | null
+          mem0_namespace: string
+          analysis_status?: string
+          last_analyzed_at?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          source_files?: Json | null
+          learned_style?: Json | null
+          mem0_namespace?: string
+          analysis_status?: string
+          last_analyzed_at?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      preferences_cartridges: {
+        Row: {
+          id: string
+          user_id: string
+          language: string
+          platform: string
+          tone: string
+          content_length: string
+          hashtag_count: number
+          emoji_usage: string
+          call_to_action: string
+          personalization_level: string
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          language?: string
+          platform?: string
+          tone?: string
+          content_length?: string
+          hashtag_count?: number
+          emoji_usage?: string
+          call_to_action?: string
+          personalization_level?: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          language?: string
+          platform?: string
+          tone?: string
+          content_length?: string
+          hashtag_count?: number
+          emoji_usage?: string
+          call_to_action?: string
+          personalization_level?: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      instruction_cartridges: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          description: string | null
+          training_docs: Json | null
+          extracted_knowledge: Json | null
+          mem0_namespace: string
+          process_status: string
+          last_processed_at: string | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          description?: string | null
+          training_docs?: Json | null
+          extracted_knowledge?: Json | null
+          mem0_namespace: string
+          process_status?: string
+          last_processed_at?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          description?: string | null
+          training_docs?: Json | null
+          extracted_knowledge?: Json | null
+          mem0_namespace?: string
+          process_status?: string
+          last_processed_at?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

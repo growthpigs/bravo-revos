@@ -3,13 +3,23 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[TRACE_INSTR_API] 1. Instructions API GET started');
+    console.log('[TRACE_INSTR_API] 2. Headers:', Object.fromEntries(request.headers.entries()));
+    console.log('[TRACE_INSTR_API] 3. Cookies:', request.cookies.getAll());
+
     const supabase = await createClient();
+    console.log('[TRACE_INSTR_API] 4. Supabase client created');
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('[TRACE_INSTR_API] 5. Auth result:', { hasUser: !!user, userId: user?.id, error: authError?.message });
+
     if (authError || !user) {
+      console.error('[TRACE_INSTR_API] 6. Auth failed:', authError);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('[TRACE_INSTR_API] 7. Querying instruction_cartridges for user:', user.id);
 
     // Fetch user's instruction cartridges
     const { data, error } = await supabase
@@ -18,14 +28,22 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
+    console.log('[TRACE_INSTR_API] 8. Query result:', {
+      hasData: !!data,
+      dataLength: data?.length,
+      error: error?.code,
+      errorMessage: error?.message
+    });
+
     if (error) {
-      console.error('Error fetching instruction cartridges:', error);
+      console.error('[TRACE_INSTR_API] 9. Database error:', error);
       return NextResponse.json({ error: 'Failed to fetch instruction cartridges' }, { status: 500 });
     }
 
+    console.log('[TRACE_INSTR_API] 10. Success, returning', data?.length || 0, 'cartridges');
     return NextResponse.json({ cartridges: data || [] });
   } catch (error) {
-    console.error('Error in GET /api/cartridges/instructions:', error);
+    console.error('[TRACE_INSTR_API] 11. CRITICAL ERROR:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
