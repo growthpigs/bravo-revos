@@ -37,7 +37,7 @@ interface StyleCartridge {
   source_files: any[];
   learned_style: any;
   mem0_namespace: string;
-  analysis_status: 'pending' | 'processing' | 'completed' | 'failed';
+  analysis_status: 'pending' | 'analyzing' | 'completed' | 'failed';
   created_at: string;
   updated_at?: string;
 }
@@ -134,6 +134,147 @@ export default function CartridgesPage() {
     industry: '',
     target_audience: ''
   });
+
+  // Polling state for processing status
+  const [pollingIntervals, setPollingIntervals] = useState<{
+    style?: NodeJS.Timeout;
+    instructions: Map<string, NodeJS.Timeout>;
+  }>({ instructions: new Map() });
+
+  // Poll style cartridge status if processing
+  useEffect(() => {
+    console.log('[DEBUG_POLL] Style polling effect triggered, status:', styleCartridge?.analysis_status);
+
+    if (!styleCartridge?.id) {
+      console.log('[DEBUG_POLL] No style cartridge, skipping poll');
+      return;
+    }
+
+    const status = styleCartridge.analysis_status;
+
+    // Only poll if status is 'analyzing' (the status during processing)
+    if (status === 'analyzing') {
+      console.log('[DEBUG_POLL] Starting style status polling for:', styleCartridge.id);
+
+      const pollStyleStatus = async () => {
+        try {
+          const response = await fetch(`/api/cartridges/style/${styleCartridge.id}/status`, {
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[DEBUG_POLL] Style status update:', data);
+
+            // Update the cartridge status if it changed
+            if (data.status !== status) {
+              console.log('[DEBUG_POLL] Status changed from', status, 'to', data.status);
+              await fetchStyleCartridge();
+
+              // Show toast on completion or failure
+              if (data.status === 'completed') {
+                toast.success('Style analysis completed!');
+              } else if (data.status === 'failed') {
+                toast.error(data.error || 'Style analysis failed');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[DEBUG_POLL] Error polling style status:', error);
+        }
+      };
+
+      // Poll immediately
+      pollStyleStatus();
+
+      // Then poll every 3 seconds
+      const interval = setInterval(pollStyleStatus, 3000);
+
+      setPollingIntervals(prev => ({ ...prev, style: interval }));
+
+      return () => {
+        console.log('[DEBUG_POLL] Cleaning up style polling interval');
+        clearInterval(interval);
+      };
+    } else {
+      console.log('[DEBUG_POLL] Style not processing, clearing any existing interval');
+      // Clear interval if status is not processing
+      if (pollingIntervals.style) {
+        clearInterval(pollingIntervals.style);
+        setPollingIntervals(prev => ({ ...prev, style: undefined }));
+      }
+    }
+  }, [styleCartridge?.id, styleCartridge?.analysis_status]);
+
+  // Poll instruction cartridges status if processing
+  useEffect(() => {
+    console.log('[DEBUG_POLL] Instructions polling effect triggered, count:', instructionCartridges.length);
+
+    const processingInstructions = instructionCartridges.filter(
+      inst => inst.process_status === 'processing'
+    );
+
+    console.log('[DEBUG_POLL] Processing instructions:', processingInstructions.map(i => i.id));
+
+    // Clear intervals for instructions that are no longer processing
+    const currentIds = new Set(processingInstructions.map(i => i.id));
+    pollingIntervals.instructions.forEach((interval, id) => {
+      if (!currentIds.has(id)) {
+        console.log('[DEBUG_POLL] Clearing interval for instruction:', id);
+        clearInterval(interval);
+        pollingIntervals.instructions.delete(id);
+      }
+    });
+
+    // Set up polling for each processing instruction
+    processingInstructions.forEach(instruction => {
+      if (!pollingIntervals.instructions.has(instruction.id)) {
+        console.log('[DEBUG_POLL] Starting polling for instruction:', instruction.id);
+
+        const pollInstructionStatus = async () => {
+          try {
+            const response = await fetch(`/api/cartridges/instructions/${instruction.id}/status`, {
+              credentials: 'include'
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              console.log('[DEBUG_POLL] Instruction status update:', instruction.id, data);
+
+              // If status changed, refetch all instructions
+              if (data.status !== instruction.process_status) {
+                console.log('[DEBUG_POLL] Instruction status changed from', instruction.process_status, 'to', data.status);
+                await fetchInstructionCartridges();
+
+                // Show toast on completion or failure
+                if (data.status === 'completed') {
+                  toast.success(`Instruction "${instruction.name}" processed successfully!`);
+                } else if (data.status === 'failed') {
+                  toast.error(`Instruction "${instruction.name}" processing failed`);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[DEBUG_POLL] Error polling instruction status:', error);
+          }
+        };
+
+        // Poll immediately
+        pollInstructionStatus();
+
+        // Then poll every 3 seconds
+        const interval = setInterval(pollInstructionStatus, 3000);
+        pollingIntervals.instructions.set(instruction.id, interval);
+      }
+    });
+
+    // Cleanup function
+    return () => {
+      console.log('[DEBUG_POLL] Cleaning up all instruction polling intervals');
+      pollingIntervals.instructions.forEach(interval => clearInterval(interval));
+      pollingIntervals.instructions.clear();
+    };
+  }, [instructionCartridges.map(i => `${i.id}:${i.process_status}`).join(',')]);
 
   useEffect(() => {
     fetchAllCartridges();
