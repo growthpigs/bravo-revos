@@ -20,6 +20,7 @@ import type { Message } from '@/lib/cartridges/types';
 import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
 import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
 import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/session-manager';
+import { OrchestrationResponseBuilder } from '@/lib/orchestration/response-builder';
 import { ZodError } from 'zod';
 
 const openai = new OpenAI({
@@ -174,6 +175,57 @@ export async function POST(request: NextRequest) {
       response_length: result.response.length,
       has_interactive: !!result.interactive,
     });
+
+    // 8a. Check for campaign creation intent and return orchestration if detected
+    const userMessageLower = message.toLowerCase();
+    const isCampaignCreationIntent =
+      (userMessageLower.includes('create') && userMessageLower.includes('campaign')) ||
+      (userMessageLower.includes('new') && userMessageLower.includes('campaign')) ||
+      userMessageLower.includes('start campaign');
+
+    if (isCampaignCreationIntent) {
+      console.log('[HGC_V2] Campaign creation intent detected - returning orchestration response');
+
+      // Build orchestration response for campaign creation
+      const orchestrationResponse = new OrchestrationResponseBuilder()
+        .withMessage(result.response)
+        .withNavigation('/dashboard/campaigns/new', 'Opening campaign builder...')
+        .withButton('START CREATING', {
+          navigateTo: '/dashboard/campaigns/new',
+          variant: 'primary'
+        })
+        .withSessionId(session.id)
+        .withMemoryContext(true)
+        .build();
+
+      // Save messages to database first
+      console.log('[HGC_V2] Saving messages to session (with orchestration)...');
+      try {
+        await saveMessages(supabase, session.id, [
+          { role: 'user' as const, content: message },
+          { role: 'assistant' as const, content: result.response },
+        ]);
+        console.log('[HGC_V2] Messages saved successfully');
+      } catch (saveError: any) {
+        console.error('[HGC_V2] CRITICAL: Message save failed:', saveError.message);
+        console.error('[HGC_V2] Error details:', {
+          sessionId: session.id,
+          userId: user.id,
+          errorCode: saveError.code,
+          errorMessage: saveError.message,
+        });
+        // Still return orchestration response even if save fails
+      }
+
+      return NextResponse.json({
+        success: true,
+        ...orchestrationResponse,
+        meta: {
+          consoleSource,
+          orchestrationDetected: true,
+        },
+      });
+    }
 
     // 9. Save messages to database
     console.log('[HGC_V2] Saving messages to session...');
