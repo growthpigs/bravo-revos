@@ -53,6 +53,19 @@ Execution phase → `/superpowers-execute-plan`
 
 **Completion Format:** `[BRANCH: feat/name] ✅ [What done] - [Status]`
 
+## Feature Documentation Standard
+
+Every feature → `/docs/features/YYYY-MM-DD-feature-name/`
+Branch name = folder name (e.g., `feat/2025-11-14-workflow-execution`)
+
+Structure:
+- `001-spec.md` - What & why
+- `002-plan.md` - Tasks, timeline
+- `003-sitrep-[date].md` - Progress updates
+- `999-final.md` - What shipped, what changed, lessons
+
+Before coding: Create folder → Write spec → Get approval → Branch → Build
+
 ## SQL Migrations
 
 Every file starts with:
