@@ -19,6 +19,7 @@ import { Plus, Edit, Trash2, Download, FileText, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { LibraryTab } from '@/components/dashboard/lead-magnet-library-tab'
 import { LeadMagnetAnalytics } from '@/components/dashboard/lead-magnet-analytics'
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 interface LeadMagnet {
   id: string
@@ -47,6 +48,10 @@ export default function LeadMagnetsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingMagnet, setEditingMagnet] = useState<LeadMagnet | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [magnetToDelete, setMagnetToDelete] = useState<LeadMagnet | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -273,16 +278,19 @@ export default function LeadMagnetsPage() {
     }
   }
 
-  const handleDelete = async (magnet: LeadMagnet) => {
-    if (!confirm(`Delete "${magnet.name}"? This cannot be undone.`)) {
-      return
-    }
+  const handleDeleteClick = (magnet: LeadMagnet) => {
+    setMagnetToDelete(magnet)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!magnetToDelete) return
 
     try {
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('lead-magnets')
-        .remove([magnet.file_path])
+        .remove([magnetToDelete.file_path])
 
       if (storageError) console.error('Error deleting file:', storageError)
 
@@ -290,11 +298,13 @@ export default function LeadMagnetsPage() {
       const { error } = await supabase
         .from('lead_magnets')
         .delete()
-        .eq('id', magnet.id)
+        .eq('id', magnetToDelete.id)
 
       if (error) throw error
 
       toast.success('Lead magnet deleted successfully')
+      setDeleteDialogOpen(false)
+      setMagnetToDelete(null)
       loadLeadMagnets()
     } catch (error) {
       console.error('Error deleting lead magnet:', error)
@@ -509,7 +519,7 @@ export default function LeadMagnetsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDelete(magnet)}
+                          onClick={() => handleDeleteClick(magnet)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -642,6 +652,18 @@ export default function LeadMagnetsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Delete Lead Magnet?"
+        description={`This will permanently delete "${magnetToDelete?.name}" and cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   )
 }

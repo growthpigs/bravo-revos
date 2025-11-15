@@ -86,6 +86,7 @@ interface BrandCartridge {
   logo_url?: string;
   brand_colors: any;
   social_links: any;
+  core_messaging?: string; // 10k+ word marketing messaging
   created_at: string;
   updated_at?: string;
 }
@@ -132,7 +133,8 @@ export default function CartridgesPage() {
     company_description: '',
     company_tagline: '',
     industry: '',
-    target_audience: ''
+    target_audience: '',
+    core_messaging: ''
   });
 
   // Polling state for processing status
@@ -1461,19 +1463,46 @@ export default function CartridgesPage() {
                   {/* Logo Upload */}
                   <div className="space-y-2 pt-4 border-t">
                     <Label>Brand Logo</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setBrandLogoFile(e.target.files?.[0] || null)}
-                      />
-                      {brandLogoFile && (
-                        <Button onClick={handleLogoUpload}>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload
-                        </Button>
-                      )}
-                    </div>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        setBrandLogoFile(file);
+
+                        // Auto-upload logo immediately
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        try {
+                          const response = await fetch('/api/cartridges/brand/upload-logo', {
+                            method: 'POST',
+                            body: formData
+                          });
+
+                          if (response.ok) {
+                            toast.success('Logo uploaded successfully');
+                            setBrandLogoFile(null);
+                            await fetchBrandCartridge();
+                            // Reset file input
+                            e.target.value = '';
+                          } else {
+                            const error = await response.json();
+                            toast.error(error.error || 'Upload failed');
+                          }
+                        } catch (error) {
+                          console.error('Upload error:', error);
+                          toast.error('Failed to upload logo');
+                        }
+                      }}
+                    />
+                    {brandCartridge?.logo_url && (
+                      <p className="text-sm text-muted-foreground">
+                        Logo uploaded ✓
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex gap-2 pt-4">
@@ -1544,6 +1573,64 @@ export default function CartridgesPage() {
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Core Messaging Section */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Core Messaging
+              </CardTitle>
+              <CardDescription>
+                Comprehensive marketing messaging (10k+ words): mission, vision, target audience, core values, avatar stories, market narrative, promises, objections, and marketing frameworks
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="Paste your complete core messaging here...&#10;&#10;Example:&#10;**AI Big Pivot Core Messaging Sheet**&#10;&#10;**Project Name:** AI Big Pivot&#10;**URL:** www.aibigpivot.com&#10;**Niche:** AI-Enhanced Design Tools&#10;**Key Thematics:** Ease of Use, Cost Efficiency, Learning and Support&#10;**Core Keywords:** AI Graphic Design, Simple Design Tools&#10;**Mission:** To empower non-designer entrepreneurs...&#10;&#10;(Continue with your full messaging)"
+                  value={brandFormData.core_messaging || brandCartridge?.core_messaging || ''}
+                  onChange={(e) => setBrandFormData(prev => ({ ...prev, core_messaging: e.target.value }))}
+                  className="min-h-[400px] font-mono text-sm"
+                />
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>
+                    {(brandFormData.core_messaging || brandCartridge?.core_messaging || '').length.toLocaleString()} characters
+                  </span>
+                  <span>
+                    {Math.round((brandFormData.core_messaging || brandCartridge?.core_messaging || '').split(/\s+/).length / 1000 * 10) / 10}k words
+                  </span>
+                </div>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/cartridges/brand', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          core_messaging: brandFormData.core_messaging
+                        })
+                      });
+
+                      if (response.ok) {
+                        toast.success('Core messaging saved');
+                        await fetchBrandCartridge();
+                      } else {
+                        const error = await response.json();
+                        toast.error(error.error || 'Save failed');
+                      }
+                    } catch (error) {
+                      console.error('Save error:', error);
+                      toast.error('Failed to save core messaging');
+                    }
+                  }}
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  Save Core Messaging
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

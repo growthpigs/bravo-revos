@@ -333,20 +333,38 @@ export default function CartridgeDetailPage() {
                       Delete Cartridge
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Voice Cartridge?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the voice cartridge
-                        and remove it from all campaigns that use it.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
+                  <AlertDialogContent className="max-w-md">
+                    <div className="flex flex-col items-center text-center space-y-4 pt-4">
+                      {/* Icon */}
+                      <div className="rounded-full bg-red-100 dark:bg-red-900/20 p-4">
+                        <Trash2 className="h-8 w-8 text-red-600 dark:text-red-500" />
+                      </div>
+
+                      {/* Header */}
+                      <div className="space-y-2">
+                        <AlertDialogTitle className="text-2xl font-semibold">
+                          Delete Voice Cartridge?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-base text-muted-foreground px-4">
+                          This will permanently delete <span className="font-semibold text-foreground">"{formData.display_name || formData.name}"</span> and remove it from all campaigns.
+                          <br /><br />
+                          <span className="text-sm">This action cannot be undone.</span>
+                        </AlertDialogDescription>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex gap-3 w-full pt-2">
+                        <AlertDialogCancel className="flex-1 bg-secondary hover:bg-secondary/80">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          {deleting ? 'Deleting...' : 'Delete Forever'}
+                        </AlertDialogAction>
+                      </div>
+                    </div>
                   </AlertDialogContent>
                 </AlertDialog>
               )}

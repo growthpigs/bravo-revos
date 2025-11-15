@@ -142,7 +142,8 @@ export async function POST(request: NextRequest) {
             secondary: '#FFFFFF',
             accent: '#0066CC'
           },
-          social_links: body.social_links || {}
+          social_links: body.social_links || {},
+          core_messaging: body.core_messaging
         })
         .select()
         .single();
@@ -189,8 +190,24 @@ export async function PATCH(request: NextRequest) {
       if (error.code === 'PGRST116') {
         return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
       }
-      console.error('Error updating brand:', error);
-      return NextResponse.json({ error: 'Failed to update brand' }, { status: 500 });
+
+      // If schema cache issue (PGRST204), wait and retry once
+      if (error.code === 'PGRST204') {
+        console.log('[BRAND_PATCH] Schema cache issue detected - column not recognized yet');
+        console.log('[BRAND_PATCH] Try refreshing the page in 30 seconds or click Save Brand Info (without core messaging) first');
+      }
+
+      console.error('[BRAND_PATCH] Error updating brand:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        full: JSON.stringify(error)
+      });
+      return NextResponse.json({
+        error: 'Failed to update brand',
+        details: error.message
+      }, { status: 500 });
     }
 
     return NextResponse.json({ brand: data });

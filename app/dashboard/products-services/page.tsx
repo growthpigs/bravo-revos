@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { offeringsChip } from '@/lib/chips/offerings';
 import { conversationIntelligenceChip } from '@/lib/chips/conversation-intelligence';
 import type { Offering } from '@/lib/types/offerings';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export default function OfferingsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -39,6 +40,10 @@ export default function OfferingsPage() {
   // Preview state
   const [previewMessage, setPreviewMessage] = useState('ugh another sales tool... what makes you different?');
   const [previewResponse, setPreviewResponse] = useState('');
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [offeringToDelete, setOfferingToDelete] = useState<Offering | null>(null);
 
   // Fetch user and load offerings
   useEffect(() => {
@@ -134,22 +139,28 @@ export default function OfferingsPage() {
     }
   };
 
-  const handleDelete = async (offeringId: string) => {
-    if (!confirm('Are you sure you want to delete this offering?')) return;
-    if (!user?.id) return;
+  const handleDeleteClick = (offering: Offering) => {
+    setOfferingToDelete(offering);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!offeringToDelete || !user?.id) return;
 
     const result = await offeringsChip.execute({
       action: 'delete',
       userId: user.id,
-      offeringId,
+      offeringId: offeringToDelete.id,
     });
 
     if (result.success) {
       await loadOfferings();
-      if (selectedOffering?.id === offeringId) {
+      if (selectedOffering?.id === offeringToDelete.id) {
         setSelectedOffering(null);
         resetForm();
       }
+      setDeleteDialogOpen(false);
+      setOfferingToDelete(null);
     }
   };
 
@@ -393,7 +404,7 @@ export default function OfferingsPage() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleDelete(offering.id)}
+                        onClick={() => handleDeleteClick(offering)}
                       >
                         Delete
                       </Button>
@@ -457,6 +468,18 @@ export default function OfferingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Delete Offering?"
+        description={`This will permanently delete "${offeringToDelete?.name}" and cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }

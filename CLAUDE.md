@@ -70,8 +70,8 @@ Before coding: Create folder → Write spec → Get approval → Branch → Buil
 
 Every file starts with:
 ```sql
--- Supabase Project: kvjcidxbyimoswntpjcp
--- Click: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+-- Supabase Project: trdoainmejxanrownbuz
+-- Click: https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/new
 -- [Description]
 ```
 Path: `supabase/migrations/YYYYMMDD_description.sql`
@@ -106,12 +106,12 @@ Create FRESH docs in `docs/projects/bravo-revos/`
 
 **Name:** Bravo revOS
 **Archon:** de2e1ce0-3d40-4cbe-80eb-8d0fd14fb531
-**Supabase:** kvjcidxbyimoswntpjcp
+**Supabase:** trdoainmejxanrownbuz
 **Branch:** feat/health-system-production-ready
 **Deploy:** Backend (Render), Frontend (Netlify), Docker (Render only)
 **Links:**
-- Dashboard: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp
-- SQL: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+- Dashboard: https://supabase.com/dashboard/project/trdoainmejxanrownbuz
+- SQL: https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/new
 
 ## Session Start Checklist
 

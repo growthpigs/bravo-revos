@@ -6,12 +6,17 @@ import { Plus, Edit2, Trash2, Eye, Play, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { DMSequence } from '@/types/dm-sequences';
 import { CreateDMSequenceModal } from '@/components/dashboard/create-dm-sequence-modal';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 export default function DMSequencesPage() {
   const [sequences, setSequences] = useState<DMSequence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sequenceToDelete, setSequenceToDelete] = useState<DMSequence | null>(null);
 
   useEffect(() => {
     loadSequences();
@@ -48,14 +53,17 @@ export default function DMSequencesPage() {
     toast.info('Edit feature coming soon');
   };
 
-  const handleDeleteSequence = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this DM sequence? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteClick = (sequence: DMSequence) => {
+    setSequenceToDelete(sequence);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!sequenceToDelete) return;
 
     try {
-      setIsDeleting(id);
-      const response = await fetch(`/api/dm-sequences/${id}`, {
+      setIsDeleting(sequenceToDelete.id);
+      const response = await fetch(`/api/dm-sequences/${sequenceToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -68,7 +76,9 @@ export default function DMSequencesPage() {
       toast.success('DM sequence deleted successfully');
 
       // Remove from local state
-      setSequences(sequences.filter(seq => seq.id !== id));
+      setSequences(sequences.filter(seq => seq.id !== sequenceToDelete.id));
+      setDeleteDialogOpen(false);
+      setSequenceToDelete(null);
     } catch (error) {
       console.error('Error deleting DM sequence:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to delete DM sequence');
@@ -201,7 +211,7 @@ export default function DMSequencesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteSequence(sequence.id)}
+                    onClick={() => handleDeleteClick(sequence)}
                     disabled={isDeleting === sequence.id}
                     title="Delete sequence"
                   >
@@ -240,6 +250,18 @@ export default function DMSequencesPage() {
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
         onSuccess={handleSequenceCreated}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Delete DM Sequence?"
+        description={`This will permanently delete "${sequenceToDelete?.name}" and cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
       />
     </div>
   );

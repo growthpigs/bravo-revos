@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Plus, Copy, Trash2, Edit, Webhook } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
 interface WebhookConfig {
   id: string
@@ -43,6 +44,10 @@ export default function WebhooksPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingWebhook, setEditingWebhook] = useState<WebhookConfig | null>(null)
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [webhookToDelete, setWebhookToDelete] = useState<WebhookConfig | null>(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -198,20 +203,25 @@ export default function WebhooksPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this webhook? This cannot be undone.')) {
-      return
-    }
+  const handleDeleteClick = (webhook: WebhookConfig) => {
+    setWebhookToDelete(webhook)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!webhookToDelete) return
 
     try {
       const { error } = await supabase
         .from('webhook_configs')
         .delete()
-        .eq('id', id)
+        .eq('id', webhookToDelete.id)
 
       if (error) throw error
 
       toast.success('Webhook deleted successfully')
+      setDeleteDialogOpen(false)
+      setWebhookToDelete(null)
       loadWebhooks()
     } catch (error) {
       console.error('Error deleting webhook:', error)
@@ -359,7 +369,7 @@ export default function WebhooksPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(webhook.id)}
+                      onClick={() => handleDeleteClick(webhook)}
                       className="text-red-600 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -532,6 +542,18 @@ export default function WebhooksPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        title="Delete Webhook?"
+        description={`This will permanently delete "${webhookToDelete?.name}" and cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   )
 }
