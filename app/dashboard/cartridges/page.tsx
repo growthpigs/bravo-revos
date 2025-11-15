@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 // Existing Voice interface
 interface VoiceCartridge {
@@ -136,6 +137,13 @@ export default function CartridgesPage() {
     target_audience: '',
     core_messaging: ''
   });
+
+  // Delete confirmation dialog state
+  const [deleteInstructionDialogOpen, setDeleteInstructionDialogOpen] = useState(false);
+  const [instructionToDelete, setInstructionToDelete] = useState<InstructionCartridge | null>(null);
+  const [deletePreferencesDialogOpen, setDeletePreferencesDialogOpen] = useState(false);
+  const [deleteStyleDialogOpen, setDeleteStyleDialogOpen] = useState(false);
+  const [deleteBrandDialogOpen, setDeleteBrandDialogOpen] = useState(false);
 
   // Polling state for processing status
   const [pollingIntervals, setPollingIntervals] = useState<{
@@ -635,206 +643,114 @@ export default function CartridgesPage() {
     }
   };
 
-  const handleInstructionDelete = async (instructionId: string) => {
-    // Find the instruction name for better UX
-    const instruction = instructionCartridges.find(i => i.id === instructionId);
-    const name = instruction?.name || 'instruction set';
+  const handleInstructionDeleteClick = (instruction: InstructionCartridge) => {
+    setInstructionToDelete(instruction);
+    setDeleteInstructionDialogOpen(true);
+  };
 
-    // Show confirmation toast
-    toast.custom(
-      (t) => (
-        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
-          <p className="font-medium">Delete "{name}"?</p>
-          <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={async () => {
-                toast.dismiss(t);
-                try {
-                  const response = await fetch(`/api/cartridges/instructions/${instructionId}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                  });
+  const confirmInstructionDelete = async () => {
+    if (!instructionToDelete) return;
 
-                  if (response.ok) {
-                    toast.success('Instruction deleted');
-                    await fetchInstructionCartridges();
-                  } else {
-                    const error = await response.json();
-                    toast.error(error.error || 'Delete failed');
-                  }
-                } catch (error) {
-                  console.error('Delete error:', error);
-                  toast.error('Failed to delete instruction');
-                }
-              }}
-              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              onClick={() => toast.dismiss(t)}
-              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        duration: 10000,
-        position: 'top-center' as const
+    try {
+      const response = await fetch(`/api/cartridges/instructions/${instructionToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast.success('Instruction deleted');
+        setDeleteInstructionDialogOpen(false);
+        setInstructionToDelete(null);
+        await fetchInstructionCartridges();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Delete failed');
       }
-    );
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete instruction');
+    }
   };
 
   // Preferences handlers
-  const handlePreferencesDelete = async () => {
-    // Show confirmation toast
-    toast.custom(
-      (t) => (
-        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
-          <p className="font-medium">Delete your preferences?</p>
-          <p className="text-sm text-muted-foreground">This will reset to default settings.</p>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={async () => {
-                toast.dismiss(t);
-                try {
-                  const response = await fetch('/api/cartridges/preferences', {
-                    method: 'DELETE',
-                    credentials: 'include'
-                  });
+  const handlePreferencesDeleteClick = () => {
+    setDeletePreferencesDialogOpen(true);
+  };
 
-                  if (response.ok) {
-                    toast.success('Preferences deleted');
-                    await fetchPreferencesCartridge();
-                  } else {
-                    const error = await response.json();
-                    toast.error(error.error || 'Delete failed');
-                  }
-                } catch (error) {
-                  console.error('Delete error:', error);
-                  toast.error('Failed to delete preferences');
-                }
-              }}
-              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              onClick={() => toast.dismiss(t)}
-              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        duration: 10000,
-        position: 'top-center' as const
+  const confirmPreferencesDelete = async () => {
+    try {
+      const response = await fetch('/api/cartridges/preferences', {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast.success('Preferences deleted');
+        setDeletePreferencesDialogOpen(false);
+        await fetchPreferencesCartridge();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Delete failed');
       }
-    );
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete preferences');
+    }
   };
 
   // Style handlers
-  const handleStyleDelete = async () => {
-    toast.custom(
-      (t) => (
-        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
-          <p className="font-medium">Delete style guide?</p>
-          <p className="text-sm text-muted-foreground">This will remove all uploaded style documents.</p>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={async () => {
-                toast.dismiss(t);
-                try {
-                  const response = await fetch(`/api/cartridges/style/${styleCartridge?.id}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                  });
+  const handleStyleDeleteClick = () => {
+    setDeleteStyleDialogOpen(true);
+  };
 
-                  if (response.ok) {
-                    toast.success('Style guide deleted');
-                    await fetchStyleCartridge();
-                  } else {
-                    const error = await response.json();
-                    toast.error(error.error || 'Delete failed');
-                  }
-                } catch (error) {
-                  console.error('Delete error:', error);
-                  toast.error('Failed to delete style guide');
-                }
-              }}
-              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              onClick={() => toast.dismiss(t)}
-              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        duration: 10000,
-        position: 'top-center' as const
+  const confirmStyleDelete = async () => {
+    if (!styleCartridge) return;
+
+    try {
+      const response = await fetch(`/api/cartridges/style/${styleCartridge.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast.success('Style guide deleted');
+        setDeleteStyleDialogOpen(false);
+        await fetchStyleCartridge();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Delete failed');
       }
-    );
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete style guide');
+    }
   };
 
   // Brand handlers
-  const handleBrandDelete = async () => {
-    toast.custom(
-      (t) => (
-        <div className="flex flex-col gap-2 bg-background border rounded-lg p-4 shadow-lg">
-          <p className="font-medium">Delete brand information?</p>
-          <p className="text-sm text-muted-foreground">This will remove all brand settings.</p>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={async () => {
-                toast.dismiss(t);
-                try {
-                  const response = await fetch('/api/cartridges/brand', {
-                    method: 'DELETE',
-                    credentials: 'include'
-                  });
+  const handleBrandDeleteClick = () => {
+    setDeleteBrandDialogOpen(true);
+  };
 
-                  if (response.ok) {
-                    toast.success('Brand information deleted');
-                    await fetchBrandCartridge();
-                    setEditingBrand(false);
-                  } else {
-                    const error = await response.json();
-                    toast.error(error.error || 'Delete failed');
-                  }
-                } catch (error) {
-                  console.error('Delete error:', error);
-                  toast.error('Failed to delete brand information');
-                }
-              }}
-              className="px-3 py-1 bg-destructive text-destructive-foreground rounded text-sm hover:bg-destructive/90 transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              onClick={() => toast.dismiss(t)}
-              className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm hover:bg-secondary/80 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        duration: 10000,
-        position: 'top-center' as const
+  const confirmBrandDelete = async () => {
+    try {
+      const response = await fetch('/api/cartridges/brand', {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        toast.success('Brand information deleted');
+        setDeleteBrandDialogOpen(false);
+        setEditingBrand(false);
+        await fetchBrandCartridge();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Delete failed');
       }
-    );
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete brand information');
+    }
   };
 
   const handleBrandSave = async (data: Partial<BrandCartridge>) => {
@@ -1095,7 +1011,7 @@ export default function CartridgesPage() {
                       <Button
                         variant="destructive"
                         size="default"
-                        onClick={handleStyleDelete}
+                        onClick={handleStyleDeleteClick}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
@@ -1255,7 +1171,7 @@ export default function CartridgesPage() {
                         </Button>
                         <Button
                           variant="destructive"
-                          onClick={handlePreferencesDelete}
+                          onClick={handlePreferencesDeleteClick}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete All
@@ -1380,7 +1296,7 @@ export default function CartridgesPage() {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => handleInstructionDelete(instruction.id)}
+                              onClick={() => handleInstructionDeleteClick(instruction)}
                             >
                               <Trash2 className="mr-2 h-3 w-3" />
                               Delete
@@ -1528,7 +1444,7 @@ export default function CartridgesPage() {
                         </Button>
                         <Button
                           variant="destructive"
-                          onClick={handleBrandDelete}
+                          onClick={handleBrandDeleteClick}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
@@ -1657,6 +1573,51 @@ export default function CartridgesPage() {
           </ul>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialogs */}
+      <ConfirmationDialog
+        open={deleteStyleDialogOpen}
+        onOpenChange={setDeleteStyleDialogOpen}
+        onConfirm={confirmStyleDelete}
+        title="Delete Style Guide?"
+        description="This will permanently delete your style guide and all learned patterns. This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={deletePreferencesDialogOpen}
+        onOpenChange={setDeletePreferencesDialogOpen}
+        onConfirm={confirmPreferencesDelete}
+        title="Delete Preferences?"
+        description="This will permanently delete all your preferences and reset to defaults. This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={deleteInstructionDialogOpen}
+        onOpenChange={setDeleteInstructionDialogOpen}
+        onConfirm={confirmInstructionDelete}
+        title="Delete Instruction?"
+        description={`This will permanently delete "${instructionToDelete?.title || 'this instruction'}" and cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={deleteBrandDialogOpen}
+        onOpenChange={setDeleteBrandDialogOpen}
+        onConfirm={confirmBrandDelete}
+        title="Delete Brand Information?"
+        description="This will permanently delete all your brand information including name, tagline, description, colors, and logo. This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }
