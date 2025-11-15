@@ -12,17 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Trash2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface VoiceCartridge {
   id: string;
@@ -43,6 +33,7 @@ export default function CartridgeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -326,47 +317,14 @@ export default function CartridgeDetailPage() {
           <div className="flex justify-between pt-6">
             <div>
               {!isNew && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={deleting}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Cartridge
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="max-w-md">
-                    <div className="flex flex-col items-center text-center space-y-4 pt-4">
-                      {/* Icon */}
-                      <div className="rounded-full bg-red-100 dark:bg-red-900/20 p-4">
-                        <Trash2 className="h-8 w-8 text-red-600 dark:text-red-500" />
-                      </div>
-
-                      {/* Header */}
-                      <div className="space-y-2">
-                        <AlertDialogTitle className="text-2xl font-semibold">
-                          Delete Voice Cartridge?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription className="text-base text-muted-foreground px-4">
-                          This will permanently delete <span className="font-semibold text-foreground">"{formData.display_name || formData.name}"</span> and remove it from all campaigns.
-                          <br /><br />
-                          <span className="text-sm">This action cannot be undone.</span>
-                        </AlertDialogDescription>
-                      </div>
-
-                      {/* Footer */}
-                      <div className="flex gap-3 w-full pt-2">
-                        <AlertDialogCancel className="flex-1 bg-secondary hover:bg-secondary/80">
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleDelete}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          {deleting ? 'Deleting...' : 'Delete Forever'}
-                        </AlertDialogAction>
-                      </div>
-                    </div>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <Button
+                  variant="destructive"
+                  disabled={deleting}
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Cartridge
+                </Button>
               )}
             </div>
 
@@ -417,6 +375,18 @@ export default function CartridgeDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDelete}
+        title="Delete Voice Cartridge?"
+        description={`This will permanently delete "${formData.display_name || formData.name}" and remove it from all campaigns. This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }
