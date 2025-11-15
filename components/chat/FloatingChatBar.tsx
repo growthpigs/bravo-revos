@@ -1798,19 +1798,13 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                 spellCheck="false"
               />
             ) : (
-              // View mode - show formatted markdown
+              // View mode - show formatted markdown (left-justified)
               <div className="px-16 py-12">
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl text-left">
                   {documentContent ? (
-                    <div className="prose prose-lg max-w-none">
+                    <div className="prose prose-lg max-w-none text-left">
                       <ReactMarkdown
                         components={{
-                        strong: ({ children }) => (
-                          <strong className="font-bold text-gray-900">{children}</strong>
-                        ),
-                        p: ({ children }) => (
-                          <p className="mb-4 last:mb-0 text-gray-700 leading-relaxed">{children}</p>
-                        ),
                         h1: ({ children }) => (
                           <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
                         ),
@@ -1819,6 +1813,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                         ),
                         h3: ({ children }) => (
                           <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
+                        ),
+                        p: ({ children }) => (
+                          <p className="text-lg leading-relaxed mb-4 text-gray-700">{children}</p>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-bold text-gray-900">{children}</strong>
                         ),
                         ul: ({ children }) => (
                           <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
