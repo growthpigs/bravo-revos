@@ -780,9 +780,69 @@ export async function POST(request: NextRequest) {
     console.log('[HGC_TS] Formatted to', formattedMessages.length, 'alternating messages')
 
     // ========================================
+    // LOAD USER'S CARTRIDGE DATA UPFRONT
+    // This allows AI to make personalized suggestions immediately
+    // ========================================
+    let brandDataUpfront = null
+    let styleDataUpfront = null
+
+    try {
+      const { data } = await supabase
+        .from('brand_cartridges')
+        .select('core_messaging, industry, core_values, target_audience, brand_voice')
+        .eq('user_id', user.id)
+        .single()
+      brandDataUpfront = data
+    } catch (e) {
+      // User may not have brand cartridge yet
+    }
+
+    try {
+      const { data } = await supabase
+        .from('style_cartridges')
+        .select('tone_of_voice, writing_style, personality_traits')
+        .eq('user_id', user.id)
+        .single()
+      styleDataUpfront = data
+    } catch (e) {
+      // User may not have style cartridge yet
+    }
+
+    // Build cartridge context for system prompt
+    let cartridgeContext = ''
+    if (brandDataUpfront) {
+      cartridgeContext += `\n# USER'S BRAND PROFILE:\n`
+      if (brandDataUpfront.core_messaging) cartridgeContext += `- Core Message: ${brandDataUpfront.core_messaging}\n`
+      if (brandDataUpfront.industry) cartridgeContext += `- Industry: ${brandDataUpfront.industry}\n`
+      if (brandDataUpfront.target_audience) cartridgeContext += `- Target Audience: ${brandDataUpfront.target_audience}\n`
+      if (brandDataUpfront.core_values) {
+        try {
+          const values = typeof brandDataUpfront.core_values === 'string'
+            ? JSON.parse(brandDataUpfront.core_values)
+            : brandDataUpfront.core_values
+          if (Array.isArray(values) && values.length > 0) {
+            cartridgeContext += `- Core Values: ${values.join(', ')}\n`
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    if (styleDataUpfront) {
+      cartridgeContext += `\n# USER'S WRITING STYLE:\n`
+      if (styleDataUpfront.tone_of_voice) cartridgeContext += `- Tone: ${styleDataUpfront.tone_of_voice}\n`
+      if (styleDataUpfront.writing_style) cartridgeContext += `- Style: ${styleDataUpfront.writing_style}\n`
+      if (styleDataUpfront.personality_traits) cartridgeContext += `- Personality: ${styleDataUpfront.personality_traits}\n`
+    }
+
+    // ========================================
     // INLINE WORKFLOW HANDLING
     // Handle decision/campaign/datetime selections from inline forms
     // ========================================
+
+    // Workflow handling is now done by the AI via system prompt
+    // The AI will naturally understand "write" and generate appropriate responses
 
     // Check if this is a workflow step (decision made, campaign selected, or datetime selected)
     const workflowId = body.workflow_id as string | undefined
@@ -794,7 +854,58 @@ export async function POST(request: NextRequest) {
     if (workflowId && decision) {
       console.log('[HGC_INLINE] Decision received:', decision, 'workflow:', workflowId)
 
-      if (decision === 'continue') {
+      // Handle topic selection from "write" flow
+      if (workflowId.startsWith('topic-')) {
+        let topic = ''
+        switch (decision) {
+          case 'ai_automation':
+            topic = 'AI automation and its impact on business'
+            break
+          case 'linkedin_growth':
+            topic = 'strategies for growing your LinkedIn presence'
+            break
+          case 'productivity':
+            topic = 'productivity tips and techniques'
+            break
+          case 'thought_leadership':
+            topic = 'thought leadership and industry insights'
+            break
+          case 'other':
+            return NextResponse.json({
+              success: true,
+              response: 'What would you like to write about? Please type your topic.',
+            })
+        }
+
+        // Fetch cartridge data to inform content generation
+        const { data: brandData } = await supabase
+          .from('brand_cartridges')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+
+        const { data: styleData } = await supabase
+          .from('style_cartridges')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+
+        // Build context about user's brand and style
+        let brandContext = ''
+        if (brandData) {
+          brandContext = `\nUSE THIS BRAND VOICE:\n`
+          if (brandData.core_messaging) brandContext += `Core Message: ${brandData.core_messaging}\n`
+          if (brandData.brand_voice) brandContext += `Voice: ${brandData.brand_voice}\n`
+          if (brandData.target_audience) brandContext += `Target Audience: ${brandData.target_audience}\n`
+        }
+
+        // Pass the topic and brand context to OpenAI
+        formattedMessages.push({
+          role: 'user',
+          content: `Write a LinkedIn post about ${topic}.${brandContext}`
+        })
+        // Continue to OpenAI processing below
+      } else if (decision === 'continue') {
         // User wants to continue writing - just dismiss the workflow
         return NextResponse.json({
           success: true,
@@ -1139,7 +1250,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are RevOS Intelligence, an AI co-founder helping with LinkedIn growth and campaign management.
+          content: `You are RevOS Intelligence, an AI co-founder helping with LinkedIn growth and campaign management.${cartridgeContext}
 
 MANDATORY EXECUTION RULE (CRITICAL):
 
@@ -1189,12 +1300,32 @@ When user asks about CAMPAIGNS/BUSINESS DATA:
 
 When user wants to WRITE/POST CONTENT:
 
+🚨 CRITICAL RULE: Writing posts does NOT require campaigns! Campaigns are OPTIONAL! 🚨
+
+FORBIDDEN PHRASES (NEVER SAY THESE):
+❌ "You don't have any campaigns"
+❌ "You need a campaign to write"
+❌ "First create a campaign"
+❌ "Which campaign would you like to use?"
+❌ Any suggestion that campaigns are required for writing
+
 CONVERSATIONAL FLOW (for generic "write", "compose", "draft"):
-- First ASK: "What would you like to write about?" or "What topic interests you?"
-- User provides topic/content
-- After content is clear, ASK: "Would you like to link this to a campaign?"
-- If yes → call get_all_campaigns() to show campaign selector
-- If no → proceed with standalone post
+- STEP 1 - PERSONALIZE FIRST (CRITICAL):
+  * Your system already has the user's brand_cartridges data loaded (core_messaging, industry, core_values, target_audience)
+  * Your system already has style_cartridges data (tone_of_voice, writing_style)
+  * Use this data to generate 3-4 SPECIFIC topic suggestions based on their actual business/brand
+  * ✅ GOOD: "Scaling [their industry] with AI", "How [their value] drives [their audience]'s success"
+  * ❌ WRONG: "LinkedIn Growth", "Business Strategy" (generic topics)
+  * Present suggestions as BUTTONS in chat: [Topic 1] [Topic 2] [Topic 3] [Or type your own]
+- STEP 2 - GENERATE CONTENT:
+  * User clicks button or types custom topic
+  * Generate content WITHOUT mentioning campaigns AT ALL
+  * Match their voice/tone from style cartridge
+  * Show content ONLY in Working Document (clean, no buttons)
+- STEP 3 - ACTION OPTIONS (OPTIONAL):
+  * ONLY after content is FULLY generated, offer: "What would you like to do?"
+  * Show buttons: [Post Now] [Schedule] [Edit] [Save to Campaign]
+  * Campaigns are a CONVENIENCE feature, NOT a requirement
 
 EXPLICIT CAMPAIGN LAUNCH (for "launch campaign", "post to campaign", "post to linkedin"):
 - Immediately call get_all_campaigns() to show campaign selector (already handled by intent router)
@@ -1556,8 +1687,11 @@ Present tool results with intelligence, context, and strategic value.`
     const totalDuration = Date.now() - requestStartTime
     console.log(`[HGC_TIMING] Total request: ${totalDuration}ms`)
 
+    // Extract the final response
+    let finalResponse = assistantMessage?.content || 'I can help you with your LinkedIn campaigns. Try asking "show me my campaigns".'
+
     return NextResponse.json({
-      response: assistantMessage?.content || 'I can help you with your LinkedIn campaigns. Try asking "show me my campaigns".',
+      response: finalResponse,
       success: true
     })
 

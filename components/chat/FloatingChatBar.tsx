@@ -21,11 +21,14 @@ import { getCommand, type SlashCommand, type SlashCommandContext } from '@/lib/s
 import { sandboxFetch } from '@/lib/sandbox/sandbox-wrapper';
 import { SandboxIndicator } from './SandboxIndicator';
 
-// Feature Flag: Use AgentKit v2 (Cartridge Architecture)
-const USE_AGENTKIT_V2 = process.env.NEXT_PUBLIC_USE_AGENTKIT_V2 === 'true';
-const HGC_API_ENDPOINT = USE_AGENTKIT_V2 ? '/api/hgc-v2' : '/api/hgc';
+// Feature Flag: HGC API Version Selection
+// v3 = Pragmatic implementation (raw OpenAI, bypasses MarketingConsole complexity)
+// v2 = Full AgentKit + Cartridge architecture (when stable)
+// legacy = Original implementation
+const HGC_VERSION = process.env.NEXT_PUBLIC_HGC_VERSION || 'v3';
+const HGC_API_ENDPOINT = `/api/hgc${HGC_VERSION === 'legacy' ? '' : `-${HGC_VERSION}`}`;
 
-console.log('[FloatingChatBar] Using API endpoint:', HGC_API_ENDPOINT, USE_AGENTKIT_V2 ? '(AgentKit v2)' : '(Legacy)');
+console.log('[FloatingChatBar] Using API endpoint:', HGC_API_ENDPOINT, `(${HGC_VERSION})`);
 
 // Unique ID generator using crypto.randomUUID for truly unique IDs
 const generateUniqueId = () => {
@@ -96,7 +99,32 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(true);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Safe message setter that automatically deduplicates
+  const [messagesInternal, setMessagesInternal] = useState<Message[]>([]);
+
+  // Wrapper that deduplicates messages before setting state
+  const setMessages = (newMessages: Message[] | ((prev: Message[]) => Message[])) => {
+    setMessagesInternal((prev) => {
+      const updated = typeof newMessages === 'function' ? newMessages(prev) : newMessages;
+
+      // Deduplicate by ID, keeping the LAST occurrence (most recent)
+      const seen = new Map<string, Message>();
+      updated.forEach(msg => {
+        seen.set(msg.id, msg);
+      });
+      const deduplicated = Array.from(seen.values());
+
+      // Log if we found duplicates
+      if (deduplicated.length !== updated.length) {
+        console.warn(`[DEDUP] Removed ${updated.length - deduplicated.length} duplicate messages`);
+      }
+
+      return deduplicated;
+    });
+  };
+
+  // Use deduplicated messages
+  const messages = messagesInternal;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -183,19 +211,37 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       try {
         const parsed = JSON.parse(stored);
         // Convert date strings back to Date objects
-        const restored = parsed.map((conv: any) => ({
-          ...conv,
-          createdAt: new Date(conv.createdAt),
-          updatedAt: new Date(conv.updatedAt),
-          messages: conv.messages.map((msg: any) => ({
-            ...msg,
-            createdAt: new Date(msg.createdAt),
-          })),
-        }));
+        // Ensure all messages have unique IDs (generate if missing from old data)
+        const restored = parsed.map((conv: any) => {
+          // Deduplicate messages in this conversation
+          const messageMap = new Map();
+          conv.messages.forEach((msg: any) => {
+            const id = msg.id || generateUniqueId();
+            messageMap.set(id, {
+              ...msg,
+              id,
+              createdAt: new Date(msg.createdAt),
+            });
+          });
+
+          const deduplicatedMessages = Array.from(messageMap.values());
+
+          if (deduplicatedMessages.length !== conv.messages.length) {
+            console.warn(`[STORAGE_CLEANUP] Removed ${conv.messages.length - deduplicatedMessages.length} duplicate messages from conversation "${conv.title || 'Untitled'}"`);
+          }
+
+          return {
+            ...conv,
+            id: conv.id || generateUniqueId(), // Ensure conversation has ID
+            createdAt: new Date(conv.createdAt),
+            updatedAt: new Date(conv.updatedAt),
+            messages: deduplicatedMessages,
+          };
+        });
         setConversations(restored);
         if (restored.length > 0 && !currentConversationId) {
           setCurrentConversationId(restored[0].id);
-          setMessages(restored[0].messages);
+          setMessages(restored[0].messages); // setMessages will auto-deduplicate
         }
       } catch (error) {
         console.error('Failed to load conversations:', error);
@@ -628,7 +674,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     // Check if user's message contains trigger keywords
     // Open fullscreen immediately BEFORE waiting for assistant response
-    const shouldTriggerFullscreen = hasDocumentCreationTrigger();
+    // Pass the current input since it hasn't been added to messages array yet
+    const shouldTriggerFullscreen = hasDocumentCreationTrigger(input.trim());
     if (shouldTriggerFullscreen && !isFullscreen) {
       console.log('[FCB] User message triggered fullscreen mode:', input.trim());
       setIsFullscreen(true);
@@ -753,17 +800,34 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             console.log('[HGC_STREAM] 🎯 INTERACTIVE response detected:', data.interactive.type);
           }
 
-          // Auto-fullscreen if content > 500 chars AND user triggered document creation
-          console.log('[FCB] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
-          if (cleanContent.length > 500 && !isFullscreen) {
-            const shouldTrigger = hasDocumentCreationTrigger();
-            console.log('[FCB] Checking trigger for JSON response, result:', shouldTrigger);
-            if (shouldTrigger) {
-              console.log('[FCB] Assistant response triggered fullscreen (JSON mode)');
-              setIsFullscreen(true);
-              setDocumentContent(cleanContent);
-              setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
-              extractDocumentTitle(cleanContent);
+          // Handle clearDocument flag - clear working document on "write" command
+          if (data.meta?.clearDocument) {
+            console.log('[FCB] 🗑️ Clearing working document');
+            setDocumentContent('');
+            setDocumentTitle('Working Document');
+            setDocumentSourceMessageId(null);
+          }
+
+          // Handle document field - send content to working document area
+          if (data.document && data.document.content) {
+            console.log('[FCB] 📄 Document field detected - sending to working document area');
+            setIsFullscreen(true);
+            setDocumentContent(data.document.content);
+            setDocumentTitle(data.document.title || 'Working Document');
+            setDocumentSourceMessageId(assistantMessage.id);
+          } else {
+            // Auto-fullscreen if content > 500 chars AND user triggered document creation
+            console.log('[FCB] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
+            if (cleanContent.length > 500 && !isFullscreen) {
+              const shouldTrigger = hasDocumentCreationTrigger();
+              console.log('[FCB] Checking trigger for JSON response, result:', shouldTrigger);
+              if (shouldTrigger) {
+                console.log('[FCB] Assistant response triggered fullscreen (JSON mode)');
+                setIsFullscreen(true);
+                setDocumentContent(cleanContent);
+                setDocumentSourceMessageId(assistantMessage.id); // Track which message is in document
+                extractDocumentTitle(cleanContent);
+              }
             }
           }
         }
@@ -1060,27 +1124,31 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Handle expand button click - find last long message and show in fullscreen
   // Check if user's last message contains trigger keywords for document creation
-  const hasDocumentCreationTrigger = () => {
-    console.log('[FULLSCREEN_DEBUG] hasDocumentCreationTrigger called, messages.length:', messages.length);
+  const hasDocumentCreationTrigger = (includeCurrentInput?: string) => {
+    console.log('[FULLSCREEN_DEBUG] hasDocumentCreationTrigger called, messages.length:', messages.length, 'currentInput:', includeCurrentInput);
 
-    if (messages.length === 0) {
-      console.log('[FULLSCREEN_DEBUG] No messages, returning false');
-      return false;
+    // Build array of recent messages to check
+    const messagesToCheck: string[] = [];
+
+    // Add current input if provided (for checking BEFORE message is added to state)
+    if (includeCurrentInput) {
+      messagesToCheck.push(includeCurrentInput.toLowerCase());
     }
 
-    // Look at last 3 user messages (not just the last one)
-    // User might say "write" then later say "generate" or "finished"
+    // Add last 2 user messages from state (we check 3 total)
     const recentUserMessages = [...messages]
       .reverse()
       .filter(msg => msg.role === 'user')
-      .slice(0, 3);
+      .slice(0, includeCurrentInput ? 2 : 3); // If we have current input, only get 2 more
 
-    if (recentUserMessages.length === 0) {
-      console.log('[FULLSCREEN_DEBUG] No user messages found, returning false');
+    messagesToCheck.push(...recentUserMessages.map(msg => msg.content.toLowerCase()));
+
+    if (messagesToCheck.length === 0) {
+      console.log('[FULLSCREEN_DEBUG] No messages to check, returning false');
       return false;
     }
 
-    const recentText = recentUserMessages.map(msg => msg.content.toLowerCase()).join(' ');
+    const recentText = messagesToCheck.join(' ');
     console.log('[FULLSCREEN_DEBUG] Recent user messages (last 3):', recentText);
 
     // Trigger keywords that indicate creative/document writing
@@ -1395,6 +1463,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // ========================================
 
   const renderMessage = (message: Message, index: number) => {
+    // Validate message has ID (should always have one with our safeguards)
+    if (process.env.NODE_ENV === 'development' && !message.id) {
+      console.error('[FloatingChatBar] CRITICAL: Message missing ID at index', index);
+    }
+
     // Check if this message has interactive elements
     if (message.interactive && message.role === 'assistant') {
       return (

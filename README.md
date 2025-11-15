@@ -24,7 +24,7 @@ Copy `.env.local.example` to `.env.local` and set required variables:
 
 ```bash
 # Supabase (REQUIRED)
-NEXT_PUBLIC_SUPABASE_URL=https://kvjcidxbyimoswntpjcp.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://trdoainmejxanrownbuz.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<from Supabase dashboard>
 SUPABASE_SERVICE_ROLE_KEY=<from Supabase dashboard>
 
@@ -49,7 +49,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 Run all migrations in sequence in Supabase SQL Editor:
 
 ```bash
-# Navigate to: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+# Navigate to: https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/new
 # Run migrations 001 through 020 (skip 013 in production)
 ```
 
@@ -317,7 +317,7 @@ This project is managed via Archon MCP Server.
 
 ## 📞 Support & Resources
 
-- **Supabase Project**: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp
+- **Supabase Project**: https://supabase.com/dashboard/project/trdoainmejxanrownbuz
 - **Archon Project**: https://statesman-ai.netlify.app/projects/de2e1ce0-3d40-4cbe-80eb-8d0fd14fb531
 - **Documentation**: `/docs/projects/bravo-revos/`
 

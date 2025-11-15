@@ -60,6 +60,9 @@ export const LegacyV1RequestSchema = z.object({
   sessionId: z.string().uuid().optional(), // Session ID for continuation - generates new if not provided
   voiceId: z.string().uuid().optional(),
   metadata: z.record(z.any()).optional(),
+  // Workflow handling for interactive elements
+  workflow_id: z.string().optional(), // For handling decision flows
+  decision: z.string().optional(), // User's decision selection
 });
 
 export type LegacyV1Request = z.infer<typeof LegacyV1RequestSchema>;

@@ -1,1 +1,161 @@
-/Users/rodericandrews/.claude/mcp_config.json
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["chrome-devtools-mcp@latest"],
+      "env": {},
+      "description": "Chrome DevTools MCP for debugging web pages"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"],
+      "env": {},
+      "description": "Playwright MCP for browser automation and testing"
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_GITHUB_TOKEN"
+      },
+      "description": "GitHub MCP - Repository management, issues, PRs, and code search"
+    },
+    "sentry": {
+      "command": "npx",
+      "args": ["-y", "@getsentry/sentry-mcp-stdio"],
+      "env": {
+        "SENTRY_AUTH": "YOUR_SENTRY_AUTH_TOKEN"
+      },
+      "description": "Sentry MCP - Error monitoring, issue tracking, and session replays (9 tools)"
+    },
+    "rube": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://rube.app/mcp"],
+      "env": {},
+      "description": "Rube MCP - Universal hub connecting to 500+ apps (Gmail, Slack, GitHub, Notion)"
+    },
+    "21st-dev-magic": {
+      "command": "npx",
+      "args": ["-y", "@21st-dev/magic@latest"],
+      "env": {
+        "API_KEY": "YOUR_21ST_DEV_API_KEY"
+      },
+      "description": "21st.dev Magic MCP - AI UI generator (v0-like) for React/TypeScript components"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {
+        "CONTEXT7_API_KEY": "YOUR_CONTEXT7_API_KEY"
+      },
+      "description": "Context7 MCP - Up-to-date documentation and code examples for LLMs"
+    },
+    "mem0": {
+      "command": "npx",
+      "args": ["-y", "@mem0/mcp-server"],
+      "env": {
+        "MEM0_API_KEY": "${MEM0_API_KEY}"
+      },
+      "description": "Mem0 MCP - Persistent memory system with knowledge graph (official cloud-hosted)"
+    },
+    "postman": {
+      "command": "npx",
+      "args": ["-y", "@postman/postman-mcp-server", "--full"],
+      "env": {
+        "POSTMAN_API_KEY": "YOUR_POSTMAN_API_KEY"
+      },
+      "description": "Postman MCP - API management with 106 tools (workspaces, collections, monitors)"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/rodericandrews"],
+      "env": {},
+      "description": "Filesystem MCP - Secure file operations with configurable access controls"
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git"],
+      "env": {},
+      "description": "Git MCP - Tools to read, search, and manipulate Git repositories"
+    },
+    "cloudflare": {
+      "command": "npx",
+      "args": ["-y", "@cloudflare/mcp-server-cloudflare"],
+      "env": {
+        "CLOUDFLARE_API_TOKEN": "YOUR_CLOUDFLARE_API_TOKEN",
+        "CLOUDFLARE_ACCOUNT_ID": "YOUR_CLOUDFLARE_ACCOUNT_ID"
+      },
+      "description": "Cloudflare MCP - Manage Workers, KV, R2, D1, and other Cloudflare services"
+    },
+    "trello": {
+      "command": "npx",
+      "args": ["-y", "@trello/mcp-server-trello"],
+      "env": {
+        "TRELLO_API_KEY": "YOUR_TRELLO_API_KEY",
+        "TRELLO_API_TOKEN": "YOUR_TRELLO_API_TOKEN"
+      },
+      "description": "Trello MCP - Board, list, and card management"
+    },
+    "supabase-oauth": {
+      "transport": "http",
+      "url": "https://mcp.supabase.com/mcp",
+      "description": "Supabase MCP - Database queries via OAuth (setup via: claude mcp add --transport http supabase https://mcp.supabase.com/mcp)"
+    },
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "@figma/mcp-server-figma"],
+      "env": {
+        "FIGMA_PERSONAL_ACCESS_TOKEN": "YOUR_FIGMA_TOKEN"
+      },
+      "description": "Figma MCP - Design file access, component inspection, and dev mode"
+    },
+    "google-ads": {
+      "command": "npx",
+      "args": ["-y", "@gomarble-ai/google-ads-mcp-server"],
+      "env": {
+        "GOOGLE_ADS_DEVELOPER_TOKEN": "YOUR_DEVELOPER_TOKEN",
+        "GOOGLE_ADS_CLIENT_ID": "YOUR_CLIENT_ID",
+        "GOOGLE_ADS_CLIENT_SECRET": "YOUR_CLIENT_SECRET",
+        "GOOGLE_ADS_REFRESH_TOKEN": "YOUR_REFRESH_TOKEN",
+        "GOOGLE_ADS_CUSTOMER_ID": "YOUR_CUSTOMER_ID"
+      },
+      "description": "Google Ads MCP - READ-ONLY analytics and performance data (no campaign modification)"
+    },
+    "facebook-ads": {
+      "command": "npx",
+      "args": ["-y", "@pipeboard-co/meta-ads-mcp"],
+      "env": {
+        "META_ACCESS_TOKEN": "YOUR_META_ACCESS_TOKEN",
+        "META_AD_ACCOUNT_ID": "YOUR_AD_ACCOUNT_ID"
+      },
+      "description": "Facebook Ads MCP - Manage Facebook and Instagram Ads (campaign creation and modification)"
+    },
+    "microsoft-clarity": {
+      "command": "npx",
+      "args": ["-y", "@microsoft/clarity-mcp-server"],
+      "env": {
+        "CLARITY_API_KEY": "YOUR_CLARITY_API_KEY",
+        "CLARITY_PROJECT_ID": "YOUR_CLARITY_PROJECT_ID"
+      },
+      "description": "Microsoft Clarity MCP - User behavior analytics and session recordings"
+    },
+    "netlify": {
+      "command": "npx",
+      "args": ["-y", "@netlify/mcp"],
+      "env": {
+        "NETLIFY_AUTH_TOKEN": "nfp_mnKY4GdAMZTG2miv5bPZYNUzTSWWnyER89c0"
+      },
+      "description": "Netlify MCP - Deploy and manage Netlify sites"
+    },
+    "render": {
+      "command": "npx",
+      "args": ["-y", "@niyogi/render-mcp"],
+      "env": {
+        "RENDER_API_KEY": "rnd_k5E36VdwseJmjjQC4dXzVrjIcGol"
+      },
+      "description": "Render MCP - Deploy and manage Render services"
+    }
+  },
+  "autoStart": true,
+  "enabled": true
+}
