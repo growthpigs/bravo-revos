@@ -672,16 +672,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
 
-    // Check if user's message contains trigger keywords
-    // Open fullscreen immediately BEFORE waiting for assistant response
-    // Pass the current input since it hasn't been added to messages array yet
-    const shouldTriggerFullscreen = hasDocumentCreationTrigger(input.trim());
-    if (shouldTriggerFullscreen && !isFullscreen) {
-      console.log('[FCB] User message triggered fullscreen mode:', input.trim());
-      setIsFullscreen(true);
-      // Document area stays blank until real content arrives
-    }
-
     setInput('');
     setIsLoading(true);
     setError(null);
@@ -802,15 +792,28 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
           // Handle clearDocument flag - clear working document on "write" command
           if (data.meta?.clearDocument) {
-            console.log('[FCB] 🗑️ Clearing working document');
+            console.log('[FCB] 🗑️ Clearing working document - BEFORE:', {
+              hadContent: !!documentContent,
+              contentLength: documentContent.length,
+              title: documentTitle
+            });
             setDocumentContent('');
             setDocumentTitle('Working Document');
             setDocumentSourceMessageId(null);
+            console.log('[FCB] 🗑️ Document cleared - AFTER (state will update on next render)');
           }
 
           // Handle document field - send content to working document area
+          console.log('[FCB] Checking for document field:', {
+            hasDocument: !!data.document,
+            hasContent: !!data.document?.content,
+            contentLength: data.document?.content?.length,
+            documentData: data.document
+          });
+
           if (data.document && data.document.content) {
             console.log('[FCB] 📄 Document field detected - sending to working document area');
+            console.log('[FCB] Document content:', data.document.content.substring(0, 100));
             setIsFullscreen(true);
             setDocumentContent(data.document.content);
             setDocumentTitle(data.document.title || 'Working Document');
@@ -1799,7 +1802,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               />
             ) : (
               // View mode - show formatted markdown (left-justified)
-              <div className="px-16 py-12">
+              <div className="px-16 pb-12" style={{ paddingTop: '100px' }}>
                 <div className="max-w-4xl text-left">
                   {documentContent ? (
                     <div className="prose prose-lg max-w-none text-left">

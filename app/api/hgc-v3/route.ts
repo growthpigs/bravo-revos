@@ -85,7 +85,13 @@ BRAND CONTEXT:
 - Brand Voice: ${brandData.brand_voice || 'professional'}
 ${brandData.core_messaging ? `\nCORE MESSAGING:\n${brandData.core_messaging.substring(0, 2000)}` : ''}
 
-TASK: Generate 4 compelling LinkedIn post topic headlines that will make the target audience stop scrolling.
+TASK: Generate 4 compelling LinkedIn POST topic headlines (thought leadership content).
+
+CRITICAL CONSTRAINTS:
+- These are POSTS, NOT campaigns or advertisements
+- Focus on: insights, stories, lessons, industry trends, personal experiences
+- FORBIDDEN: campaign creation topics, "select from" prompts, promotional/ad content
+- FORBIDDEN: Any mention of "campaigns", "existing campaigns", "create campaign"
 
 Jon Benson Principles to Apply:
 - Create curiosity gaps (tease the payoff)
@@ -133,6 +139,45 @@ Now generate 4 headlines for THIS brand:`;
         topicLabels = JSON.parse(cleanResponse);
 
         console.log('[HGC_V3] Generated topics:', topicLabels);
+
+        // 🔍 DEBUG: Check for forbidden campaign keywords
+        const FORBIDDEN_KEYWORDS = ['campaign', 'select from', 'existing campaign', 'create campaign', 'advertise'];
+        const hasForbiddenKeywords = topicLabels.some(topic =>
+          FORBIDDEN_KEYWORDS.some(keyword =>
+            topic.toLowerCase().includes(keyword.toLowerCase())
+          )
+        );
+
+        if (hasForbiddenKeywords) {
+          console.warn('[HGC_V3] ⚠️  AI generated campaign-related topics despite constraints!');
+          console.warn('[HGC_V3] Topics before filtering:', topicLabels);
+
+          // Filter out forbidden topics (last resort)
+          const originalLength = topicLabels.length;
+          topicLabels = topicLabels.filter(topic =>
+            !FORBIDDEN_KEYWORDS.some(keyword =>
+              topic.toLowerCase().includes(keyword.toLowerCase())
+            )
+          );
+
+          if (topicLabels.length < originalLength) {
+            console.warn('[HGC_V3] Filtered out topics:', originalLength - topicLabels.length);
+            console.warn('[HGC_V3] → Prompt may need further improvement to prevent this');
+          }
+
+          // If all topics were filtered out, use fallback
+          if (topicLabels.length === 0) {
+            console.error('[HGC_V3] All topics were campaign-related! Using fallback.');
+            topicLabels = [
+              `Insights for ${brandData.industry} Leaders`,
+              'Breaking Industry Myths',
+              'Client Success Story',
+              'Future of Your Industry'
+            ];
+          }
+        } else {
+          console.log('[HGC_V3] ✅ No campaign keywords detected in topics');
+        }
       } catch (error) {
         console.error('[HGC_V3] Failed to generate dynamic topics:', error);
         // Fallback to generic topics if AI generation fails
@@ -192,6 +237,57 @@ Now generate 4 headlines for THIS brand:`;
     if (workflow_id && decision) {
       console.log('[HGC_V3] ✅ Topic selection handler triggered!');
       console.log('[HGC_V3] Topic selected:', decision);
+
+      // ==========================================
+      // 🚨 TECHNICAL DEBT WARNING 🚨
+      // ==========================================
+      // This is HARD-CODED workflow logic (violates NO HARD-CODING rule in CLAUDE.md Rule #8)
+      // Acceptable for v3 temporary implementation ONLY
+      //
+      // MIGRATION PLAN (v3 → v2/AgentKit):
+      // 1. Move confirmation prompt to console_workflows table
+      // 2. Move decision options to workflow JSON config
+      // 3. Replace with: await loadWorkflowStep('write_workflow', 'confirmation')
+      //
+      // See: CLAUDE.md Rule #8, /docs/technical-debt/v3-workflow-migration.md
+      // Priority: P1 (blocks multi-tenant customization)
+      // Effort: 30 minutes
+      // ==========================================
+
+      // Check if this is initial topic selection (not confirmation response)
+      if (workflow_id.startsWith('topic-') && !workflow_id.includes('-confirm')) {
+        console.log('[HGC_V3] First topic selection - showing confirmation prompt');
+
+        return NextResponse.json({
+          success: true,
+          response: `Perfect! Writing about: "${decision.replace(/_/g, ' ')}"\n\nAny personal story or specific angle to add?`,
+          interactive: {
+            type: 'decision',
+            workflow_id: `${workflow_id}-confirm`,
+            decision_options: [
+              {
+                label: 'Add personal story',
+                value: 'add_story',
+                variant: 'primary'
+              },
+              {
+                label: 'Generate without story',
+                value: decision, // Pass original topic through
+                variant: 'secondary'
+              },
+            ]
+          },
+          sessionId: sessionId || crypto.randomUUID(),
+          meta: {
+            route: 'hgc-v3',
+            topic: decision,
+            awaitingStory: true,
+          }
+        });
+      }
+
+      // If workflow has '-confirm', proceed with generation (user chose option)
+      console.log('[HGC_V3] Confirmation received, proceeding with post generation');
 
       // Map decision value to topic description
       const topicMap: Record<string, string> = {
