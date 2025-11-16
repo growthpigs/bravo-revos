@@ -23,6 +23,11 @@ import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/
 import { OrchestrationResponseBuilder } from '@/lib/orchestration/response-builder';
 import { retrieveAllCartridges } from '@/lib/cartridges/retrieval';
 import { ZodError } from 'zod';
+import { findWorkflowByTrigger } from '@/lib/console/workflow-loader';
+import {
+  executeContentGenerationWorkflow,
+  executeNavigationWorkflow,
+} from '@/lib/console/workflow-executor';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -189,162 +194,97 @@ export async function POST(request: NextRequest) {
       ];
     }
 
-    // 7.3 Handle workflow decision (topic selection from write flow)
+    // 7.3 Handle workflow decision (workflow-based)
+    let currentMessage = message;
     if (workflow_id && decision) {
-      console.log('[HGC_V2_WORKFLOW] Decision received:', decision, 'workflow:', workflow_id);
+      console.log('[HGC_V2_WORKFLOW] Decision received:', {
+        decision,
+        workflow_id,
+      });
 
-      // Handle topic selection from "write" flow
-      if (workflow_id.startsWith('topic-')) {
-        let topic = '';
-        switch (decision) {
-          case 'linkedin_growth':
-            topic = 'LinkedIn growth strategies and best practices';
-            break;
-          case 'business_strategy':
-            topic = 'business strategy and innovation';
-            break;
-          case 'innovation':
-            topic = 'innovation and technological advancement';
-            break;
-          case 'leadership':
-            topic = 'leadership and team management';
-            break;
-          case 'success_story':
-            topic = 'a client success story';
-            break;
-          case 'trends':
-            topic = 'current industry trends';
-            break;
-          default:
-            // Use decision as topic if it's a custom value
-            topic = decision.replace(/_/g, ' ');
-        }
+      // For workflow-based decisions, the decision value IS the message
+      // (e.g., "topic:0:headline_slug" for content generation)
+      // Pass it directly as user message for workflow executor to handle
+      messages.push({
+        role: 'user' as const,
+        content: decision,
+      });
 
-        // Update messages to include the topic selection
-        messages.push({
-          role: 'user' as const,
-          content: `I want to write about ${topic}`,
-        });
+      console.log('[HGC_V2_WORKFLOW] Decision added to messages:', decision);
 
-        console.log('[HGC_V2_WORKFLOW] Topic selected:', topic);
-
-        // Continue to agent execution with the topic
-      }
+      // Use decision as the message for workflow triggers
+      currentMessage = decision;
     }
 
-    // 7.5 Check for "write" command and return topic suggestions
-    const isWriteCommand = message.toLowerCase().trim().match(/^write\W*$/i);
+    // 7.5 Check for workflow triggers (database-driven)
+    console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', currentMessage);
 
-    console.log('[HGC_V2_WRITE] Checking for write command:', {
-      message,
-      isWriteCommand: !!isWriteCommand,
-      trimmed: message.trim(),
-      lowercase: message.toLowerCase().trim()
-    });
+    const matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
 
-    if (isWriteCommand) {
-      console.log('[HGC_V2_WRITE] User typed "write" - fetching cartridges for personalized suggestions');
-
-      // Fetch user's brand cartridge to personalize topic suggestions
-      const { data: brandData } = await supabase
-        .from('brand_cartridges')
-        .select('core_messaging, target_audience, industry, core_values')
-        .eq('user_id', user.id)
-        .single();
-
-      const { data: styleData } = await supabase
-        .from('style_cartridges')
-        .select('tone_of_voice, writing_style, personality_traits')
-        .eq('user_id', user.id)
-        .single();
-
-      let topicOptions = [];
-
-      if (brandData && (brandData.core_messaging || brandData.industry)) {
-        // Generate topics based on brand data
-        const industry = brandData.industry || 'business';
-        const values = brandData.core_values ? JSON.parse(brandData.core_values) : [];
-        const tone = styleData?.tone_of_voice || 'professional';
-
-        topicOptions = [
-          {
-            label: `${industry} Insights`,
-            value: `${industry}_insights`,
-            icon: 'brain',
-            variant: 'primary'
-          },
-          {
-            label: values[0] || 'Innovation',
-            value: values[0]?.toLowerCase() || 'innovation',
-            icon: 'star',
-            variant: 'secondary'
-          },
-          {
-            label: 'Client Success Story',
-            value: 'success_story',
-            icon: 'trophy',
-            variant: 'secondary'
-          },
-          {
-            label: 'Industry Trends',
-            value: 'trends',
-            icon: 'trending',
-            variant: 'secondary'
-          }
-        ];
-      } else {
-        // Default topics if no brand data
-        topicOptions = [
-          {
-            label: 'LinkedIn Growth',
-            value: 'linkedin_growth',
-            icon: 'linkedin',
-            variant: 'primary'
-          },
-          {
-            label: 'Business Strategy',
-            value: 'business_strategy',
-            icon: 'brain',
-            variant: 'secondary'
-          },
-          {
-            label: 'Innovation & Tech',
-            value: 'innovation',
-            icon: 'lightning',
-            variant: 'secondary'
-          },
-          {
-            label: 'Leadership',
-            value: 'leadership',
-            icon: 'users',
-            variant: 'secondary'
-          }
-        ];
-      }
-
-      const workflowId = `topic-${Date.now()}`;
-
-      // Save the user message before returning
-      await saveMessages(supabase, session.id, [
-        { role: 'user' as const, content: message }
-      ]);
-
-      return NextResponse.json({
-        success: true,
-        response: 'What topic would you like to write about?',
-        sessionId: session.id,
-        interactive: {
-          type: 'decision',
-          workflow_id: workflowId,
-          decision_options: topicOptions,
-        },
-        meta: {
-          consoleSource,
-          cartridgesRetrieved,
-          messagePersisted: true,
-          writeFlowTriggered: true,
-        }
+    if (matchedWorkflow) {
+      console.log('[HGC_V2_WORKFLOW] Workflow matched:', {
+        name: matchedWorkflow.name,
+        type: matchedWorkflow.workflow_type,
       });
+
+      const workflowContext = {
+        supabase,
+        user,
+        session,
+        message: currentMessage,
+        // TODO: Add agencyId and clientId from users table for Mem0 scoping
+      };
+
+      try {
+        let workflowResult;
+
+        // Execute workflow based on type
+        if (matchedWorkflow.workflow_type === 'content_generation') {
+          workflowResult = await executeContentGenerationWorkflow(
+            matchedWorkflow,
+            workflowContext
+          );
+        } else if (matchedWorkflow.workflow_type === 'navigation') {
+          workflowResult = await executeNavigationWorkflow(
+            matchedWorkflow,
+            workflowContext
+          );
+        } else {
+          throw new Error(`Unsupported workflow type: ${matchedWorkflow.workflow_type}`);
+        }
+
+        console.log('[HGC_V2_WORKFLOW] Workflow executed successfully:', {
+          workflowName: matchedWorkflow.name,
+          hasInteractive: !!workflowResult.interactive,
+          hasWorkingDocument: !!workflowResult.workingDocument,
+        });
+
+        // Return workflow result
+        return NextResponse.json({
+          success: workflowResult.success,
+          response: workflowResult.response,
+          sessionId: workflowResult.sessionId,
+          interactive: workflowResult.interactive,
+          workingDocument: workflowResult.workingDocument,
+          meta: {
+            ...workflowResult.meta,
+            consoleSource,
+            cartridgesRetrieved,
+            workflowTriggered: true,
+          },
+        });
+      } catch (error: any) {
+        console.error('[HGC_V2_WORKFLOW] Workflow execution failed:', error);
+
+        // Return error response
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Workflow execution failed: ${error.message}`,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // 8. Execute via MarketingConsole
