@@ -54,9 +54,10 @@ export async function executeRepost(activityId: string): Promise<void> {
 
     console.log('[RepostExecutor] Retrieved Unipile session token');
 
-    // 3. Launch Playwright
+    // 3. Launch Playwright with timeout
     browser = await chromium.launch({
       headless: true,
+      timeout: 30000, // 30s timeout for browser launch
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -204,27 +205,33 @@ export async function executeRepost(activityId: string): Promise<void> {
     await browser.close();
     browser = null;
 
-    // 9. Update activity success
-    await supabase
-      .from('pod_activities')
-      .update({
+    // 9. Update activity success (with error handling to prevent stuck activities)
+    try {
+      await supabase
+        .from('pod_activities')
+        .update({
+          status: 'success',
+          executed_at: new Date().toISOString(),
+          repost_url: repostUrl
+        })
+        .eq('id', activityId);
+
+      // 10. Send success alert
+      await sendActivityAlert({
+        activityId,
+        memberId: activity.pod_member_id,
+        postUrl: activity.posts.post_url,
         status: 'success',
-        executed_at: new Date().toISOString(),
-        repost_url: repostUrl
-      })
-      .eq('id', activityId);
+        repostUrl,
+        executedAt: new Date()
+      });
 
-    // 10. Send success alert
-    await sendActivityAlert({
-      activityId,
-      memberId: activity.pod_member_id,
-      postUrl: activity.posts.post_url,
-      status: 'success',
-      repostUrl,
-      executedAt: new Date()
-    });
-
-    console.log('[RepostExecutor] Activity updated and alert sent');
+      console.log('[RepostExecutor] Activity updated and alert sent');
+    } catch (dbError: any) {
+      console.error('[RepostExecutor] Failed to update success status in DB:', dbError);
+      // Don't re-throw - repost already succeeded on LinkedIn
+      // Log error but continue (prevents stuck activity status)
+    }
 
   } catch (error: any) {
     console.error('[RepostExecutor] Failed to execute repost:', error);
@@ -291,12 +298,34 @@ async function getUnipileSessionToken(unipileAccountId: string): Promise<{ li_at
 
   const sessionData = await response.json();
 
+  // Validate response structure before accessing nested properties
+  if (!sessionData || typeof sessionData !== 'object') {
+    throw new Error('Invalid Unipile session response: not an object');
+  }
+
   // Unipile returns session cookies including li_at
-  if (!sessionData.li_at && !sessionData.cookies?.li_at) {
-    throw new Error('Unipile session response missing li_at cookie');
+  // Check both direct property and nested cookies object
+  let liAtCookie: string | undefined;
+
+  if (typeof sessionData.li_at === 'string') {
+    liAtCookie = sessionData.li_at;
+  } else if (
+    sessionData.cookies &&
+    typeof sessionData.cookies === 'object' &&
+    typeof sessionData.cookies.li_at === 'string'
+  ) {
+    liAtCookie = sessionData.cookies.li_at;
+  }
+
+  if (!liAtCookie) {
+    throw new Error(
+      `Unipile session response missing li_at cookie. Response structure: ${JSON.stringify(
+        Object.keys(sessionData)
+      )}`
+    );
   }
 
   return {
-    li_at: sessionData.li_at || sessionData.cookies.li_at
+    li_at: liAtCookie
   };
 }
