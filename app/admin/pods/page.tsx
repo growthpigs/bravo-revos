@@ -14,11 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Search, Edit, Trash2, Users, ExternalLink } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Users, ExternalLink, Mail, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { AddPodMemberModal } from '@/components/admin/AddPodMemberModal'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { Switch } from '@/components/ui/switch'
+import { activatePodMember, resendPodInvite } from './actions'
 
 interface PodMember {
   id: string
@@ -26,8 +27,11 @@ interface PodMember {
   user_id: string
   name: string
   linkedin_url: string
-  unipile_account_id: string
+  unipile_account_id: string | null
   is_active: boolean
+  onboarding_status: string
+  invite_token: string | null
+  invite_sent_at: string | null
   last_activity_at: string | null
   created_at: string
   updated_at: string
@@ -99,11 +103,45 @@ export default function AdminPodsPage() {
       (member) =>
         member.name.toLowerCase().includes(search) ||
         member.linkedin_url.toLowerCase().includes(search) ||
-        member.unipile_account_id.toLowerCase().includes(search) ||
+        member.unipile_account_id?.toLowerCase().includes(search) ||
         member.clients?.name.toLowerCase().includes(search)
     )
 
     setFilteredMembers(filtered)
+  }
+
+  const handleActivateMember = async (member: PodMember) => {
+    try {
+      const result = await activatePodMember(member.id)
+
+      if (result.success) {
+        toast.success(`Activated ${member.name}`)
+        loadMembers()
+      } else {
+        toast.error(result.error || 'Failed to activate member')
+      }
+    } catch (error: any) {
+      console.error('Error activating member:', error)
+      toast.error(error.message || 'Failed to activate member')
+    }
+  }
+
+  const handleResendInvite = async (member: PodMember) => {
+    try {
+      const result = await resendPodInvite(member.id)
+
+      if (result.success) {
+        toast.success(`Invite resent to ${member.name}`)
+        if (result.inviteUrl) {
+          console.log('[RESEND_INVITE] URL:', result.inviteUrl)
+        }
+      } else {
+        toast.error(result.error || 'Failed to resend invite')
+      }
+    } catch (error: any) {
+      console.error('Error resending invite:', error)
+      toast.error(error.message || 'Failed to resend invite')
+    }
   }
 
   const handleOpenAdd = () => {
@@ -181,16 +219,39 @@ export default function AdminPodsPage() {
     })
   }
 
-  const getStatusBadge = (isActive: boolean) => {
-    return isActive ? (
-      <Badge className="bg-green-100 text-green-700" variant="secondary">
-        Active
-      </Badge>
-    ) : (
-      <Badge className="bg-gray-100 text-gray-700" variant="secondary">
-        Inactive
-      </Badge>
-    )
+  const getOnboardingStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return (
+          <Badge className="bg-green-100 text-green-700" variant="secondary">
+            Active
+          </Badge>
+        )
+      case 'unipile_connected':
+        return (
+          <Badge className="bg-blue-100 text-blue-700" variant="secondary">
+            Pending Activation
+          </Badge>
+        )
+      case 'password_set':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-700" variant="secondary">
+            Password Set
+          </Badge>
+        )
+      case 'invited':
+        return (
+          <Badge className="bg-purple-100 text-purple-700" variant="secondary">
+            Invited
+          </Badge>
+        )
+      default:
+        return (
+          <Badge className="bg-gray-100 text-gray-700" variant="secondary">
+            {status}
+          </Badge>
+        )
+    }
   }
 
   return (
@@ -271,8 +332,8 @@ export default function AdminPodsPage() {
                   <TableHead>LinkedIn</TableHead>
                   <TableHead>Unipile Account</TableHead>
                   <TableHead>Client</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Activity</TableHead>
+                  <TableHead>Onboarding Status</TableHead>
+                  <TableHead>Active</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -292,9 +353,13 @@ export default function AdminPodsPage() {
                       </a>
                     </TableCell>
                     <TableCell>
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {member.unipile_account_id}
-                      </code>
+                      {member.unipile_account_id ? (
+                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {member.unipile_account_id}
+                        </code>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Not connected</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {member.clients?.name || (
@@ -302,20 +367,44 @@ export default function AdminPodsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(member.is_active)}
-                        <Switch
-                          checked={member.is_active}
-                          onCheckedChange={() => handleToggleActive(member)}
-                          aria-label="Toggle active status"
-                        />
-                      </div>
+                      {getOnboardingStatusBadge(member.onboarding_status)}
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {formatDate(member.last_activity_at)}
+                    <TableCell>
+                      <Switch
+                        checked={member.is_active}
+                        onCheckedChange={() => handleToggleActive(member)}
+                        disabled={member.onboarding_status !== 'active'}
+                        aria-label="Toggle active status"
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Show Activate button for members with Unipile connected */}
+                        {member.onboarding_status === 'unipile_connected' && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleActivateMember(member)}
+                            className="gap-1"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Activate
+                          </Button>
+                        )}
+
+                        {/* Show Resend Invite button for invited members */}
+                        {member.onboarding_status === 'invited' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendInvite(member)}
+                            className="gap-1"
+                          >
+                            <Mail className="h-4 w-4" />
+                            Resend
+                          </Button>
+                        )}
+
                         <Button
                           variant="ghost"
                           size="sm"

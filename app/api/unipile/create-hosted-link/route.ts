@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     // Parse request body
     const body = await request.json();
-    const { provider } = body;
+    const { provider, podMemberId } = body;
 
     // Validate provider
     const validProviders = ['linkedin', 'whatsapp', 'instagram', 'telegram', 'messenger', 'twitter', 'email', 'calendar', 'all'];
@@ -60,6 +60,16 @@ export async function POST(request: Request) {
 
     // Prepare providers array
     const providers = provider === 'all' ? '*' : [provider.toUpperCase()];
+
+    // Determine success URL and name based on context
+    let successUrl = `${APP_URL}/dashboard/settings?tab=connections&success=true`;
+    let name = user.id; // Default: user ID for regular users
+
+    // If pod member onboarding, use different success URL and identifier
+    if (podMemberId) {
+      successUrl = `${APP_URL}/onboarding/pending-activation`;
+      name = `pod_member:${podMemberId}`; // Format: pod_member:{id} for identification
+    }
 
     // Create hosted auth link via UniPile API
     const response = await fetch(`${UNIPILE_DSN}/api/v1/hosted/accounts/link`, {
@@ -75,8 +85,8 @@ export async function POST(request: Request) {
         api_url: UNIPILE_DSN,
         expiresOn: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
         notify_url: `${APP_URL}/api/unipile/notify`,
-        success_url: `${APP_URL}/dashboard/settings?tab=connections&success=true`,
-        name: user.id // Store user ID so we know who this account belongs to
+        success_url: successUrl,
+        name: name // Store identifier so we know who this account belongs to
       })
     });
 

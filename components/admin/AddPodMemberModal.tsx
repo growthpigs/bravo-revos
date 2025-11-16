@@ -22,14 +22,14 @@ import {
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-// Zod validation schema
+// Zod validation schema (unipile_account_id optional for self-service onboarding)
 const podMemberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   linkedin_url: z.string().url('Must be a valid URL').refine(
     (url) => url.includes('linkedin.com'),
     'Must be a LinkedIn URL'
   ),
-  unipile_account_id: z.string().min(1, 'Unipile account ID is required'),
+  unipile_account_id: z.string().optional(), // Optional - members connect via onboarding
   client_id: z.string().uuid('Must select a client'),
 })
 
@@ -39,8 +39,9 @@ interface PodMember {
   user_id: string
   name: string
   linkedin_url: string
-  unipile_account_id: string
+  unipile_account_id: string | null // Nullable - connected via onboarding
   is_active: boolean
+  onboarding_status?: string
   last_activity_at: string | null
   created_at: string
   updated_at: string

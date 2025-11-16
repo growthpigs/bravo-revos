@@ -27,11 +27,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const userId = body.name; // This is the user ID we sent in the create-hosted-link request
+    const identifier = body.name; // This is the identifier we sent in the create-hosted-link request
     const accountId = body.account_id;
 
-    if (!userId || !accountId) {
-      console.error('[UniPile Notify] Missing userId or accountId');
+    if (!identifier || !accountId) {
+      console.error('[UniPile Notify] Missing identifier or accountId');
       return NextResponse.json({ received: true });
     }
 
@@ -65,24 +65,49 @@ export async function POST(request: Request) {
     // Store connection in database
     const supabase = await createClient();
 
-    const { error: insertError } = await supabase
-      .from('connected_accounts')
-      .upsert({
-        user_id: userId,
-        provider: account.type?.toLowerCase() || 'unknown',
-        account_id: accountId,
-        account_name: account.name || 'Unknown Account',
-        status: 'active',
-        last_sync_at: new Date().toISOString()
-      }, {
-        onConflict: 'account_id',
-        ignoreDuplicates: false
-      });
+    // Check if this is a pod member connection (format: pod_member:{id})
+    if (identifier.startsWith('pod_member:')) {
+      const podMemberId = identifier.replace('pod_member:', '');
+      console.log('[UniPile Notify] Pod member connection:', podMemberId);
 
-    if (insertError) {
-      console.error('[UniPile Notify] Failed to store connection:', insertError);
+      // Update pod_member record with Unipile account ID
+      const { error: updateError } = await supabase
+        .from('pod_members')
+        .update({
+          unipile_account_id: accountId,
+          onboarding_status: 'unipile_connected',
+        })
+        .eq('id', podMemberId);
+
+      if (updateError) {
+        console.error('[UniPile Notify] Failed to update pod member:', updateError);
+      } else {
+        console.log('[UniPile Notify] Successfully updated pod member:', podMemberId);
+      }
+
     } else {
-      console.log('[UniPile Notify] Successfully stored connection for user:', userId);
+      // Regular user connection
+      const userId = identifier;
+
+      const { error: insertError } = await supabase
+        .from('connected_accounts')
+        .upsert({
+          user_id: userId,
+          provider: account.type?.toLowerCase() || 'unknown',
+          account_id: accountId,
+          account_name: account.name || 'Unknown Account',
+          status: 'active',
+          last_sync_at: new Date().toISOString()
+        }, {
+          onConflict: 'account_id',
+          ignoreDuplicates: false
+        });
+
+      if (insertError) {
+        console.error('[UniPile Notify] Failed to store connection:', insertError);
+      } else {
+        console.log('[UniPile Notify] Successfully stored connection for user:', userId);
+      }
     }
 
     return NextResponse.json({ received: true });
