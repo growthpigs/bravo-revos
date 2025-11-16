@@ -8,8 +8,12 @@
  * 4. Tracks amplification status
  */
 
+import { config } from 'dotenv';
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
+
+// Load environment variables
+config({ path: '.env.local' });
 import {
   podAmplificationQueue,
   podRepostQueue,

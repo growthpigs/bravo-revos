@@ -5,8 +5,12 @@
  * Uses BullMQ for reliable job processing with retries and monitoring.
  */
 
+import { config } from 'dotenv';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
+
+// Load environment variables
+config({ path: '.env.local' });
 
 // Redis connection
 const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {

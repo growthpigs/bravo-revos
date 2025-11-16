@@ -13,9 +13,13 @@
  * avoiding the need for manual LinkedIn login.
  */
 
+import { config } from 'dotenv';
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 import { chromium, Browser, Page } from 'playwright';
+
+// Load environment variables
+config({ path: '.env.local' });
 import { PodRepostJob, podRepostQueue } from '../queues/pod-queue';
 import { createClient } from '@supabase/supabase-js';
 
