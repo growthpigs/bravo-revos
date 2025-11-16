@@ -23,6 +23,25 @@
 
 ---
 
+## Session Reporting Requirements
+
+**After completing any proposal, plan, or SITREP, always provide:**
+
+- **MCPs Used:** List all MCP servers accessed (e.g., Archon, Sentry, Supabase)
+- **Feature Branch:** Current branch name (e.g., `feat/v2-agentkit-architecture`)
+- **Repository:** `growthpigs/bravo-revos`
+- **Last Commit:** Short hash and message
+
+**Example:**
+```
+MCPs Used: Archon, Supabase
+Branch: feat/v2-agentkit-architecture
+Repo: growthpigs/bravo-revos
+Last Commit: 308d6de - docs: suspend V3, enforce AgentKit architecture
+```
+
+---
+
 ## Quick Start (Test Write Workflow)
 
 ```bash
@@ -65,9 +84,16 @@ open http://localhost:3000/dashboard
 
 **ACTIVE ROUTE: V2** (`/api/hgc-v2`)
 - Frontend uses: `NEXT_PUBLIC_HGC_VERSION=v2` in `.env.local`
-- Status: 🔧 IN PROGRESS - Debugging and fixing for proper architecture
-- Architecture: AgentKit SDK + Mem0 + Workflow JSON from DB
+- Status: 🔧 IN PROGRESS - Migrating to workflow JSON (83% compliant)
+- Architecture: AgentKit SDK ✅ + Mem0 ✅ + Workflow JSON 🔧 (in progress)
 - Features: Complete HGC workflow with proper multi-tenant support
+
+**PROGRESS UPDATE (2025-11-16 14:30):**
+- ✅ V2 analysis complete: AgentKit + Mem0 working correctly
+- ✅ `console_workflows` table created and migrated
+- ✅ Default "write-linkedin-post" workflow inserted
+- 🔧 Next: Create workflow loader and refactor V2 route
+- 🔧 Next: Remove hardcoded workflow logic from route handler
 
 **SUSPENDED ROUTES:**
 - V3 (`/api/hgc-v3`) - **SUSPENDED** - Violated architecture (raw OpenAI, hardcoded workflows)
@@ -128,6 +154,77 @@ NEXT_PUBLIC_HGC_VERSION=legacy # Old implementation
 **ARCHITECTURE:**
 - **Cartridges** = Client-specific data (industry, audience, core messaging, examples)
 - **Workflows** = Universal patterns (how to generate topics, create content)
+
+## Required Documentation & Research
+
+**BEFORE implementing ANY AgentKit or Mem0 feature, research latest documentation.**
+
+### OpenAI AgentKit SDK
+
+**Official Docs (ALWAYS CHECK FIRST):**
+- Platform Docs: `https://platform.openai.com/docs/guides/agents`
+- Agents SDK: `https://platform.openai.com/docs/guides/agents-sdk`
+- Python SDK: `https://openai.github.io/openai-agents-python/`
+- Agent Builder: `https://platform.openai.com/agent-builder`
+
+**Installation:**
+```bash
+npm install @openai/agents
+# or
+pip install openai-agents
+```
+
+**Core Concepts:**
+- **Agents**: LLMs with instructions, tools, and context
+- **Handoffs**: Delegation between specialized agents
+- **Sessions**: Conversation history and state
+- **Guardrails**: Input/output validation
+- **Tools**: Functions agents can call
+
+**Key Patterns:**
+- Multi-agent workflows with handoffs
+- Session-based conversation management
+- Tool calling with structured outputs
+- Guardrails for safety/validation
+
+### Mem0 AI Memory
+
+**Official Docs:**
+- Main Site: `https://mem0.ai`
+- Documentation: `https://docs.mem0.ai`
+- API Reference: `https://docs.mem0.ai/api-reference`
+
+**Memory Scopes (CRITICAL for Multi-Tenant):**
+```javascript
+// Correct multi-tenant scope
+const memoryScope = {
+  agency_id: user.agency_id,
+  client_id: user.client_id,
+  user_id: user.id
+}
+
+// Mem0 API call
+await mem0.add({
+  messages: conversationHistory,
+  user_id: `${agency_id}::${client_id}::${user_id}`, // Hierarchical scope
+  metadata: { workflow: 'linkedin_post', industry: brandData.industry }
+})
+```
+
+**Use Cases:**
+- Remember user preferences across sessions
+- Store conversation context
+- Personalize agent responses
+- Track workflow state
+
+### Research Protocol
+
+**When implementing features:**
+1. WebSearch: `"[Technology] [Feature] documentation 2025"`
+2. Check official docs (links above)
+3. Verify syntax hasn't changed
+4. Test with simple example first
+5. Document findings in code comments
 - **Code** = Workflow executor (loads cartridges, runs AI, returns results)
 
 BEFORE coding: Read HGC spec, check current working route
