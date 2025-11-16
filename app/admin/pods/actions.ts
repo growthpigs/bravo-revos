@@ -9,6 +9,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { generateSecureToken } from '@/lib/utils/crypto';
 import { sendPodInviteEmail, sendActivationConfirmationEmail } from '@/lib/email/pod-invites';
+import { getCurrentAdminUser } from '@/lib/auth/admin-check';
 
 interface InvitePodMemberParams {
   name: string;
@@ -43,6 +44,12 @@ export async function invitePodMember({
   try {
     const supabase = await createClient();
 
+    // ✅ SECURITY: Verify admin privileges
+    const adminUser = await getCurrentAdminUser(supabase);
+    if (!adminUser) {
+      return { success: false, error: 'Admin privileges required' };
+    }
+
     // Get current user's client info
     const { data: client } = await supabase
       .from('clients')
@@ -66,6 +73,16 @@ export async function invitePodMember({
 
     if (authError) {
       console.error('[INVITE_POD_MEMBER] Auth error:', authError);
+
+      // ✅ SECURITY: Handle duplicate email gracefully (don't leak user existence)
+      if (authError.message?.toLowerCase().includes('already registered') ||
+          authError.message?.toLowerCase().includes('already exists')) {
+        return {
+          success: false,
+          error: 'This email is already registered. Please contact support to resend the invite.'
+        };
+      }
+
       return { success: false, error: `Failed to create user: ${authError.message}` };
     }
 
@@ -86,7 +103,9 @@ export async function invitePodMember({
     }
 
     // 3. Generate cryptographically secure invite token
-    const inviteToken = generateSecureToken(32); // 32 bytes = 256 bits
+    // 32 bytes = 256 bits of entropy, provides strong protection against brute force
+    // URL-safe base64 encoding for use in invite URLs
+    const inviteToken = generateSecureToken(32);
 
     // 4. Create pod_member record
     const { data: podMember, error: memberError } = await supabase
@@ -157,15 +176,32 @@ export async function activatePodMember(memberId: string): Promise<{ success: bo
   try {
     const supabase = await createClient();
 
+    // ✅ SECURITY: Verify admin privileges
+    const adminUser = await getCurrentAdminUser(supabase);
+    if (!adminUser) {
+      return { success: false, error: 'Admin privileges required' };
+    }
+
     // 1. Get member details
     const { data: member, error: fetchError } = await supabase
       .from('pod_members')
-      .select('*, users(email, full_name), clients(name)')
+      .select('*, users(email, full_name, client_id), clients(name)')
       .eq('id', memberId)
       .single();
 
     if (fetchError || !member) {
       return { success: false, error: 'Pod member not found' };
+    }
+
+    // ✅ SECURITY: Verify admin belongs to same client as pod member
+    const { data: adminUserRecord } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', adminUser.id)
+      .single();
+
+    if (!adminUserRecord || adminUserRecord.client_id !== member.client_id) {
+      return { success: false, error: 'Pod member not found' }; // Don't leak cross-client data
     }
 
     // 2. Verify Unipile is connected
@@ -215,14 +251,31 @@ export async function resendPodInvite(memberId: string): Promise<{ success: bool
   try {
     const supabase = await createClient();
 
+    // ✅ SECURITY: Verify admin privileges
+    const adminUser = await getCurrentAdminUser(supabase);
+    if (!adminUser) {
+      return { success: false, error: 'Admin privileges required' };
+    }
+
     // Get member details
     const { data: member, error: fetchError } = await supabase
       .from('pod_members')
-      .select('*, users(email, full_name), clients(name)')
+      .select('*, users(email, full_name, client_id), clients(name)')
       .eq('id', memberId)
       .single();
 
     if (fetchError || !member) {
+      return { success: false, error: 'Pod member not found' };
+    }
+
+    // ✅ SECURITY: Verify admin belongs to same client
+    const { data: adminUserRecord } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', adminUser.id)
+      .single();
+
+    if (!adminUserRecord || adminUserRecord.client_id !== member.client_id) {
       return { success: false, error: 'Pod member not found' };
     }
 
@@ -267,6 +320,33 @@ export async function togglePodMemberActive(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
+
+    // ✅ SECURITY: Verify admin privileges
+    const adminUser = await getCurrentAdminUser(supabase);
+    if (!adminUser) {
+      return { success: false, error: 'Admin privileges required' };
+    }
+
+    // ✅ SECURITY: Verify admin belongs to same client
+    const { data: member } = await supabase
+      .from('pod_members')
+      .select('client_id')
+      .eq('id', memberId)
+      .single();
+
+    if (!member) {
+      return { success: false, error: 'Pod member not found' };
+    }
+
+    const { data: adminUserRecord } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', adminUser.id)
+      .single();
+
+    if (!adminUserRecord || adminUserRecord.client_id !== member.client_id) {
+      return { success: false, error: 'Pod member not found' };
+    }
 
     const { error } = await supabase
       .from('pod_members')

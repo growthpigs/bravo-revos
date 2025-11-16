@@ -49,7 +49,7 @@ export default function PodInvitePage({ params }: { params: { token: string } })
       // Verify invite token
       const { data, error } = await supabase
         .from('pod_members')
-        .select('*, users(email), clients(name)')
+        .select('*, users(email), clients(name), invite_sent_at')
         .eq('invite_token', params.token)
         .single();
 
@@ -64,6 +64,18 @@ export default function PodInvitePage({ params }: { params: { token: string } })
         toast.info('This invite has already been accepted');
         router.push('/auth/login');
         return;
+      }
+
+      // ✅ SECURITY: Check token expiration (7 days)
+      if (data.invite_sent_at) {
+        const inviteSentAt = new Date(data.invite_sent_at);
+        const expiresAt = new Date(inviteSentAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        if (new Date() > expiresAt) {
+          toast.error('Invite link expired. Please request a new invitation.');
+          router.push('/auth/login');
+          return;
+        }
       }
 
       setMember(data);
@@ -94,18 +106,47 @@ export default function PodInvitePage({ params }: { params: { token: string } })
         throw new Error('Password must be at least 8 characters');
       }
 
-      // Update user password via admin API (using service role key on server)
-      const { error: updateError } = await fetch('/api/admin/set-user-password', {
+      // ✅ SECURITY: Re-verify token is still valid before setting password (prevent TOCTOU)
+      const { data: recheck } = await supabase
+        .from('pod_members')
+        .select('onboarding_status, invite_sent_at')
+        .eq('invite_token', params.token)
+        .eq('user_id', member.user_id)
+        .single();
+
+      if (!recheck || recheck.onboarding_status !== 'invited') {
+        toast.error('Invite link expired or already used');
+        router.push('/auth/login');
+        return;
+      }
+
+      // Check expiration again
+      if (recheck.invite_sent_at) {
+        const inviteSentAt = new Date(recheck.invite_sent_at);
+        const expiresAt = new Date(inviteSentAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        if (new Date() > expiresAt) {
+          toast.error('Invite link expired. Please request a new invitation.');
+          router.push('/auth/login');
+          return;
+        }
+      }
+
+      // ✅ SECURITY: Pass invite token to API for validation
+      const response = await fetch('/api/admin/set-user-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: member.user_id,
           password,
+          inviteToken: params.token, // Required for server-side validation
         }),
-      }).then((res) => res.json());
+      });
 
-      if (updateError) {
-        throw new Error(updateError);
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to set password');
       }
 
       // Update pod_member onboarding status
