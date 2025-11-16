@@ -17,7 +17,8 @@ import {
   LogOut,
   Megaphone,
   Activity,
-  FileCode
+  FileCode,
+  UsersRound
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -33,6 +34,7 @@ const navigation = [
   { name: 'Clients', href: '/admin/clients', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
+  { name: 'Pods', href: '/admin/pods', icon: UsersRound },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
