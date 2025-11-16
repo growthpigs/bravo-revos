@@ -14,7 +14,8 @@
     "test:coverage": "jest --coverage",
     "clean": "rm -rf .next",
     "worker:webhook": "tsx workers/webhook-delivery-worker.ts",
-    "worker:pod-automation": "tsx workers/pod-automation-worker.ts"
+    "worker:pod-automation": "tsx workers/pod-automation-worker.ts",
+    "workers": "tsx scripts/start-workers.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.64",
@@ -53,7 +54,7 @@
     "@supabase/supabase-js": "^2.45.6",
     "@tanstack/react-table": "^8.20.5",
     "ai": "^5.0.89",
-    "bullmq": "^5.63.0",
+    "bullmq": "^5.63.2",
     "cheerio": "^1.1.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -72,6 +73,7 @@
     "next-themes": "^0.3.0",
     "openai": "^6.8.1",
     "pdf-parse": "^2.4.5",
+    "playwright": "^1.56.1",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
