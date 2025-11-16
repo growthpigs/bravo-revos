@@ -47,20 +47,34 @@ export async function queuePodRepost(
 ): Promise<Job<PodRepostJobData>> {
   const queue = createPodRepostQueue();
 
-  const job = await queue.add(
-    'repost',
-    { activityId },
-    {
-      jobId: `pod-repost-${activityId}`,
-      delay,
+  try {
+    const job = await queue.add(
+      'repost',
+      { activityId },
+      {
+        jobId: `pod-repost-${activityId}`,
+        delay,
+      }
+    );
+
+    console.log(
+      `${LOG_PREFIX} Queued repost for activity ${activityId} with ${delay}ms delay`
+    );
+
+    return job;
+  } catch (error: any) {
+    // Handle duplicate job ID error - job already exists in queue
+    if (error.message && error.message.includes('job already exists')) {
+      console.log(`${LOG_PREFIX} Job already queued for ${activityId}, returning existing job`);
+      const existingJob = await queue.getJob(`pod-repost-${activityId}`);
+      if (!existingJob) {
+        throw new Error(`Job exists but could not be retrieved for activity ${activityId}`);
+      }
+      return existingJob as Job<PodRepostJobData>;
     }
-  );
-
-  console.log(
-    `${LOG_PREFIX} Queued repost for activity ${activityId} with ${delay}ms delay`
-  );
-
-  return job;
+    // Re-throw any other errors
+    throw error;
+  }
 }
 
 /**
