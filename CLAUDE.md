@@ -1,5 +1,28 @@
 # Bravo revOS - Project Instructions
 
+## 🚨 CRITICAL DIRECTIVE - STOP V3 WORK IMMEDIATELY 🚨
+
+**New Directive Acknowledged ✅**
+
+**STOP all v3 work immediately.**
+
+**TODAY'S GOAL:**
+- ✅ AgentKit SDK integration (working)
+- ✅ Mem0 memory (working)
+- ✅ Workflow JSON as source of truth (working)
+- ✅ Multi-tenant tested: Doctor + Coach industries
+- ✅ Full "LinkedIn DM Pod" workflow end-to-end
+
+**NO MORE:**
+- ❌ "We'll migrate later"
+- ❌ Raw OpenAI shortcuts
+- ❌ Hard-coded anything
+- ❌ Technical debt excuses
+
+**V3 route is SUSPENDED. All work must use V2 with proper AgentKit architecture.**
+
+---
+
 ## Quick Start (Test Write Workflow)
 
 ```bash
@@ -38,24 +61,24 @@ open http://localhost:3000/dashboard
 - ✅ Working Document = Content output (like Microsoft Word)
 - ✅ Chat = Navigation, confirmations, buttons only
 
-## CURRENT WORKING STATE (2025-11-15)
+## CURRENT WORKING STATE (2025-11-16)
 
-**ACTIVE ROUTE: V3** (`/api/hgc-v3`)
-- Frontend uses: `NEXT_PUBLIC_HGC_VERSION=v3` in `.env.local`
-- Status: ✅ WORKING - Complete write workflow implemented
-- Architecture: Pragmatic raw OpenAI (NOT AgentKit) - accepted as Phase 1 technical debt
-- Features: Write command → Personalized topics → Post generation with brand/style
+**ACTIVE ROUTE: V2** (`/api/hgc-v2`)
+- Frontend uses: `NEXT_PUBLIC_HGC_VERSION=v2` in `.env.local`
+- Status: 🔧 IN PROGRESS - Debugging and fixing for proper architecture
+- Architecture: AgentKit SDK + Mem0 + Workflow JSON from DB
+- Features: Complete HGC workflow with proper multi-tenant support
 
-**DEPRECATED ROUTES:**
-- V2 (`/api/hgc-v2`) - Has 404 issues, needs debugging (Phase 2)
+**SUSPENDED ROUTES:**
+- V3 (`/api/hgc-v3`) - **SUSPENDED** - Violated architecture (raw OpenAI, hardcoded workflows)
 - Legacy (`/api/hgc`) - Old implementation
 
 **HOW TO SWITCH ROUTES:**
 ```bash
 # In .env.local:
-NEXT_PUBLIC_HGC_VERSION=v3     # Current working route
-NEXT_PUBLIC_HGC_VERSION=v2     # Debug later (has 404 issues)
-NEXT_PUBLIC_HGC_VERSION=legacy # Original route
+NEXT_PUBLIC_HGC_VERSION=v2     # ACTIVE - AgentKit architecture (fixing now)
+NEXT_PUBLIC_HGC_VERSION=v3     # SUSPENDED - Violated architecture
+NEXT_PUBLIC_HGC_VERSION=legacy # Old implementation
 ```
 
 ## CRITICAL ARCHITECTURE PRINCIPLES
@@ -74,16 +97,16 @@ NEXT_PUBLIC_HGC_VERSION=legacy # Original route
 - Simulation of Jon Benson's world-class copywriting methodology (Ethical Persuasion™)
 - AI agent decides best approach based on client data, NOT hard-coded rules
 
-## NON-NEGOTIABLES (Target Architecture)
+## NON-NEGOTIABLES (MANDATORY - NO EXCEPTIONS)
 
-**NOTE:** V3 violates #1 (uses raw OpenAI) - this is ACCEPTED technical debt for MVP speed.
-Migration to AgentKit planned for Phase 2 after user testing.
+**⚠️ V3 SUSPENDED - These rules are NOW ENFORCED (2025-11-16)**
 
-1. ~~AgentKit SDK ONLY (`@openai/agents`)~~ - V3 uses raw OpenAI (Phase 1), migrate Phase 2
-2. Mem0 integration - scope: `agencyId::clientId::userId` (NOT in V3 yet)
-3. Console DB - load via `loadConsolePrompt('marketing-console-v1')` (NOT in V3 yet)
-4. Session persistence - save all conversations to DB
-5. Health monitors - multi-source verification, no mocked data
+1. **AgentKit SDK ONLY** (`@openai/agents`) - NO raw `openai.chat.completions.create()`
+2. **Mem0 integration** - scope: `agencyId::clientId::userId` - MUST be working
+3. **Console DB** - load via `loadConsolePrompt('marketing-console-v1')` - NO hardcoded prompts
+4. **Workflow JSON** - load from `console_workflows` table - NO hardcoded workflow logic
+5. **Session persistence** - save all conversations to DB
+6. **Health monitors** - multi-source verification, no mocked data
 6. RLS - backend: service role key, frontend: anon key, always respect `auth.uid()`
 7. Admin control - `admin_users` table only, never JWT claims, use `isUserAdmin(userId)`
 8. **🚨 NO HARD-CODING** - NEVER hard-code client-specific content in code
@@ -288,12 +311,16 @@ Create docs in: `docs/projects/bravo-revos/` or `docs/features/YYYY-MM-DD-name/`
 
 ## Changelog
 
+**2025-11-16: 🚨 MAJOR ARCHITECTURE DECISION**
+- **V3 SUSPENDED** - Violated core architecture principles (raw OpenAI, hardcoded workflows)
+- **V2 RE-ACTIVATED** - Switching back to proper AgentKit + Mem0 + Workflow JSON architecture
+- NO MORE technical debt excuses - enforcing NON-NEGOTIABLES immediately
+- Goal: AgentKit SDK + Mem0 + Workflow JSON working end-to-end today
+
 **2025-11-15:**
-- Switched to V3 route (`/api/hgc-v3`) as active implementation
-- V3 uses raw OpenAI (pragmatic approach) - AgentKit migration deferred to Phase 2
-- V2 route deprecated due to 404 issues (requires debugging)
-- Frontend now uses `NEXT_PUBLIC_HGC_VERSION` env var for route selection
-- Complete write workflow: command → topics → generation with brand/style context
+- ~~Switched to V3 route~~ (REVERSED - V3 suspended)
+- V3 attempted shortcuts that violated architecture
+- Learned lesson: Technical debt accumulates fast
 
 **2025-01-15:**
 - Initial V2 implementation with AgentKit + Cartridge architecture
@@ -302,8 +329,8 @@ Create docs in: `docs/projects/bravo-revos/` or `docs/features/YYYY-MM-DD-name/`
 
 ---
 
-VERSION: 3.1.0 (V3 Active)
-LAST UPDATED: 2025-11-15
-STATUS: Production Ready - Write Workflow Complete
+VERSION: 2.0.0 (V2 Active - Architecture Compliant)
+LAST UPDATED: 2025-11-16
+STATUS: In Progress - Fixing V2 to work with proper architecture
 
-TECHNICAL DEBT: V3 uses raw OpenAI (not AgentKit) - migrate Phase 2 after user testing
+ARCHITECTURE: AgentKit SDK + Mem0 + Workflow JSON from DB (NO shortcuts)

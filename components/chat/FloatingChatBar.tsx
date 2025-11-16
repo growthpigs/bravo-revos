@@ -758,6 +758,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         console.log('[HGC_STREAM] Handling JSON response');
         const data = await response.json();
         console.log('[HGC_STREAM] JSON data:', { response: data.response?.substring(0, 100), success: data.success });
+        console.log('[HGC_STREAM] 🔍 FULL DATA KEYS:', Object.keys(data));
+        console.log('[HGC_STREAM] 🔍 Has document field:', !!data.document);
+        console.log('[HGC_STREAM] 🔍 Has interactive field:', !!data.interactive);
+        if (data.document) {
+          console.log('[HGC_STREAM] 🔍 Document object:', data.document);
+        }
 
         if (data.response) {
           const assistantContent = data.response;
@@ -814,10 +820,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           if (data.document && data.document.content) {
             console.log('[FCB] 📄 Document field detected - sending to working document area');
             console.log('[FCB] Document content:', data.document.content.substring(0, 100));
+            console.log('[FCB] 🎬 Setting fullscreen = true (was:', isFullscreen, ')');
             setIsFullscreen(true);
             setDocumentContent(data.document.content);
             setDocumentTitle(data.document.title || 'Working Document');
             setDocumentSourceMessageId(assistantMessage.id);
+            console.log('[FCB] ✅ Document state updated, will render on next cycle');
           } else {
             // Auto-fullscreen if content > 500 chars AND user triggered document creation
             console.log('[FCB] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);

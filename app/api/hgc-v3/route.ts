@@ -209,6 +209,10 @@ Now generate 4 headlines for THIS brand:`;
 
 **Why These Topics:** ${topicRationale}`;
 
+      // 🔍 DEBUG: Log exact decision_options being returned
+      console.log('[HGC_V3] 🎯 FINAL decision_options being returned:', JSON.stringify(topics, null, 2));
+      console.log('[HGC_V3] 🎯 Number of options:', topics.length);
+
       return NextResponse.json({
         success: true,
         response: brandSummary,
@@ -355,8 +359,8 @@ RULES:
 
       console.log('[HGC_V3] Generated post:', generatedPost.substring(0, 100) + '...');
 
-      // Return post in working document format (not chat)
-      return NextResponse.json({
+      // Build response object
+      const responseObj = {
         success: true,
         response: '✅ LinkedIn post generated in working document',
         document: {
@@ -370,7 +374,19 @@ RULES:
           hasBrandData: !!brandData,
           hasStyleData: !!styleData,
         },
-      });
+      };
+
+      // 🔍 DEBUG: Log exact response being sent to frontend
+      console.log('[HGC_V3] 📤 SENDING RESPONSE TO FRONTEND:');
+      console.log('[HGC_V3] - success:', responseObj.success);
+      console.log('[HGC_V3] - response message:', responseObj.response);
+      console.log('[HGC_V3] - hasDocument:', !!responseObj.document);
+      console.log('[HGC_V3] - document.content length:', responseObj.document.content.length);
+      console.log('[HGC_V3] - document.title:', responseObj.document.title);
+      console.log('[HGC_V3] - Full response keys:', Object.keys(responseObj));
+
+      // Return post in working document format (not chat)
+      return NextResponse.json(responseObj);
     }
 
     // Default: Echo back for unhandled messages
