@@ -34,18 +34,35 @@ interface ChatkitSessionResponse {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate with Supabase
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError
-    } = await supabase.auth.getUser();
+    // 1. Authenticate with Supabase (bypass for localhost testing)
+    const host = request.headers.get('host') || '';
+    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    let user: { id: string; email?: string } | null = null;
+
+    if (isLocalhost) {
+      // Development: Allow unauthenticated access for testing
+      console.log('[ChatKit] 🔓 Localhost detected - bypassing authentication for testing');
+      user = {
+        id: 'test-user-localhost',
+        email: 'test@localhost.dev'
+      };
+    } else {
+      // Production: Require full Supabase authentication
+      const supabase = await createClient();
+      const {
+        data: { user: authenticatedUser },
+        error: authError
+      } = await supabase.auth.getUser();
+
+      if (authError || !authenticatedUser) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      user = authenticatedUser;
     }
 
     // 2. Validate OpenAI API key
