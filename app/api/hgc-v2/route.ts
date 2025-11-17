@@ -11,6 +11,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force Node.js runtime (dependencies may use Node APIs)
+export const runtime = 'nodejs';
 import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 import { MarketingConsole } from '@/lib/console/marketing-console';
@@ -229,6 +232,7 @@ export async function POST(request: NextRequest) {
 
       const workflowContext = {
         supabase,
+        openai,
         user,
         session,
         message: currentMessage,
@@ -256,7 +260,7 @@ export async function POST(request: NextRequest) {
         console.log('[HGC_V2_WORKFLOW] Workflow executed successfully:', {
           workflowName: matchedWorkflow.name,
           hasInteractive: !!workflowResult.interactive,
-          hasWorkingDocument: !!workflowResult.workingDocument,
+          hasDocument: !!workflowResult.document,
         });
 
         // Return workflow result
@@ -265,7 +269,7 @@ export async function POST(request: NextRequest) {
           response: workflowResult.response,
           sessionId: workflowResult.sessionId,
           interactive: workflowResult.interactive,
-          workingDocument: workflowResult.workingDocument,
+          document: workflowResult.document,
           meta: {
             ...workflowResult.meta,
             consoleSource,
