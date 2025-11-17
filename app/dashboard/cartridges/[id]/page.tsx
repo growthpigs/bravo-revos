@@ -363,7 +363,7 @@ export default function CartridgeDetailPage() {
           </ul>
           <p>
             <strong>Active Status:</strong> Only active cartridges can be selected for campaigns.
-            Inactive cartridges are preserved but won't appear in selection lists.
+            Inactive cartridges are preserved but won&apos;t appear in selection lists.
           </p>
           {!isNew && cartridge && (
             <p className="text-xs">

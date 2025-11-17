@@ -67,3 +67,7 @@ __pycache__/
 temp/
 tmp/
 docs/PRODUCTION_CREDENTIALS.md
+
+# Sentry
+.sentryclirc
+sentry.properties

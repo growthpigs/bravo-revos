@@ -185,7 +185,7 @@ export default function PendingActivationPage() {
               <li>An admin from {podMember.clients.name} will review your connection</li>
               <li>You'll be activated within 24 hours</li>
               <li>Once activated, you'll automatically repost team content</li>
-              <li>This page will auto-refresh when you're activated</li>
+              <li>This page will auto-refresh when you&apos;re activated</li>
             </ul>
           </div>
 

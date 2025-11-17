@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+// REMOVED: import OpenAI from 'openai' - moved to dynamic import to prevent build-time tiktoken execution
 
 // Force Node.js runtime
 export const runtime = 'nodejs';
@@ -45,7 +45,8 @@ interface VoiceAnalysisResult {
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize OpenAI client (lazy initialization prevents build-time execution)
+    // Initialize OpenAI client (dynamic import prevents build-time tiktoken execution)
+    const { default: OpenAI } = await import('openai');
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) {
       return NextResponse.json({ error: 'OPENAI_API_KEY not configured' }, { status: 500 });
@@ -125,7 +126,7 @@ async function fetchLinkedInPosts(
 /**
  * Analyze LinkedIn posts with GPT-4 to extract voice parameters
  */
-async function analyzePostsWithGPT4(openai: OpenAI, posts: string[]): Promise<VoiceAnalysisResult> {
+async function analyzePostsWithGPT4(openai: any, posts: string[]): Promise<VoiceAnalysisResult> {
   const postsText = posts.join('\n---\n')
 
   const systemPrompt = `You are an expert at analyzing writing style and voice.

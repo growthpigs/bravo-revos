@@ -1235,7 +1235,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // INLINE WORKFLOW HANDLERS
   // ========================================
 
-  // Handle user selecting a decision (e.g., "Create New Campaign" vs "Select Existing")
+  // Handle user selecting a decision (e.g., topic selection, workflow choice)
   const handleDecisionSelect = async (decision: string, workflowId?: string) => {
     console.log('[INLINE_FORM] Decision selected:', decision, 'workflow:', workflowId);
 
@@ -1327,11 +1327,30 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       return; // Don't call backend
     }
 
+    // ✅ WORKFLOW-AWARE: For workflow decisions, extract label from decision value
+    // Decision format: "topic:0:headline_text" or legacy "create_new"/"select_existing"
+    let userMessageContent = decision;
+
+    // Check if this is a workflow topic decision (format: "topic:X:text")
+    if (decision.startsWith('topic:')) {
+      const parts = decision.split(':');
+      if (parts.length >= 3) {
+        // Extract and format the headline (convert underscores to spaces, capitalize)
+        const headline = parts.slice(2).join(':').replace(/_/g, ' ');
+        userMessageContent = headline.charAt(0).toUpperCase() + headline.slice(1);
+      }
+    } else if (decision === 'create_new') {
+      userMessageContent = 'Create a new campaign';
+    } else if (decision === 'select_existing') {
+      userMessageContent = 'Select from existing campaigns';
+    }
+    // For any other decision type, use the value as-is
+
     // Add user message showing their choice
     const userMessage: Message = {
       id: generateUniqueId(),
       role: 'user',
-      content: decision === 'create_new' ? 'Create a new campaign' : 'Select from existing campaigns',
+      content: userMessageContent,
       createdAt: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);

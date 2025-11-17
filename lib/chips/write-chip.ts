@@ -7,7 +7,7 @@
 
 import { tool } from '@openai/agents';
 import { z } from 'zod';
-import OpenAI from 'openai';
+// REMOVED: import OpenAI from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
 import { BaseChip } from './base-chip';
 import { AgentContext } from '@/lib/cartridges/types';
 
@@ -177,7 +177,8 @@ Requirements:
 
 Write the post now:`;
 
-          // Generate post using OpenAI
+          // Generate post using OpenAI (dynamic import to prevent build-time tiktoken execution)
+          const { default: OpenAI } = await import('openai');
           const openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
           });

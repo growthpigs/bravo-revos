@@ -110,7 +110,7 @@ export async function findWorkflowByTrigger(
   supabase: SupabaseClient,
   userId?: string
 ): Promise<WorkflowDefinition | null> {
-  console.log('[WorkflowLoader] Finding workflow for message:', message);
+  console.log('[WorkflowLoader] Finding workflow for message:', JSON.stringify(message));
 
   try {
     // Get all active workflows
@@ -129,23 +129,32 @@ export async function findWorkflowByTrigger(
       return null;
     }
 
+    console.log('[WorkflowLoader] Checking', workflows.length, 'active workflows');
+
     // Check each workflow's triggers
     for (const workflow of workflows) {
       const triggers = workflow.triggers as WorkflowTriggers;
+      console.log('[WorkflowLoader] Checking workflow:', workflow.name, 'triggers:', triggers);
 
-      // Check command triggers
+      // Check command triggers (match first word)
       if (triggers.commands && triggers.commands.length > 0) {
-        const messageToCheck = triggers.case_insensitive
-          ? message.toLowerCase().trim()
-          : message.trim();
+        // Get first word of message
+        const firstWord = message.trim().split(/\s+/)[0];
+        const wordToCheck = triggers.case_insensitive
+          ? firstWord.toLowerCase()
+          : firstWord;
+
+        console.log('[WorkflowLoader] First word to check:', JSON.stringify(wordToCheck));
 
         for (const command of triggers.commands) {
           const commandToCheck = triggers.case_insensitive
             ? command.toLowerCase()
             : command;
 
-          if (messageToCheck === commandToCheck) {
-            console.log('[WorkflowLoader] Workflow matched by command:', workflow.name);
+          console.log('[WorkflowLoader] Comparing:', JSON.stringify(wordToCheck), '===', JSON.stringify(commandToCheck));
+
+          if (wordToCheck === commandToCheck) {
+            console.log('[WorkflowLoader] ✅ Workflow matched by command:', workflow.name);
             return workflow as WorkflowDefinition;
           }
         }
@@ -157,15 +166,17 @@ export async function findWorkflowByTrigger(
           const flags = triggers.case_insensitive ? 'i' : '';
           const regex = new RegExp(pattern, flags);
 
-          if (regex.test(message)) {
-            console.log('[WorkflowLoader] Workflow matched by pattern:', workflow.name);
+          console.log('[WorkflowLoader] Testing pattern:', pattern, 'against message');
+
+          if (regex.test(message.trim())) {
+            console.log('[WorkflowLoader] ✅ Workflow matched by pattern:', workflow.name);
             return workflow as WorkflowDefinition;
           }
         }
       }
     }
 
-    console.log('[WorkflowLoader] No workflow matched for message');
+    console.log('[WorkflowLoader] ❌ No workflow matched for message');
     return null;
   } catch (error) {
     console.error('[WorkflowLoader] Failed to find workflow:', error);

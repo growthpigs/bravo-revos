@@ -21,11 +21,6 @@ export function InlineDecisionButtons({
   options,
   onSelect,
 }: InlineDecisionButtonsProps) {
-  // 🔍 DEBUG: Log options received by component
-  console.log('[DEBUG_BUTTONS] InlineDecisionButtons rendered with options:', options);
-  console.log('[DEBUG_BUTTONS] Number of options:', options.length);
-  console.log('[DEBUG_BUTTONS] Workflow ID:', workflowId);
-
   const handleClick = (value: string) => {
     onSelect(value, workflowId);
   };

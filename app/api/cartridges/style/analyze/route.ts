@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getMem0Client } from '@/lib/mem0/client';
-import { OpenAI } from 'openai';
+// REMOVED: import { OpenAI } from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
 const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
 
@@ -49,7 +49,7 @@ async function extractTextFromFile(
 /**
  * Analyze writing style using GPT-4
  */
-async function analyzeWritingStyle(openai: OpenAI, texts: string[]): Promise<any> {
+async function analyzeWritingStyle(openai: any, texts: string[]): Promise<any> {
   const combinedText = texts.join('\n\n---\n\n');
 
   // Truncate if too long (GPT-4 context limit)
@@ -117,7 +117,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Initialize OpenAI client (lazy initialization prevents build-time execution)
+    // Initialize OpenAI client (dynamic import prevents build-time tiktoken execution)
+    const { OpenAI } = await import('openai');
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) {
       console.error(`${LOG_PREFIX} OPENAI_API_KEY not configured`);

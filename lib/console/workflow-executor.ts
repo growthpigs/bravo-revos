@@ -9,6 +9,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+// REMOVED: import OpenAI from 'openai'; - moved to type-only to prevent build-time tiktoken execution
 import { MarketingConsole } from './marketing-console';
 import {
   WorkflowDefinition,
@@ -18,6 +19,7 @@ import {
 
 export interface WorkflowExecutionContext {
   supabase: SupabaseClient;
+  openai: any; // OpenAI instance passed via dependency injection
   user: any;
   session: any;
   message: string;
@@ -34,7 +36,10 @@ export interface WorkflowExecutionResult {
     workflow_id: string;
     decision_options?: any[];
   };
-  workingDocument?: string;
+  document?: {
+    content: string;
+    title: string;
+  };
   meta?: any;
 }
 
@@ -120,32 +125,53 @@ async function executeTopicGeneration(
     baseInstructions: interpolatedPrompt,
     model: 'gpt-4o-mini',
     temperature: 0.8,
+    openai: context.openai,
+    supabase: supabase,
   });
 
   try {
     const result = await marketingConsole.execute(
-      [{ role: 'user', content: 'Generate 4 LinkedIn post topic headlines.' }],
-      {
-        agencyId: context.agencyId,
-        clientId: context.clientId,
-        userId: user.id,
-      }
+      user.id,
+      session.id,
+      [{ role: 'user', content: 'Generate 4 LinkedIn post topic headlines.' }]
     );
 
+    console.log('[WorkflowExecutor] AI response received:', result.response.substring(0, 200));
+
     // Parse AI response as JSON array
-    let topicHeadlines: string[];
+    let topicHeadlines: string[] = [];
     try {
-      topicHeadlines = JSON.parse(result.response);
+      const parsed = JSON.parse(result.response);
+      if (Array.isArray(parsed)) {
+        topicHeadlines = parsed;
+      } else {
+        console.warn('[WorkflowExecutor] Parsed JSON is not an array:', typeof parsed);
+        topicHeadlines = [String(parsed)];
+      }
     } catch (e) {
+      console.log('[WorkflowExecutor] JSON parse failed, extracting from text');
       // If not JSON, try to extract topics from text
       const lines = result.response.split('\n').filter((l) => l.trim());
       topicHeadlines = lines.slice(0, 4);
     }
 
+    console.log('[WorkflowExecutor] Parsed topics:', topicHeadlines);
+
+    // Ensure we have at least one topic
+    if (!Array.isArray(topicHeadlines) || topicHeadlines.length === 0) {
+      topicHeadlines = [
+        'How AI is transforming your industry',
+        'Building trust with your audience',
+        'Overcoming common challenges in 2024',
+        'The future of your business strategy',
+      ];
+      console.warn('[WorkflowExecutor] Using fallback topics');
+    }
+
     // Convert to decision options
     const topicOptions = topicHeadlines.map((headline, index) => ({
-      label: headline,
-      value: `topic:${index}:${headline.toLowerCase().replace(/\s+/g, '_')}`,
+      label: String(headline).trim(),
+      value: `topic:${index}:${String(headline).toLowerCase().replace(/\s+/g, '_')}`,
       icon: index === 0 ? 'brain' : 'star',
       variant: index === 0 ? 'primary' : 'secondary',
     }));
@@ -161,14 +187,30 @@ async function executeTopicGeneration(
 
     console.log('[WorkflowExecutor] Topics generated:', topicOptions.length);
 
+    // Format brand context for display
+    const brandContextMessage = [
+      '📋 **Brand Context Loaded**',
+      '',
+      `**Industry:** ${brandData?.industry || 'N/A'}`,
+      `**Target Audience:** ${brandData?.target_audience || 'N/A'}`,
+      brandData?.brand_voice ? `**Brand Voice:** ${brandData.brand_voice}` : null,
+      brandData?.core_messaging ? `\n${brandData.core_messaging.slice(0, 200)}${brandData.core_messaging.length > 200 ? '...' : ''}` : null,
+      '',
+      'Select a topic to write about:',
+    ].filter(Boolean).join('\n');
+
     return {
       success: true,
-      response: '📋 **Brand Context Loaded** - What topic would you like to write about?',
+      response: brandContextMessage,
       sessionId: session.id,
       interactive: {
         type: 'decision',
         workflow_id: workflowId,
         decision_options: topicOptions,
+      },
+      document: {
+        title: 'LinkedIn Post',
+        content: '_(Awaiting topic selection...)_',
       },
       meta: {
         workflowName: workflow.name,
@@ -206,15 +248,15 @@ async function executePostGeneration(
     throw new Error('post_generation prompt not found in workflow');
   }
 
-  // Build brand context
-  const brandContext = `
-BRAND CONTEXT:
-- Industry: ${brandData?.industry || 'business'}
-- Target Audience: ${brandData?.target_audience || 'professionals'}
-- Brand Voice: ${brandData?.brand_voice || 'professional'}
-- Core Values: ${brandData?.core_values || 'integrity, innovation'}
+  // Build brand context (clean multi-line format)
+  const brandContext = `📋 **Brand Context Loaded**
 
-${brandData?.core_messaging ? `Core Messaging:\n${brandData.core_messaging}` : ''}
+**Industry:** ${brandData?.industry || 'Business'}
+**Target Audience:** ${brandData?.target_audience || 'professionals'}
+**Brand Voice:** ${brandData?.brand_voice || 'professional'}
+**Core Values:** ${brandData?.core_values || 'integrity, innovation'}
+
+${brandData?.core_messaging ? `**Core Messaging:**\n${brandData.core_messaging}` : ''}
 `.trim();
 
   // Build style context
@@ -238,16 +280,15 @@ STYLE CONTEXT:
     baseInstructions: interpolatedPrompt,
     model: 'gpt-4o',
     temperature: 0.7,
+    openai: context.openai,
+    supabase: supabase,
   });
 
   try {
     const result = await marketingConsole.execute(
-      [{ role: 'user', content: `Write a LinkedIn post about: ${topicSlug}` }],
-      {
-        agencyId: context.agencyId,
-        clientId: context.clientId,
-        userId: user.id,
-      }
+      user.id,
+      session.id,
+      [{ role: 'user', content: `Write a LinkedIn post about: ${topicSlug}` }]
     );
 
     // Save messages
@@ -266,7 +307,10 @@ STYLE CONTEXT:
       success: true,
       response: '✅ LinkedIn post generated in working document',
       sessionId: session.id,
-      workingDocument: result.response,
+      document: {
+        content: result.response,
+        title: 'LinkedIn Post Draft'
+      },
       meta: {
         workflowName: workflow.name,
         topic: topicSlug,
