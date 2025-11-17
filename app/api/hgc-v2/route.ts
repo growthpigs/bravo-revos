@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Force Node.js runtime (dependencies may use Node APIs)
 export const runtime = 'nodejs';
 import { createClient } from '@/lib/supabase/server';
-import OpenAI from 'openai';
+// REMOVED: import OpenAI from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
 import { MarketingConsole } from '@/lib/console/marketing-console';
 import { LinkedInCartridge } from '@/lib/cartridges/linkedin-cartridge';
 import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
@@ -99,6 +99,9 @@ export async function POST(request: NextRequest) {
     console.log('[HGC_V2] Session:', { id: session.id, is_new: !sessionId });
 
     // 2b. Initialize OpenAI client (lazy initialization prevents build-time execution)
+    // Dynamic import to prevent tiktoken from trying to read encoder.json at build time
+    const { default: OpenAI } = await import('openai');
+    
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) {
       console.error('[HGC_V2] OPENAI_API_KEY not configured');
