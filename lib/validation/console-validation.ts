@@ -17,6 +17,7 @@ export const SystemCartridgeSchema = z.object({
   systemPrompt: z.string().max(MAX_TEXT_FIELD, 'System prompt too long (max 10KB)').optional(),
   role: z.string().max(1000, 'Role too long (max 1KB)').optional(),
   rules: z.string().max(MAX_TEXT_FIELD, 'Rules too long (max 10KB)').optional(),
+  contextOverview: z.string().max(MAX_TEXT_FIELD, 'Context overview too long (max 10KB)').optional(),
 });
 
 // Context Cartridge
