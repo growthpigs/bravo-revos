@@ -117,7 +117,7 @@ export default function ActivityDashboardPage() {
         .filter(a => a.pod_members?.name)
         .reduce((acc, activity) => {
           const member = activity.pod_members!
-          if (!acc.find(m => m.name === member.name)) {
+          if (!acc.find((m: { id: string; name: string }) => m.name === member.name)) {
             // Use a stable ID based on member name for filtering
             acc.push({ id: member.name, name: member.name })
           }
