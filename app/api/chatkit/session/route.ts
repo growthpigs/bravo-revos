@@ -1,52 +1,155 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'edge';
+
+const CHATKIT_API_BASE = 'https://api.openai.com';
+const CHATKIT_API_VERSION = 'chatkit_beta=v1';
+
+interface CreateSessionRequestBody {
+  workflow?: { id?: string | null } | null;
+  workflowId?: string | null;
+  scope?: { user_id?: string | null } | null;
+  chatkit_configuration?: {
+    file_upload?: { enabled?: boolean };
+  };
+}
+
+interface ChatkitSessionResponse {
+  client_secret: string;
+  expires_after: number;
+  [key: string]: any;
+}
 
 /**
- * GET /api/chatkit/session
+ * POST /api/chatkit/session
  *
- * Returns Supabase session token for ChatKit authentication.
- * ChatKit will use this token to call /api/hgc directly.
+ * Creates a ChatKit session for authenticated users.
  *
- * Option A: Direct Backend Call (simpler, uses existing Python orchestrator)
+ * Flow:
+ * 1. Authenticate user via Supabase
+ * 2. Extract workflow ID from request or use default
+ * 3. Call OpenAI ChatKit Sessions API
+ * 4. Return client_secret to frontend
  */
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Authenticate user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // 1. Authenticate with Supabase
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      )
+      );
     }
 
-    // Get current session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError || !session) {
+    // 2. Validate OpenAI API key
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      console.error('[ChatKit] OPENAI_API_KEY not configured');
       return NextResponse.json(
-        { error: 'No active session' },
-        { status: 401 }
-      )
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
     }
 
-    // Return session token as client_secret
-    // ChatKit will pass this in Authorization header to /api/hgc
+    // 3. Parse request body
+    const body: CreateSessionRequestBody = await request.json();
+
+    // 4. Resolve workflow ID
+    // Priority: request.workflowId → request.workflow.id → environment defaults
+    let workflowId: string | null = null;
+
+    if (body.workflowId) {
+      workflowId = body.workflowId;
+    } else if (body.workflow?.id) {
+      workflowId = body.workflow.id;
+    } else {
+      // Default to topic generation workflow if no specific workflow provided
+      workflowId = process.env.TOPIC_GENERATION_WORKFLOW_ID || null;
+    }
+
+    if (!workflowId) {
+      return NextResponse.json(
+        { error: 'No workflow ID provided and no default configured' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[ChatKit] Creating session:', {
+      userId: user.id,
+      workflowId,
+      timestamp: new Date().toISOString()
+    });
+
+    // 5. Build ChatKit session request
+    const sessionRequestBody = {
+      workflow: { id: workflowId },
+      scope: { user_id: user.id },
+      chatkit_configuration: body.chatkit_configuration || {
+        file_upload: { enabled: false }
+      }
+    };
+
+    // 6. Call OpenAI ChatKit Sessions API
+    const upstreamUrl = `${CHATKIT_API_BASE}/v1/chatkit/sessions`;
+    const upstreamResponse = await fetch(upstreamUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'OpenAI-Beta': CHATKIT_API_VERSION
+      },
+      body: JSON.stringify(sessionRequestBody)
+    });
+
+    // 7. Handle upstream errors
+    if (!upstreamResponse.ok) {
+      const errorText = await upstreamResponse.text();
+      console.error('[ChatKit] Upstream error:', {
+        status: upstreamResponse.status,
+        statusText: upstreamResponse.statusText,
+        body: errorText
+      });
+
+      let errorMessage = 'Failed to create ChatKit session';
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error?.message || errorMessage;
+      } catch {
+        // Use default error message if parsing fails
+      }
+
+      return NextResponse.json(
+        { error: errorMessage },
+        { status: upstreamResponse.status }
+      );
+    }
+
+    // 8. Parse and return session data
+    const sessionData: ChatkitSessionResponse = await upstreamResponse.json();
+
+    console.log('[ChatKit] Session created successfully:', {
+      userId: user.id,
+      expiresAfter: sessionData.expires_after,
+      hasClientSecret: !!sessionData.client_secret
+    });
+
     return NextResponse.json({
-      success: true,
-      client_secret: session.access_token,
-      user_id: user.id,
-      expires_at: session.expires_at
-    })
+      client_secret: sessionData.client_secret,
+      expires_after: sessionData.expires_after
+    });
 
   } catch (error) {
-    console.error('[CHATKIT_SESSION] Error:', error)
+    console.error('[ChatKit] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
 }
