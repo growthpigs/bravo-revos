@@ -5,12 +5,10 @@ import { OpenAI } from 'openai';
 const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
 
-const LOG_PREFIX = '[STYLE_ANALYZE]';
+// Force Node.js runtime (pdf-parse requires Node APIs)
+export const runtime = 'nodejs';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const LOG_PREFIX = '[STYLE_ANALYZE]';
 
 /**
  * Extract text from various file types
@@ -51,7 +49,7 @@ async function extractTextFromFile(
 /**
  * Analyze writing style using GPT-4
  */
-async function analyzeWritingStyle(texts: string[]): Promise<any> {
+async function analyzeWritingStyle(openai: OpenAI, texts: string[]): Promise<any> {
   const combinedText = texts.join('\n\n---\n\n');
 
   // Truncate if too long (GPT-4 context limit)
@@ -118,6 +116,17 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Initialize OpenAI client (lazy initialization prevents build-time execution)
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      console.error(`${LOG_PREFIX} OPENAI_API_KEY not configured`);
+      return NextResponse.json(
+        { error: 'AI service not configured', details: 'OPENAI_API_KEY environment variable is missing' },
+        { status: 500 }
+      );
+    }
+    const openai = new OpenAI({ apiKey: openaiApiKey });
 
     const body = await request.json();
     const { cartridgeId } = body;
@@ -192,7 +201,7 @@ export async function POST(request: NextRequest) {
 
       // Analyze writing style using GPT-4
       console.log(`${LOG_PREFIX} Analyzing writing style with GPT-4`);
-      const styleAnalysis = await analyzeWritingStyle(extractedTexts);
+      const styleAnalysis = await analyzeWritingStyle(openai, extractedTexts);
 
       // Build learned style object
       const learnedStyle = {

@@ -4,8 +4,6 @@ import { verifyCronAuth } from '@/lib/cron-auth'
 import { Resend } from 'resend'
 import { generatePodRepostEmail } from '@/lib/email-templates'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 /**
  * POST /api/cron/pod-notifications
  * Background worker that sends pod repost notifications via email
@@ -22,6 +20,17 @@ export async function POST(request: NextRequest) {
   if (!authResult.authorized) {
     return authResult.response
   }
+
+  // Initialize Resend client (lazy initialization prevents build-time execution)
+  const resendApiKey = process.env.RESEND_API_KEY
+  if (!resendApiKey) {
+    console.error('[POD_NOTIFICATIONS] RESEND_API_KEY not configured')
+    return NextResponse.json(
+      { error: 'Email service not configured', details: 'RESEND_API_KEY environment variable is missing' },
+      { status: 500 }
+    )
+  }
+  const resend = new Resend(resendApiKey)
 
   try {
     const supabase = await createClient()

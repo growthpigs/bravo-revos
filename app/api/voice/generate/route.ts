@@ -10,9 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Force Node.js runtime
+export const runtime = 'nodejs';
 
 interface VoiceAnalysisResult {
   tone: {
@@ -46,6 +45,13 @@ interface VoiceAnalysisResult {
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize OpenAI client (lazy initialization prevents build-time execution)
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      return NextResponse.json({ error: 'OPENAI_API_KEY not configured' }, { status: 500 });
+    }
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+
     const body = await request.json()
     const { linkedinUsername, linkedinPassword, linkedinUserId } = body
 
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Analyze posts with GPT-4
-    const voiceParams = await analyzePostsWithGPT4(posts)
+    const voiceParams = await analyzePostsWithGPT4(openai, posts)
 
     return NextResponse.json({
       success: true,
@@ -119,7 +125,7 @@ async function fetchLinkedInPosts(
 /**
  * Analyze LinkedIn posts with GPT-4 to extract voice parameters
  */
-async function analyzePostsWithGPT4(posts: string[]): Promise<VoiceAnalysisResult> {
+async function analyzePostsWithGPT4(openai: OpenAI, posts: string[]): Promise<VoiceAnalysisResult> {
   const postsText = posts.join('\n---\n')
 
   const systemPrompt = `You are an expert at analyzing writing style and voice.
