@@ -91,18 +91,24 @@ export function ChatKitWrapper({
     }
   });
 
-  // Initialize on mount
+  // Initialize on mount - manually trigger getClientSecret
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
     console.log('[ChatKitWrapper] Initializing with workflow:', workflowId);
 
-    // TODO: Add event listeners when ChatKit API documentation is available
-    // The control object should provide methods to listen for:
-    // - onMessage: When assistant sends a message
-    // - onComplete: When workflow completes
-    // - onError: When an error occurs
+    // Manually fetch client secret to initialize ChatKit
+    // This is necessary because ChatKit won't call getClientSecret until it's rendered,
+    // but we don't render it until we have a token (chicken-and-egg problem)
+    getClientSecret(null)
+      .then(() => {
+        console.log('[ChatKitWrapper] Pre-fetched client secret successfully');
+      })
+      .catch((err) => {
+        console.error('[ChatKitWrapper] Pre-fetch failed:', err);
+        // Error state is already set by getClientSecret function
+      });
 
   }, [workflowId]);
 
