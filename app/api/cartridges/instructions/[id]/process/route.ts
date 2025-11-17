@@ -4,6 +4,9 @@ import { getMem0Client } from '@/lib/mem0/client';
 const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
 
+// Force Node.js runtime (pdf-parse requires Node APIs)
+export const runtime = 'nodejs';
+
 const LOG_PREFIX = '[INSTR_PROCESS]';
 
 /**
