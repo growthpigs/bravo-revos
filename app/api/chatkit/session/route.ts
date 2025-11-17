@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     // 5. Build ChatKit session request
     const sessionRequestBody = {
       workflow: { id: workflowId },
-      scope: { user_id: user.id },
+      user: user.id, // Top-level user parameter (required by OpenAI ChatKit API)
       chatkit_configuration: body.chatkit_configuration || {
         file_upload: { enabled: false }
       }
