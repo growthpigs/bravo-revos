@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+// REMOVED: import OpenAI from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
 import { createClient } from '@/lib/supabase/server';
 import type { Offering } from '@/lib/types/offerings';
 
@@ -36,17 +36,15 @@ interface ConversationMessage {
   content: string;
 }
 
-// Initialize OpenAI (server-side only - API key is safe here)
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-
 /**
  * POST /api/conversation-intelligence
  * Body: { action: 'analyze-tone' | 'generate-response', message, context? }
  */
 export async function POST(request: NextRequest) {
   try {
+    // Dynamic import to prevent tiktoken from trying to read encoder.json at build time
+    const { default: OpenAI } = await import('openai');
+
     // 1. Authenticate user
     const supabase = await createClient();
     const {
@@ -76,17 +74,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Check if OpenAI is available
-    if (!openai) {
+    // 3. Initialize OpenAI client (lazy initialization prevents build-time execution)
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
       return NextResponse.json(
         { error: 'OpenAI service unavailable', fallback: true },
         { status: 503 }
       );
     }
+    const openai = new OpenAI({ apiKey: openaiApiKey });
 
     // 4. Handle different actions
     if (action === 'analyze-tone') {
-      const toneProfile = await analyzeToneWithGPT4(message);
+      const toneProfile = await analyzeToneWithGPT4(openai, message);
       return NextResponse.json({ toneProfile });
     } else if (action === 'generate-response') {
       if (!context) {
@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       }
 
       const response = await generateResponseWithGPT4(
+        openai,
         message,
         context.toneProfile,
         context.style,
@@ -124,8 +125,8 @@ export async function POST(request: NextRequest) {
 /**
  * Analyze tone using GPT-4
  */
-async function analyzeToneWithGPT4(message: string): Promise<ToneProfile> {
-  const completion = await openai!.chat.completions.create({
+async function analyzeToneWithGPT4(openai: any, message: string): Promise<ToneProfile> {
+  const completion = await openai.chat.completions.create({
     model: 'gpt-4',
     temperature: 0,
     messages: [
@@ -158,6 +159,7 @@ Return JSON:
  * Generate response using GPT-4
  */
 async function generateResponseWithGPT4(
+  openai: any,
   userMessage: string,
   toneProfile: ToneProfile,
   style: ResponseStyle,
@@ -196,7 +198,7 @@ Elevator pitch: ${offering.elevator_pitch}
 Key benefits: ${offering.key_benefits.join(', ')}`;
   }
 
-  const completion = await openai!.chat.completions.create({
+  const completion = await openai.chat.completions.create({
     model: 'gpt-4',
     temperature: 0.7,
     messages: [

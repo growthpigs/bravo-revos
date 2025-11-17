@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import OpenAI from 'openai'
+// REMOVED: import OpenAI from 'openai' - moved to dynamic import to prevent build-time tiktoken execution
 import { hgcRequestSchema } from '@/lib/validations/hgc'
 import { createLinkedInPost } from '@/lib/unipile-client'
+import { findWorkflowByTrigger } from '@/lib/console/workflow-loader'
+import {
+  executeContentGenerationWorkflow,
+  executeNavigationWorkflow,
+} from '@/lib/console/workflow-executor'
 
 /**
  * POST /api/hgc
@@ -11,11 +16,6 @@ import { createLinkedInPost } from '@/lib/unipile-client'
  * Architecture: Next.js → OpenAI → 8 Tools → Supabase → Response
  * NO Python backend. AgentKit = chat orchestration interface.
  */
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!
-})
 
 // ============================================================
 // TOOL DEFINITIONS (OpenAI Function Calling)
@@ -743,6 +743,12 @@ export async function POST(request: NextRequest) {
 
     console.log('[HGC_TS] User authenticated:', user.id)
 
+    // Dynamic import to prevent tiktoken from trying to read encoder.json at build time
+    const { default: OpenAI } = await import('openai');
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY!
+    });
+
     // Parse and validate request
     const body = await request.json()
     const validationResult = hgcRequestSchema.safeParse(body)
@@ -778,6 +784,95 @@ export async function POST(request: NextRequest) {
     }, [] as typeof messages)
 
     console.log('[HGC_TS] Formatted to', formattedMessages.length, 'alternating messages')
+
+    // ========================================
+    // WORKFLOW DETECTION (Database-Driven)
+    // Check for workflows BEFORE inline handling
+    // ========================================
+    const lastUserMessage = formattedMessages[formattedMessages.length - 1]
+    if (lastUserMessage && lastUserMessage.role === 'user') {
+      console.log('[HGC_WORKFLOW] Checking for workflow triggers...')
+
+      const matchedWorkflow = await findWorkflowByTrigger(
+        lastUserMessage.content,
+        supabase,
+        user.id
+      )
+
+      if (matchedWorkflow) {
+        console.log('[HGC_WORKFLOW] Workflow matched:', {
+          name: matchedWorkflow.name,
+          type: matchedWorkflow.workflow_type,
+        })
+
+        // Create minimal session object for workflow executor
+        // (This route doesn't use session persistence yet)
+        const mockSession = {
+          id: `temp-${Date.now()}`,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+        }
+
+        const workflowContext = {
+          supabase,
+          openai,
+          user,
+          session: mockSession,
+          message: lastUserMessage.content,
+        }
+
+        try {
+          let workflowResult
+
+          // Execute workflow based on type
+          if (matchedWorkflow.workflow_type === 'content_generation') {
+            workflowResult = await executeContentGenerationWorkflow(
+              matchedWorkflow,
+              workflowContext
+            )
+          } else if (matchedWorkflow.workflow_type === 'navigation') {
+            workflowResult = await executeNavigationWorkflow(
+              matchedWorkflow,
+              workflowContext
+            )
+          } else {
+            throw new Error(`Unsupported workflow type: ${matchedWorkflow.workflow_type}`)
+          }
+
+          console.log('[HGC_WORKFLOW] Workflow executed successfully:', {
+            hasInteractive: !!workflowResult.interactive,
+            hasDocument: !!workflowResult.document,
+          })
+
+          // Return workflow result
+          return NextResponse.json({
+            success: workflowResult.success,
+            response: workflowResult.response,
+            sessionId: workflowResult.sessionId,
+            interactive: workflowResult.interactive,
+            document: workflowResult.document,
+            meta: {
+              ...workflowResult.meta,
+              workflowTriggered: true,
+              workflowName: matchedWorkflow.name,
+            },
+          })
+        } catch (error: any) {
+          console.error('[HGC_WORKFLOW] Workflow execution failed:', error)
+
+          // Return error response
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Workflow execution failed: ${error.message}`,
+            },
+            { status: 500 }
+          )
+        }
+      }
+
+      console.log('[HGC_WORKFLOW] No workflow matched - continuing with normal flow')
+    }
 
     // ========================================
     // LOAD USER'S CARTRIDGE DATA UPFRONT
@@ -1127,48 +1222,7 @@ export async function POST(request: NextRequest) {
     if (lastMessage && lastMessage.role === 'user') {
       const userMessage = lastMessage.content.toLowerCase()
 
-      // INTENT: Schedule Post
-      // DISABLED: This Intent Router was too aggressive and removed agent agency
-      // It matched patterns like "post.*about" which intercepted generic "write a post" requests
-      // Now letting GPT-4o handle all "write" requests naturally with full agency
-      // User can say "No, I don't want a campaign" and agent will respect it
-      /*
-      if (userMessage.match(/schedule.*post|create.*post|post.*about|post.*tomorrow|post.*\d{1,2}(am|pm)/i)) {
-        console.log('[HGC_INTENT] Detected schedule_post intent - bypassing GPT-4o')
-
-        // Generate workflow ID
-        const workflowId = `workflow-${Date.now()}`
-
-        // Return decision buttons directly
-        return NextResponse.json({
-          success: true,
-          response: 'Would you like to create a new campaign or use an existing one?',
-          interactive: {
-            type: 'decision',
-            workflow_id: workflowId,
-            decision_options: [
-              {
-                label: 'Create New Campaign',
-                value: 'create_new',
-                icon: 'plus',
-                variant: 'primary',
-              },
-              {
-                label: 'Select From Existing Campaigns',
-                value: 'select_existing',
-                icon: 'list',
-                variant: 'secondary',
-              },
-              {
-                label: 'Continue Writing',
-                value: 'continue',
-                variant: 'secondary',
-              },
-            ],
-          },
-        })
-      }
-      */
+      // Removed old Intent Router that forced campaign selection
 
       // INTENT: EXPLICIT Campaign Launch (Post to LinkedIn) + Slash commands
       // NOTE: Removed generic "write" keywords - those fall through to natural GPT-4o conversation
@@ -1462,15 +1516,16 @@ IMPORTANT:
         ...formattedMessages.filter(msg => msg.role !== 'tool')
       ],
       tools: [
-        get_all_campaigns,
-        get_campaign_by_id,
-        create_campaign,
+        // DISABLED: Campaign tools removed - write workflow now uses database-driven workflow system
+        // get_all_campaigns,
+        // get_campaign_by_id,
+        // create_campaign,
         schedule_post,
         trigger_dm_scraper,
         get_all_pods,
         get_pod_members,
         send_pod_repost_links,
-        update_campaign_status,
+        // update_campaign_status,
         execute_linkedin_campaign
       ],
       tool_choice: 'auto'
@@ -1511,48 +1566,7 @@ IMPORTANT:
 
         console.log(`[HGC_TS] Tool call: ${functionName}`, functionArgs)
 
-        // WORKFLOW DETECTION: Intercept schedule_post without campaign_id
-        // DISABLED: This forced campaign workflows even when user explicitly said "no campaign"
-        // Now letting schedule_post() work without campaign_id for standalone posts
-        /*
-        if (functionName === 'schedule_post' && !functionArgs.campaign_id) {
-          console.log('[HGC_WORKFLOW] schedule_post called without campaign_id - returning decision buttons')
-
-          // Generate unique workflow ID
-          const workflowId = `workflow-${Date.now()}`
-
-          // Return decision buttons: Just Write, Create New, or Select Existing
-          return NextResponse.json({
-            success: true,
-            response: 'Would you like to create a new campaign or use an existing one?',
-            interactive: {
-              type: 'decision',
-              workflow_id: workflowId,
-              decision_options: [
-                {
-                  label: 'Create New Campaign',
-                  value: 'create_new',
-                  icon: 'plus',
-                  variant: 'primary',
-                },
-                {
-                  label: 'Select From Existing Campaigns',
-                  value: 'select_existing',
-                  icon: 'list',
-                  variant: 'secondary',
-                },
-                {
-                  label: 'Continue Writing',
-                  value: 'continue',
-                  variant: 'secondary',
-                },
-              ],
-              initial_content: functionArgs.content || '',
-              initial_datetime: functionArgs.schedule_time || '',
-            },
-          })
-        }
-        */
+        // Removed old schedule_post intercept that forced campaign workflows
 
         let result
         switch (functionName) {
@@ -1713,19 +1727,16 @@ export async function GET() {
     status: 'ok',
     service: 'Holy Grail Chat',
     version: '5.0.0-typescript-agentkit',
-    mode: 'native-typescript',
-    backend: 'OpenAI Function Calling',
-    features: ['OpenAI gpt-4o', 'Direct Supabase', '8 AgentKit Tools', 'Fast Response'],
+    mode: 'workflow-driven',
+    backend: 'Database-driven workflows + OpenAI Function Calling',
+    features: ['Database Workflows', 'OpenAI gpt-4o', 'Direct Supabase', 'Campaign-free Write Flow'],
     tools: [
-      'get_all_campaigns',
-      'get_campaign_by_id',
-      'create_campaign',
       'schedule_post',
       'trigger_dm_scraper',
       'get_all_pods',
       'get_pod_members',
       'send_pod_repost_links',
-      'update_campaign_status'
+      'execute_linkedin_campaign'
     ]
   })
 }

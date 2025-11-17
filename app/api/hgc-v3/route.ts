@@ -12,13 +12,14 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// REMOVED: import OpenAI from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
 
 export async function POST(req: Request) {
+  // Dynamic import to prevent tiktoken from trying to read encoder.json at build time
+  const { default: OpenAI } = await import('openai');
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
   try {
     const body = await req.json();
     const { message: directMessage, sessionId, workflow_id, decision, messages } = body;
