@@ -6,7 +6,9 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
+// CRITICAL FIX: Use 'import type' to prevent build-time bundling of OpenAI SDK
+// This file is imported by hgc-v2 route, and module-level 'import OpenAI' triggers tiktoken
+import type OpenAI from 'openai';
 
 // ===== PART 1: VOICE CARTRIDGE TYPES (EXISTING) =====
 
