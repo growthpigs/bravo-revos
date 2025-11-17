@@ -134,6 +134,29 @@ export async function POST(request: NextRequest) {
         body: errorText
       });
 
+      // MOCK MODE: If workflow not found in dev, return mock session
+      // This allows testing ChatKit UI without valid workflow IDs
+      if (isLocalhost && upstreamResponse.status === 404) {
+        const errorJson = JSON.parse(errorText);
+        const isWorkflowNotFound = errorJson.error?.message?.includes('Workflow') &&
+                                   errorJson.error?.message?.includes('not found');
+
+        if (isWorkflowNotFound) {
+          console.log('[ChatKit] 🎭 MOCK MODE: Workflow not found, returning mock session for UI testing');
+          console.log('[ChatKit] 💡 To use real workflows: Update workflow IDs in .env.local');
+
+          // Generate mock client_secret (ChatKit accepts any format for rendering)
+          const mockSecret = `mock_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+          return NextResponse.json({
+            client_secret: mockSecret,
+            expires_after: 3600,
+            _mock: true,
+            _note: 'Using mock session - ChatKit will render but won\'t call real AI'
+          });
+        }
+      }
+
       let errorMessage = 'Failed to create ChatKit session';
       try {
         const errorJson = JSON.parse(errorText);
