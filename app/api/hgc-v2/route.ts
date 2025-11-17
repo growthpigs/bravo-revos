@@ -32,10 +32,6 @@ import {
   executeNavigationWorkflow,
 } from '@/lib/console/workflow-executor';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 /**
  * Fallback console configuration
  * Used when database-driven config is unavailable
@@ -101,6 +97,17 @@ export async function POST(request: NextRequest) {
     console.log('[HGC_V2] Creating or retrieving session...');
     const session = await getOrCreateSession(supabase, user.id, sessionId, voiceId);
     console.log('[HGC_V2] Session:', { id: session.id, is_new: !sessionId });
+
+    // 2b. Initialize OpenAI client (lazy initialization prevents build-time execution)
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      console.error('[HGC_V2] OPENAI_API_KEY not configured');
+      return NextResponse.json(
+        { success: false, error: 'AI service not configured', details: 'OPENAI_API_KEY environment variable is missing' },
+        { status: 500 }
+      );
+    }
+    const openai = new OpenAI({ apiKey: openaiApiKey });
 
     // 3. Load console configuration from database (with fallback)
     let consoleConfig;
