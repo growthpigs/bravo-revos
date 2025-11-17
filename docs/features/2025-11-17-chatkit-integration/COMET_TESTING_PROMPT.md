@@ -1,5 +1,23 @@
 # Comet Browser Testing Prompt - ChatKit Integration
 
+## 🔄 UPDATE (2025-11-17 - Round 3)
+
+**FIXES APPLIED:**
+1. ✅ **Initialization deadlock FIXED** (Commit: f9b4524)
+   - ChatKit no longer stuck on "Initializing..."
+   - Component now pre-fetches client_secret before rendering
+2. ✅ **Authentication bypass ADDED** (Commit: 954ec02)
+   - Localhost no longer requires Supabase login
+   - Session endpoint detects localhost and uses mock user
+   - Look for log: `[ChatKit] 🔓 Localhost detected - bypassing authentication for testing`
+
+**EXPECTED BEHAVIOR NOW:**
+- Click "Topic Generation" → ChatKit should render (no more 401 errors)
+- Session creation should succeed with 200 OK
+- ChatKit UI should appear within 5 seconds
+
+---
+
 ## Objective
 Test the ChatKit integration on the test page and document all findings, including errors, network requests, and behavior.
 
@@ -236,41 +254,42 @@ List ALL requests to:
 
 ## Expected Issues (Known Problems)
 
-### Issue: Stuck on "Initializing ChatKit..."
+### Issue: Stuck on "Initializing ChatKit..." ✅ FIXED
 
-**Symptoms:**
-- Button clicked
-- Shows "Initializing ChatKit..." for > 10 seconds
-- No errors in console
-- Network request shows 200 OK
+**Status:** ✅ Resolved in commit f9b4524
 
-**Possible causes:**
-1. ChatKit CDN not loading
-2. Session token invalid
-3. Domain not allowlisted
-4. React component mounting issue
+**What was wrong:**
+- Chicken-and-egg problem: Component waited for session before rendering ChatKit, but ChatKit needed to render to call getClientSecret
 
-**Debug steps:**
-- Check if CDN requests fail
-- Check if WebSocket connections fail
-- Look for silent errors in console
-- Check Network tab for blocked requests
+**How it was fixed:**
+- Added manual `getClientSecret()` call in useEffect
+- Component now pre-fetches session before rendering ChatKit
+- Loading state properly transitions to ChatKit UI
 
-### Issue: 401 Unauthorized
+**Expected behavior now:**
+- "Initializing ChatKit..." should appear for < 5 seconds
+- Then ChatKit UI should render successfully
+- No more infinite loading state
 
-**Symptoms:**
-- `/api/chatkit/session` returns 401
-- Error message about authentication
+### Issue: 401 Unauthorized ✅ FIXED
 
-**Possible causes:**
-1. Supabase auth not working
-2. No user logged in
-3. Invalid session token
+**Status:** ✅ Resolved in commit 954ec02
 
-**Debug steps:**
-- Check if user is logged in
-- Try logging in first
-- Check Supabase auth state
+**What was wrong:**
+- Session endpoint required Supabase authentication
+- Test page had no login flow
+- All requests returned 401 Unauthorized
+
+**How it was fixed:**
+- Added localhost detection in session endpoint
+- Localhost requests bypass Supabase auth
+- Uses mock user `{ id: 'test-user-localhost' }` for dev testing
+- Production still requires full authentication (secure)
+
+**Expected behavior now:**
+- `/api/chatkit/session` should return 200 OK on localhost
+- Look for log: `[ChatKit] 🔓 Localhost detected - bypassing authentication for testing`
+- Session should be created successfully
 
 ### Issue: 400 Bad Request
 
