@@ -7,7 +7,8 @@
  * Philosophy: Console loads cartridges. AgentKit orchestrates. Chips execute.
  */
 
-import { Agent, run } from '@openai/agents';
+// REMOVED: import { Agent, run } from '@openai/agents'; - moved to type-only to prevent build-time tiktoken execution
+import type { Agent } from '@openai/agents';
 import { Cartridge, AgentContext, Message } from '@/lib/cartridges/types';
 // REMOVED: import OpenAI from 'openai'; - moved to type-only to prevent build-time tiktoken execution
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -23,7 +24,7 @@ export interface MarketingConsoleConfig {
 }
 
 export class MarketingConsole {
-  private agent: Agent;
+  private agent: Agent | null = null;
   private cartridges: Map<string, Cartridge> = new Map();
   private config: MarketingConsoleConfig;
   private openai: any; // OpenAI instance from constructor
@@ -34,58 +35,64 @@ export class MarketingConsole {
     this.openai = config.openai;
     this.supabase = config.supabase;
 
-    // Initialize AgentKit agent with base config
-    this.agent = new Agent({
-      name: 'MarketingConsole',
-      model: config.model || 'gpt-4o-mini',
-      instructions: config.baseInstructions,
-      modelSettings: {
-        temperature: config.temperature || 0.7,
-      },
-      tools: [], // Start with no tools
-    });
+    console.log('[MarketingConsole] Initialized (AgentKit lazy-loaded to prevent build-time execution)');
+  }
 
-    console.log('[MarketingConsole] Initialized with base configuration');
+  /**
+   * Lazy-load AgentKit Agent (prevents build-time encoder.json loading)
+   */
+  private async ensureAgent(): Promise<Agent> {
+    if (!this.agent) {
+      const { Agent } = await import('@openai/agents');
+      this.agent = new Agent({
+        name: 'MarketingConsole',
+        model: this.config.model || 'gpt-4o-mini',
+        instructions: this.config.baseInstructions,
+        modelSettings: {
+          temperature: this.config.temperature || 0.7,
+        },
+        tools: [], // Start with no tools
+      });
+
+      // Apply all loaded cartridges to the agent
+      for (const cartridge of this.cartridges.values()) {
+        const injection = cartridge.inject();
+
+        const currentTools = this.agent.tools || [];
+        const updatedConfig: any = {
+          tools: [...currentTools, ...injection.tools],
+          instructions: `${this.agent.instructions}\n\n${injection.instructions}`,
+        };
+
+        if (injection.model) {
+          updatedConfig.model = injection.model;
+        }
+
+        if (injection.temperature !== undefined) {
+          updatedConfig.modelSettings = {
+            ...this.agent.modelSettings,
+            temperature: injection.temperature,
+          };
+        }
+
+        this.agent = this.agent.clone(updatedConfig);
+        console.log(`[MarketingConsole] Applied cartridge: ${cartridge.name}`);
+      }
+
+      console.log('[MarketingConsole] AgentKit agent initialized with cartridges');
+    }
+    return this.agent;
   }
 
   /**
    * Load a cartridge into the console
    *
-   * Cartridges inject tools and instructions into the agent.
+   * Cartridges are stored and applied lazily when agent is initialized.
    */
   loadCartridge(cartridge: Cartridge): void {
-    console.log(`[MarketingConsole] Loading cartridge: ${cartridge.name} (${cartridge.type})`);
-
-    // Store cartridge
+    console.log(`[MarketingConsole] Storing cartridge: ${cartridge.name} (${cartridge.type})`);
     this.cartridges.set(cartridge.id, cartridge);
-
-    // Inject cartridge capabilities
-    const injection = cartridge.inject();
-
-    // Create updated agent config using clone()
-    const currentTools = this.agent.tools || [];
-    const updatedConfig: any = {
-      tools: [...currentTools, ...injection.tools],
-      instructions: `${this.agent.instructions}\n\n${injection.instructions}`,
-    };
-
-    // Override model if cartridge specifies
-    if (injection.model) {
-      updatedConfig.model = injection.model;
-    }
-
-    // Override temperature if cartridge specifies
-    if (injection.temperature !== undefined) {
-      updatedConfig.modelSettings = {
-        ...this.agent.modelSettings,
-        temperature: injection.temperature,
-      };
-    }
-
-    // Clone agent with updated configuration
-    this.agent = this.agent.clone(updatedConfig);
-
-    console.log(`[MarketingConsole] Cartridge loaded. Total tools: ${this.agent.tools.length}`);
+    console.log(`[MarketingConsole] Cartridge stored (will be applied on first execute())`);
   }
 
   /**
@@ -106,6 +113,9 @@ export class MarketingConsole {
   }> {
     console.log(`[MarketingConsole] Executing for user ${userId}, session ${sessionId}`);
     console.log(`[MarketingConsole] Message count: ${messages.length}`);
+
+    // Ensure agent is initialized (lazy-loaded to prevent build-time execution)
+    const agent = await this.ensureAgent();
 
     // STEP 1: Get user's client_id for tenant scoping
     let clientId = 'default-client';
@@ -165,14 +175,15 @@ export class MarketingConsole {
 
     try {
       // STEP 5: Clone agent with memory-enhanced instructions
-      let agentWithMemory = this.agent;
+      let agentWithMemory = agent;
       if (memoryContext) {
-        agentWithMemory = this.agent.clone({
-          instructions: `${this.agent.instructions}${memoryContext}`,
+        agentWithMemory = agent.clone({
+          instructions: `${agent.instructions}${memoryContext}`,
         });
       }
 
-      // STEP 6: Run agent using AgentKit's run() function
+      // STEP 6: Run agent using AgentKit's run() function (dynamic import)
+      const { run } = await import('@openai/agents');
       const result = await run(
         agentWithMemory,
         this.convertMessagesToAgentFormat(messages),
