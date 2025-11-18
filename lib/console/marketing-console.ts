@@ -356,37 +356,102 @@ export class MarketingConsole {
     // Log the structure for debugging
     console.log('[MarketingConsole] ==== EXTRACTING RESPONSE ====');
     console.log('[MarketingConsole] Result keys:', Object.keys(result || {}));
-    console.log('[MarketingConsole] Has final_output:', !!result?.final_output);
-    console.log('[MarketingConsole] Has state.modelResponses:', !!result?.state?.modelResponses);
+    console.log('[MarketingConsole] Has finalOutput:', !!result?.finalOutput);
+    console.log('[MarketingConsole] Has output:', !!result?.output);
+    console.log('[MarketingConsole] Has newItems:', !!result?.newItems);
 
-    // NEW AgentKit SDK: Check for final_output first (PRIMARY PATH)
+    // PRIORITY 1: Check result.output (Array of AgentOutputItem - the actual response)
+    // This is the primary path for @openai/agents SDK
+    if (result?.output && Array.isArray(result.output) && result.output.length > 0) {
+      console.log('[MarketingConsole] Checking result.output array, length:', result.output.length);
+
+      // Find the last message item (role: 'assistant')
+      for (let i = result.output.length - 1; i >= 0; i--) {
+        const item = result.output[i];
+        console.log(`[MarketingConsole] output[${i}] role:`, item.role, 'type:', item.type);
+
+        if (item.role === 'assistant' && item.content) {
+          // Content can be string or array of content parts
+          if (typeof item.content === 'string') {
+            console.log('[MarketingConsole] ✅ Found at output[].content (string)');
+            return this.stripMarkdownCodeBlocks(item.content);
+          }
+          if (Array.isArray(item.content)) {
+            for (const part of item.content) {
+              if (part.type === 'text' && part.text) {
+                console.log('[MarketingConsole] ✅ Found at output[].content[].text');
+                return this.stripMarkdownCodeBlocks(part.text);
+              }
+              if (part.type === 'output_text' && part.text) {
+                console.log('[MarketingConsole] ✅ Found at output[].content[] (output_text)');
+                return this.stripMarkdownCodeBlocks(part.text);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // PRIORITY 2: Check result.finalOutput (camelCase - correct SDK property name)
+    if (result?.finalOutput !== undefined && result?.finalOutput !== null) {
+      console.log('[MarketingConsole] Using finalOutput path');
+
+      if (typeof result.finalOutput === 'string') {
+        console.log('[MarketingConsole] ✅ finalOutput is string');
+        return this.stripMarkdownCodeBlocks(result.finalOutput);
+      }
+
+      if (typeof result.finalOutput === 'object') {
+        if (result.finalOutput.content) {
+          console.log('[MarketingConsole] ✅ finalOutput.content found');
+          return this.stripMarkdownCodeBlocks(result.finalOutput.content);
+        }
+        if (result.finalOutput.text) {
+          console.log('[MarketingConsole] ✅ finalOutput.text found');
+          return this.stripMarkdownCodeBlocks(result.finalOutput.text);
+        }
+        console.log('[MarketingConsole] ✅ Stringifying finalOutput object');
+        return JSON.stringify(result.finalOutput, null, 2);
+      }
+
+      console.log('[MarketingConsole] ✅ Converting finalOutput to string');
+      return this.stripMarkdownCodeBlocks(String(result.finalOutput));
+    }
+
+    // PRIORITY 3: Check result.newItems (RunItem[] - includes messages)
+    if (result?.newItems && Array.isArray(result.newItems) && result.newItems.length > 0) {
+      console.log('[MarketingConsole] Checking result.newItems array, length:', result.newItems.length);
+
+      for (let i = result.newItems.length - 1; i >= 0; i--) {
+        const item = result.newItems[i];
+        console.log(`[MarketingConsole] newItems[${i}] type:`, item.type);
+
+        if (item.type === 'message' && item.content) {
+          if (typeof item.content === 'string') {
+            console.log('[MarketingConsole] ✅ Found at newItems[].content (string)');
+            return this.stripMarkdownCodeBlocks(item.content);
+          }
+          if (Array.isArray(item.content)) {
+            for (const part of item.content) {
+              if ((part.type === 'text' || part.type === 'output_text') && part.text) {
+                console.log('[MarketingConsole] ✅ Found at newItems[].content[].text');
+                return this.stripMarkdownCodeBlocks(part.text);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // LEGACY: Check for snake_case final_output (older SDK versions)
     if (result?.final_output !== undefined && result?.final_output !== null) {
-      console.log('[MarketingConsole] Using final_output path');
-
-      // Case 1: final_output is a string (most common)
+      console.log('[MarketingConsole] Using legacy final_output path');
       if (typeof result.final_output === 'string') {
-        console.log('[MarketingConsole] ✅ final_output is string');
         return this.stripMarkdownCodeBlocks(result.final_output);
       }
-
-      // Case 2: final_output is a Pydantic model or object with content property
-      if (typeof result.final_output === 'object') {
-        if (result.final_output.content) {
-          console.log('[MarketingConsole] ✅ final_output.content found');
-          return this.stripMarkdownCodeBlocks(result.final_output.content);
-        }
-        if (result.final_output.text) {
-          console.log('[MarketingConsole] ✅ final_output.text found');
-          return this.stripMarkdownCodeBlocks(result.final_output.text);
-        }
-        // Stringify the whole object as fallback
-        console.log('[MarketingConsole] ✅ Stringifying final_output object');
-        return JSON.stringify(result.final_output, null, 2);
+      if (typeof result.final_output === 'object' && result.final_output.content) {
+        return this.stripMarkdownCodeBlocks(result.final_output.content);
       }
-
-      // Case 3: Other types - convert to string
-      console.log('[MarketingConsole] ✅ Converting final_output to string');
-      return this.stripMarkdownCodeBlocks(String(result.final_output));
     }
 
     // AGENTKIT SDK: result.modelResponses (TOP LEVEL, not in state!)
