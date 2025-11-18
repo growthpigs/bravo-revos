@@ -169,6 +169,18 @@ async function executeTopicGeneration(
 
     console.log('[WorkflowExecutor] Topics generated:', topicOptions.length);
 
+    // DIAGNOSTIC: Check brand cartridge data
+    console.log('[WorkflowExecutor] 🔍 Brand cartridge diagnostic:', {
+      has_cartridges_obj: !!context.cartridges,
+      has_brand: !!context.cartridges?.brand,
+      brand_data: context.cartridges?.brand ? {
+        industry: context.cartridges.brand.industry,
+        target_audience: context.cartridges.brand.target_audience,
+        has_core_messaging: !!context.cartridges.brand.core_messaging,
+        has_brand_voice: !!context.cartridges.brand.brand_voice
+      } : null
+    });
+
     // Format brand context for display
     const brandContextMessage = [
       '📋 **Brand Context Loaded**',

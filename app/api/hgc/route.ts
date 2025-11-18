@@ -905,15 +905,31 @@ export async function POST(request: NextRequest) {
     let brandDataUpfront = null
     let styleDataUpfront = null
 
+    // DIAGNOSTIC: Log brand cartridge query
+    console.log('[HGC_LEGACY] Querying brand_cartridges for user:', user.id)
+
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('brand_cartridges')
         .select('core_messaging, industry, core_values, target_audience, brand_voice')
         .eq('user_id', user.id)
         .single()
-      brandDataUpfront = data
+
+      if (error) {
+        console.error('[HGC_LEGACY] ❌ Brand cartridge query error:', error.message, error.code)
+        console.error('[HGC_LEGACY] Error details:', error)
+      } else if (data) {
+        console.log('[HGC_LEGACY] ✅ Brand cartridge found:', {
+          industry: data.industry,
+          target_audience: data.target_audience,
+          has_core_messaging: !!data.core_messaging
+        })
+        brandDataUpfront = data
+      } else {
+        console.log('[HGC_LEGACY] ⚠️ No brand cartridge data returned (not an error, just null)')
+      }
     } catch (e) {
-      // User may not have brand cartridge yet
+      console.error('[HGC_LEGACY] ❌ Brand cartridge query exception:', e)
     }
 
     try {
