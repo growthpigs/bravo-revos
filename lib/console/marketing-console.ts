@@ -295,6 +295,60 @@ export class MarketingConsole {
    * AgentKit returns complex result object - extract the text.
    */
   private extractResponseText(result: any): string {
+    // 🔍 CRITICAL DIAGNOSTICS - CTO's analysis
+    console.log('🔍 [EXTRACTION_START] Full result type:', typeof result);
+    console.log('🔍 [EXTRACTION_START] Result keys:', Object.keys(result || {}));
+    console.log('🔍 [EXTRACTION_START] Is array?:', Array.isArray(result));
+
+    // Check for various fields that might contain topics
+    if (result?.choices) {
+      console.log('🔍 [HAS_CHOICES] choices:', JSON.stringify(result.choices).substring(0, 500));
+    }
+    if (result?.topics) {
+      console.log('🔍 [HAS_TOPICS] topics:', JSON.stringify(result.topics).substring(0, 500));
+    }
+    if (result?.options) {
+      console.log('🔍 [HAS_OPTIONS] options:', JSON.stringify(result.options).substring(0, 500));
+    }
+    if (result?.output) {
+      console.log('🔍 [HAS_OUTPUT] output type:', typeof result.output);
+      console.log('🔍 [HAS_OUTPUT] is array?:', Array.isArray(result.output));
+      if (typeof result.output === 'string') {
+        console.log('🔍 [HAS_OUTPUT] string value:', result.output.substring(0, 500));
+      } else {
+        console.log('🔍 [HAS_OUTPUT] value:', JSON.stringify(result.output).substring(0, 500));
+      }
+    }
+
+    // Check modelResponses structure
+    if (result?.modelResponses) {
+      console.log('🔍 [MODEL_RESPONSES] Length:', result.modelResponses.length);
+      console.log('🔍 [MODEL_RESPONSES] First item keys:', Object.keys(result.modelResponses[0] || {}));
+      const lastResp = result.modelResponses[result.modelResponses.length - 1];
+      console.log('🔍 [MODEL_RESPONSES] Last item keys:', Object.keys(lastResp || {}));
+      if (lastResp?.text) {
+        console.log('🔍 [MODEL_RESPONSES] Last text:', lastResp.text.substring(0, 500));
+      }
+      if (lastResp?.content) {
+        console.log('🔍 [MODEL_RESPONSES] Last content:', JSON.stringify(lastResp.content).substring(0, 500));
+      }
+      if (lastResp?.message) {
+        console.log('🔍 [MODEL_RESPONSES] Last message:', JSON.stringify(lastResp.message).substring(0, 500));
+      }
+    }
+
+    // Check new_items which might have the response in newer AgentKit versions
+    if (result?.new_items) {
+      console.log('🔍 [HAS_NEW_ITEMS] count:', result.new_items.length);
+      result.new_items.forEach((item: any, i: number) => {
+        console.log(`🔍 [NEW_ITEM_${i}] type:`, item.type || typeof item);
+        console.log(`🔍 [NEW_ITEM_${i}] keys:`, Object.keys(item || {}));
+        if (item.content) {
+          console.log(`🔍 [NEW_ITEM_${i}] content:`, JSON.stringify(item.content).substring(0, 300));
+        }
+      });
+    }
+
     // 🔍 DIAGNOSTIC: Log the ENTIRE result object (for debugging)
     console.log('[DIAGNOSTIC] Full result object keys:', Object.keys(result));
     console.log('[DIAGNOSTIC] Full result structure (first 5000 chars):', this.safeStringify(result).substring(0, 5000));
