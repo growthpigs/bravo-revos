@@ -304,7 +304,9 @@ export class MarketingConsole {
     // 🔍 TEMPORARY DEBUG: Return the full result as JSON so we can see it in frontend
     if (process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'preview') {
       console.log('[DEBUG] Returning full result for inspection');
-      return JSON.stringify(result, null, 2).substring(0, 1000);
+      const safeResult = this.safeStringify(result).substring(0, 2000);
+      console.log('[DEBUG] Safe result:', safeResult);
+      return safeResult;
     }
 
     // Log what we're checking for
