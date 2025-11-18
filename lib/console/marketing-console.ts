@@ -16,6 +16,11 @@ import { searchMemories, addMemory } from '@/lib/mem0/memory';
 // Store Agent class after first dynamic import
 let AgentClass: any | null = null;
 
+// ⚠️ CRITICAL: AgentKit version that is known to work
+// If this version changes, the extraction paths may break
+const EXPECTED_AGENTKIT_VERSION = '0.3.0';
+let agentKitVersionChecked = false;
+
 export interface MarketingConsoleConfig {
   model?: string;
   temperature?: number;
@@ -48,6 +53,25 @@ export class MarketingConsole {
       if (!AgentClass) {
         const imported = await import('@openai/agents');
         AgentClass = imported.Agent;
+
+        // Version check - warn if AgentKit version changed
+        if (!agentKitVersionChecked) {
+          agentKitVersionChecked = true;
+          try {
+            // Use require to avoid TS module resolution issues
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const pkgJson = require('@openai/agents/package.json') as { version: string };
+            const currentVersion = pkgJson.version;
+            if (currentVersion !== EXPECTED_AGENTKIT_VERSION) {
+              console.warn(`⚠️ [MarketingConsole] AgentKit version changed: expected ${EXPECTED_AGENTKIT_VERSION}, got ${currentVersion}`);
+              console.warn(`⚠️ [MarketingConsole] Response extraction paths may break - test immediately!`);
+            } else {
+              console.log(`[MarketingConsole] ✅ AgentKit version verified: ${currentVersion}`);
+            }
+          } catch (e) {
+            console.warn('[MarketingConsole] Could not verify AgentKit version:', e);
+          }
+        }
       }
       this.agent = new AgentClass({
         name: 'MarketingConsole',

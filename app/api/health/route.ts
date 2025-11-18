@@ -13,7 +13,7 @@ export async function GET() {
     database: await checkDatabase(),
     supabase: await checkSupabase(),
     api: { status: 'healthy' }, // If this responds, API is up
-    agentkit: { status: 'healthy' }, // TODO: Real check
+    agentkit: await checkAgentKit(), // ✅ Real AgentKit version check
     mem0: await checkMem0(), // ✅ Real Mem0 health check
     unipile: { status: 'healthy' }, // TODO: Real check
     email: { status: 'healthy' }, // TODO: Real check
@@ -99,6 +99,52 @@ async function checkMem0() {
     return {
       status: 'unhealthy',
       error: error.message || 'Connection failed',
+    };
+  }
+}
+
+/**
+ * Check AgentKit SDK version and import functionality
+ * Tests: Package import, version match
+ */
+async function checkAgentKit() {
+  const EXPECTED_VERSION = '0.3.0';
+
+  try {
+    const start = Date.now();
+
+    // Dynamic import to verify AgentKit loads
+    const agentKit = await import('@openai/agents');
+
+    // Check version using require (avoids TS module resolution issues)
+    let version = 'unknown';
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pkgJson = require('@openai/agents/package.json') as { version: string };
+      version = pkgJson.version;
+    } catch {
+      // Version check failed, but import worked
+    }
+
+    const latency = Date.now() - start;
+    const versionMatch = version === EXPECTED_VERSION;
+
+    return {
+      status: versionMatch ? 'healthy' : 'degraded',
+      version,
+      expectedVersion: EXPECTED_VERSION,
+      latency,
+      message: !versionMatch ? `Version mismatch: expected ${EXPECTED_VERSION}, got ${version}` : undefined,
+      hasAgent: !!agentKit.Agent,
+      hasRun: !!agentKit.run,
+    };
+  } catch (error: any) {
+    console.error('[HEALTH_CHECK] AgentKit check failed:', error.message);
+
+    return {
+      status: 'unhealthy',
+      error: error.message || 'Import failed',
+      expectedVersion: EXPECTED_VERSION,
     };
   }
 }
