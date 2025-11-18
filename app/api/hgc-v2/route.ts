@@ -25,6 +25,8 @@ import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-l
 import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/session-manager';
 import { OrchestrationResponseBuilder } from '@/lib/orchestration/response-builder';
 import { retrieveAllCartridges } from '@/lib/cartridges/retrieval';
+import { loadAllUserCartridges } from '@/lib/cartridges/loaders';
+import { detectPlatformFromCommand } from '@/lib/console/platform-detector';
 import { ZodError } from 'zod';
 import { findWorkflowByTrigger } from '@/lib/console/workflow-loader';
 import {
@@ -152,11 +154,36 @@ export async function POST(request: NextRequest) {
       cartridgeMemories = {}; // Graceful degradation - continue without cartridges
     }
 
-    // 4. Initialize MarketingConsole with database-driven config + cartridge memories
+    // 3b. Detect platform from user message
+    const platform = detectPlatformFromCommand(message);
+    console.log('[HGC_V2] Detected platform:', platform);
+
+    // 3c. Load brand, swipe, and platform template cartridges
+    console.log('[HGC_V2] Loading user cartridges (brand, swipe, platform)...');
+    let userCartridges;
+    try {
+      userCartridges = await loadAllUserCartridges(user.id, platform, supabase);
+      console.log('[HGC_V2] User cartridges loaded:', {
+        hasBrand: !!userCartridges.brand,
+        swipeCount: userCartridges.swipes.length,
+        hasPlatformTemplate: !!userCartridges.platformTemplate,
+      });
+    } catch (error: any) {
+      console.error('[HGC_V2] Failed to load user cartridges:', error.message);
+      userCartridges = { swipes: [] }; // Graceful degradation - continue without cartridges
+    }
+
+    // 4. Initialize MarketingConsole with database-driven config + all cartridges
     const console_instance = new MarketingConsole({
       model: 'gpt-4o-mini',
       temperature: 0.7,
-      baseInstructions: assembleSystemPrompt(consoleConfig, cartridgeMemories),
+      baseInstructions: assembleSystemPrompt(
+        consoleConfig,
+        cartridgeMemories,
+        userCartridges.brand,
+        userCartridges.swipes,
+        userCartridges.platformTemplate
+      ),
       openai,
       supabase,
     });
