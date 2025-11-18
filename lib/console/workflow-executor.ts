@@ -187,8 +187,6 @@ async function executeTopicGeneration(
       '',
       `**Industry:** ${context.cartridges.brand?.industry || 'N/A'}`,
       `**Target Audience:** ${context.cartridges.brand?.target_audience || 'N/A'}`,
-      context.cartridges.brand?.brand_voice ? `**Brand Voice:** ${context.cartridges.brand.brand_voice}` : null,
-      context.cartridges.brand?.core_messaging ? `\n${context.cartridges.brand.core_messaging.slice(0, 200)}${context.cartridges.brand.core_messaging.length > 200 ? '...' : ''}` : null,
       '',
       'Select a topic to write about:',
     ].filter(Boolean).join('\n');
