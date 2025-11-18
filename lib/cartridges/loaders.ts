@@ -18,7 +18,6 @@ export interface BrandCartridge {
   brand_voice?: string;
   brand_personality?: string[];
   core_messaging?: string; // 10k+ words of marketing messaging
-  is_active: boolean;
 }
 
 export interface SwipeCartridge {
@@ -62,15 +61,17 @@ export async function loadBrandCartridge(
       .from('brand_cartridges')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .single();
 
     if (error || !data) {
-      console.log(`[LOADER] No brand cartridge found for user: ${userId}`);
+      console.log(`[LOADER] No brand cartridge found for user: ${userId}`, error);
       return undefined;
     }
 
-    console.log(`[LOADER] ✅ Brand cartridge loaded for user: ${userId}`);
+    console.log(`[LOADER] ✅ Brand cartridge loaded for user: ${userId}`, {
+      industry: data.industry,
+      target_audience: data.target_audience
+    });
     return data as BrandCartridge;
   } catch (error) {
     console.error('[LOADER] Error loading brand cartridge:', error);
