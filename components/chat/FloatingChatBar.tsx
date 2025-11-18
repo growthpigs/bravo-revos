@@ -594,7 +594,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Get background color for action button (consistent gray shades)
   const getButtonColor = (isPrimary?: boolean): string => {
     if (isPrimary) return 'bg-gray-800 text-white hover:bg-gray-900';
-    return 'bg-gray-400 text-gray-800 hover:bg-gray-500';
+    return 'bg-gray-200 text-gray-800 hover:bg-gray-300';
   };
 
   // Handle action button clicks
