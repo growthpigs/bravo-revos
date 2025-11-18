@@ -765,6 +765,26 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           console.log('[HGC_STREAM] 🔍 Document object:', data.document);
         }
 
+        // Handle document field FIRST - send content to working document area
+        // This happens regardless of whether response is empty
+        console.log('[FCB] Checking for document field:', {
+          hasDocument: !!data.document,
+          hasContent: !!data.document?.content,
+          contentLength: data.document?.content?.length,
+          documentData: data.document
+        });
+
+        if (data.document && data.document.content) {
+          console.log('[FCB] 📄 Document field detected - sending to working document area');
+          console.log('[FCB] Document content:', data.document.content.substring(0, 100));
+          console.log('[FCB] 🎬 Setting fullscreen = true (was:', isFullscreen, ')');
+          setIsFullscreen(true);
+          setDocumentContent(data.document.content);
+          setDocumentTitle(data.document.title || 'Working Document');
+          console.log('[FCB] ✅ Document state updated, will render on next cycle');
+        }
+
+        // Only add chat message if response is not empty
         if (data.response) {
           const assistantContent = data.response;
           const cleanContent = deduplicateLines(
@@ -809,25 +829,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             console.log('[FCB] 🗑️ Document cleared - AFTER (state will update on next render)');
           }
 
-          // Handle document field - send content to working document area
-          console.log('[FCB] Checking for document field:', {
-            hasDocument: !!data.document,
-            hasContent: !!data.document?.content,
-            contentLength: data.document?.content?.length,
-            documentData: data.document
-          });
-
-          if (data.document && data.document.content) {
-            console.log('[FCB] 📄 Document field detected - sending to working document area');
-            console.log('[FCB] Document content:', data.document.content.substring(0, 100));
-            console.log('[FCB] 🎬 Setting fullscreen = true (was:', isFullscreen, ')');
-            setIsFullscreen(true);
-            setDocumentContent(data.document.content);
-            setDocumentTitle(data.document.title || 'Working Document');
-            setDocumentSourceMessageId(assistantMessage.id);
-            console.log('[FCB] ✅ Document state updated, will render on next cycle');
-          } else {
-            // Auto-fullscreen if content > 500 chars AND user triggered document creation
+          // Auto-fullscreen if content > 500 chars AND user triggered document creation
+          if (!data.document) {
             console.log('[FCB] JSON response - content length:', cleanContent.length, 'isFullscreen:', isFullscreen);
             if (cleanContent.length > 500 && !isFullscreen) {
               const shouldTrigger = hasDocumentCreationTrigger();
@@ -1832,42 +1835,49 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               <div className="px-16 pb-12" style={{ paddingTop: '100px' }}>
                 <div className="max-w-4xl text-left">
                   {documentContent ? (
-                    <div className="prose prose-lg max-w-none text-left">
-                      <ReactMarkdown
-                        components={{
-                        h1: ({ children }) => (
-                          <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="text-5xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
-                        ),
-                        p: ({ children }) => (
-                          <p className="text-lg leading-relaxed mb-4 text-gray-700">{children}</p>
-                        ),
-                        strong: ({ children }) => (
-                          <strong className="font-bold text-gray-900">{children}</strong>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">{children}</ol>
-                        ),
-                        li: ({ children }) => (
-                          <li className="text-gray-700">{children}</li>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
-                        ),
-                        hr: () => null,
-                      }}
-                      >
+                    // Check if this is the placeholder text
+                    documentContent.startsWith('[') && documentContent.endsWith(']') ? (
+                      <p className="font-mono text-xs uppercase tracking-wide text-gray-400">
                         {documentContent}
-                      </ReactMarkdown>
-                    </div>
+                      </p>
+                    ) : (
+                      <div className="prose prose-lg max-w-none text-left">
+                        <ReactMarkdown
+                          components={{
+                          h1: ({ children }) => (
+                            <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-5xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-lg leading-relaxed mb-4 text-gray-700">{children}</p>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-bold text-gray-900">{children}</strong>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">{children}</ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-gray-700">{children}</li>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
+                          ),
+                          hr: () => null,
+                        }}
+                        >
+                          {documentContent}
+                        </ReactMarkdown>
+                      </div>
+                    )
                   ) : null}
                 </div>
               </div>

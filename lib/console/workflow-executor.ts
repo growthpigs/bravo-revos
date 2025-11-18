@@ -205,7 +205,7 @@ async function executeTopicGeneration(
       },
       document: {
         title: 'LinkedIn Post',
-        content: '_(Awaiting topic selection...)_',
+        content: '[SELECT A HOOK FOR YOUR LINKEDIN POST FROM ONE OF THE FOUR BUTTONS]',
       },
       meta: {
         workflowName: workflow.name,
@@ -274,25 +274,20 @@ async function executePostGeneration(
       [{ role: 'user', content: `Write a LinkedIn post about: ${topicSlug}` }]
     );
 
-    // Save messages
+    // Save messages (minimal - just the user action)
     await supabase.from('hgc_messages').insert([
       { session_id: session.id, role: 'user', content: message },
-      {
-        session_id: session.id,
-        role: 'assistant',
-        content: '✅ LinkedIn post generated in working document',
-      },
     ]);
 
     console.log('[WorkflowExecutor] Post generated successfully');
 
     return {
       success: true,
-      response: '✅ LinkedIn post generated in working document',
+      response: '', // No chat fluff - content goes directly to document
       sessionId: session.id,
       document: {
         content: result.response,
-        title: 'LinkedIn Post Draft'
+        title: 'LinkedIn Post'
       },
       meta: {
         workflowName: workflow.name,
