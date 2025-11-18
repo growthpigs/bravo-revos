@@ -181,21 +181,18 @@ async function executeTopicGeneration(
       } : null
     });
 
-    // Format brand context for display - each field on its own line
+    // Format brand context for display - use double newlines for markdown paragraph breaks
     const brandContextMessage = [
       '**Brand Context Loaded**',
-      '',
       `**Industry:** ${context.cartridges.brand?.industry || 'N/A'}`,
       `**Target Audience:** ${context.cartridges.brand?.target_audience || 'N/A'}`,
-      '',
       '**Ideal Customer Profile (ICP DNA)**',
       '**Burning Question:**',
       context.cartridges.brand?.core_messaging
         ? `"${context.cartridges.brand.core_messaging.slice(0, 200)}${context.cartridges.brand.core_messaging.length > 200 ? '...' : ''}"`
         : '',
-      '',
       'Select a topic to write about:',
-    ].filter(Boolean).join('\n');
+    ].filter(Boolean).join('\n\n');
 
     return {
       success: true,
