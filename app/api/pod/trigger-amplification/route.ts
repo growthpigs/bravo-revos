@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { podAmplificationQueue } from '@/lib/queues/pod-queue';
+import { getPodAmplificationQueue } from '@/lib/queues/pod-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Queue amplification job
+    const podAmplificationQueue = getPodAmplificationQueue();
     const job = await podAmplificationQueue.add(
       'amplify-post',
       {
