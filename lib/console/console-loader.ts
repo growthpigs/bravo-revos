@@ -22,6 +22,11 @@ import {
   formatStyleForPrompt,
   formatInstructionsForPrompt,
 } from '@/lib/cartridges/retrieval';
+import {
+  BrandCartridge,
+  SwipeCartridge,
+  PlatformTemplate,
+} from '@/lib/cartridges/loaders';
 
 /**
  * Load console configuration from database by name
@@ -198,48 +203,206 @@ export const loadAllConsoles = cache(async function loadAllConsoles(
   }
 });
 
+// ============================================================================
+// HELPER FUNCTIONS FOR PROMPT FORMATTING
+// ============================================================================
+
 /**
- * Assemble comprehensive system prompt from all 8 cartridges
+ * Format brand cartridge data for system prompt
+ */
+function formatBrandForPrompt(brand: BrandCartridge): string {
+  const parts: string[] = [];
+
+  if (brand.company_name) {
+    parts.push(`Company: ${brand.company_name}`);
+  }
+
+  if (brand.industry) {
+    parts.push(`Industry: ${brand.industry}`);
+  }
+
+  if (brand.target_audience) {
+    parts.push(`Target Audience: ${brand.target_audience}`);
+  }
+
+  if (brand.brand_voice) {
+    parts.push(`Brand Voice: ${brand.brand_voice}`);
+  }
+
+  if (brand.brand_personality && brand.brand_personality.length > 0) {
+    parts.push(`Personality Traits: ${brand.brand_personality.join(', ')}`);
+  }
+
+  if (brand.core_values && brand.core_values.length > 0) {
+    parts.push(`Core Values: ${brand.core_values.join(', ')}`);
+  }
+
+  if (brand.company_description) {
+    parts.push(`\nDescription:\n${brand.company_description}`);
+  }
+
+  // Core messaging is handled separately for token truncation
+  if (brand.core_messaging) {
+    parts.push(`\nCore Messaging:\n${brand.core_messaging}`);
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Format swipe cartridge examples for system prompt
+ */
+function formatSwipesForPrompt(swipes: SwipeCartridge[]): string {
+  if (swipes.length === 0) return '';
+
+  const parts: string[] = [];
+
+  for (const swipe of swipes) {
+    parts.push(`\n${swipe.category.toUpperCase().replace('_', ' ')} EXAMPLES:`);
+
+    if (swipe.examples && swipe.examples.length > 0) {
+      for (const example of swipe.examples.slice(0, 5)) { // Limit to 5 examples per category
+        parts.push(`\nAuthor: ${example.author}`);
+        parts.push(`Text: ${example.text}`);
+        if (example.notes) {
+          parts.push(`Notes: ${example.notes}`);
+        }
+        if (example.performance) {
+          parts.push(`Performance: ${example.performance}`);
+        }
+        parts.push('---');
+      }
+    }
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Format platform template for system prompt
+ */
+function formatPlatformForPrompt(platform: PlatformTemplate): string {
+  const parts: string[] = [];
+
+  parts.push(`Platform: ${platform.platform.toUpperCase()}`);
+  parts.push(`Max Length: ${platform.max_length} characters`);
+  parts.push(`Tone: ${platform.tone.join(', ')}`);
+
+  if (platform.structure) {
+    parts.push(`\nStructure:`);
+    for (const [key, value] of Object.entries(platform.structure)) {
+      parts.push(`- ${key}: ${value}`);
+    }
+  }
+
+  if (platform.formatting) {
+    parts.push(`\nFormatting:`);
+    for (const [key, value] of Object.entries(platform.formatting)) {
+      parts.push(`- ${key}: ${value}`);
+    }
+  }
+
+  if (platform.best_practices && platform.best_practices.length > 0) {
+    parts.push(`\nBest Practices:`);
+    platform.best_practices.forEach(practice => {
+      parts.push(`- ${practice}`);
+    });
+  }
+
+  if (platform.example_structure) {
+    parts.push(`\nExample Structure:\n${platform.example_structure}`);
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Proportionally truncate core messaging and swipe examples to fit token budget
+ */
+function truncateProportionally(
+  coreMessaging: string,
+  swipeText: string,
+  maxTokens: number,
+  currentTokenCount: number
+): { coreMessaging: string; swipeText: string } {
+  const excessTokens = currentTokenCount - maxTokens;
+
+  if (excessTokens <= 0) {
+    return { coreMessaging, swipeText };
+  }
+
+  // Count tokens in each section
+  const coreTokens = encode(coreMessaging).length;
+  const swipeTokens = encode(swipeText).length;
+  const totalTruncatableTokens = coreTokens + swipeTokens;
+
+  if (totalTruncatableTokens === 0) {
+    return { coreMessaging, swipeText };
+  }
+
+  // Calculate proportional reduction
+  const coreReduction = Math.floor((coreTokens / totalTruncatableTokens) * excessTokens);
+  const swipeReduction = excessTokens - coreReduction;
+
+  // Truncate core messaging
+  const coreTargetTokens = Math.max(0, coreTokens - coreReduction);
+  let truncatedCore = coreMessaging;
+  if (coreTargetTokens < coreTokens) {
+    const coreChars = Math.floor((coreTargetTokens / coreTokens) * coreMessaging.length);
+    truncatedCore = coreMessaging.substring(0, coreChars) + '\n\n[...truncated for token limit]';
+  }
+
+  // Truncate swipe examples
+  const swipeTargetTokens = Math.max(0, swipeTokens - swipeReduction);
+  let truncatedSwipe = swipeText;
+  if (swipeTargetTokens < swipeTokens) {
+    const swipeChars = Math.floor((swipeTargetTokens / swipeTokens) * swipeText.length);
+    truncatedSwipe = swipeText.substring(0, swipeChars) + '\n\n[...truncated for token limit]';
+  }
+
+  return {
+    coreMessaging: truncatedCore,
+    swipeText: truncatedSwipe
+  };
+}
+
+/**
+ * Assemble comprehensive system prompt from all cartridge sources
  *
- * Combines all cartridges into a structured prompt for AI orchestration with AgentKit.
+ * Combines console cartridges + client cartridges + platform rules into structured prompt.
  *
  * **Cartridge Precedence & Purpose:**
  * 1. System: Base prompt, role, behavioral rules (foundation)
  * 2. Context: Domain knowledge, app features, structure (environment)
- * 3. Style (from Mem0): User's writing style preferences (if available)
- * 4. Instructions (from Mem0): User's content generation rules (if available)
- * 5. Skills: Available capabilities/chips (what AI can do)
- * 6. Plugins: MCP server requirements (external integrations)
- * 7. Knowledge: Docs, examples, best practices (reference material)
- * 8. Memory: Mem0 scoping and guidelines (what to remember)
- * 9. UI: Inline buttons, fullscreen triggers (interaction patterns)
- *
- * **Fallback Logic:**
- * - If systemCartridge.systemPrompt is empty, uses legacy `system_instructions` field
- * - Each section provides safe defaults (e.g., "Assistant" for missing role)
- * - Empty arrays render as "No specific capabilities defined"
- * - cartridgeMemories parameter is optional (graceful if not provided)
+ * 3. Brand: Company identity, core messaging, target audience
+ * 4. Style (from Mem0 + DB): User's writing style preferences
+ * 5. Instructions (from Mem0 + DB): Content generation rules
+ * 6. Swipe: External copywriting examples (Gary Halbert, Jon Benson)
+ * 7. Platform: LinkedIn/Facebook/WhatsApp formatting rules
+ * 8. Skills: Available capabilities/chips
+ * 9. Plugins: MCP server requirements
+ * 10. Knowledge: Docs, examples, best practices
+ * 11. Memory: Mem0 scoping guidelines
+ * 12. UI: Inline buttons, fullscreen triggers
  *
  * **Token Management:**
- * - Uses gpt-3-encoder to count tokens in final prompt
- * - Warns if >8000 tokens (>50% of GPT-4 8K context)
- * - Info log if >4000 tokens (helps track prompt growth)
+ * - Target: 8,000 tokens max (50% of GPT-4 16K context)
+ * - Proportional truncation if exceeded (core_messaging + swipe examples)
+ * - Warns if exceeds limit after truncation
  *
- * @param config - Console configuration with all 8 cartridges loaded from database
- * @param cartridgeMemories - Optional Style and Instructions cartridges from Mem0
- * @returns Comprehensive system prompt string (never undefined, always returns valid prompt)
- *
- * @example
- * ```typescript
- * const config = await loadConsolePrompt('marketing-console-v1', supabase);
- * const cartridges = await retrieveAllCartridges(userId);
- * const prompt = assembleSystemPrompt(config, cartridges);
- * // Returns: "You are RevOS Intelligence...\n\nWRITING STYLE\nTone: Professional..."
- * ```
+ * @param config - Console configuration with 8 cartridges
+ * @param cartridgeMemories - Style/Instructions from Mem0
+ * @param brandCartridge - User's brand identity (optional)
+ * @param swipeCartridges - External copywriting examples (optional)
+ * @param platformTemplate - Platform-specific rules (optional)
+ * @returns Comprehensive system prompt string
  */
 export function assembleSystemPrompt(
   config: ConsoleConfig,
-  cartridgeMemories?: CartridgeMemories
+  cartridgeMemories?: CartridgeMemories,
+  brandCartridge?: any,
+  swipeCartridges?: any[],
+  platformTemplate?: any
 ): string {
   const { systemCartridge, contextCartridge, skillsCartridge, pluginsCartridge,
           knowledgeCartridge, memoryCartridge, uiCartridge, systemInstructions } = config;
@@ -270,7 +433,18 @@ export function assembleSystemPrompt(
     sections.push(`\nAPP FEATURES:\n${contextCartridge.appFeatures.map(f => `- ${f}`).join('\n')}`);
   }
 
-  // 4. WRITING STYLE (from Mem0 Style cartridge) - INJECTED HERE
+  // 4. BRAND CONTEXT (from brand_cartridges table) - User's company/industry
+  if (brandCartridge) {
+    const brandPrompt = formatBrandForPrompt(brandCartridge);
+    if (brandPrompt) {
+      sections.push(`\nBRAND CONTEXT:\n${brandPrompt}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CONSOLE_LOADER] Injected Brand cartridge into system prompt');
+      }
+    }
+  }
+
+  // 5. WRITING STYLE (from Mem0 Style cartridge) - User's personal style
   if (cartridgeMemories?.style) {
     const stylePrompt = formatStyleForPrompt(cartridgeMemories.style);
     if (stylePrompt) {
@@ -281,14 +455,7 @@ export function assembleSystemPrompt(
     }
   }
 
-  // 5. Available capabilities
-  sections.push(`\nAVAILABLE CAPABILITIES:\n${
-    skillsCartridge?.chips && skillsCartridge.chips.length > 0
-      ? skillsCartridge.chips.map(c => `- ${c.name}: ${c.description}`).join('\n')
-      : 'No specific capabilities defined'
-  }`);
-
-  // 6. CONTENT INSTRUCTIONS (from Mem0 Instructions cartridge) - INJECTED HERE
+  // 6. CONTENT INSTRUCTIONS (from Mem0 Instructions cartridge) - Content generation rules
   if (cartridgeMemories?.instructions) {
     const instructionsPrompt = formatInstructionsForPrompt(cartridgeMemories.instructions);
     if (instructionsPrompt) {
@@ -299,7 +466,36 @@ export function assembleSystemPrompt(
     }
   }
 
-  // 7. UI guidelines
+  // 7. SWIPE FILES (from swipe_cartridges table) - External copywriting examples
+  if (swipeCartridges && swipeCartridges.length > 0) {
+    const swipePrompt = formatSwipesForPrompt(swipeCartridges);
+    if (swipePrompt) {
+      sections.push(`\nSWIPE FILES (External Examples):${swipePrompt}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CONSOLE_LOADER] Injected Swipe cartridges into system prompt');
+      }
+    }
+  }
+
+  // 8. PLATFORM GUIDELINES (from JSON templates) - LinkedIn/Facebook/WhatsApp rules
+  if (platformTemplate) {
+    const platformPrompt = formatPlatformForPrompt(platformTemplate);
+    if (platformPrompt) {
+      sections.push(`\nPLATFORM GUIDELINES:\n${platformPrompt}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[CONSOLE_LOADER] Injected Platform template into system prompt');
+      }
+    }
+  }
+
+  // 9. Available capabilities
+  sections.push(`\nAVAILABLE CAPABILITIES:\n${
+    skillsCartridge?.chips && skillsCartridge.chips.length > 0
+      ? skillsCartridge.chips.map(c => `- ${c.name}: ${c.description}`).join('\n')
+      : 'No specific capabilities defined'
+  }`);
+
+  // 10. UI guidelines
   sections.push(`\nUI GUIDELINES - INLINE BUTTONS (CRITICAL):
 - Frequency: ${uiCartridge?.inlineButtons?.frequency || '80% of responses'}
 - Style: ${uiCartridge?.inlineButtons?.style || 'Standard button styling'}
@@ -314,7 +510,7 @@ export function assembleSystemPrompt(
 UI PRINCIPLE:
 ${uiCartridge?.principle || 'Conversational by default. Use inline buttons to guide user actions.'}`);
 
-  // 8. Memory guidelines
+  // 11. Memory guidelines
   sections.push(`\nMEMORY GUIDELINES:
 Scoping: ${memoryCartridge?.scoping || 'User-specific'}${
     memoryCartridge?.whatToRemember && memoryCartridge.whatToRemember.length > 0
@@ -323,7 +519,7 @@ Scoping: ${memoryCartridge?.scoping || 'User-specific'}${
   }
 Context Injection: ${memoryCartridge?.contextInjection || 'Retrieve relevant memories before each request'}`);
 
-  // 9. Plugins
+  // 12. Plugins
   sections.push(`\nPLUGINS REQUIRED:
 ${
   pluginsCartridge?.required && pluginsCartridge.required.length > 0
@@ -331,26 +527,69 @@ ${
     : 'None'
 } - ${pluginsCartridge?.description || 'Must be configured'}`);
 
-  // 10. Best practices
+  // 13. Best practices
   sections.push(`\nBEST PRACTICES:\n${knowledgeCartridge?.bestPractices || 'Follow standard best practices for user assistance.'}`);
 
-  const prompt = sections.join('\n').trim();
+  let prompt = sections.join('\n').trim();
 
-  // Token counting and warning
-  const tokens = encode(prompt);
-  const tokenCount = tokens.length;
+  // Token counting and truncation
+  let tokens = encode(prompt);
+  let tokenCount = tokens.length;
 
+  // If prompt exceeds 8,000 tokens, apply proportional truncation
   if (tokenCount > 8000) {
-    // Always warn about oversized prompts (even in production)
-    console.warn(
-      `[CONSOLE_LOADER] Prompt very large: ${tokenCount} tokens ` +
-      `(>50% of GPT-4 8K context). Consider shortening cartridges.`
-    );
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        `[CONSOLE_LOADER] Prompt oversized: ${tokenCount} tokens (exceeds 8,000 limit). ` +
+        `Applying proportional truncation to core messaging and swipe examples...`
+      );
+    }
+
+    // Extract core messaging and swipe text for truncation
+    const coreMessaging = brandCartridge?.core_messaging || '';
+    const swipeText = swipeCartridges ? formatSwipesForPrompt(swipeCartridges) : '';
+
+    // Apply proportional truncation
+    const truncated = truncateProportionally(coreMessaging, swipeText, 8000, tokenCount);
+
+    // Rebuild brand section with truncated core messaging
+    if (brandCartridge && truncated.coreMessaging !== coreMessaging) {
+      const truncatedBrand = { ...brandCartridge, core_messaging: truncated.coreMessaging };
+      const newBrandPrompt = formatBrandForPrompt(truncatedBrand);
+
+      // Replace old brand section with truncated version
+      const oldBrandPrompt = formatBrandForPrompt(brandCartridge);
+      prompt = prompt.replace(oldBrandPrompt, newBrandPrompt);
+    }
+
+    // Rebuild swipe section with truncated examples
+    if (swipeCartridges && truncated.swipeText !== swipeText) {
+      prompt = prompt.replace(swipeText, truncated.swipeText);
+    }
+
+    // Recount tokens after truncation
+    tokens = encode(prompt);
+    tokenCount = tokens.length;
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(
+        `[CONSOLE_LOADER] After truncation: ${tokenCount} tokens ` +
+        `(${Math.round((tokenCount / 8000) * 100)}% of 8K limit)`
+      );
+    }
+
+    // Final warning if still over limit
+    if (tokenCount > 8000) {
+      console.warn(
+        `[CONSOLE_LOADER] Prompt still oversized after truncation: ${tokenCount} tokens. ` +
+        `Consider reducing other cartridge content.`
+      );
+    }
   } else if (tokenCount > 4000 && process.env.NODE_ENV === 'development') {
     // Info logs only in development
     console.info(
       `[CONSOLE_LOADER] Prompt size: ${tokenCount} tokens ` +
-      `(~${Math.round(tokenCount / 8192 * 100)}% of GPT-4 8K context)`
+      `(~${Math.round((tokenCount / 8000) * 100)}% of 8K limit)`
     );
   }
 
