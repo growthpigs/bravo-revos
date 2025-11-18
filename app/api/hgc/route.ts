@@ -19,6 +19,11 @@ import { createCartridgeSnapshot } from '@/lib/cartridges/snapshot'
  * NO Python backend. AgentKit = chat orchestration interface.
  */
 
+// CRITICAL: Force Node.js runtime for AgentKit/tiktoken compatibility
+// Edge Runtime doesn't support full Node.js APIs needed by @openai/agents
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 // ============================================================
 // TOOL DEFINITIONS (OpenAI Function Calling)
 // ============================================================
