@@ -7,13 +7,14 @@
  * Philosophy: Console loads cartridges. AgentKit orchestrates. Chips execute.
  */
 
-// REMOVED: import { Agent, run } from '@openai/agents'; - moved to type-only to prevent build-time tiktoken execution
-import type { Agent } from '@openai/agents';
+// Dynamic imports to prevent build-time tiktoken execution
 import { Cartridge, AgentContext, Message } from '@/lib/cartridges/types';
-// REMOVED: import OpenAI from 'openai'; - moved to type-only to prevent build-time tiktoken execution
 import { SupabaseClient } from '@supabase/supabase-js';
 import { buildTenantKey } from '@/lib/mem0/client';
 import { searchMemories, addMemory } from '@/lib/mem0/memory';
+
+// Store Agent class after first dynamic import
+let AgentClass: any | null = null;
 
 export interface MarketingConsoleConfig {
   model?: string;
@@ -24,7 +25,7 @@ export interface MarketingConsoleConfig {
 }
 
 export class MarketingConsole {
-  private agent: Agent | null = null;
+  private agent: any | null = null; // Agent instance (type from @openai/agents)
   private cartridges: Map<string, Cartridge> = new Map();
   private config: MarketingConsoleConfig;
   private openai: any; // OpenAI instance from constructor
@@ -41,10 +42,14 @@ export class MarketingConsole {
   /**
    * Lazy-load AgentKit Agent (prevents build-time encoder.json loading)
    */
-  private async ensureAgent(): Promise<Agent> {
+  private async ensureAgent(): Promise<any> {
     if (!this.agent) {
-      const { Agent } = await import('@openai/agents');
-      this.agent = new Agent({
+      // Store Agent class for reuse
+      if (!AgentClass) {
+        const imported = await import('@openai/agents');
+        AgentClass = imported.Agent;
+      }
+      this.agent = new AgentClass({
         name: 'MarketingConsole',
         model: this.config.model || 'gpt-4o-mini',
         instructions: this.config.baseInstructions,
@@ -494,7 +499,11 @@ export class MarketingConsole {
     this.cartridges.delete(cartridgeId);
 
     // Rebuild agent from scratch with base configuration
-    this.agent = new Agent({
+    // Use stored Agent class (loaded via dynamic import in ensureAgent)
+    if (!AgentClass) {
+      throw new Error('[MarketingConsole] Agent not loaded - call execute() first');
+    }
+    this.agent = new AgentClass({
       name: 'MarketingConsole',
       model: this.config.model || 'gpt-4o-mini',
       instructions: this.config.baseInstructions,

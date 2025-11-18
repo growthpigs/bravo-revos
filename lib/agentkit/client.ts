@@ -6,10 +6,19 @@
 
 import OpenAI from 'openai';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy-initialize OpenAI client to avoid build-time execution
+let openaiClient: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not configured');
+    }
+    openaiClient = new OpenAI({ apiKey });
+  }
+  return openaiClient;
+}
 
 export interface AgentKitConfig {
   model?: string;
@@ -92,7 +101,7 @@ What's the optimal engagement strategy?`,
       },
     ];
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: this.config.model,
       messages,
       temperature: this.config.temperature,
@@ -143,7 +152,7 @@ Provide optimized version with A/B variants.`,
       },
     ];
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: this.config.model,
       messages,
       temperature: 0.8,
@@ -222,7 +231,7 @@ Provide analysis and recommendations.`,
       },
     ];
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: this.config.model,
       messages,
       temperature: 0.6,
@@ -282,7 +291,7 @@ Create engaging post that drives comments with "${params.triggerWord}".`,
       },
     ];
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: this.config.model,
       messages,
       temperature: 0.9,
@@ -297,6 +306,3 @@ Create engaging post that drives comments with "${params.triggerWord}".`,
 
 // Export singleton instance
 export const campaignAgent = new CampaignAgent();
-
-// Export client for direct access
-export { openai };

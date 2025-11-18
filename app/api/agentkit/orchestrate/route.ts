@@ -9,6 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { campaignOrchestrator } from '@/lib/agentkit/orchestrator';
 import { createClient } from '@/lib/supabase/server';
 
+// Force Node.js runtime to ensure OpenAI SDK works correctly
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication

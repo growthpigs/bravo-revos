@@ -2,6 +2,18 @@ const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Prevent tiktoken/encoder.json bundling issues with @openai/agents
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Don't bundle @openai/agents on the server (use node_modules at runtime)
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@openai/agents': 'commonjs @openai/agents',
+        'tiktoken': 'commonjs tiktoken',
+      });
+    }
+    return config;
+  },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.

@@ -5,7 +5,8 @@
  * Chips are atomic, reusable skills that can work across multiple cartridges.
  */
 
-import { Tool } from '@openai/agents';
+// Type-only import to prevent build-time tiktoken bundling
+import type { Tool } from '@openai/agents';
 import { AgentContext } from '@/lib/cartridges/types';
 
 export abstract class BaseChip {

@@ -15,9 +15,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // Force Node.js runtime (dependencies may use Node APIs)
 export const runtime = 'nodejs';
 import { createClient } from '@/lib/supabase/server';
-// REMOVED: import OpenAI from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
+// Dynamic imports to prevent build-time tiktoken/encoder.json loading:
+// - OpenAI SDK (dynamically imported in POST handler)
+// - LinkedInCartridge (contains chips that import @openai/agents)
 import { MarketingConsole } from '@/lib/console/marketing-console';
-import { LinkedInCartridge } from '@/lib/cartridges/linkedin-cartridge';
 import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
 import type { Message } from '@/lib/cartridges/types';
 import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
@@ -190,6 +191,8 @@ export async function POST(request: NextRequest) {
     });
 
     // 5. Load LinkedIn Cartridge (always loaded)
+    // Dynamic import to prevent build-time @openai/agents loading
+    const { LinkedInCartridge } = await import('@/lib/cartridges/linkedin-cartridge');
     const linkedinCartridge = new LinkedInCartridge();
     console_instance.loadCartridge(linkedinCartridge);
 

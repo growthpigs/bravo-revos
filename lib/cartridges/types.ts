@@ -125,7 +125,8 @@ export interface CartridgeResponse extends ApiResponse<VoiceCartridge> {
 
 // ===== PART 2: AGENTKIT CARTRIDGE SYSTEM (Chips + Cartridges) =====
 
-import { Tool } from '@openai/agents';
+// Type-only import to prevent build-time tiktoken bundling
+import type { Tool } from '@openai/agents';
 
 /**
  * Message structure for conversation history
