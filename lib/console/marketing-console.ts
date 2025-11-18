@@ -295,52 +295,15 @@ export class MarketingConsole {
    * AgentKit returns complex result object - extract the text.
    */
   private extractResponseText(result: any): string {
-    // 🔍 DIAGNOSTIC: Log the ENTIRE result object
-    console.log('[DIAGNOSTIC] ==========================================');
+    // 🔍 DIAGNOSTIC: Log the ENTIRE result object (for debugging)
     console.log('[DIAGNOSTIC] Full result object keys:', Object.keys(result));
-    console.log('[DIAGNOSTIC] Full result structure:', this.safeStringify(result).substring(0, 5000));
-    console.log('[DIAGNOSTIC] ==========================================');
-
-    // 🔍 TEMPORARY DEBUG: Return the full result as JSON so we can see it in frontend
-    if (process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'preview') {
-      console.log('[DEBUG] Returning full result for inspection');
-      const safeResult = this.safeStringify(result).substring(0, 2000);
-      console.log('[DEBUG] Safe result:', safeResult);
-      return safeResult;
-    }
-
-    // Log what we're checking for
-    console.log('[DIAGNOSTIC] Checking result.final_output:', !!result.final_output);
-    console.log('[DIAGNOSTIC] Checking result.state:', !!result.state);
-    console.log('[DIAGNOSTIC] Checking result.state?.modelResponses:', !!result.state?.modelResponses);
-
-    // If modelResponses exists, log its structure
-    if (result.state?.modelResponses?.[0]) {
-        const firstResponse = result.state.modelResponses[0];
-        console.log('[DIAGNOSTIC] First modelResponse keys:', Object.keys(firstResponse));
-        console.log('[DIAGNOSTIC] First modelResponse:', this.safeStringify(firstResponse).substring(0, 2000));
-
-        if (firstResponse.output?.[0]) {
-            const firstOutput = firstResponse.output[0];
-            console.log('[DIAGNOSTIC] First output keys:', Object.keys(firstOutput));
-            console.log('[DIAGNOSTIC] First output:', this.safeStringify(firstOutput).substring(0, 2000));
-
-            if (firstOutput.content) {
-                console.log('[DIAGNOSTIC] Content array length:', firstOutput.content.length);
-                firstOutput.content.forEach((item: any, idx: number) => {
-                    console.log(`[DIAGNOSTIC] Content[${idx}] type:`, item.type);
-                    console.log(`[DIAGNOSTIC] Content[${idx}] keys:`, Object.keys(item));
-                    console.log(`[DIAGNOSTIC] Content[${idx}] full:`, this.safeStringify(item).substring(0, 1000));
-                });
-            }
-        }
-    }
+    console.log('[DIAGNOSTIC] Full result structure (first 5000 chars):', this.safeStringify(result).substring(0, 5000));
 
     // Log the structure for debugging
     console.log('[MarketingConsole] ==== EXTRACTING RESPONSE ====');
     console.log('[MarketingConsole] Result keys:', Object.keys(result || {}));
     console.log('[MarketingConsole] Has final_output:', !!result?.final_output);
-    console.log('[MarketingConsole] final_output type:', typeof result?.final_output);
+    console.log('[MarketingConsole] Has state.modelResponses:', !!result?.state?.modelResponses);
 
     // NEW AgentKit SDK: Check for final_output first (PRIMARY PATH)
     if (result?.final_output !== undefined && result?.final_output !== null) {
@@ -377,6 +340,12 @@ export class MarketingConsole {
 
     if (result?.state?.modelResponses && Array.isArray(result.state.modelResponses)) {
       const lastResponse = result.state.modelResponses[result.state.modelResponses.length - 1];
+
+      // NEW PATH: Direct text property on modelResponse (AgentKit @openai/agents)
+      if (lastResponse?.text && typeof lastResponse.text === 'string') {
+        console.log('[MarketingConsole] ✅ Found at modelResponses[].text (AgentKit direct)');
+        return this.stripMarkdownCodeBlocks(lastResponse.text);
+      }
 
       if (lastResponse?.output && Array.isArray(lastResponse.output) && lastResponse.output[0]) {
         const outputItem = lastResponse.output[0];
