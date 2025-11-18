@@ -1,0 +1,27 @@
+{
+  "platform": "facebook",
+  "max_length": 500,
+  "tone": ["casual", "friendly", "conversational"],
+  "structure": {
+    "hook": "required",
+    "story": "recommended",
+    "cta": "optional",
+    "line_breaks": "minimal"
+  },
+  "formatting": {
+    "emojis": "encouraged",
+    "hashtags": "1-3",
+    "mentions": "yes",
+    "bullet_points": "yes",
+    "numbered_lists": "yes"
+  },
+  "best_practices": [
+    "Use conversational, friendly tone",
+    "Keep it concise and scannable",
+    "Ask engaging questions",
+    "Use emojis to add personality",
+    "Include visual breaks with emojis or line breaks",
+    "Make it relatable and human"
+  ],
+  "example_structure": "Hook with emoji 🎯\n\nShort story or context\n\nQuestion or CTA"
+}

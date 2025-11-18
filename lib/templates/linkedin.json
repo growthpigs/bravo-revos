@@ -1,0 +1,29 @@
+{
+  "platform": "linkedin",
+  "max_length": 3000,
+  "tone": ["professional", "authoritative", "thought-leadership"],
+  "structure": {
+    "hook": "required",
+    "story": "optional",
+    "insight": "recommended",
+    "cta": "recommended",
+    "line_breaks": "encouraged"
+  },
+  "formatting": {
+    "emojis": "minimal",
+    "hashtags": "3-5 max",
+    "mentions": "strategic only",
+    "bullet_points": "yes",
+    "numbered_lists": "yes"
+  },
+  "best_practices": [
+    "Start with contrarian hook or bold statement in first line",
+    "Use short paragraphs (2-3 lines maximum)",
+    "Add strategic line breaks for visual breathing room",
+    "End with engagement question or clear CTA",
+    "Tag relevant people/companies when appropriate",
+    "Include data or statistics for credibility",
+    "Tell stories that demonstrate expertise"
+  ],
+  "example_structure": "Hook (1-2 lines)\n\nContext/Story (2-4 short paragraphs)\n\nKey Insight (1-2 lines)\n\nCTA/Question (1 line)"
+}

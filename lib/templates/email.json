@@ -1,0 +1,29 @@
+{
+  "platform": "email",
+  "max_length": 1000,
+  "tone": ["professional", "helpful", "value-driven"],
+  "structure": {
+    "subject": "required",
+    "hook": "required",
+    "body": "structured",
+    "cta": "required",
+    "ps": "optional"
+  },
+  "formatting": {
+    "emojis": "subject line only",
+    "hashtags": "avoid",
+    "mentions": "no",
+    "bullet_points": "yes",
+    "numbered_lists": "yes"
+  },
+  "best_practices": [
+    "Compelling subject line (40-50 characters)",
+    "Personal greeting when possible",
+    "Clear value proposition in first paragraph",
+    "Use bullet points for readability",
+    "Single clear CTA",
+    "P.S. for bonus value or urgency",
+    "Professional signature"
+  ],
+  "example_structure": "Subject: [Compelling headline]\n\nHi [Name],\n\n[Hook - value statement]\n\n[Body - 2-3 paragraphs or bullets]\n\n[CTA - clear ask]\n\nP.S. [Bonus value or urgency]"
+}

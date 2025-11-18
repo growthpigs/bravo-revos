@@ -1,0 +1,27 @@
+{
+  "platform": "whatsapp",
+  "max_length": 200,
+  "tone": ["personal", "direct", "conversational"],
+  "structure": {
+    "hook": "required",
+    "message": "brief",
+    "cta": "direct",
+    "line_breaks": "minimal"
+  },
+  "formatting": {
+    "emojis": "yes",
+    "hashtags": "avoid",
+    "mentions": "no",
+    "bullet_points": "rarely",
+    "numbered_lists": "no"
+  },
+  "best_practices": [
+    "Keep it extremely brief and direct",
+    "Write like you're texting a friend",
+    "Use emojis naturally",
+    "Clear, immediate CTA",
+    "Personalize when possible",
+    "No sales-y language"
+  ],
+  "example_structure": "Hey [Name] 👋\n\n[Brief value statement]\n\n[Direct CTA]"
+}
