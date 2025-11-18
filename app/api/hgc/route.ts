@@ -8,6 +8,8 @@ import {
   executeContentGenerationWorkflow,
   executeNavigationWorkflow,
 } from '@/lib/console/workflow-executor'
+import { loadAllUserCartridges } from '@/lib/cartridges/loaders'
+import { createCartridgeSnapshot } from '@/lib/cartridges/snapshot'
 
 /**
  * POST /api/hgc
@@ -813,12 +815,29 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
         }
 
+        // Load cartridges for workflow context
+        console.log('[HGC_WORKFLOW] Loading cartridges for user:', user.id)
+        const userCartridges = await loadAllUserCartridges(user.id, 'linkedin', supabase)
+        console.log('[HGC_WORKFLOW] User cartridges loaded:', {
+          hasBrand: !!userCartridges.brand,
+          swipeCount: userCartridges.swipes.length,
+          hasPlatformTemplate: !!userCartridges.platformTemplate,
+        })
+
+        // Create immutable cartridge snapshot
+        const cartridgeSnapshot = createCartridgeSnapshot(
+          userCartridges.brand || null,
+          userCartridges.swipes || [],
+          userCartridges.platformTemplate || null
+        )
+
         const workflowContext = {
           supabase,
           openai,
           user,
           session: mockSession,
           message: lastUserMessage.content,
+          cartridges: cartridgeSnapshot,
         }
 
         try {

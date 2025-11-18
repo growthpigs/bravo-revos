@@ -26,6 +26,7 @@ import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/
 import { OrchestrationResponseBuilder } from '@/lib/orchestration/response-builder';
 import { retrieveAllCartridges } from '@/lib/cartridges/retrieval';
 import { loadAllUserCartridges } from '@/lib/cartridges/loaders';
+import { createCartridgeSnapshot } from '@/lib/cartridges/snapshot';
 import { detectPlatformFromCommand } from '@/lib/console/platform-detector';
 import { ZodError } from 'zod';
 import { findWorkflowByTrigger } from '@/lib/console/workflow-loader';
@@ -267,12 +268,20 @@ export async function POST(request: NextRequest) {
         type: matchedWorkflow.workflow_type,
       });
 
+      // Create immutable cartridge snapshot for workflow execution
+      const cartridgeSnapshot = createCartridgeSnapshot(
+        userCartridges.brand || null,
+        userCartridges.swipes || [],
+        userCartridges.platformTemplate || null
+      );
+
       const workflowContext = {
         supabase,
         openai,
         user,
         session,
         message: currentMessage,
+        cartridges: cartridgeSnapshot, // Pass immutable snapshot
         // TODO: Add agencyId and clientId from users table for Mem0 scoping
       };
 

@@ -16,6 +16,7 @@ import {
   getWorkflowPrompt,
   interpolatePrompt,
 } from './workflow-loader';
+import type { CartridgeSnapshot } from '@/lib/cartridges/snapshot';
 
 export interface WorkflowExecutionContext {
   supabase: SupabaseClient;
@@ -23,6 +24,7 @@ export interface WorkflowExecutionContext {
   user: any;
   session: any;
   message: string;
+  cartridges: CartridgeSnapshot; // Added: Immutable snapshot of all cartridge data
   agencyId?: string;
   clientId?: string;
 }
@@ -84,7 +86,7 @@ async function executeTopicGeneration(
   workflow: WorkflowDefinition,
   context: WorkflowExecutionContext
 ): Promise<WorkflowExecutionResult> {
-  const { supabase, user, session } = context;
+  const { supabase, user, session, message } = context;
 
   // Get the topic_generation prompt from workflow
   const promptTemplate = getWorkflowPrompt(workflow, 'topic_generation');
@@ -171,10 +173,10 @@ async function executeTopicGeneration(
     const brandContextMessage = [
       '📋 **Brand Context Loaded**',
       '',
-      `**Industry:** ${brandData?.industry || 'N/A'}`,
-      `**Target Audience:** ${brandData?.target_audience || 'N/A'}`,
-      brandData?.brand_voice ? `**Brand Voice:** ${brandData.brand_voice}` : null,
-      brandData?.core_messaging ? `\n${brandData.core_messaging.slice(0, 200)}${brandData.core_messaging.length > 200 ? '...' : ''}` : null,
+      `**Industry:** ${context.cartridges.brand?.industry || 'N/A'}`,
+      `**Target Audience:** ${context.cartridges.brand?.target_audience || 'N/A'}`,
+      context.cartridges.brand?.brand_voice ? `**Brand Voice:** ${context.cartridges.brand.brand_voice}` : null,
+      context.cartridges.brand?.core_messaging ? `\n${context.cartridges.brand.core_messaging.slice(0, 200)}${context.cartridges.brand.core_messaging.length > 200 ? '...' : ''}` : null,
       '',
       'Select a topic to write about:',
     ].filter(Boolean).join('\n');
@@ -229,11 +231,15 @@ async function executePostGeneration(
     throw new Error('post_generation prompt not found in workflow');
   }
 
-  // NOTE: No need to build brand_context or style_context - already in system prompt
-  // Just interpolate the topic variable for the workflow prompt
+  // Build brand context from cartridge snapshot for prompt interpolation
+  const brandContext = buildBrandContext(context.cartridges.brand);
+  const styleContext = buildStyleContext(context.cartridges.platformTemplate);
+
+  // Interpolate workflow prompt with cartridge data
   const variables = {
     topic: topicSlug,
-    // brand_context and style_context removed - AI has this in system prompt
+    brand_context: brandContext,
+    style_context: styleContext,
   };
 
   const workflowPrompt = interpolatePrompt(promptTemplate, variables);
@@ -310,4 +316,71 @@ export async function executeNavigationWorkflow(
       navigation: targetPath,
     },
   };
+}
+
+/**
+ * Build brand context string from brand cartridge for prompt interpolation
+ *
+ * @param brand - Brand cartridge data (or null)
+ * @returns Formatted brand context string
+ */
+function buildBrandContext(brand: CartridgeSnapshot['brand']): string {
+  if (!brand) {
+    return 'No brand context available';
+  }
+
+  const parts: string[] = [];
+
+  if (brand.company_name) {
+    parts.push(`Company: ${brand.company_name}`);
+  }
+
+  if (brand.industry) {
+    parts.push(`Industry: ${brand.industry}`);
+  }
+
+  if (brand.target_audience) {
+    parts.push(`Target Audience: ${brand.target_audience}`);
+  }
+
+  if (brand.brand_voice) {
+    parts.push(`Brand Voice: ${brand.brand_voice}`);
+  }
+
+  if (brand.core_values && brand.core_values.length > 0) {
+    parts.push(`Core Values: ${brand.core_values.join(', ')}`);
+  }
+
+  if (brand.core_messaging) {
+    parts.push(`Core Messaging: ${brand.core_messaging.slice(0, 300)}${brand.core_messaging.length > 300 ? '...' : ''}`);
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Build style context string from platform template for prompt interpolation
+ *
+ * @param platformTemplate - Platform template data (or null)
+ * @returns Formatted style context string
+ */
+function buildStyleContext(platformTemplate: CartridgeSnapshot['platformTemplate']): string {
+  if (!platformTemplate) {
+    return 'No style preferences available';
+  }
+
+  const parts: string[] = [];
+
+  parts.push(`Platform: ${platformTemplate.platform}`);
+  parts.push(`Max Length: ${platformTemplate.max_length} characters`);
+
+  if (platformTemplate.tone && platformTemplate.tone.length > 0) {
+    parts.push(`Tone: ${platformTemplate.tone.join(', ')}`);
+  }
+
+  if (platformTemplate.best_practices && platformTemplate.best_practices.length > 0) {
+    parts.push(`Best Practices:\n${platformTemplate.best_practices.map(p => `- ${p}`).join('\n')}`);
+  }
+
+  return parts.join('\n');
 }
