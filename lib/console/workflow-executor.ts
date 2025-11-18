@@ -56,48 +56,35 @@ export async function executeContentGenerationWorkflow(
 ): Promise<WorkflowExecutionResult> {
   console.log('[WorkflowExecutor] Executing workflow:', workflow.name);
 
-  const { supabase, user, session, message } = context;
+  const { message } = context;
 
-  // Step 1: Load brand cartridge
-  const { data: brandData } = await supabase
-    .from('brand_cartridges')
-    .select('core_messaging, target_audience, industry, core_values, brand_voice')
-    .eq('user_id', user.id)
-    .single();
+  // NOTE: Cartridges are now loaded upfront in V2 route and included in system prompt
+  // No need to load brand/style cartridges here - AI already has full context
+  console.log('[WorkflowExecutor] Using cartridges from system prompt (loaded upfront)');
 
-  const { data: styleData } = await supabase
-    .from('style_cartridges')
-    .select('tone_of_voice, writing_style, personality_traits')
-    .eq('user_id', user.id)
-    .single();
-
-  console.log('[WorkflowExecutor] Cartridges loaded:', {
-    hasBrand: !!brandData,
-    hasStyle: !!styleData,
-  });
-
-  // Step 2: Check if this is topic generation or topic selection
+  // Step 1: Check if this is topic generation or topic selection
   const isTopicSelection = message.startsWith('topic:');
 
   if (isTopicSelection) {
     // User selected a topic - generate content
-    return await executePostGeneration(workflow, context, brandData, styleData);
+    return await executePostGeneration(workflow, context);
   }
 
-  // Step 3: Generate topics using AI
-  return await executeTopicGeneration(workflow, context, brandData, styleData);
+  // Step 2: Generate topics using AI
+  return await executeTopicGeneration(workflow, context);
 }
 
 /**
  * Generate personalized topic suggestions using AI
+ *
+ * NOTE: Brand, style, and platform context are now in the system prompt.
+ * No need to interpolate variables - AI already has full cartridge context.
  */
 async function executeTopicGeneration(
   workflow: WorkflowDefinition,
-  context: WorkflowExecutionContext,
-  brandData: any,
-  styleData: any
+  context: WorkflowExecutionContext
 ): Promise<WorkflowExecutionResult> {
-  const { supabase, user, session, message } = context;
+  const { supabase, user, session } = context;
 
   // Get the topic_generation prompt from workflow
   const promptTemplate = getWorkflowPrompt(workflow, 'topic_generation');
@@ -106,23 +93,16 @@ async function executeTopicGeneration(
     throw new Error('topic_generation prompt not found in workflow');
   }
 
-  // Interpolate variables
-  const variables = {
-    industry: brandData?.industry || 'business',
-    target_audience: brandData?.target_audience || 'professionals',
-    brand_voice: brandData?.brand_voice || 'professional',
-    core_messaging: brandData?.core_messaging
-      ? `Core Messaging:\n${brandData.core_messaging}`
-      : '',
-  };
+  // NOTE: No variable interpolation needed - brand context is in system prompt
+  // The workflow prompt just provides the task structure
+  const workflowPrompt = promptTemplate;
 
-  const interpolatedPrompt = interpolatePrompt(promptTemplate, variables);
-
-  console.log('[WorkflowExecutor] Generating topics with AI');
+  console.log('[WorkflowExecutor] Generating topics with AI (using cartridges from system prompt)');
 
   // Use MarketingConsole to generate topics
+  // NOTE: Brand/style/platform context already in system prompt from V2 route
   const marketingConsole = new MarketingConsole({
-    baseInstructions: interpolatedPrompt,
+    baseInstructions: workflowPrompt,
     model: 'gpt-4o-mini',
     temperature: 0.8,
     openai: context.openai,
@@ -226,12 +206,13 @@ async function executeTopicGeneration(
 
 /**
  * Generate LinkedIn post content after topic selection
+ *
+ * NOTE: Brand, style, and platform context are now in the system prompt.
+ * No need to build context manually - AI already has full cartridge data.
  */
 async function executePostGeneration(
   workflow: WorkflowDefinition,
-  context: WorkflowExecutionContext,
-  brandData: any,
-  styleData: any
+  context: WorkflowExecutionContext
 ): Promise<WorkflowExecutionResult> {
   const { supabase, user, session, message } = context;
 
@@ -239,7 +220,7 @@ async function executePostGeneration(
   const topicMatch = message.match(/^topic:\d+:(.+)$/);
   const topicSlug = topicMatch ? topicMatch[1].replace(/_/g, ' ') : 'general topic';
 
-  console.log('[WorkflowExecutor] Generating post for topic:', topicSlug);
+  console.log('[WorkflowExecutor] Generating post for topic:', topicSlug, '(using cartridges from system prompt)');
 
   // Get post_generation prompt from workflow
   const promptTemplate = getWorkflowPrompt(workflow, 'post_generation');
@@ -248,36 +229,19 @@ async function executePostGeneration(
     throw new Error('post_generation prompt not found in workflow');
   }
 
-  // Build brand context (clean multi-line format)
-  const brandContext = `📋 **Brand Context Loaded**
-
-**Industry:** ${brandData?.industry || 'Business'}
-**Target Audience:** ${brandData?.target_audience || 'professionals'}
-**Brand Voice:** ${brandData?.brand_voice || 'professional'}
-**Core Values:** ${brandData?.core_values || 'integrity, innovation'}
-
-${brandData?.core_messaging ? `**Core Messaging:**\n${brandData.core_messaging}` : ''}
-`.trim();
-
-  // Build style context
-  const styleContext = `
-STYLE CONTEXT:
-- Tone: ${styleData?.tone_of_voice || 'professional'}
-- Writing Style: ${styleData?.writing_style || 'clear and engaging'}
-- Personality: ${styleData?.personality_traits || 'authentic, knowledgeable'}
-`.trim();
-
+  // NOTE: No need to build brand_context or style_context - already in system prompt
+  // Just interpolate the topic variable for the workflow prompt
   const variables = {
-    brand_context: brandContext,
-    style_context: styleContext,
     topic: topicSlug,
+    // brand_context and style_context removed - AI has this in system prompt
   };
 
-  const interpolatedPrompt = interpolatePrompt(promptTemplate, variables);
+  const workflowPrompt = interpolatePrompt(promptTemplate, variables);
 
   // Use MarketingConsole to generate post
+  // NOTE: Brand/style/platform context already in system prompt from V2 route
   const marketingConsole = new MarketingConsole({
-    baseInstructions: interpolatedPrompt,
+    baseInstructions: workflowPrompt,
     model: 'gpt-4o',
     temperature: 0.7,
     openai: context.openai,
