@@ -335,15 +335,28 @@ export class MarketingConsole {
       return this.stripMarkdownCodeBlocks(String(result.final_output));
     }
 
+    // AGENTKIT SDK: result.modelResponses (TOP LEVEL, not in state!)
+    console.log('[MarketingConsole] Trying AgentKit modelResponses path...');
+
+    if (result?.modelResponses && Array.isArray(result.modelResponses)) {
+      const lastResponse = result.modelResponses[result.modelResponses.length - 1];
+
+      // Direct text property on modelResponse (AgentKit @openai/agents)
+      if (lastResponse?.text && typeof lastResponse.text === 'string') {
+        console.log('[MarketingConsole] ✅ Found at modelResponses[].text (AgentKit SDK)');
+        return this.stripMarkdownCodeBlocks(lastResponse.text);
+      }
+    }
+
     // FALLBACK: OLD SDK structure (result.state.modelResponses)
-    console.log('[MarketingConsole] Trying fallback paths...');
+    console.log('[MarketingConsole] Trying fallback state.modelResponses path...');
 
     if (result?.state?.modelResponses && Array.isArray(result.state.modelResponses)) {
       const lastResponse = result.state.modelResponses[result.state.modelResponses.length - 1];
 
-      // NEW PATH: Direct text property on modelResponse (AgentKit @openai/agents)
+      // Direct text property on modelResponse
       if (lastResponse?.text && typeof lastResponse.text === 'string') {
-        console.log('[MarketingConsole] ✅ Found at modelResponses[].text (AgentKit direct)');
+        console.log('[MarketingConsole] ✅ Found at state.modelResponses[].text');
         return this.stripMarkdownCodeBlocks(lastResponse.text);
       }
 
