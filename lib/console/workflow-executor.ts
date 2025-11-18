@@ -182,15 +182,29 @@ async function executeTopicGeneration(
     });
 
     // Format brand context for display - use double newlines for markdown paragraph breaks
+    // Extract just the question text from core_messaging, skipping markdown headers
+    let burningQuestion = '';
+    if (context.cartridges.brand?.core_messaging) {
+      const lines = context.cartridges.brand.core_messaging.split('\n');
+      // Find lines that look like actual question content (not headers or labels)
+      const questionLines = lines.filter(line => {
+        const trimmed = line.trim();
+        return trimmed &&
+               !trimmed.startsWith('#') &&
+               !trimmed.startsWith('Burning Question') &&
+               !trimmed.startsWith('Step ') &&
+               !trimmed.startsWith('Ideal Customer');
+      });
+      // Get first meaningful content, strip quotes if present
+      const content = questionLines.join(' ').replace(/^["']|["']$/g, '').trim();
+      burningQuestion = content.slice(0, 150) + (content.length > 150 ? '...' : '');
+    }
+
     const brandContextMessage = [
       '**Brand Context Loaded**',
       `**Industry:** ${context.cartridges.brand?.industry || 'N/A'}`,
       `**Target Audience:** ${context.cartridges.brand?.target_audience || 'N/A'}`,
-      '**Ideal Customer Profile (ICP DNA)**',
-      '**Burning Question:**',
-      context.cartridges.brand?.core_messaging
-        ? `"${context.cartridges.brand.core_messaging.slice(0, 200)}${context.cartridges.brand.core_messaging.length > 200 ? '...' : ''}"`
-        : '',
+      burningQuestion ? `**Burning Question:** "${burningQuestion}"` : '',
       'Select a topic to write about:',
     ].filter(Boolean).join('\n\n');
 
