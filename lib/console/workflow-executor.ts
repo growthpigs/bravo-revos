@@ -181,17 +181,18 @@ async function executeTopicGeneration(
       } : null
     });
 
-    // Format brand context for display
-    const icpSection = context.cartridges.brand?.core_messaging
-      ? `\n**Ideal Customer Profile (ICP DNA)**\n**Burning Question:** "${context.cartridges.brand.core_messaging.slice(0, 200)}${context.cartridges.brand.core_messaging.length > 200 ? '...' : ''}"`
-      : '';
-
+    // Format brand context for display - each field on its own line
     const brandContextMessage = [
       '**Brand Context Loaded**',
       '',
       `**Industry:** ${context.cartridges.brand?.industry || 'N/A'}`,
       `**Target Audience:** ${context.cartridges.brand?.target_audience || 'N/A'}`,
-      icpSection,
+      '',
+      '**Ideal Customer Profile (ICP DNA)**',
+      '**Burning Question:**',
+      context.cartridges.brand?.core_messaging
+        ? `"${context.cartridges.brand.core_messaging.slice(0, 200)}${context.cartridges.brand.core_messaging.length > 200 ? '...' : ''}"`
+        : '',
       '',
       'Select a topic to write about:',
     ].filter(Boolean).join('\n');
