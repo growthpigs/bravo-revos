@@ -301,6 +301,12 @@ export class MarketingConsole {
     console.log('[DIAGNOSTIC] Full result structure:', this.safeStringify(result).substring(0, 5000));
     console.log('[DIAGNOSTIC] ==========================================');
 
+    // 🔍 TEMPORARY DEBUG: Return the full result as JSON so we can see it in frontend
+    if (process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'preview') {
+      console.log('[DEBUG] Returning full result for inspection');
+      return JSON.stringify(result, null, 2).substring(0, 1000);
+    }
+
     // Log what we're checking for
     console.log('[DIAGNOSTIC] Checking result.final_output:', !!result.final_output);
     console.log('[DIAGNOSTIC] Checking result.state:', !!result.state);
