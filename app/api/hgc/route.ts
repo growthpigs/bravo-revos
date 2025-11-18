@@ -821,8 +821,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Load cartridges for workflow context
+        // CRITICAL: Use service role client to bypass RLS for backend cartridge loading
+        console.log('[HGC_WORKFLOW] Creating service role client for cartridge loading')
+        const supabaseServiceRole = await createClient({ isServiceRole: true })
+
         console.log('[HGC_WORKFLOW] Loading cartridges for user:', user.id)
-        const userCartridges = await loadAllUserCartridges(user.id, 'linkedin', supabase)
+        const userCartridges = await loadAllUserCartridges(user.id, 'linkedin', supabaseServiceRole)
         console.log('[HGC_WORKFLOW] User cartridges loaded:', {
           hasBrand: !!userCartridges.brand,
           swipeCount: userCartridges.swipes.length,
