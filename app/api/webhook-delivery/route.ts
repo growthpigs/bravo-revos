@@ -16,6 +16,10 @@ import {
   isValidWebhookUrl,
 } from '@/lib/webhook-delivery';
 import { queueWebhookDelivery } from '@/lib/queue/webhook-delivery-queue';
+import {
+  generateLeadMagnetEmail,
+  generateFallbackEmail,
+} from '@/lib/email-generation/lead-magnet-email';
 
 /**
  * Generate mock lead data for testing
@@ -118,6 +122,32 @@ export async function POST(request: NextRequest) {
       lead = dbLead;
     }
 
+    // Get campaign info
+    const campaignData = Array.isArray(lead.campaigns) ? lead.campaigns[0] : (lead.campaigns as any);
+    const leadMagnetName = campaignData?.lead_magnets?.[0]?.name || 'Resource';
+    const computedCampaignName = campaignName || campaignData?.name || 'Campaign';
+
+    // Generate AI email copy with fallback
+    let suggestedEmail;
+    try {
+      console.log('[WEBHOOK_DELIVERY] Generating AI email...');
+      suggestedEmail = await generateLeadMagnetEmail({
+        leadMagnetName,
+        originalPost: (campaignData?.post_content as string) || '',
+        brandVoice: 'professional',
+        recipientName: lead.first_name || 'there',
+        userFirstName: 'Team',
+      });
+      console.log('[WEBHOOK_DELIVERY] AI email generated successfully');
+    } catch (error) {
+      console.error('[WEBHOOK_DELIVERY] AI email generation failed, using fallback:', error);
+      suggestedEmail = generateFallbackEmail(
+        leadMagnetName,
+        lead.first_name || 'there',
+        'Team'
+      );
+    }
+
     // Build webhook payload
     const payload: WebhookPayload = {
       event: 'lead_captured',
@@ -134,11 +164,15 @@ export async function POST(request: NextRequest) {
         capturedAt: lead.created_at,
       },
       campaign: {
-        id: Array.isArray(lead.campaigns) ? lead.campaigns[0].id : (lead.campaigns as any).id,
-        name: campaignName || (Array.isArray(lead.campaigns) ? lead.campaigns[0].name : (lead.campaigns as any).name),
-        leadMagnetName: Array.isArray(lead.campaigns) ? lead.campaigns[0].lead_magnets?.[0]?.name : (lead.campaigns as any).lead_magnets?.[0]?.name,
+        id: campaignData?.id || '',
+        name: computedCampaignName,
+        leadMagnetName,
       },
       custom_fields: customFields,
+      suggested_email: suggestedEmail,
+      original_post: {
+        excerpt: campaignData?.post_content?.slice(0, 200),
+      },
       timestamp: Math.floor(Date.now() / 1000),
     };
 

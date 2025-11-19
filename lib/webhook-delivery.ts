@@ -64,6 +64,15 @@ export interface WebhookPayload {
     leadMagnetName?: string;
   };
   custom_fields?: Record<string, unknown>;
+  suggested_email?: {
+    subject: string;
+    body: string;
+    preheader: string;
+  };
+  original_post?: {
+    url?: string;
+    excerpt?: string;
+  };
   timestamp: number;
 }
 
