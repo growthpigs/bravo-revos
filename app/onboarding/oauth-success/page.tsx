@@ -1,14 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 
-// Opt out of static generation since we use useSearchParams
-export const dynamic = 'force-dynamic';
-
-export default function OAuthSuccessPage() {
+function OAuthSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const state = searchParams.get('state');
@@ -56,5 +53,22 @@ export default function OAuthSuccessPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function OAuthSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardContent className="pt-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <OAuthSuccessContent />
+    </Suspense>
   );
 }
