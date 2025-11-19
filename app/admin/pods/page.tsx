@@ -161,38 +161,93 @@ export default function AdminPodsPage() {
   const handleCreatePod = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    console.log('[POD_CREATE] Form submission started:', {
+      podName,
+      maxMembers,
+      timestamp: new Date().toISOString(),
+    })
+
     if (!podName.trim()) {
+      console.warn('[POD_CREATE] Validation failed: pod name is empty')
       toast.error('Pod name is required')
       return
     }
 
+    console.log('[POD_CREATE] Validation passed, attempting API call:', {
+      podName: podName.trim(),
+      maxMembers: parseInt(maxMembers) || 50,
+    })
+
     setIsCreatingPod(true)
     try {
+      const payload = {
+        name: podName.trim(),
+        max_members: parseInt(maxMembers) || 50
+      }
+
+      console.log('[POD_CREATE] Sending POST request to /api/admin/pods:', {
+        method: 'POST',
+        headers: 'Content-Type: application/json',
+        body: payload,
+      })
+
       const response = await fetch('/api/admin/pods', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: podName.trim(),
-          max_members: parseInt(maxMembers) || 50
-        })
+        body: JSON.stringify(payload)
+      })
+
+      console.log('[POD_CREATE] API Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type'),
+        ok: response.ok,
+      })
+
+      const result = await response.json()
+
+      console.log('[POD_CREATE] Response body parsed:', {
+        success: result.success,
+        hasError: !!result.error,
+        errorMessage: result.error,
+        hasPodData: !!result.pod,
+        podData: result.pod ? {
+          id: result.pod.id,
+          name: result.pod.name,
+          maxMembers: result.pod.maxMembers,
+          status: result.pod.status,
+        } : null,
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create pod')
+        const errorMsg = result.error || 'Failed to create pod'
+        console.error('[POD_CREATE] Request failed:', {
+          status: response.status,
+          error: errorMsg,
+        })
+        throw new Error(errorMsg)
       }
 
-      const result = await response.json()
+      console.log('[POD_CREATE] ✅ Pod created successfully:', {
+        podId: result.pod?.id,
+        podName: result.pod?.name,
+      })
+
       toast.success(`Pod "${result.pod.name}" created successfully`)
       setPodName('')
       setMaxMembers('50')
       setShowCreatePodModal(false)
       // Optionally reload members or update state here if needed
     } catch (error: any) {
-      console.error('Error creating pod:', error)
+      console.error('[POD_CREATE] ❌ Exception occurred:', {
+        errorType: error.constructor.name,
+        errorMessage: error.message,
+        errorStack: error.stack,
+      })
       toast.error(error.message || 'Failed to create pod')
     } finally {
       setIsCreatingPod(false)
+      console.log('[POD_CREATE] Request completed, cleanup done')
     }
   }
 
