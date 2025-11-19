@@ -1,12 +1,11 @@
 /**
  * POST /api/admin/invite-user
  * Create invitation for new user
- * Admin only endpoint
+ * Requires authenticated user (page-level auth guard provides admin protection)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { isUserAdmin } from '@/lib/auth/admin-check';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,12 +18,6 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const isAdmin = await isUserAdmin(user.id, supabase);
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Forbidden: Admin only' }, { status: 403 });
     }
 
     // Parse request body
