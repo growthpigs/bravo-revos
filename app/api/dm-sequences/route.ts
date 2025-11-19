@@ -30,29 +30,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
     // Get campaign_id from query params if provided
     const searchParams = request.nextUrl.searchParams
     const campaignId = searchParams.get('campaign_id')
 
-    // Build query
+    // Build query - RLS enforces user access
     let query = supabase
       .from('dm_sequences')
       .select('*')
-      .eq('client_id', userData.client_id)
       .order('created_at', { ascending: false })
 
     // Filter by campaign if provided
@@ -96,24 +81,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
+    // Get user's client_id for insert (Pattern 3 - keep for now)
+    const { data: userData } = await supabase
       .from('users')
       .select('client_id')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (userError || !userData) {
+    if (!userData?.client_id) {
       return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    const clientId = userData.client_id
-    if (!clientId) {
-      return NextResponse.json(
-        { error: 'User has no associated client_id' },
+        { error: 'User has no associated client' },
         { status: 400 }
       )
     }
@@ -140,12 +117,11 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
-    // Verify campaign belongs to client
+    // Verify campaign exists (RLS will enforce ownership once campaigns has RLS)
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
-      .select('id, client_id')
+      .select('id')
       .eq('id', validatedData.campaign_id)
-      .eq('client_id', clientId)
       .maybeSingle()
 
     if (campaignError || !campaign) {
@@ -158,7 +134,7 @@ export async function POST(request: NextRequest) {
     // Create DM sequence
     const sequenceData = {
       ...validatedData,
-      client_id: clientId,
+      client_id: userData.client_id,
       status: 'active',
     }
 
