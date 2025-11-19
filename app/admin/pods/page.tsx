@@ -47,11 +47,23 @@ export default function AdminPodsPage() {
 
   // Modal states
   const [showCreatePodModal, setShowCreatePodModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Create pod form state
   const [podName, setPodName] = useState('')
   const [maxMembers, setMaxMembers] = useState('50')
   const [isCreatingPod, setIsCreatingPod] = useState(false)
+
+  // Edit pod state
+  const [editingPod, setEditingPod] = useState<Pod | null>(null)
+  const [editPodName, setEditPodName] = useState('')
+  const [editPodDescription, setEditPodDescription] = useState('')
+  const [editMaxMembers, setEditMaxMembers] = useState('')
+  const [isEditingPod, setIsEditingPod] = useState(false)
+
+  // Delete confirmation state
+  const [podToDelete, setPodToDelete] = useState<Pod | null>(null)
 
   const supabase = createClient()
 
@@ -98,6 +110,48 @@ export default function AdminPodsPage() {
     setFilteredPods(filtered)
   }
 
+  const handleOpenEdit = (pod: Pod) => {
+    setEditingPod(pod)
+    setEditPodName(pod.name)
+    setEditPodDescription(pod.description || '')
+    setEditMaxMembers(pod.max_members.toString())
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingPod) return
+
+    if (!editPodName.trim()) {
+      toast.error('Pod name is required')
+      return
+    }
+
+    setIsEditingPod(true)
+    try {
+      const { error } = await supabase
+        .from('pods')
+        .update({
+          name: editPodName.trim(),
+          description: editPodDescription.trim() || null,
+          max_members: parseInt(editMaxMembers) || 50,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingPod.id)
+
+      if (error) throw error
+
+      toast.success(`Pod "${editPodName}" updated successfully`)
+      setShowEditModal(false)
+      setEditingPod(null)
+      loadPods()
+    } catch (error) {
+      console.error('Error updating pod:', error)
+      toast.error('Failed to update pod')
+    } finally {
+      setIsEditingPod(false)
+    }
+  }
+
   const handleTogglePodStatus = async (pod: Pod) => {
     try {
       const newStatus = pod.status === 'active' ? 'paused' : 'active'
@@ -111,7 +165,7 @@ export default function AdminPodsPage() {
 
       if (error) throw error
 
-      toast.success(`Pod ${newStatus === 'active' ? 'activated' : 'paused'}`)
+      toast.success(`Pod "${pod.name}" ${newStatus === 'active' ? 'activated' : 'paused'}`)
       loadPods()
     } catch (error) {
       console.error('Error updating pod status:', error)
@@ -119,21 +173,30 @@ export default function AdminPodsPage() {
     }
   }
 
-  const handleDeletePod = async (pod: Pod) => {
+  const handleConfirmDelete = async () => {
+    if (!podToDelete) return
+
     try {
       const { error } = await supabase
         .from('pods')
         .delete()
-        .eq('id', pod.id)
+        .eq('id', podToDelete.id)
 
       if (error) throw error
 
-      toast.success(`Pod "${pod.name}" deleted`)
+      toast.success(`Pod "${podToDelete.name}" deleted successfully`)
+      setPodToDelete(null)
+      setShowDeleteConfirm(false)
       loadPods()
     } catch (error) {
       console.error('Error deleting pod:', error)
       toast.error('Failed to delete pod')
     }
+  }
+
+  const handleDeletePod = (pod: Pod) => {
+    setPodToDelete(pod)
+    setShowDeleteConfirm(true)
   }
 
   const handleCreatePod = async (e: React.FormEvent) => {
@@ -325,7 +388,15 @@ export default function AdminPodsPage() {
               <TableBody>
                 {filteredPods.map((pod) => (
                   <TableRow key={pod.id}>
-                    <TableCell className="font-medium">{pod.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleOpenEdit(pod)}
+                        className="h-auto p-0 text-left font-medium hover:underline"
+                      >
+                        {pod.name}
+                      </Button>
+                    </TableCell>
                     <TableCell className="text-sm text-gray-600">
                       {pod.description || <span className="text-gray-400 italic">No description</span>}
                     </TableCell>
@@ -426,6 +497,106 @@ export default function AdminPodsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pod Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Pod</DialogTitle>
+            <DialogDescription>
+              Update pod information and settings
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingPod && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="editPodName">Pod Name *</Label>
+                <Input
+                  id="editPodName"
+                  value={editPodName}
+                  onChange={(e) => setEditPodName(e.target.value)}
+                  placeholder="Pod name"
+                  disabled={isEditingPod}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editPodDescription">Description</Label>
+                <Input
+                  id="editPodDescription"
+                  value={editPodDescription}
+                  onChange={(e) => setEditPodDescription(e.target.value)}
+                  placeholder="Pod description"
+                  disabled={isEditingPod}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editMaxMembers">Max Members</Label>
+                <Input
+                  id="editMaxMembers"
+                  type="number"
+                  value={editMaxMembers}
+                  onChange={(e) => setEditMaxMembers(e.target.value)}
+                  placeholder="50"
+                  min="1"
+                  max="1000"
+                  disabled={isEditingPod}
+                />
+                <p className="text-xs text-gray-500">
+                  Maximum number of members allowed in this pod
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={isEditingPod}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveEdit} disabled={isEditingPod}>
+                  {isEditingPod ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Pod</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{podToDelete?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowDeleteConfirm(false)
+                setPodToDelete(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Pod
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
