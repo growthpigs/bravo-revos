@@ -26,24 +26,24 @@ CREATE INDEX idx_invitation_expires_at ON user_invitations(expires_at);
 -- Enable Row Level Security
 ALTER TABLE user_invitations ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admins can manage all invitations
-CREATE POLICY "Admins manage invitations"
-ON user_invitations FOR ALL
-USING (
-  auth.uid() IN (SELECT user_id FROM admin_users)
+-- Policy: Authenticated users can create invitations (page-level auth guard)
+CREATE POLICY "Authenticated users can create invitations"
+ON user_invitations FOR INSERT
+WITH CHECK (
+  auth.uid() IS NOT NULL
 );
 
--- Policy: Users who invited can see their invitations
-CREATE POLICY "Users see invitations they sent"
+-- Policy: All users can select invitations
+-- Token-based verification happens at application level in API
+CREATE POLICY "Users can select invitations"
 ON user_invitations FOR SELECT
+USING (
+  true
+);
+
+-- Policy: Users can update invitations they created
+CREATE POLICY "Users can update invitations they created"
+ON user_invitations FOR UPDATE
 USING (
   invited_by = auth.uid()
-);
-
--- Policy: Anyone can read invitations if they have valid token (for verification)
--- Note: This will be handled at application level since token is the key
-CREATE POLICY "Read invitations by token"
-ON user_invitations FOR SELECT
-USING (
-  true -- Token verification happens in API
 );
