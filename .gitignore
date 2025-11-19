@@ -72,3 +72,4 @@ docs/PRODUCTION_CREDENTIALS.md
 .sentryclirc
 sentry.properties
 .vercel
+worktrees/
