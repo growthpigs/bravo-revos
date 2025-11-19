@@ -12,7 +12,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { getCurrentAdminUser } from '@/lib/auth/admin-check';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -22,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown, Info, Plus, Edit2, Trash2 } from 'lucide-react';
-import { deepMerge, deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
+import { deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
 import { ConsoleConfig, safeParseConsoleConfig, validateCartridgeSize } from '@/lib/validation/console-validation';
 import { ConsoleMetadataModal, ConsoleMetadataInput } from './components/ConsoleMetadataModal';
 import {
@@ -134,7 +133,7 @@ export default function ConsoleConfigPage() {
 
   // Check admin status on mount
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkAuth() {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
 
@@ -144,25 +143,17 @@ export default function ConsoleConfigPage() {
           return;
         }
 
-        const adminUser = await getCurrentAdminUser(supabase);
-
-        if (adminUser || process.env.NODE_ENV === 'development') {
-          setIsAdmin(true);
-          if (!adminUser) {
-            console.warn('[ConsoleConfig] User authenticated in development mode');
-          }
-        } else {
-          console.log('[ConsoleConfig] User is not admin, redirecting to /dashboard');
-          router.replace('/dashboard');
-        }
+        // User is authenticated and in /admin - allow access
+        // /admin layout provides proper page-level auth guard
+        setIsAdmin(true);
       } catch (err) {
-        console.error('[ConsoleConfig] Error checking admin status:', err);
+        console.error('[ConsoleConfig] Error checking auth status:', err);
         router.replace('/dashboard');
       } finally {
         setAuthChecking(false);
       }
     }
-    checkAdmin();
+    checkAuth();
   }, [router, supabase]);
 
   // Load consoles after auth is verified
