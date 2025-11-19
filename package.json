@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' tsx scripts/dev.ts",
     "dev:clean": "rm -rf .next && npm run dev",
+    "prebuild": "node scripts/generate-build-info.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
