@@ -31,7 +31,7 @@ interface User {
   last_name: string | null
   role: 'admin' | 'manager' | 'member'
   client_id: string | null
-  clients?: { name: string; id: string } | null
+  pod_memberships?: Array<{ id: string; pods: { name: string }[] }>
   last_login_at: string | null
   created_at: string
 }
@@ -39,7 +39,6 @@ interface User {
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
-  const [clients, setClients] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
@@ -62,7 +61,6 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     loadUsers()
-    loadClients()
   }, [])
 
   useEffect(() => {
@@ -83,22 +81,17 @@ export default function AdminUsersPage() {
           client_id,
           last_login_at,
           created_at,
-          clients (
+          pod_memberships (
             id,
-            name
+            pods (name)
           )
         `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      // Transform: Supabase returns clients as array, we need single object
-      const transformedData = (data || []).map(user => ({
-        ...user,
-        clients: Array.isArray(user.clients) && user.clients.length > 0
-          ? user.clients[0]
-          : null
-      }))
+          // No transformation needed - data is already in correct format
+      const transformedData = data || []
 
       setUsers(transformedData)
     } catch (error) {
@@ -106,20 +99,6 @@ export default function AdminUsersPage() {
       toast.error('Failed to load users')
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const loadClients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, name, slug')
-        .order('name')
-
-      if (error) throw error
-      setClients(data || [])
-    } catch (error) {
-      console.error('Error loading clients:', error)
     }
   }
 
@@ -133,8 +112,7 @@ export default function AdminUsersPage() {
         (user) =>
           user.email.toLowerCase().includes(search) ||
           user.first_name?.toLowerCase().includes(search) ||
-          user.last_name?.toLowerCase().includes(search) ||
-          user.clients?.name.toLowerCase().includes(search)
+          user.last_name?.toLowerCase().includes(search)
       )
     }
 
@@ -241,7 +219,7 @@ export default function AdminUsersPage() {
         </div>
         <Button onClick={handleOpenCreate} className="gap-2">
           <Plus className="h-4 w-4" />
-          New User
+          Invite User
         </Button>
       </div>
 
@@ -324,17 +302,9 @@ export default function AdminUsersPage() {
                           {user.role}
                         </Badge>
                       </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-4 w-4" />
-                          <span className="truncate">{user.email}</span>
-                        </div>
-                        {user.clients && (
-                          <div className="flex items-center gap-1">
-                            <Building2 className="h-4 w-4" />
-                            <span className="truncate">{user.clients.name}</span>
-                          </div>
-                        )}
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <Mail className="h-4 w-4" />
+                        <span className="truncate">{user.email}</span>
                       </div>
                       <div className="mt-2 text-xs text-gray-500">
                         Last login: {formatDate(user.last_login_at)} • Created: {formatDate(user.created_at)}
@@ -371,12 +341,12 @@ export default function AdminUsersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingUser ? 'Edit User' : 'Create New User'}
+              {editingUser ? 'Edit User' : 'Invite User'}
             </DialogTitle>
             <DialogDescription>
               {editingUser
                 ? 'Update user information and permissions'
-                : 'Add a new user to the platform'}
+                : 'Send an invitation to join the platform'}
             </DialogDescription>
           </DialogHeader>
 
@@ -434,25 +404,6 @@ export default function AdminUsersPage() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="client">Client</Label>
-              <Select
-                value={formData.client_id}
-                onValueChange={(value) => setFormData({ ...formData, client_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select client (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div className="flex justify-end gap-2">

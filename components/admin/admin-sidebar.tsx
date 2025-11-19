@@ -13,9 +13,7 @@ import {
   Building2,
   Settings,
   BarChart3,
-  UserCircle,
   LogOut,
-  Megaphone,
   Activity,
   FileCode,
   UsersRound
@@ -28,13 +26,16 @@ interface AdminSidebarProps {
 }
 
 const navigation = [
+  // Admin Section
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'System Health', href: '/admin/system-health', icon: Activity },
-  { name: 'Cartridges', href: '/admin/console-config', icon: FileCode },
-  { name: 'Clients', href: '/admin/clients', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
   { name: 'Pods', href: '/admin/pods', icon: UsersRound },
+
+  // Content Section
+  { name: 'Cartridges', href: '/admin/console-config', icon: FileCode },
+
+  // System
+  { name: 'System Health', href: '/admin/system-health', icon: Activity },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
@@ -77,24 +78,73 @@ export default function AdminSidebar({ user, agency }: AdminSidebarProps) {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                  isActive
-                    ? 'bg-blue-50 text-blue-900 font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                )}
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {item.name}
-              </Link>
-            )
-          })}
+          {/* Admin Section */}
+          <div className="space-y-1 mb-4">
+            {navigation.slice(0, 3).map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                    isActive
+                      ? 'bg-blue-50 text-blue-900 font-semibold'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {item.name}
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Content Section */}
+          <div className="mb-4 pt-2 border-t border-gray-200">
+            <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">Content</p>
+            {navigation.slice(3, 4).map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                    isActive
+                      ? 'bg-blue-50 text-blue-900 font-semibold'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {item.name}
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* System Section */}
+          <div className="pt-2 border-t border-gray-200">
+            <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase">System</p>
+            {navigation.slice(4).map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                    isActive
+                      ? 'bg-blue-50 text-blue-900 font-semibold'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  )}
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {item.name}
+                </Link>
+              )
+            })}
+          </div>
         </nav>
       </ScrollArea>
 
