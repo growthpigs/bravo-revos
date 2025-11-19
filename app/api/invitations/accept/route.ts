@@ -29,15 +29,17 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Verify invitation exists and is valid
-    const { data: invitation, error: invError } = await supabase
-      .from('user_invitations')
-      .select('*')
-      .eq('invitation_token', token)
-      .eq('status', 'pending')
-      .single();
+    // Verify invitation exists and is valid using RPC (handles UUID type casting)
+    const { data: invitations, error: invError } = await supabase.rpc(
+      'get_invitation_by_token',
+      { p_token: token }
+    );
 
-    if (invError || !invitation) {
+    const invitation = Array.isArray(invitations) && invitations.length > 0
+      ? invitations[0]
+      : null;
+
+    if (invError || !invitation || invitation.status !== 'pending') {
       console.log('[INVITE_ACCEPT] Invitation not found or already used:', token);
       return NextResponse.json(
         { error: 'Invitation not found or already used' },
