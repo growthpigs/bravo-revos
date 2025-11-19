@@ -13,9 +13,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
 
+    console.log('[INVITE_VERIFY] ==================== REQUEST START ====================');
     console.log('[INVITE_VERIFY] Request received:', {
+      fullUrl: request.url,
       tokenLength: token?.length || 0,
       tokenExists: !!token,
+      tokenValue: token || 'NULL',
+      tokenChars: token ? Array.from(token).map(c => c.charCodeAt(0)).join(',') : 'NULL',
       timestamp: new Date().toISOString(),
     });
 
@@ -33,31 +37,45 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    console.log('[INVITE_VERIFY] Looking up invitation token in database');
+    console.log('[INVITE_VERIFY] Looking up invitation token in database using RPC');
 
-    // Fetch invitation - cast token to UUID for proper matching
-    const { data: invitation, error } = await supabase
-      .from('user_invitations')
-      .select(
-        `
-        id,
-        email,
-        first_name,
-        last_name,
-        pod_id,
-        status,
-        expires_at,
-        created_at
-      `
-      )
-      .eq('invitation_token', token.toLowerCase()) // Normalize UUID format
-      .single();
+    // Fetch invitation - use RPC to handle UUID type casting properly
+    console.log('[INVITE_VERIFY] RPC call details:', {
+      functionName: 'get_invitation_by_token',
+      paramName: 'p_token',
+      paramValue: token,
+      paramLength: token?.length,
+    });
+
+    const { data: invitations, error, status } = await supabase
+      .rpc('get_invitation_by_token', {
+        p_token: token
+      });
+
+    console.log('[INVITE_VERIFY] RPC response received:', {
+      status: status,
+      dataType: typeof invitations,
+      isArray: Array.isArray(invitations),
+      dataLength: Array.isArray(invitations) ? invitations.length : 'N/A',
+      dataValue: JSON.stringify(invitations),
+      errorExists: !!error,
+      errorCode: error?.code,
+      errorMessage: error?.message,
+      errorHint: error?.hint,
+      errorStatus: error?.status,
+    });
+
+    const invitation = Array.isArray(invitations) && invitations.length > 0
+      ? invitations[0]
+      : null;
 
     if (error) {
-      console.error('[INVITE_VERIFY] ❌ Database query error:', {
+      console.error('[INVITE_VERIFY] ❌ RPC query error - DETAILED:', {
         code: error.code,
         message: error.message,
         hint: error.hint,
+        status: error.status,
+        details: JSON.stringify(error),
       });
     }
 
@@ -65,7 +83,9 @@ export async function GET(request: NextRequest) {
       console.log('[INVITE_VERIFY] ❌ Token not found in database:', {
         tokenPrefix: token.substring(0, 8),
         dbError: error?.message,
+        returning404: true,
       });
+      console.log('[INVITE_VERIFY] ==================== RETURNING 404 ====================');
       return NextResponse.json(
         { error: 'Invalid or expired invitation' },
         { status: 404 }
@@ -126,6 +146,7 @@ export async function GET(request: NextRequest) {
       hasPodId: !!invitation.pod_id,
     });
 
+    console.log('[INVITE_VERIFY] ==================== RETURNING 200 SUCCESS ====================');
     return NextResponse.json({
       success: true,
       invitation: {
@@ -138,10 +159,12 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[INVITE_VERIFY] ❌ Unexpected error:', {
+    console.error('[INVITE_VERIFY] ❌ Unexpected error caught:', {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
+      errorType: error?.constructor?.name,
     });
+    console.log('[INVITE_VERIFY] ==================== RETURNING 500 ERROR ====================');
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',
@@ -150,3 +173,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
