@@ -28,21 +28,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Fetch pod with members and activity
+    // Fetch pod with members and activity (RLS enforces user access via pod_memberships)
     const { data: pod, error: podError } = await supabase
       .from('pods')
       .select(`
@@ -69,7 +55,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('id', podId)
-      .eq('client_id', userData.client_id)
       .single()
 
     if (podError) {
@@ -93,7 +78,7 @@ export async function GET(request: NextRequest) {
       : 0
 
     // Get recent pod activities
-    const { data: activities, error: activitiesError } = await supabase
+    const { data: activities } = await supabase
       .from('pod_activities')
       .select('id, action_type, status, created_at, executed_at')
       .eq('pod_id', podId)
