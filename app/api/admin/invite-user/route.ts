@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin
-    const isAdmin = await isUserAdmin(user.id);
+    const isAdmin = await isUserAdmin(user.id, supabase);
     if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden: Admin only' }, { status: 403 });
     }

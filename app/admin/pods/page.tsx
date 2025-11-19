@@ -6,6 +6,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -46,8 +54,14 @@ export default function AdminPodsPage() {
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showCreatePodModal, setShowCreatePodModal] = useState(false)
   const [editingMember, setEditingMember] = useState<PodMember | null>(null)
   const [memberToDelete, setMemberToDelete] = useState<PodMember | null>(null)
+
+  // Create pod form state
+  const [podName, setPodName] = useState('')
+  const [maxMembers, setMaxMembers] = useState('50')
+  const [isCreatingPod, setIsCreatingPod] = useState(false)
 
   const supabase = createClient()
 
@@ -141,6 +155,44 @@ export default function AdminPodsPage() {
     } catch (error: any) {
       console.error('Error resending invite:', error)
       toast.error(error.message || 'Failed to resend invite')
+    }
+  }
+
+  const handleCreatePod = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!podName.trim()) {
+      toast.error('Pod name is required')
+      return
+    }
+
+    setIsCreatingPod(true)
+    try {
+      const response = await fetch('/api/admin/pods', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: podName.trim(),
+          max_members: parseInt(maxMembers) || 50
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create pod')
+      }
+
+      const result = await response.json()
+      toast.success(`Pod "${result.pod.name}" created successfully`)
+      setPodName('')
+      setMaxMembers('50')
+      setShowCreatePodModal(false)
+      // Optionally reload members or update state here if needed
+    } catch (error: any) {
+      console.error('Error creating pod:', error)
+      toast.error(error.message || 'Failed to create pod')
+    } finally {
+      setIsCreatingPod(false)
     }
   }
 
@@ -264,10 +316,16 @@ export default function AdminPodsPage() {
             Manage team members who participate in pod amplification
           </p>
         </div>
-        <Button onClick={handleOpenAdd} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Member
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowCreatePodModal(true)} variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Pod
+          </Button>
+          <Button onClick={handleOpenAdd} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Member
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -452,6 +510,62 @@ export default function AdminPodsPage() {
         confirmText="Delete"
         variant="destructive"
       />
+
+      {/* Create Pod Modal */}
+      <Dialog open={showCreatePodModal} onOpenChange={setShowCreatePodModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Pod</DialogTitle>
+            <DialogDescription>
+              Create a new pod for team amplification and engagement
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreatePod} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="podName">Pod Name *</Label>
+              <Input
+                id="podName"
+                value={podName}
+                onChange={(e) => setPodName(e.target.value)}
+                placeholder="e.g., Marketing Team Pod"
+                disabled={isCreatingPod}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="maxMembers">Max Members</Label>
+              <Input
+                id="maxMembers"
+                type="number"
+                value={maxMembers}
+                onChange={(e) => setMaxMembers(e.target.value)}
+                placeholder="50"
+                min="1"
+                max="1000"
+                disabled={isCreatingPod}
+              />
+              <p className="text-xs text-gray-500">
+                Maximum number of members allowed in this pod
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCreatePodModal(false)}
+                disabled={isCreatingPod}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreatingPod}>
+                {isCreatingPod ? 'Creating...' : 'Create Pod'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

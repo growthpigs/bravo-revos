@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Search, Edit, UserCircle, Mail, Building2 } from 'lucide-react'
+import { Plus, Search, Edit, UserCircle, Mail, Building2, Copy, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface User {
@@ -56,6 +56,11 @@ export default function AdminUsersPage() {
     role: 'member' as 'admin' | 'manager' | 'member',
     client_id: ''
   })
+
+  // Invite URL modal state
+  const [showInviteUrlModal, setShowInviteUrlModal] = useState(false)
+  const [inviteUrl, setInviteUrl] = useState('')
+  const [isCopied, setIsCopied] = useState(false)
 
   const supabase = createClient()
 
@@ -170,20 +175,62 @@ export default function AdminUsersPage() {
 
         if (error) throw error
         toast.success('User updated successfully')
+        setShowEditModal(false)
       } else {
-        // Note: For creating new users, you would typically use Supabase Auth
-        // This is a simplified version - in production you'd need proper auth flow
-        toast.info('User creation requires Supabase Auth setup. Please invite user via email.')
+        // Invite new user via API
+        const response = await fetch('/api/admin/invite-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            firstName: formData.first_name,
+            lastName: formData.last_name
+          })
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to send invitation')
+        }
+
+        const result = await response.json()
+
+        // Display the invite URL in modal
+        setInviteUrl(result.inviteUrl)
+        setShowInviteUrlModal(true)
         setShowCreateModal(false)
+
+        // Reset form
+        setFormData({
+          email: '',
+          first_name: '',
+          last_name: '',
+          role: 'member',
+          client_id: ''
+        })
+
+        // Reload users
+        loadUsers()
         return
       }
 
-      setShowEditModal(false)
       setShowCreateModal(false)
       loadUsers()
     } catch (error) {
       console.error('Error saving user:', error)
-      toast.error('Failed to save user')
+      toast.error(error instanceof Error ? error.message : 'Failed to save user')
+    }
+  }
+
+  const handleCopyInviteUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      setIsCopied(true)
+      toast.success('Invite link copied to clipboard')
+      setTimeout(() => setIsCopied(false), 2000)
+    } catch (error) {
+      console.error('Error copying URL:', error)
+      toast.error('Failed to copy URL')
     }
   }
 
@@ -419,6 +466,68 @@ export default function AdminUsersPage() {
             </Button>
             <Button onClick={handleSaveUser}>
               {editingUser ? 'Save Changes' : 'Create User'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite URL Modal */}
+      <Dialog open={showInviteUrlModal} onOpenChange={setShowInviteUrlModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Invitation Sent</DialogTitle>
+            <DialogDescription>
+              Share this link with the user to complete their registration
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="inviteLink">Invitation Link</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="inviteLink"
+                  value={inviteUrl}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  onClick={handleCopyInviteUrl}
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0"
+                >
+                  {isCopied ? (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                This link will expire in 7 days. The user can use this link to create their account.
+              </p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Tip:</strong> Copy and paste this link into an email or messaging app to send to the user.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowInviteUrlModal(false)}
+            >
+              Close
             </Button>
           </div>
         </DialogContent>
