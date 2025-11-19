@@ -191,56 +191,59 @@ export default function MonitoringDashboard() {
         serviceName={selectedService}
       />
 
-      <div className="space-y-6 p-6">
+      <div className="space-y-5 p-5">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Monitoring Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Real-time system and engagement metrics</p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Last updated: {new Date(metrics.timestamp).toLocaleTimeString()}
-          </p>
+          <h1 className="text-2xl font-bold">Monitoring Dashboard</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Real-time system and engagement metrics</p>
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-sm text-muted-foreground">
+              Last updated: {new Date(metrics.timestamp).toLocaleString()}
+            </p>
+            <p className="text-base font-semibold">v{appVersion}</p>
+          </div>
         </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Activities</CardTitle>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="py-2">
+          <CardHeader className="pb-1.5">
+            <CardTitle className="text-xs font-medium">Total Activities</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.engagement.totalActivities}</div>
+          <CardContent className="py-2">
+            <div className="text-xl font-bold">{metrics.engagement.totalActivities}</div>
             <p className="text-xs text-muted-foreground">Pod engagement activities</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+        <Card className="py-2">
+          <CardHeader className="pb-1.5">
+            <CardTitle className="text-xs font-medium">Success Rate</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.engagement.successRate}%</div>
+          <CardContent className="py-2">
+            <div className="text-xl font-bold">{metrics.engagement.successRate}%</div>
             <p className="text-xs text-muted-foreground">Activities completed successfully</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+        <Card className="py-2">
+          <CardHeader className="pb-1.5">
+            <CardTitle className="text-xs font-medium">Pending</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">
+          <CardContent className="py-2">
+            <div className="text-xl font-bold text-amber-600">
               {metrics.engagement.pendingActivities}
             </div>
             <p className="text-xs text-muted-foreground">Waiting for execution</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Failed</CardTitle>
+        <Card className="py-2">
+          <CardHeader className="pb-1.5">
+            <CardTitle className="text-xs font-medium">Failed</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+          <CardContent className="py-2">
+            <div className="text-xl font-bold text-red-600">
               {metrics.engagement.failedActivities}
             </div>
             <p className="text-xs text-muted-foreground">Permanent failures</p>
@@ -249,15 +252,15 @@ export default function MonitoringDashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Activity Status Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Activity Status</CardTitle>
-            <CardDescription>Current distribution of engagement activities</CardDescription>
+        <Card className="py-3">
+          <CardHeader className="py-2 pb-2">
+            <CardTitle className="text-base">Activity Status</CardTitle>
+            <CardDescription className="text-xs">Current distribution of engagement activities</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="py-2">
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie
                   data={engagementData}
@@ -265,7 +268,7 @@ export default function MonitoringDashboard() {
                   cy="50%"
                   labelLine={false}
                   label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
+                  outerRadius={64}
                   fill="#8884d8"
                   dataKey="value"
                 >
@@ -280,13 +283,13 @@ export default function MonitoringDashboard() {
         </Card>
 
         {/* Engagement Over Time */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Engagement Trend (24h)</CardTitle>
-            <CardDescription>Completed and failed activities over time</CardDescription>
+        <Card className="py-3">
+          <CardHeader className="py-2 pb-2">
+            <CardTitle className="text-base">Engagement Trend (24h)</CardTitle>
+            <CardDescription className="text-xs">Completed and failed activities over time</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="py-2">
+            <ResponsiveContainer width="100%" height={240}>
               <LineChart data={historicalData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
@@ -322,21 +325,21 @@ export default function MonitoringDashboard() {
 
       {/* Pod Performance */}
       {metrics.pods.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pod Performance</CardTitle>
-            <CardDescription>Engagement success rate by pod</CardDescription>
+        <Card className="py-3">
+          <CardHeader className="py-2 pb-2">
+            <CardTitle className="text-base">Pod Performance</CardTitle>
+            <CardDescription className="text-xs">Engagement success rate by pod</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="py-2">
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={metrics.pods}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="podName"
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 11 }}
                   angle={-45}
                   textAnchor="end"
-                  height={80}
+                  height={70}
                 />
                 <YAxis label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft' }} />
                 <Tooltip formatter={(value) => `${value}%`} />
