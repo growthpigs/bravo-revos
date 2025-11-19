@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 
+// Opt out of static generation since we use useSearchParams
+export const dynamic = 'force-dynamic';
+
 export default function OAuthSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
