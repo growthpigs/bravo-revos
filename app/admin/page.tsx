@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, Users, Megaphone, TrendingUp } from 'lucide-react'
+import { TimestampDisplay } from '@/components/admin/timestamp-display'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,6 +80,9 @@ export default async function AdminDashboardPage() {
         <p className="text-gray-600 mt-2">
           Monitor and manage all your clients and campaigns
         </p>
+        <div className="mt-4">
+          <TimestampDisplay />
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">

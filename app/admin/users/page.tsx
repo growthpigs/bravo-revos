@@ -85,22 +85,28 @@ export default function AdminUsersPage() {
           role,
           client_id,
           last_login_at,
-          created_at,
-          pod_members (
-            id,
-            pods (name)
-          )
+          created_at
         `)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('[USERS_PAGE] Load error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        })
+        throw error
+      }
 
-          // No transformation needed - data is already in correct format
       const transformedData = data || []
+      console.log('[USERS_PAGE] Successfully loaded users:', {
+        count: transformedData.length,
+        timestamp: new Date().toISOString(),
+      })
 
       setUsers(transformedData)
     } catch (error) {
-      console.error('Error loading users:', error)
+      console.error('[USERS_PAGE] Error loading users:', error)
       toast.error('Failed to load users')
     } finally {
       setIsLoading(false)
