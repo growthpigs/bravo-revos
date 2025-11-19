@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch pod with members and activity (RLS enforces user access via pod_memberships)
+    // Fetch pod with members and activity (RLS enforces user access via pod_members)
     const { data: pod, error: podError } = await supabase
       .from('pods')
       .select(`

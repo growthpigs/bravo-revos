@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
         severity: 'HIGH',
       });
 
-      const { error: podError } = await supabase.from('pod_memberships').insert({
+      const { error: podError } = await supabase.from('pod_members').insert({
         user_id: userId,
         pod_id: invitation.pod_id,
         is_active: true,
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
           errorMessage: podError.message,
           errorHint: podError.hint,
           severity: 'HIGH',
-          impact: 'User created but NOT in pod_memberships table',
+          impact: 'User created but NOT in pod_members table',
           silentlyIgnored: true,
           adminNotified: false,
           userNotified: false,

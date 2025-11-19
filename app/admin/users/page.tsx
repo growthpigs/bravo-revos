@@ -31,7 +31,7 @@ interface User {
   last_name: string | null
   role: 'user' | 'super_admin'
   client_id: string | null
-  pod_memberships?: Array<{ id: string; pods: { name: string }[] }>
+  pod_members?: Array<{ id: string; pods: { name: string }[] }>
   last_login_at: string | null
   created_at: string
 }
@@ -86,7 +86,7 @@ export default function AdminUsersPage() {
           client_id,
           last_login_at,
           created_at,
-          pod_memberships (
+          pod_members (
             id,
             pods (name)
           )
