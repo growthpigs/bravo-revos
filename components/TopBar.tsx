@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useHealthStatus, useHealthBannerVisibility } from '@/hooks/use-health-status';
@@ -12,20 +12,25 @@ interface TopBarProps {
 export function TopBar({ showLogo = true }: TopBarProps) {
   const { data } = useHealthStatus();
   const { isVisible } = useHealthBannerVisibility();
+  const [dateTimeDisplay, setDateTimeDisplay] = useState('');
+  const [mounted, setMounted] = useState(false);
 
-  // Get current date and time in DD-MM-YYYY HH:MM format
-  const now = new Date();
-  const currentDate = now.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-  const currentTime = now.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const dateTimeDisplay = `${currentDate} ${currentTime}`;
+  // Fix SSR hydration mismatch: only set time on client-side
+  useEffect(() => {
+    const now = new Date();
+    const currentDate = now.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const currentTime = now.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    setDateTimeDisplay(`${currentDate} ${currentTime}`);
+    setMounted(true);
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-40">
@@ -44,7 +49,7 @@ export function TopBar({ showLogo = true }: TopBarProps) {
           </Link>
         )}
         <div className="font-mono text-[9pt] uppercase text-gray-400 tracking-wide">
-          V0.2 · {dateTimeDisplay}
+          V0.2 · {mounted ? dateTimeDisplay : '—'}
         </div>
       </div>
 
