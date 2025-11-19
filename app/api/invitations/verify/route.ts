@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     console.log('[INVITE_VERIFY] Looking up invitation token in database');
 
-    // Fetch invitation
+    // Fetch invitation - cast token to UUID for proper matching
     const { data: invitation, error } = await supabase
       .from('user_invitations')
       .select(
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         created_at
       `
       )
-      .eq('invitation_token', token)
+      .eq('invitation_token', token.toLowerCase()) // Normalize UUID format
       .single();
 
     if (error) {
