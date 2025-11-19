@@ -34,26 +34,11 @@ export async function GET(
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Fetch sequence with client isolation
+    // Fetch sequence (RLS enforces user access)
     const { data: sequence, error: sequenceError } = await supabase
       .from('dm_sequences')
       .select('*')
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
       .maybeSingle()
 
     if (sequenceError) {
@@ -99,35 +84,6 @@ export async function PUT(
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Verify sequence exists and belongs to client
-    const { data: existingSequence, error: fetchError } = await supabase
-      .from('dm_sequences')
-      .select('id, client_id')
-      .eq('id', params.id)
-      .eq('client_id', userData.client_id)
-      .maybeSingle()
-
-    if (fetchError || !existingSequence) {
-      return NextResponse.json(
-        { error: 'DM sequence not found or access denied' },
-        { status: 404 }
-      )
-    }
-
     // Parse and validate request body
     const body = await request.json()
 
@@ -150,12 +106,11 @@ export async function PUT(
       throw error
     }
 
-    // Update sequence
+    // Update sequence (RLS enforces user access)
     const { data: sequence, error: updateError } = await supabase
       .from('dm_sequences')
       .update(validatedData)
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
       .select()
       .single()
 
@@ -164,6 +119,13 @@ export async function PUT(
       return NextResponse.json(
         { error: `Failed to update DM sequence: ${updateError.message}` },
         { status: 400 }
+      )
+    }
+
+    if (!sequence) {
+      return NextResponse.json(
+        { error: 'DM sequence not found or access denied' },
+        { status: 404 }
       )
     }
 
@@ -198,26 +160,11 @@ export async function DELETE(
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Delete sequence with client isolation
+    // Delete sequence (RLS enforces user access)
     const { error: deleteError } = await supabase
       .from('dm_sequences')
       .delete()
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
 
     if (deleteError) {
       console.error('[DM_SEQUENCES_API] DELETE error:', deleteError)
