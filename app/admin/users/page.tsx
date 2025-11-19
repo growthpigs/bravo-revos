@@ -183,47 +183,45 @@ export default function AdminUsersPage() {
         toast.success('User updated successfully')
         setShowEditModal(false)
       } else {
-        // Invite new user via API
-        const invitePayload = {
+        // Create new user via direct creation API
+        const createPayload = {
           email: formData.email,
-          firstName: formData.first_name,
-          lastName: formData.last_name
+          firstName: formData.first_name || 'User',
+          lastName: formData.last_name || '',
         };
 
-        console.log('[USERS_PAGE_DIAG] Sending invitation request:', {
-          payload: invitePayload,
-          role: formData.role,
-          hasEmail: !!invitePayload.email,
-          emailValid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invitePayload.email),
+        console.log('[USERS_PAGE] Creating user directly:', {
+          email: createPayload.email,
+          firstName: createPayload.firstName,
+          lastName: createPayload.lastName,
         });
 
-        const response = await fetch('/api/admin/invite-user', {
+        const response = await fetch('/api/admin/create-user-direct', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(invitePayload)
+          body: JSON.stringify(createPayload)
         })
 
-        console.log('[USERS_PAGE_DIAG] API response status:', response.status);
+        console.log('[USERS_PAGE] API response status:', response.status);
 
         if (!response.ok) {
           const error = await response.json()
-          console.error('[USERS_PAGE_ERROR] API returned error:', {
+          console.error('[USERS_PAGE] API returned error:', {
             status: response.status,
             error: error.error,
           });
-          throw new Error(error.error || 'Failed to send invitation')
+          throw new Error(error.error || 'Failed to create user')
         }
 
         const result = await response.json()
 
-        console.log('[USERS_PAGE_DIAG] Invitation created successfully:', {
-          inviteUrl: result.inviteUrl,
-          hasUrl: !!result.inviteUrl,
-          urlLength: result.inviteUrl?.length || 0,
+        console.log('[USERS_PAGE] User created successfully:', {
+          userId: result.user_id,
+          hasMagicLink: !!result.magic_link,
         });
 
-        // Display the invite URL in modal
-        setInviteUrl(result.inviteUrl)
+        // Display the magic link in modal
+        setInviteUrl(result.magic_link)
         setShowInviteUrlModal(true)
         setShowCreateModal(false)
 
@@ -415,12 +413,12 @@ export default function AdminUsersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingUser ? 'Edit User' : 'Invite User'}
+              {editingUser ? 'Edit User' : 'Create User'}
             </DialogTitle>
             <DialogDescription>
               {editingUser
                 ? 'Update user information and permissions'
-                : 'Send an invitation to join the platform'}
+                : 'Create a new user account and generate magic link'}
             </DialogDescription>
           </DialogHeader>
 
@@ -501,15 +499,15 @@ export default function AdminUsersPage() {
       <Dialog open={showInviteUrlModal} onOpenChange={setShowInviteUrlModal}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Invitation Sent</DialogTitle>
+            <DialogTitle>User Account Created</DialogTitle>
             <DialogDescription>
-              Share this link with the user to complete their registration
+              Share this magic link with the user to complete their onboarding
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="inviteLink">Invitation Link</Label>
+              <Label htmlFor="inviteLink">Magic Link</Label>
               <div className="flex gap-2">
                 <Input
                   id="inviteLink"
@@ -537,13 +535,19 @@ export default function AdminUsersPage() {
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                This link will expire in 7 days. The user can use this link to create their account.
+                This link expires in 24 hours. When clicked, the user will:
               </p>
+              <ol className="text-xs text-gray-600 ml-4 mt-2 space-y-1">
+                <li>1. Auto-login to their account</li>
+                <li>2. Connect their LinkedIn (required)</li>
+                <li>3. Set their password</li>
+                <li>4. Access the dashboard</li>
+              </ol>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                💡 <strong>Tip:</strong> Copy and paste this link into an email or messaging app to send to the user.
+                💡 <strong>Tip:</strong> Copy and paste this link to send via email, Slack, or during your call with the client.
               </p>
             </div>
           </div>

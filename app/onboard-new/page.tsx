@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { UnipileConnectionModal } from '@/components/onboarding/unipile-connection-modal'
+import { SetPasswordModal } from '@/components/onboarding/set-password-modal'
 
 type OnboardState =
   | 'verifying'              // Verifying OTP token
@@ -161,74 +163,11 @@ function OnboardNewContent() {
   }
 
   if (state === 'connecting_linkedin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="border-b border-gray-100 text-center">
-            <CardTitle className="text-2xl">Connect LinkedIn</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <p className="text-gray-700 text-center mb-6">
-              To get started, we need to connect your LinkedIn account.
-            </p>
-            <button
-              onClick={() => {
-                // TODO: Implement Unipile OAuth flow
-                // For now, simulate connection
-                handleLinkedInConnected('mock-unipile-account-id')
-              }}
-              className="w-full bg-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Connect LinkedIn
-            </button>
-            <p className="text-xs text-gray-500 text-center mt-4">
-              You cannot proceed without connecting LinkedIn
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    return <UnipileConnectionModal onSuccess={handleLinkedInConnected} blocking={true} />
   }
 
   if (state === 'setting_password') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="border-b border-gray-100 text-center">
-            <CardTitle className="text-2xl">Set Your Password</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <p className="text-gray-700 text-center mb-6">
-              Choose a secure password for your account.
-            </p>
-            <form onSubmit={(e) => {
-              e.preventDefault()
-              const formData = new FormData(e.currentTarget)
-              const password = formData.get('password') as string
-              handlePasswordSet(password)
-            }}>
-              <input
-                type="password"
-                name="password"
-                placeholder="Enter password"
-                minLength={8}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 mb-4"
-              />
-              <button
-                type="submit"
-                className="w-full bg-green-600 text-white font-medium py-3 px-4 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Set Password
-              </button>
-            </form>
-            <p className="text-xs text-gray-500 text-center mt-4">
-              Minimum 8 characters required
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    return <SetPasswordModal onSuccess={handlePasswordSet} blocking={true} />
   }
 
   // Complete state - will redirect to dashboard
