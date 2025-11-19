@@ -31,15 +31,37 @@ export default function OnboardContent() {
 
   useEffect(() => {
     if (!token) {
+      console.log('[ONBOARD_CONTENT] ❌ No token provided in URL params');
       setError('Invalid invitation link - no token provided');
       setLoading(false);
       return;
     }
 
+    console.log('[ONBOARD_CONTENT] Token received from URL:', {
+      tokenLength: token.length,
+      tokenPrefix: token.substring(0, 8),
+      verifyUrl: `/api/invitations/verify?token=${token.substring(0, 8)}...`,
+    });
+
     // Verify invitation
     fetch(`/api/invitations/verify?token=${token}`)
-      .then((r) => r.json())
+      .then((r) => {
+        console.log('[ONBOARD_CONTENT] Verify endpoint response:', {
+          status: r.status,
+          statusText: r.statusText,
+          contentType: r.headers.get('content-type'),
+        });
+        return r.json();
+      })
       .then((data) => {
+        console.log('[ONBOARD_CONTENT] Verify endpoint parsed response:', {
+          hasError: !!data.error,
+          errorMessage: data.error,
+          hasInvitation: !!data.invitation,
+          invitationEmail: data.invitation?.email,
+          invitationStatus: data.invitation?.status,
+        });
+
         if (data.error) {
           setError(data.error);
         } else {
@@ -48,36 +70,87 @@ export default function OnboardContent() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error('[ONBOARD] Verification error:', err);
+        console.error('[ONBOARD_CONTENT] ❌ Verification error:', {
+          errorMessage: err.message,
+          errorType: err.constructor.name,
+        });
         setError('Failed to verify invitation');
         setLoading(false);
       });
   }, [token]);
 
   const handleConnectLinkedIn = async () => {
-    if (!token) return;
+    if (!token) {
+      console.log('[ONBOARD_CONTENT] ❌ No token available for accept');
+      return;
+    }
 
+    console.log('[ONBOARD_CONTENT] User clicked "Create Account" button');
     setAccepting(true);
+
     try {
       // Accept invitation and create account
+      console.log('[ONBOARD_CONTENT] Calling /api/invitations/accept with token:', {
+        tokenLength: token.length,
+      });
+
       const response = await fetch('/api/invitations/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       });
 
+      console.log('[ONBOARD_CONTENT] Accept endpoint response:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type'),
+      });
+
+      const responseData = await response.json();
+
+      console.log('[ONBOARD_CONTENT] Accept endpoint parsed response:', {
+        success: responseData.success,
+        hasError: !!responseData.error,
+        errorMessage: responseData.error,
+        hasUser: !!responseData.user,
+        userId: responseData.user?.id,
+        userEmail: responseData.user?.email,
+      });
+
       if (!response.ok) {
-        const data = await response.json();
-        setError(data.error || 'Failed to create account');
+        const error = responseData.error || 'Failed to create account';
+        console.error('[ONBOARD_CONTENT] ❌ Accept endpoint error:', {
+          status: response.status,
+          error: error,
+        });
+        setError(error);
         setAccepting(false);
         return;
       }
 
       // Account created successfully
+      console.log('[ONBOARD_CONTENT] ✅ Account created successfully, redirecting to login');
+
+      // ⚠️ PROBLEM #4 Investigation: After account is created, user is redirected to login
+      // But they have NO WAY TO LOG IN because:
+      // 1. They don't have the temporary password (it was logged to server console)
+      // 2. There's no password reset link sent to them
+      // 3. The flow ends here - incomplete!
+
       // Redirect to login page where they can authenticate
-      router.push(`/auth/login?email=${encodeURIComponent(invitation?.email || '')}`);
+      const redirectUrl = `/auth/login?email=${encodeURIComponent(invitation?.email || '')}`;
+      console.log('[ONBOARD_CONTENT] Redirecting to:', {
+        url: redirectUrl,
+        email: invitation?.email,
+        note: 'User will reach login page but has NO PASSWORD (critical issue)',
+      });
+
+      router.push(redirectUrl);
     } catch (err) {
-      console.error('[ONBOARD] Accept error:', err);
+      console.error('[ONBOARD_CONTENT] ❌ Accept call error:', {
+        errorMessage: err instanceof Error ? err.message : String(err),
+        errorType: err?.constructor.name,
+      });
       setError('Failed to process invitation');
       setAccepting(false);
     }

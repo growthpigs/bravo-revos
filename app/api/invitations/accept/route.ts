@@ -74,6 +74,17 @@ export async function POST(request: NextRequest) {
     const userId = authData.user.id;
 
     // Create app user
+    // ⚠️ DIAGNOSTIC: Log the role value (PROBLEM #1 Investigation)
+    const roleValue = null; // CRITICAL: Role from invitation is NOT being set!
+    console.log('[INVITE_ACCEPT] User creation payload:', {
+      id: userId,
+      email: invitation.email,
+      first_name: invitation.first_name,
+      last_name: invitation.last_name,
+      roleValue: roleValue, // ❌ THIS IS NULL - PROBLEM #1 CONFIRMED
+      invitationHasRole: 'invitation.role field' in invitation ? 'YES' : 'NO (missing)',
+    });
+
     const { data: userData, error: userError } = await supabase
       .from('users')
       .insert({
@@ -81,6 +92,8 @@ export async function POST(request: NextRequest) {
         email: invitation.email,
         first_name: invitation.first_name,
         last_name: invitation.last_name,
+        // ⚠️ CRITICAL: Role is NOT being assigned from invitation!
+        // role: invitation.role, // <-- This line is MISSING
       })
       .select()
       .single();
@@ -95,8 +108,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[INVITE_ACCEPT] User created successfully:', {
+      userId,
+      email: userData.email,
+      createdRole: userData.role || null, // ⚠️ Should log the actual role
+    });
+
     // Add to pod if specified in invitation
     if (invitation.pod_id) {
+      console.log('[INVITE_ACCEPT] Attempting pod membership creation:', {
+        userId,
+        podId: invitation.pod_id,
+      });
+
       const { error: podError } = await supabase.from('pod_memberships').insert({
         user_id: userId,
         pod_id: invitation.pod_id,
@@ -104,27 +128,50 @@ export async function POST(request: NextRequest) {
       });
 
       if (podError) {
-        console.error('[INVITE_ACCEPT] Pod membership creation failed:', podError);
+        // ⚠️ PROBLEM #7: Silent failure - user created but NOT in pod!
+        console.error('[INVITE_ACCEPT] ⚠️ Pod membership creation FAILED:', {
+          userId,
+          podId: invitation.pod_id,
+          errorCode: podError.code,
+          errorMessage: podError.message,
+          severity: 'HIGH - User created but not added to pod!',
+        });
         // Don't fail the whole invitation just because pod membership failed
         // User can be added to pod later
+      } else {
+        console.log('[INVITE_ACCEPT] Pod membership created successfully:', {
+          userId,
+          podId: invitation.pod_id,
+        });
       }
+    } else {
+      console.log('[INVITE_ACCEPT] No pod_id in invitation, skipping pod membership');
     }
 
     // Mark invitation as accepted
-    await supabase
+    const { error: updateError } = await supabase
       .from('user_invitations')
       .update({ status: 'accepted' })
       .eq('id', invitation.id);
 
+    if (updateError) {
+      console.error('[INVITE_ACCEPT] Failed to mark invitation as accepted:', updateError);
+    }
+
     console.log('[INVITE_ACCEPT] Invitation accepted successfully:', {
       email: invitation.email,
       userId,
+      status: 'accepted',
     });
 
-    // TODO: Send welcome email with password reset link
-    console.log('[INVITE_ACCEPT] Temp password generated (send via email):', {
+    // ⚠️ PROBLEM #2: Email delivery NOT implemented!
+    console.log('[INVITE_ACCEPT] ⚠️ EMAIL DELIVERY PROBLEM:', {
+      severity: 'CRITICAL',
+      issue: 'User password is generated but NEVER sent via email',
       email: invitation.email,
-      tempPassword, // In production, this should be sent via email only
+      tempPassword: tempPassword, // User has NO WAY to get this!
+      emailServiceStatus: 'NOT_CONFIGURED',
+      nextSteps: 'Implement email delivery OR give user password on this endpoint',
     });
 
     return NextResponse.json({

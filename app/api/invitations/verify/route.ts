@@ -13,7 +13,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
 
+    console.log('[INVITE_VERIFY] Request received:', {
+      tokenLength: token?.length || 0,
+      tokenExists: !!token,
+      timestamp: new Date().toISOString(),
+    });
+
     if (!token) {
+      console.log('[INVITE_VERIFY] ❌ No token provided in query params');
       return NextResponse.json(
         { error: 'Token is required' },
         { status: 400 }
@@ -25,6 +32,8 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    console.log('[INVITE_VERIFY] Looking up invitation token in database');
 
     // Fetch invitation
     const { data: invitation, error } = await supabase
@@ -44,20 +53,46 @@ export async function GET(request: NextRequest) {
       .eq('invitation_token', token)
       .single();
 
-    if (error || !invitation) {
-      console.log('[INVITE_VERIFY] Token not found:', token);
+    if (error) {
+      console.error('[INVITE_VERIFY] ❌ Database query error:', {
+        code: error.code,
+        message: error.message,
+        hint: error.hint,
+      });
+    }
+
+    if (!invitation) {
+      console.log('[INVITE_VERIFY] ❌ Token not found in database:', {
+        tokenPrefix: token.substring(0, 8),
+        dbError: error?.message,
+      });
       return NextResponse.json(
         { error: 'Invalid or expired invitation' },
         { status: 404 }
       );
     }
 
+    console.log('[INVITE_VERIFY] ✅ Token found:', {
+      id: invitation.id,
+      email: invitation.email,
+      status: invitation.status,
+      expiresAt: invitation.expires_at,
+    });
+
     // Check if invitation is expired
     const expiresAt = new Date(invitation.expires_at);
     const now = new Date();
+    const isExpired = now > expiresAt;
 
-    if (now > expiresAt) {
-      console.log('[INVITE_VERIFY] Token expired:', token);
+    console.log('[INVITE_VERIFY] Expiration check:', {
+      expiresAt: expiresAt.toISOString(),
+      now: now.toISOString(),
+      isExpired: isExpired,
+      daysRemaining: Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+    });
+
+    if (isExpired) {
+      console.log('[INVITE_VERIFY] ❌ Invitation expired');
       return NextResponse.json(
         { error: 'Invitation has expired' },
         { status: 410 }
@@ -65,17 +100,30 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if already accepted
-    if (invitation.status !== 'pending') {
-      console.log('[INVITE_VERIFY] Invitation already processed:', invitation.status);
+    const isAlreadyProcessed = invitation.status !== 'pending';
+
+    console.log('[INVITE_VERIFY] Status check:', {
+      status: invitation.status,
+      isPending: invitation.status === 'pending',
+      isAlreadyProcessed: isAlreadyProcessed,
+    });
+
+    if (isAlreadyProcessed) {
+      console.log('[INVITE_VERIFY] ❌ Invitation already processed:', {
+        status: invitation.status,
+      });
       return NextResponse.json(
         { error: `Invitation has already been ${invitation.status}` },
         { status: 409 }
       );
     }
 
-    console.log('[INVITE_VERIFY] Valid invitation:', {
+    console.log('[INVITE_VERIFY] ✅ Valid invitation ready for acceptance:', {
       email: invitation.email,
       status: invitation.status,
+      hasFirstName: !!invitation.first_name,
+      hasLastName: !!invitation.last_name,
+      hasPodId: !!invitation.pod_id,
     });
 
     return NextResponse.json({
@@ -90,7 +138,10 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[INVITE_VERIFY] Error:', error);
+    console.error('[INVITE_VERIFY] ❌ Unexpected error:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

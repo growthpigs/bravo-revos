@@ -178,22 +178,43 @@ export default function AdminUsersPage() {
         setShowEditModal(false)
       } else {
         // Invite new user via API
+        const invitePayload = {
+          email: formData.email,
+          firstName: formData.first_name,
+          lastName: formData.last_name
+        };
+
+        console.log('[USERS_PAGE_DIAG] Sending invitation request:', {
+          payload: invitePayload,
+          role: formData.role,
+          hasEmail: !!invitePayload.email,
+          emailValid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invitePayload.email),
+        });
+
         const response = await fetch('/api/admin/invite-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: formData.email,
-            firstName: formData.first_name,
-            lastName: formData.last_name
-          })
+          body: JSON.stringify(invitePayload)
         })
+
+        console.log('[USERS_PAGE_DIAG] API response status:', response.status);
 
         if (!response.ok) {
           const error = await response.json()
+          console.error('[USERS_PAGE_ERROR] API returned error:', {
+            status: response.status,
+            error: error.error,
+          });
           throw new Error(error.error || 'Failed to send invitation')
         }
 
         const result = await response.json()
+
+        console.log('[USERS_PAGE_DIAG] Invitation created successfully:', {
+          inviteUrl: result.inviteUrl,
+          hasUrl: !!result.inviteUrl,
+          urlLength: result.inviteUrl?.length || 0,
+        });
 
         // Display the invite URL in modal
         setInviteUrl(result.inviteUrl)
