@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Megaphone, Users2, TrendingUp, Zap, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { RateLimitStatus } from '@/components/rate-limit-status'
+import { PodStatusBanner } from '@/components/pod-status-banner'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,6 +91,9 @@ export default async function DashboardPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Pod Status Warning */}
+      <PodStatusBanner />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
