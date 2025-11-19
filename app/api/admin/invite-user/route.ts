@@ -106,7 +106,32 @@ export async function POST(request: NextRequest) {
       finalUrl: inviteUrl,
     });
 
-    // TODO: Send email with invite link
+    // DIAGNOSTIC: Email delivery service check (PROBLEM #1 Investigation)
+    const emailServiceConfigured =
+      !!process.env.RESEND_API_KEY ||
+      !!process.env.SENDGRID_API_KEY ||
+      !!process.env.AWS_SES_ACCESS_KEY;
+
+    console.log('[INVITE_API_DIAG] Email delivery service check (PROBLEM #1 Investigation):', {
+      resendConfigured: !!process.env.RESEND_API_KEY,
+      sendgridConfigured: !!process.env.SENDGRID_API_KEY,
+      sesConfigured: !!process.env.AWS_SES_ACCESS_KEY,
+      anyServiceConfigured: emailServiceConfigured,
+      severity: emailServiceConfigured ? 'OK' : 'CRITICAL',
+      willSendEmail: false,
+      status: 'TODO: Send email with invite link',
+    });
+
+    // DIAGNOSTIC: What should happen vs what will happen
+    console.log('[INVITE_API_DIAG] Email delivery status (PROBLEM #1):', {
+      whatShouldHappen: 'Send email to ' + invitation.email + ' with magic link + temp password',
+      whatWillHappen: 'No email sent, admin must manually share URL',
+      userWillReceive: 'Nothing - NO EMAIL',
+      userCanProceed: false,
+      status: 'CRITICAL - BLOCKING',
+    });
+
+    // TODO: Send email with invite link (PROBLEM #1)
     // For now, just return the URL in response
 
     return NextResponse.json({
@@ -119,6 +144,12 @@ export async function POST(request: NextRequest) {
         expiresAt: invitation.expires_at,
       },
       inviteUrl, // Include for easy testing
+      diagnosticWarnings: {
+        emailNotImplemented: true,
+        userWillNotReceiveEmail: true,
+        adminMustShareURLManually: true,
+        issue: 'Email service not configured - invitation created but not sent',
+      },
     });
   } catch (error) {
     console.error('[INVITE_API] Error:', error);

@@ -74,34 +74,90 @@ export async function POST(request: NextRequest) {
     const userId = authData.user.id;
 
     // Create app user
-    // ⚠️ DIAGNOSTIC: Log the role value (PROBLEM #1 Investigation)
-    const roleValue = null; // CRITICAL: Role from invitation is NOT being set!
-    console.log('[INVITE_ACCEPT] User creation payload:', {
+    // DIAGNOSTIC: Check for role field in invitation (PROBLEM #2 Investigation)
+    console.log('[INVITE_ACCEPT] Invitation data available:', {
+      invitationId: invitation.id,
+      invitationEmail: invitation.email,
+      invitationKeys: Object.keys(invitation),
+      hasRoleField: 'role' in invitation,
+      roleValue: ('role' in invitation) ? invitation.role : 'MISSING',
+      firstNameExists: !!invitation.first_name,
+      lastNameExists: !!invitation.last_name,
+      podIdExists: !!invitation.pod_id,
+    });
+
+    // DIAGNOSTIC: Extract role (PROBLEM #2 - Role not being applied)
+    const roleValue = ('role' in invitation) ? invitation.role : null;
+    const validRoles = ['admin', 'manager', 'member'];
+    const isValidRole = roleValue && validRoles.includes(roleValue);
+
+    console.log('[INVITE_ACCEPT] Role validation (PROBLEM #5 Investigation):', {
+      extractedRole: roleValue,
+      isValidRole: isValidRole,
+      validRoles: validRoles,
+      willApplyRole: !!roleValue && isValidRole,
+      severity: roleValue ? 'MEDIUM' : 'CRITICAL',
+      issue: roleValue ? 'Role value might not match schema' : 'Role field missing from invitation',
+    });
+
+    // DIAGNOSTIC: Log complete user creation payload (PROBLEM #2 Investigation)
+    const userPayload = {
       id: userId,
       email: invitation.email,
       first_name: invitation.first_name,
       last_name: invitation.last_name,
-      roleValue: roleValue, // ❌ THIS IS NULL - PROBLEM #1 CONFIRMED
-      invitationHasRole: 'invitation.role field' in invitation ? 'YES' : 'NO (missing)',
+      ...(roleValue && isValidRole ? { role: roleValue } : {}),
+    };
+
+    console.log('[INVITE_ACCEPT] User creation payload:', {
+      ...userPayload,
+      note: 'Role is ' + (roleValue ? (isValidRole ? 'included' : 'INVALID') : 'MISSING'),
+      severity: roleValue ? 'OK' : 'CRITICAL',
     });
 
+    // Create app user
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .insert({
-        id: userId,
-        email: invitation.email,
-        first_name: invitation.first_name,
-        last_name: invitation.last_name,
-        // ⚠️ CRITICAL: Role is NOT being assigned from invitation!
-        // role: invitation.role, // <-- This line is MISSING
-      })
+      .insert(userPayload)
       .select()
       .single();
 
+    // DIAGNOSTIC: Check auth/app user linking (PROBLEM #3 Investigation)
+    const authAppUserMatch = authData.user?.id === userData?.id;
+    console.log('[INVITE_ACCEPT] Auth/App user linking check (PROBLEM #3):', {
+      authUserCreated: !!authData.user,
+      authUserId: authData.user?.id,
+      appUserCreated: !!userData,
+      appUserId: userData?.id,
+      idsMatch: authAppUserMatch,
+      severity: authAppUserMatch ? 'OK' : 'HIGH',
+      issue: authAppUserMatch ? 'None' : 'User IDs do not match!',
+    });
+
     if (userError) {
-      console.error('[INVITE_ACCEPT] User creation failed:', userError);
+      console.error('[INVITE_ACCEPT] User creation failed:', {
+        errorCode: userError.code,
+        errorMessage: userError.message,
+        errorHint: userError.hint,
+        severity: 'CRITICAL',
+      });
+
+      // DIAGNOSTIC: Log rollback attempt (PROBLEM #3 Investigation)
+      console.log('[INVITE_ACCEPT] Attempting rollback of auth user:', {
+        userIdToDelete: userId,
+        reason: 'App user creation failed',
+      });
+
       // Rollback auth user creation (optional - depends on requirements)
-      await supabase.auth.admin.deleteUser(userId);
+      const { error: rollbackError } = await supabase.auth.admin.deleteUser(userId);
+
+      console.error('[INVITE_ACCEPT] Rollback result:', {
+        rollbackSucceeded: !rollbackError,
+        rollbackError: rollbackError?.message,
+        orphanedUserIfFailed: rollbackError ? 'YES - ORPHANED AUTH USER' : 'NO',
+        severity: rollbackError ? 'HIGH' : 'OK',
+      });
+
       return NextResponse.json(
         { error: 'Failed to create user profile' },
         { status: 500 }
@@ -111,14 +167,19 @@ export async function POST(request: NextRequest) {
     console.log('[INVITE_ACCEPT] User created successfully:', {
       userId,
       email: userData.email,
-      createdRole: userData.role || null, // ⚠️ Should log the actual role
+      createdRole: userData.role || null,
+      roleWasApplied: !!userData.role,
+      severity: userData.role ? 'OK' : 'CRITICAL',
+      issue: userData.role ? 'None' : 'Role is NULL after creation',
     });
 
-    // Add to pod if specified in invitation
+    // Add to pod if specified in invitation (PROBLEM #4 Investigation)
     if (invitation.pod_id) {
-      console.log('[INVITE_ACCEPT] Attempting pod membership creation:', {
+      console.log('[INVITE_ACCEPT] Pod membership attempt (PROBLEM #4 Investigation):', {
         userId,
         podId: invitation.pod_id,
+        creationAttempted: true,
+        severity: 'HIGH',
       });
 
       const { error: podError } = await supabase.from('pod_memberships').insert({
@@ -128,13 +189,19 @@ export async function POST(request: NextRequest) {
       });
 
       if (podError) {
-        // ⚠️ PROBLEM #7: Silent failure - user created but NOT in pod!
-        console.error('[INVITE_ACCEPT] ⚠️ Pod membership creation FAILED:', {
+        // PROBLEM #4: Silent failure - user created but NOT in pod!
+        console.error('[INVITE_ACCEPT] Pod membership creation FAILED (PROBLEM #4):', {
           userId,
           podId: invitation.pod_id,
           errorCode: podError.code,
           errorMessage: podError.message,
-          severity: 'HIGH - User created but not added to pod!',
+          errorHint: podError.hint,
+          severity: 'HIGH',
+          impact: 'User created but NOT in pod_memberships table',
+          silentlyIgnored: true,
+          adminNotified: false,
+          userNotified: false,
+          canBeFixedLater: true,
         });
         // Don't fail the whole invitation just because pod membership failed
         // User can be added to pod later
@@ -142,10 +209,14 @@ export async function POST(request: NextRequest) {
         console.log('[INVITE_ACCEPT] Pod membership created successfully:', {
           userId,
           podId: invitation.pod_id,
+          severity: 'OK',
         });
       }
     } else {
-      console.log('[INVITE_ACCEPT] No pod_id in invitation, skipping pod membership');
+      console.log('[INVITE_ACCEPT] No pod_id in invitation:', {
+        podIdExists: false,
+        note: 'User not being added to any pod',
+      });
     }
 
     // Mark invitation as accepted
@@ -158,21 +229,79 @@ export async function POST(request: NextRequest) {
       console.error('[INVITE_ACCEPT] Failed to mark invitation as accepted:', updateError);
     }
 
-    console.log('[INVITE_ACCEPT] Invitation accepted successfully:', {
+    console.log('[INVITE_ACCEPT] Invitation status update:', {
       email: invitation.email,
       userId,
-      status: 'accepted',
+      invitationId: invitation.id,
+      newStatus: 'accepted',
+      updateError: updateError ? updateError.message : 'none',
     });
 
-    // ⚠️ PROBLEM #2: Email delivery NOT implemented!
-    console.log('[INVITE_ACCEPT] ⚠️ EMAIL DELIVERY PROBLEM:', {
+    // DIAGNOSTIC: Complete password transmission analysis (PROBLEM #6 Investigation)
+    console.log('[INVITE_ACCEPT] Password transmission analysis (PROBLEM #6 Investigation):', {
+      tempPassword: {
+        generated: !!tempPassword,
+        length: tempPassword?.length,
+        visible: '[REDACTED]',
+      },
+      transmission: {
+        sentViaEmail: false,
+        returnedInResponse: false,
+        displayedOnPage: false,
+        loggedToConsole: true,
+      },
+      userCanAccess: {
+        viaEmail: false,
+        viaResponse: false,
+        viaConsole: false,
+        viaUI: false,
+      },
+      passwordStatus: 'CRITICAL',
       severity: 'CRITICAL',
-      issue: 'User password is generated but NEVER sent via email',
-      email: invitation.email,
-      tempPassword: tempPassword, // User has NO WAY to get this!
-      emailServiceStatus: 'NOT_CONFIGURED',
-      nextSteps: 'Implement email delivery OR give user password on this endpoint',
+      issue: 'User has NO WAY to retrieve their password',
     });
+
+    // DIAGNOSTIC: Email delivery check (PROBLEM #1 Investigation)
+    const emailServiceConfigured =
+      !!process.env.RESEND_API_KEY ||
+      !!process.env.SENDGRID_API_KEY ||
+      !!process.env.AWS_SES_ACCESS_KEY;
+
+    console.log('[INVITE_ACCEPT] Email delivery service check (PROBLEM #1 Investigation):', {
+      resendConfigured: !!process.env.RESEND_API_KEY,
+      sendgridConfigured: !!process.env.SENDGRID_API_KEY,
+      sesConfigured: !!process.env.AWS_SES_ACCESS_KEY,
+      anyEmailServiceConfigured: emailServiceConfigured,
+      severity: 'CRITICAL',
+      issue: 'Email delivery not implemented',
+      what_should_happen: 'Email with magic link + password should be sent',
+      what_actually_happens: 'No email sent, user has no way to get password',
+      todo: 'Integrate Resend/SendGrid and send password via email',
+    });
+
+    // COMPLETE DIAGNOSTIC SUMMARY
+    console.log('[INVITE_ACCEPT] ============================================');
+    console.log('[INVITE_ACCEPT] COMPLETE INVITATION ACCEPTANCE DIAGNOSTIC:');
+    console.log('[INVITE_ACCEPT] ============================================');
+    console.log('[INVITE_ACCEPT] User Account Status:', {
+      accountCreated: !!userData,
+      authUserCreated: !!authData.user,
+      appUserCreated: !!userData,
+      roleApplied: !!userData.role,
+      inPod: invitation.pod_id ? 'ATTEMPTED' : 'NOT_REQUIRED',
+    });
+    console.log('[INVITE_ACCEPT] Critical Issues Found:', {
+      PROBLEM_1_EmailNotSent: 'YES - CRITICAL',
+      PROBLEM_2_RoleNotApplied: userData.role ? 'NO' : 'YES - CRITICAL',
+      PROBLEM_3_TransactionSafety: 'CHECK_LOGS',
+      PROBLEM_4_PodMembershipSilentFail: invitation.pod_id ? 'POSSIBLE - CHECK_LOGS' : 'N/A',
+      PROBLEM_5_RoleValidation: roleValue ? (isValidRole ? 'OK' : 'INVALID') : 'N/A',
+      PROBLEM_6_PasswordNotTransmitted: 'YES - CRITICAL',
+      PROBLEM_7_OnboardingIncomplete: 'YES - REDIRECTS_TO_LOGIN',
+    });
+    console.log('[INVITE_ACCEPT] ============================================');
+    console.log('[INVITE_ACCEPT] Filter browser console by [INVITE_ACCEPT] to see all diagnostics');
+    console.log('[INVITE_ACCEPT] ============================================');
 
     return NextResponse.json({
       success: true,
@@ -181,8 +310,17 @@ export async function POST(request: NextRequest) {
         email: userData.email,
         firstName: userData.first_name,
         lastName: userData.last_name,
+        role: userData.role || null,
       },
-      message: 'Account created successfully. Please check your email for password instructions.',
+      message: userData.role
+        ? 'Account created successfully. Please check your email for login instructions.'
+        : 'Account created but ROLE IS NULL - User will have no permissions!',
+      diagnosticWarnings: {
+        roleIsNull: !userData.role,
+        emailNotSent: true,
+        passwordNotTransmitted: true,
+        linkedinNotConnected: true,
+      },
     });
   } catch (error) {
     console.error('[INVITE_ACCEPT] Error:', error);

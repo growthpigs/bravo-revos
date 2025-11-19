@@ -129,21 +129,63 @@ export default function OnboardContent() {
       }
 
       // Account created successfully
-      console.log('[ONBOARD_CONTENT] ✅ Account created successfully, redirecting to login');
+      console.log('[ONBOARD_CONTENT] ✅ Account created successfully, analyzing next steps');
 
-      // ⚠️ PROBLEM #4 Investigation: After account is created, user is redirected to login
-      // But they have NO WAY TO LOG IN because:
-      // 1. They don't have the temporary password (it was logged to server console)
-      // 2. There's no password reset link sent to them
-      // 3. The flow ends here - incomplete!
+      // DIAGNOSTIC: Analyze password transmission (PROBLEM #6)
+      console.log('[ONBOARD_CONTENT] Password transmission check (PROBLEM #6):', {
+        passwordWasGenerated: true,
+        passwordSentToUser: !!responseData.tempPassword,
+        passwordInResponse: !!responseData.tempPassword,
+        severity: responseData.tempPassword ? 'OK' : 'CRITICAL',
+        issue: responseData.tempPassword ? 'None' : 'User will not be able to login',
+      });
+
+      // DIAGNOSTIC: Analyze role application (PROBLEM #2)
+      console.log('[ONBOARD_CONTENT] User role check (PROBLEM #2):', {
+        userCreated: true,
+        userRole: responseData.user?.role,
+        roleIsNull: !responseData.user?.role,
+        severity: responseData.user?.role ? 'OK' : 'CRITICAL',
+        issue: responseData.user?.role ? 'None' : 'User has NULL role - no permissions!',
+      });
+
+      // DIAGNOSTIC: LinkedIn connection flow (PROBLEM #7)
+      console.log('[ONBOARD_CONTENT] Onboarding flow analysis (PROBLEM #7):', {
+        flowPromises: [
+          'Account created',
+          'LinkedIn connection guidance',
+          'First login success',
+        ],
+        flowCompleted: {
+          accountCreated: true,
+          linkedinGuidance: false,
+          loginSuccessful: false,
+        },
+        missingSteps: ['linkedinGuidance', 'loginSuccessful'],
+        severity: 'HIGH',
+        issue: 'Onboarding incomplete - LinkedIn never connected, user just redirected to login',
+        uiPromise: 'UI says "guide you through LinkedIn connection" but does NOT',
+      });
 
       // Redirect to login page where they can authenticate
       const redirectUrl = `/auth/login?email=${encodeURIComponent(invitation?.email || '')}`;
-      console.log('[ONBOARD_CONTENT] Redirecting to:', {
+
+      console.log('[ONBOARD_CONTENT] Final redirect (PROBLEM #7 Investigation):', {
         url: redirectUrl,
         email: invitation?.email,
-        note: 'User will reach login page but has NO PASSWORD (critical issue)',
+        flow_status: {
+          email_received: 'NO - PROBLEM #1',
+          password_sent: 'NO - PROBLEM #6',
+          role_applied: responseData.user?.role ? 'YES' : 'NO - PROBLEM #2',
+          in_pod: responseData.user?.inPod ? 'YES' : 'NO - PROBLEM #4',
+          linkedin_connected: 'NO - PROBLEM #7',
+        },
+        critical_issues: responseData.diagnosticWarnings,
+        next_action: 'User will attempt to login but likely fail',
       });
+
+      console.log('[ONBOARD_CONTENT] ✅ Complete onboarding diagnostic summary');
+      console.log('[ONBOARD_CONTENT] Filter console by [ONBOARD_CONTENT] to see all diagnostics');
 
       router.push(redirectUrl);
     } catch (err) {
