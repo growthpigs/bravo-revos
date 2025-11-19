@@ -22,41 +22,31 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Search, Edit, Trash2, Users, ExternalLink, Mail, CheckCircle } from 'lucide-react'
+import { Plus, Search, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { AddPodMemberModal } from '@/components/admin/AddPodMemberModal'
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
-import { Switch } from '@/components/ui/switch'
-import { activatePodMember, resendPodInvite } from './actions'
 
-interface PodMember {
+interface Pod {
   id: string
-  client_id: string
-  user_id: string
+  client_id: string | null
   name: string
-  linkedin_url: string
-  unipile_account_id: string | null
-  is_active: boolean
-  onboarding_status: string
-  invite_token: string | null
-  invite_sent_at: string | null
-  last_activity_at: string | null
+  description: string | null
+  min_members: number
+  max_members: number
+  auto_engage: boolean
+  settings: Record<string, any>
+  status: 'active' | 'paused'
   created_at: string
   updated_at: string
-  clients?: { name: string; id: string } | null
 }
 
 export default function AdminPodsPage() {
-  const [members, setMembers] = useState<PodMember[]>([])
-  const [filteredMembers, setFilteredMembers] = useState<PodMember[]>([])
+  const [pods, setPods] = useState<Pod[]>([])
+  const [filteredPods, setFilteredPods] = useState<Pod[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
   // Modal states
-  const [showAddModal, setShowAddModal] = useState(false)
   const [showCreatePodModal, setShowCreatePodModal] = useState(false)
-  const [editingMember, setEditingMember] = useState<PodMember | null>(null)
-  const [memberToDelete, setMemberToDelete] = useState<PodMember | null>(null)
 
   // Create pod form state
   const [podName, setPodName] = useState('')
@@ -66,95 +56,83 @@ export default function AdminPodsPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    loadMembers()
+    loadPods()
   }, [])
 
   useEffect(() => {
-    filterMembers()
-  }, [members, searchTerm])
+    filterPods()
+  }, [pods, searchTerm])
 
-  const loadMembers = async () => {
+  const loadPods = async () => {
     try {
       setIsLoading(true)
       const { data, error } = await supabase
-        .from('pod_members')
-        .select(`
-          *,
-          clients (
-            id,
-            name
-          )
-        `)
+        .from('pods')
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      // Transform: Supabase returns clients as array, we need single object
-      const transformedData = (data || []).map(member => ({
-        ...member,
-        clients: Array.isArray(member.clients) && member.clients.length > 0
-          ? member.clients[0]
-          : null
-      }))
-
-      setMembers(transformedData)
+      setPods(data || [])
     } catch (error) {
-      console.error('Error loading pod members:', error)
-      toast.error('Failed to load pod members')
+      console.error('Error loading pods:', error)
+      toast.error('Failed to load pods')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const filterMembers = () => {
+  const filterPods = () => {
     if (!searchTerm) {
-      setFilteredMembers(members)
+      setFilteredPods(pods)
       return
     }
 
     const search = searchTerm.toLowerCase()
-    const filtered = members.filter(
-      (member) =>
-        member.name.toLowerCase().includes(search) ||
-        member.linkedin_url.toLowerCase().includes(search) ||
-        member.unipile_account_id?.toLowerCase().includes(search) ||
-        member.clients?.name.toLowerCase().includes(search)
+    const filtered = pods.filter(
+      (pod) =>
+        pod.name.toLowerCase().includes(search) ||
+        pod.description?.toLowerCase().includes(search)
     )
 
-    setFilteredMembers(filtered)
+    setFilteredPods(filtered)
   }
 
-  const handleActivateMember = async (member: PodMember) => {
+  const handleTogglePodStatus = async (pod: Pod) => {
     try {
-      const result = await activatePodMember(member.id)
+      const newStatus = pod.status === 'active' ? 'paused' : 'active'
+      const { error } = await supabase
+        .from('pods')
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pod.id)
 
-      if (result.success) {
-        toast.success(`Activated ${member.name}`)
-        loadMembers()
-      } else {
-        toast.error(result.error || 'Failed to activate member')
-      }
-    } catch (error: any) {
-      console.error('Error activating member:', error)
-      toast.error(error.message || 'Failed to activate member')
+      if (error) throw error
+
+      toast.success(`Pod ${newStatus === 'active' ? 'activated' : 'paused'}`)
+      loadPods()
+    } catch (error) {
+      console.error('Error updating pod status:', error)
+      toast.error('Failed to update pod status')
     }
   }
 
-  const handleResendInvite = async (member: PodMember) => {
+  const handleDeletePod = async (pod: Pod) => {
     try {
-      const result = await resendPodInvite(member.id)
+      const { error } = await supabase
+        .from('pods')
+        .delete()
+        .eq('id', pod.id)
 
-      if (result.success) {
-        toast.success(`Invite resent to ${member.name}`)
-        if (result.inviteUrl) {
-          console.log('[RESEND_INVITE] URL:', result.inviteUrl)
-        }
-      } else {
-        toast.error(result.error || 'Failed to resend invite')
-      }
-    } catch (error: any) {
-      console.error('Error resending invite:', error)
-      toast.error(error.message || 'Failed to resend invite')
+      if (error) throw error
+
+      toast.success(`Pod "${pod.name}" deleted`)
+      loadPods()
+    } catch (error) {
+      console.error('Error deleting pod:', error)
+      toast.error('Failed to delete pod')
     }
   }
 
@@ -237,7 +215,7 @@ export default function AdminPodsPage() {
       setPodName('')
       setMaxMembers('50')
       setShowCreatePodModal(false)
-      // Optionally reload members or update state here if needed
+      loadPods()
     } catch (error: any) {
       console.error('[POD_CREATE] ❌ Exception occurred:', {
         errorType: error.constructor.name,
@@ -248,70 +226,6 @@ export default function AdminPodsPage() {
     } finally {
       setIsCreatingPod(false)
       console.log('[POD_CREATE] Request completed, cleanup done')
-    }
-  }
-
-  const handleOpenAdd = () => {
-    setEditingMember(null)
-    setShowAddModal(true)
-  }
-
-  const handleOpenEdit = (member: PodMember) => {
-    setEditingMember(member)
-    setShowAddModal(true)
-  }
-
-  const handleCloseModal = () => {
-    setShowAddModal(false)
-    setEditingMember(null)
-  }
-
-  const handleSaveSuccess = () => {
-    loadMembers()
-    handleCloseModal()
-  }
-
-  const handleToggleActive = async (member: PodMember) => {
-    try {
-      const { error } = await supabase
-        .from('pod_members')
-        .update({
-          is_active: !member.is_active,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', member.id)
-
-      if (error) throw error
-
-      toast.success(
-        member.is_active
-          ? `Deactivated ${member.name}`
-          : `Activated ${member.name}`
-      )
-      loadMembers()
-    } catch (error) {
-      console.error('Error toggling member status:', error)
-      toast.error('Failed to update member status')
-    }
-  }
-
-  const handleDeleteMember = async () => {
-    if (!memberToDelete) return
-
-    try {
-      const { error } = await supabase
-        .from('pod_members')
-        .delete()
-        .eq('id', memberToDelete.id)
-
-      if (error) throw error
-
-      toast.success(`Deleted ${memberToDelete.name}`)
-      setMemberToDelete(null)
-      loadMembers()
-    } catch (error) {
-      console.error('Error deleting member:', error)
-      toast.error('Failed to delete member')
     }
   }
 
@@ -326,61 +240,20 @@ export default function AdminPodsPage() {
     })
   }
 
-  const getOnboardingStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return (
-          <Badge className="bg-green-100 text-green-700" variant="secondary">
-            Active
-          </Badge>
-        )
-      case 'unipile_connected':
-        return (
-          <Badge className="bg-blue-100 text-blue-700" variant="secondary">
-            Pending Activation
-          </Badge>
-        )
-      case 'password_set':
-        return (
-          <Badge className="bg-yellow-100 text-yellow-700" variant="secondary">
-            Password Set
-          </Badge>
-        )
-      case 'invited':
-        return (
-          <Badge className="bg-purple-100 text-purple-700" variant="secondary">
-            Invited
-          </Badge>
-        )
-      default:
-        return (
-          <Badge className="bg-gray-100 text-gray-700" variant="secondary">
-            {status}
-          </Badge>
-        )
-    }
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Pod Members</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Pods</h1>
           <p className="text-gray-600 mt-2">
-            Manage team members who participate in pod amplification
+            Manage engagement pods for team amplification
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowCreatePodModal(true)} variant="outline" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Pod
-          </Button>
-          <Button onClick={handleOpenAdd} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Member
-          </Button>
-        </div>
+        <Button onClick={() => setShowCreatePodModal(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Create Pod
+        </Button>
       </div>
 
       {/* Search */}
@@ -389,7 +262,7 @@ export default function AdminPodsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by name, LinkedIn URL, or Unipile account..."
+              placeholder="Search pods by name or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -398,39 +271,39 @@ export default function AdminPodsPage() {
         </CardContent>
       </Card>
 
-      {/* Member Count */}
+      {/* Pod Count */}
       <div className="flex items-center justify-between text-sm text-gray-600">
         <span>
-          Showing {filteredMembers.length} of {members.length} pod members
+          Showing {filteredPods.length} of {pods.length} pods
         </span>
         <span>
-          Active: {members.filter(m => m.is_active).length} / {members.length}
+          Active: {pods.filter(p => p.status === 'active').length} / {pods.length}
         </span>
       </div>
 
-      {/* Members Table */}
+      {/* Pods Table */}
       {isLoading ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-gray-500">Loading pod members...</p>
+            <p className="text-gray-500">Loading pods...</p>
           </CardContent>
         </Card>
-      ) : filteredMembers.length === 0 ? (
+      ) : filteredPods.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No pod members found
+              No pods found
             </h3>
             <p className="text-gray-600 mb-4">
               {searchTerm
                 ? 'Try adjusting your search'
-                : 'Get started by adding your first pod member'}
+                : 'Get started by creating your first pod'}
             </p>
             {!searchTerm && (
-              <Button onClick={handleOpenAdd} className="gap-2">
+              <Button onClick={() => setShowCreatePodModal(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
-                Add First Member
+                Create First Pod
               </Button>
             )}
           </CardContent>
@@ -442,93 +315,50 @@ export default function AdminPodsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>LinkedIn</TableHead>
-                  <TableHead>Unipile Account</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Onboarding Status</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMembers.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.name}</TableCell>
+                {filteredPods.map((pod) => (
+                  <TableRow key={pod.id}>
+                    <TableCell className="font-medium">{pod.name}</TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {pod.description || <span className="text-gray-400 italic">No description</span>}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                        {pod.min_members} - {pod.max_members} members
+                      </span>
+                    </TableCell>
                     <TableCell>
-                      <a
-                        href={member.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm"
+                      <Badge
+                        className={pod.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}
+                        variant="secondary"
                       >
-                        View Profile
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                        {pod.status === 'active' ? 'Active' : 'Paused'}
+                      </Badge>
                     </TableCell>
-                    <TableCell>
-                      {member.unipile_account_id ? (
-                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                          {member.unipile_account_id}
-                        </code>
-                      ) : (
-                        <span className="text-gray-400 text-xs">Not connected</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {member.clients?.name || (
-                        <span className="text-gray-400">No client</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {getOnboardingStatusBadge(member.onboarding_status)}
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={member.is_active}
-                        onCheckedChange={() => handleToggleActive(member)}
-                        disabled={member.onboarding_status !== 'active'}
-                        aria-label="Toggle active status"
-                      />
+                    <TableCell className="text-sm text-gray-600">
+                      {formatDate(pod.created_at)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {/* Show Activate button for members with Unipile connected */}
-                        {member.onboarding_status === 'unipile_connected' && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleActivateMember(member)}
-                            className="gap-1"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            Activate
-                          </Button>
-                        )}
-
-                        {/* Show Resend Invite button for invited members */}
-                        {member.onboarding_status === 'invited' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResendInvite(member)}
-                            className="gap-1"
-                          >
-                            <Mail className="h-4 w-4" />
-                            Resend
-                          </Button>
-                        )}
-
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleOpenEdit(member)}
+                          onClick={() => handleTogglePodStatus(pod)}
+                          title={pod.status === 'active' ? 'Pause pod' : 'Activate pod'}
                         >
-                          <Edit className="h-4 w-4" />
+                          {pod.status === 'active' ? '⏸' : '▶'}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setMemberToDelete(member)}
+                          onClick={() => handleDeletePod(pod)}
                           className="text-red-600 hover:text-red-800 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -542,29 +372,6 @@ export default function AdminPodsPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* Add/Edit Modal */}
-      <AddPodMemberModal
-        open={showAddModal}
-        onClose={handleCloseModal}
-        onSuccess={handleSaveSuccess}
-        editingMember={editingMember}
-      />
-
-      {/* Delete Confirmation */}
-      <ConfirmationDialog
-        open={!!memberToDelete}
-        onOpenChange={(open) => !open && setMemberToDelete(null)}
-        onConfirm={handleDeleteMember}
-        title="Delete Pod Member"
-        description={
-          memberToDelete
-            ? `Are you sure you want to delete ${memberToDelete.name}? This will also delete all their pod activities. This action cannot be undone.`
-            : ''
-        }
-        confirmText="Delete"
-        variant="destructive"
-      />
 
       {/* Create Pod Modal */}
       <Dialog open={showCreatePodModal} onOpenChange={setShowCreatePodModal}>
