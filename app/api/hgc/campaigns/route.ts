@@ -21,21 +21,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Query campaigns with metrics
+    // Query campaigns with metrics - RLS filters to user's campaigns
     let query = supabase
       .from('campaigns')
       .select(`
@@ -51,7 +37,6 @@ export async function GET(request: NextRequest) {
         lead_magnet_source,
         webhook_config_id
       `)
-      .eq('client_id', userData.client_id)
 
     // Filter by specific campaign if provided
     if (campaignId) {

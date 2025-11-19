@@ -48,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Check if user is admin
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role, client_id')
+      .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -74,7 +74,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
       .select()
       .single()
 
@@ -114,7 +113,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     // Check if user is admin
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role, client_id')
+      .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -130,7 +129,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       .from('lead_magnet_library')
       .update({ is_active: false })
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
 
     if (deleteError) {
       return NextResponse.json(

@@ -27,22 +27,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the current user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User not found or not associated with a client' },
-        { status: 403 }
-      );
-    }
-
-    const clientId = userData.client_id;
-
     // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -72,29 +56,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify lead magnet belongs to this client
+    // Verify lead magnet exists - RLS ensures user owns it
     const { data: leadMagnet, error: leadMagnetError } = await supabase
       .from('lead_magnets')
-      .select('id, client_id')
+      .select('id')
       .eq('id', leadMagnetId)
       .single();
 
     if (leadMagnetError || !leadMagnet) {
       return NextResponse.json(
-        { error: 'Lead magnet not found' },
+        { error: 'Lead magnet not found or access denied' },
         { status: 404 }
       );
     }
 
-    if (leadMagnet.client_id !== clientId) {
-      return NextResponse.json(
-        { error: 'Access denied: Lead magnet belongs to different client' },
-        { status: 403 }
-      );
-    }
-
     // Upload file to Supabase Storage
-    const uploadResult = await uploadFile(supabase, file, clientId, leadMagnetId);
+    // Note: uploadFile will handle multi-tenant isolation via user context
+    const uploadResult = await uploadFile(supabase, file, user.id, leadMagnetId);
 
     if (!uploadResult.success) {
       return NextResponse.json(

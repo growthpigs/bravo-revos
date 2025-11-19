@@ -21,20 +21,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
     // Parse date range
     const daysMap: Record<string, number> = {
       '1d': 1,
@@ -46,11 +32,10 @@ export async function GET(request: NextRequest) {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 
-    // Get campaigns for this client
+    // Get campaigns for user - RLS filters to user's campaigns
     const { data: campaigns } = await supabase
       .from('campaigns')
       .select('id')
-      .eq('client_id', userData.client_id)
 
     const campaignIds = campaigns?.map(c => c.id) || []
 

@@ -321,21 +321,6 @@ async function handleCreateCampaign(name: string, voice_id?: string, description
     return { success: false, error: 'Not authenticated' }
   }
 
-  // Get user's client_id
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('client_id')
-    .eq('id', user.id)
-    .single()
-
-  if (userError || !userData?.client_id) {
-    console.error('[HGC_TS] User client_id not found:', userError?.message)
-    return {
-      success: false,
-      error: 'User client not found. Please ensure your account is properly configured.'
-    }
-  }
-
   const { data, error } = await supabase
     .from('campaigns')
     .insert({
@@ -343,7 +328,7 @@ async function handleCreateCampaign(name: string, voice_id?: string, description
       voice_id: voice_id || null,
       description,
       status: 'draft',
-      client_id: userData.client_id,
+      user_id: user.id,
       created_by: user.id
     })
     .select()

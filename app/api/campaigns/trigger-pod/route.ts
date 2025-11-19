@@ -40,32 +40,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get campaign and verify ownership
+    // Get campaign - RLS ensures user can only access their own campaigns
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
-      .select('id, name, pod_id, user_id, client_id, post_template, status')
+      .select('id, name, pod_id, user_id, post_template, status')
       .eq('id', campaign_id)
       .single();
 
     if (campaignError || !campaign) {
       console.error('Error fetching campaign:', campaignError);
       return NextResponse.json(
-        { error: 'Campaign not found' },
+        { error: 'Campaign not found or access denied' },
         { status: 404 }
-      );
-    }
-
-    // Verify user has access to this campaign
-    const { data: userData } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!userData || userData.client_id !== campaign.client_id) {
-      return NextResponse.json(
-        { error: 'Unauthorized access to campaign' },
-        { status: 403 }
       );
     }
 

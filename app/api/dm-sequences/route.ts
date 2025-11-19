@@ -81,20 +81,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's client_id for insert (Pattern 3 - keep for now)
-    const { data: userData } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (!userData?.client_id) {
-      return NextResponse.json(
-        { error: 'User has no associated client' },
-        { status: 400 }
-      )
-    }
-
     // Parse and validate request body
     const body = await request.json()
 
@@ -117,7 +103,7 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
-    // Verify campaign exists (RLS will enforce ownership once campaigns has RLS)
+    // Verify campaign exists - RLS ensures user can only access their own campaigns
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('id')
@@ -134,7 +120,6 @@ export async function POST(request: NextRequest) {
     // Create DM sequence
     const sequenceData = {
       ...validatedData,
-      client_id: userData.client_id,
       status: 'active',
     }
 

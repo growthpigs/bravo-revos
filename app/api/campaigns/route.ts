@@ -16,32 +16,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError) {
-      return NextResponse.json(
-        { error: `Failed to fetch user data: ${userError.message}` },
-        { status: 400 }
-      )
-    }
-
-    if (!userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Fetch campaigns for user's client
+    // RLS automatically filters to user's campaigns
     const { data: campaigns, error: campaignsError } = await supabase
       .from('campaigns')
       .select('*')
-      .eq('client_id', userData.client_id)
       .order('created_at', { ascending: false })
 
     if (campaignsError) {
@@ -78,29 +56,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's client_id
-    console.log('[CAMPAIGNS_API] Fetching user data for ID:', user.id)
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    const clientId = userData.client_id
-    if (!clientId) {
-      return NextResponse.json(
-        { error: 'User has no associated client_id' },
-        { status: 400 }
-      )
-    }
-
     // Parse and validate request body
     const body = await request.json()
 
@@ -123,7 +78,7 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
-    console.log('[CAMPAIGNS_API] Creating campaign with validated data')
+    console.log('[CAMPAIGNS_API] Creating campaign for user:', user.id)
 
     // Determine lead magnet source
     let leadMagnetSource: 'library' | 'custom' | 'none' = 'none'
@@ -133,9 +88,9 @@ export async function POST(request: NextRequest) {
       leadMagnetSource = 'custom'
     }
 
-    // Prepare campaign data
+    // Prepare campaign data - user_id set from authenticated user
     const campaignData = {
-      client_id: clientId,
+      user_id: user.id,
       name: validatedData.name,
       description: validatedData.description || null,
       status: validatedData.status,
@@ -181,7 +136,7 @@ export async function POST(request: NextRequest) {
       const { data: webhookConfig, error: webhookError } = await supabase
         .from('webhook_configs')
         .insert({
-          client_id: clientId,
+          user_id: user.id,
           name: `${validatedData.name} - Webhook`,
           url: validatedData.webhookUrl,
           esp_type: validatedData.webhookType || 'custom',

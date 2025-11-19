@@ -30,42 +30,19 @@ export async function GET(
       );
     }
 
-    // Get the current user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User not found or not associated with a client' },
-        { status: 403 }
-      );
-    }
-
-    const clientId = userData.client_id;
     const leadMagnetId = params.id;
 
-    // Get lead magnet details
+    // Get lead magnet details (RLS filters to user's resources)
     const { data: leadMagnet, error: leadMagnetError } = await supabase
       .from('lead_magnets')
-      .select('id, client_id, file_path, name')
+      .select('id, file_path, name')
       .eq('id', leadMagnetId)
       .single();
 
     if (leadMagnetError || !leadMagnet) {
       return NextResponse.json(
-        { error: 'Lead magnet not found' },
+        { error: 'Lead magnet not found or access denied' },
         { status: 404 }
-      );
-    }
-
-    // Verify lead magnet belongs to this client
-    if (leadMagnet.client_id !== clientId) {
-      return NextResponse.json(
-        { error: 'Access denied: Lead magnet belongs to different client' },
-        { status: 403 }
       );
     }
 

@@ -19,17 +19,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
     // If filtering by campaign, get document IDs linked to that campaign
     let documentIds: string[] | null = null;
     if (campaignId) {
@@ -46,11 +35,10 @@ export async function GET(request: Request) {
       documentIds = linkedDocs?.map((link) => link.document_id) || [];
     }
 
-    // Base query
+    // Base query - RLS filters to user's documents
     let query = supabase
       .from('knowledge_base_documents')
       .select('*', { count: 'exact' })
-      .eq('client_id', userData.client_id)
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -116,22 +104,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Create document
+    // Create document - user_id set from authenticated user
     const { data: document, error: createError } = await supabase
       .from('knowledge_base_documents')
       .insert({
-        client_id: userData.client_id,
+        user_id: user.id,
         title,
         description,
         content,

@@ -21,26 +21,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
     // Generate embedding for query
     const queryEmbedding = await generateEmbedding(query);
 
     // Search using pgvector (cosine similarity)
-    // Cast array to vector for type compatibility
+    // RLS filters results to user's documents
     const { data: results, error } = await supabase
       .rpc('search_knowledge_base', {
         query_embedding: queryEmbedding,
-        client_id: userData.client_id,
         match_count: limit,
       });
 
@@ -94,22 +82,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Simple text search (full-text search)
+    // Simple text search (full-text search) - RLS filters to user's documents
     const { data: documents, error } = await supabase
       .from('knowledge_base_documents')
       .select('*')
-      .eq('client_id', userData.client_id)
       .or(`title.ilike.%${query}%,description.ilike.%${query}%,content.ilike.%${query}%`)
       .limit(limit);
 

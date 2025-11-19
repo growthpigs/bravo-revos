@@ -15,23 +15,11 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Get document (RLS will enforce client_id check)
+    // Get document - RLS filters to user's documents
     const { data: document, error } = await supabase
       .from('knowledge_base_documents')
       .select('*')
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
       .single();
 
     if (error || !document) {
@@ -60,23 +48,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Verify document exists and belongs to user's client
+    // Verify document exists - RLS ensures user owns it
     const { data: existingDoc, error: checkError } = await supabase
       .from('knowledge_base_documents')
       .select('*')
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
       .single();
 
     if (checkError || !existingDoc) {
@@ -130,23 +106,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's client_id
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Verify document exists and belongs to user's client
+    // Verify document exists - RLS ensures user owns it
     const { data: existingDoc, error: checkError } = await supabase
       .from('knowledge_base_documents')
       .select('*')
       .eq('id', params.id)
-      .eq('client_id', userData.client_id)
       .single();
 
     if (checkError || !existingDoc) {

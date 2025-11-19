@@ -45,22 +45,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's agency and client from database
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('agency_id, client_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User context not found' },
-        { status: 404 }
-      );
-    }
-
-    // Build tenant key for isolation
-    const tenantKey = buildTenantKey(userData.agency_id, userData.client_id, user.id);
+    // Build tenant key for isolation (user_id is sufficient for multi-tenant context)
+    // Note: For Mem0, we store user-specific memories, not client-wide
+    const tenantKey = buildTenantKey(null, null, user.id);
 
     // Add memory
     const memories = await addMemory(

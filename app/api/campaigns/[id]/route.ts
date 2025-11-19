@@ -21,39 +21,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!userData?.client_id) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Verify campaign belongs to user's client
-    const { data: campaign } = await supabase
-      .from('campaigns')
-      .select('id')
-      .eq('id', campaignId)
-      .eq('client_id', userData.client_id)
-      .single()
-
-    if (!campaign) {
-      return NextResponse.json(
-        { error: 'Campaign not found' },
-        { status: 404 }
-      )
-    }
-
     // Parse request body
     const body = await request.json()
 
-    // Update campaign
+    // Update campaign - RLS ensures user can only update their own
     const { data: updated, error: updateError } = await supabase
       .from('campaigns')
       .update(body)
@@ -95,26 +66,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Get user's client_id
-    const { data: userData } = await supabase
-      .from('users')
-      .select('client_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!userData?.client_id) {
-      return NextResponse.json(
-        { error: 'User data not found' },
-        { status: 400 }
-      )
-    }
-
-    // Verify campaign belongs to user's client
+    // First fetch to get webhook_config_id - RLS ensures we can only see our own
     const { data: campaign } = await supabase
       .from('campaigns')
       .select('id, webhook_config_id')
       .eq('id', campaignId)
-      .eq('client_id', userData.client_id)
       .single()
 
     if (!campaign) {
@@ -132,7 +88,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         .eq('id', campaign.webhook_config_id)
     }
 
-    // Delete campaign
+    // Delete campaign - RLS ensures user can only delete their own
     const { error: deleteError } = await supabase
       .from('campaigns')
       .delete()
