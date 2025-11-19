@@ -29,7 +29,7 @@ interface User {
   email: string
   first_name: string | null
   last_name: string | null
-  role: 'admin' | 'manager' | 'member'
+  role: 'user' | 'super_admin'
   client_id: string | null
   pod_memberships?: Array<{ id: string; pods: { name: string }[] }>
   last_login_at: string | null
@@ -53,7 +53,7 @@ export default function AdminUsersPage() {
     email: '',
     first_name: '',
     last_name: '',
-    role: 'member' as 'admin' | 'manager' | 'member',
+    role: 'user' as 'user' | 'super_admin',
     client_id: ''
   })
 
@@ -135,7 +135,7 @@ export default function AdminUsersPage() {
       email: user.email,
       first_name: user.first_name || '',
       last_name: user.last_name || '',
-      role: user.role,
+      role: (user.role === 'super_admin' ? 'super_admin' : 'user') as 'user' | 'super_admin',
       client_id: user.client_id || ''
     })
     setShowEditModal(true)
@@ -147,7 +147,7 @@ export default function AdminUsersPage() {
       email: '',
       first_name: '',
       last_name: '',
-      role: 'member',
+      role: 'user',
       client_id: ''
     })
     setShowCreateModal(true)
@@ -205,7 +205,7 @@ export default function AdminUsersPage() {
           email: '',
           first_name: '',
           last_name: '',
-          role: 'member',
+          role: 'user',
           client_id: ''
         })
 
@@ -236,9 +236,9 @@ export default function AdminUsersPage() {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin':
+      case 'super_admin':
         return 'bg-red-100 text-red-700'
-      case 'manager':
+      case 'user':
         return 'bg-blue-100 text-blue-700'
       default:
         return 'bg-gray-100 text-gray-700'
@@ -441,13 +441,12 @@ export default function AdminUsersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                Admin: Full access • Manager: Team management • Member: Basic access
+                User: Standard access • Super Admin: Full administrative access
               </p>
             </div>
 
