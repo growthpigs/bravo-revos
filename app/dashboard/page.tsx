@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Megaphone, Users2, TrendingUp, Zap, Plus } from 'lucide-react'
 import Link from 'next/link'
+import { RateLimitStatus } from '@/components/rate-limit-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,6 +113,11 @@ export default async function DashboardPage() {
         })}
       </div>
 
+      {/* Rate Limit Status */}
+      <div className="max-w-md">
+        <RateLimitStatus />
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="border-b border-gray-100">
@@ -119,6 +125,12 @@ export default async function DashboardPage() {
             <CardDescription>Get started with common tasks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-6">
+            <Link href="/workflows">
+              <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
+                <Megaphone className="h-4 w-4 mr-2" />
+                Browse Workflows
+              </Button>
+            </Link>
             <Link href="/dashboard/campaigns/new">
               <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
                 <Megaphone className="h-4 w-4 mr-2" />
