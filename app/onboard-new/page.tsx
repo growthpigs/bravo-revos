@@ -22,8 +22,64 @@ function OnboardNewContent() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    verifyMagicLink()
+    // Check if returning from LinkedIn OAuth
+    const step = searchParams.get('step')
+    if (step === 'linkedin-success') {
+      console.log('[ONBOARD_NEW] Returned from LinkedIn OAuth, checking connection...')
+      checkLinkedInConnection()
+    } else {
+      verifyMagicLink()
+    }
   }, [])
+
+  async function checkLinkedInConnection() {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        console.error('[ONBOARD_NEW] No authenticated user found after LinkedIn OAuth')
+        setState('invalid')
+        setError('Session expired. Please request a new magic link.')
+        return
+      }
+
+      // Check if unipile_account_id has been set by the webhook
+      const { data: userData } = await supabase
+        .from('users')
+        .select('unipile_account_id')
+        .eq('id', user.id)
+        .single()
+
+      if (userData?.unipile_account_id) {
+        console.log('[ONBOARD_NEW] LinkedIn connected successfully, moving to password setup')
+        setState('setting_password')
+      } else {
+        // Webhook might not have completed yet, wait a bit and check again
+        console.log('[ONBOARD_NEW] Unipile account ID not set yet, waiting for webhook...')
+        setTimeout(async () => {
+          const { data: retryData } = await supabase
+            .from('users')
+            .select('unipile_account_id')
+            .eq('id', user.id)
+            .single()
+
+          if (retryData?.unipile_account_id) {
+            console.log('[ONBOARD_NEW] LinkedIn connection confirmed after retry')
+            setState('setting_password')
+          } else {
+            console.error('[ONBOARD_NEW] LinkedIn connection not confirmed after webhook delay')
+            setState('invalid')
+            setError('LinkedIn connection failed. Please try again or contact support.')
+          }
+        }, 3000) // Wait 3 seconds for webhook to complete
+      }
+    } catch (err) {
+      console.error('[ONBOARD_NEW] Error checking LinkedIn connection:', err)
+      setState('invalid')
+      setError('Failed to verify LinkedIn connection.')
+    }
+  }
 
   async function verifyMagicLink() {
     try {
@@ -85,31 +141,6 @@ function OnboardNewContent() {
     }
   }
 
-  // Handle LinkedIn connection completion
-  async function handleLinkedInConnected(unipileAccountId: string) {
-    console.log('[ONBOARD_NEW] LinkedIn connected:', unipileAccountId)
-
-    // Store the unipile_account_id in the users table
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-      const { error } = await supabase
-        .from('users')
-        .update({ unipile_account_id: unipileAccountId })
-        .eq('id', user.id)
-
-      if (error) {
-        console.error('[ONBOARD_NEW] Failed to store unipile_account_id:', error)
-        setError('Failed to save LinkedIn connection. Please try again.')
-        return
-      }
-
-      console.log('[ONBOARD_NEW] Unipile account ID saved, moving to password setup')
-      setState('setting_password')
-    }
-  }
-
   // Handle password set completion
   async function handlePasswordSet(password: string) {
     console.log('[ONBOARD_NEW] Setting password')
@@ -163,7 +194,7 @@ function OnboardNewContent() {
   }
 
   if (state === 'connecting_linkedin') {
-    return <UnipileConnectionModal onSuccess={handleLinkedInConnected} blocking={true} />
+    return <UnipileConnectionModal blocking={true} />
   }
 
   if (state === 'setting_password') {

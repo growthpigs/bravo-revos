@@ -65,8 +65,29 @@ export async function POST(request: Request) {
     // Store connection in database
     const supabase = await createClient();
 
+    // Check if this is an onboarding connection (format: onboarding:{user_id})
+    if (identifier.startsWith('onboarding:')) {
+      const userId = identifier.replace('onboarding:', '');
+      console.log('[UniPile Notify] Onboarding user connection:', userId);
+
+      // Update users table with Unipile account ID
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          unipile_account_id: accountId,
+          // linkedin_connected will be auto-updated by trigger
+        })
+        .eq('id', userId);
+
+      if (updateError) {
+        console.error('[UniPile Notify] Failed to update user:', updateError);
+      } else {
+        console.log('[UniPile Notify] Successfully updated onboarding user:', userId);
+      }
+
+    }
     // Check if this is a pod member connection (format: pod_member:{id})
-    if (identifier.startsWith('pod_member:')) {
+    else if (identifier.startsWith('pod_member:')) {
       const podMemberId = identifier.replace('pod_member:', '');
       console.log('[UniPile Notify] Pod member connection:', podMemberId);
 
@@ -86,7 +107,7 @@ export async function POST(request: Request) {
       }
 
     } else {
-      // Regular user connection
+      // Regular user connection - store in connected_accounts table
       const userId = identifier;
 
       const { error: insertError } = await supabase

@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     // Parse request body
     const body = await request.json();
-    const { provider, podMemberId } = body;
+    const { provider, podMemberId, onboarding } = body;
 
     // Validate provider
     const validProviders = ['linkedin', 'whatsapp', 'instagram', 'telegram', 'messenger', 'twitter', 'email', 'calendar', 'all'];
@@ -65,8 +65,13 @@ export async function POST(request: Request) {
     let successUrl = `${APP_URL}/dashboard/settings?tab=connections&success=true`;
     let name = user.id; // Default: user ID for regular users
 
+    // If new user onboarding (magic link flow), use onboarding success URL
+    if (onboarding) {
+      successUrl = `${APP_URL}/onboard-new?step=linkedin-success`;
+      name = `onboarding:${user.id}`; // Format: onboarding:{user_id} for identification
+    }
     // If pod member onboarding, use different success URL and identifier
-    if (podMemberId) {
+    else if (podMemberId) {
       successUrl = `${APP_URL}/onboarding/pending-activation`;
       name = `pod_member:${podMemberId}`; // Format: pod_member:{id} for identification
     }

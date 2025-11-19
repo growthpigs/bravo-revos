@@ -4,11 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Linkedin } from 'lucide-react'
 
 interface UnipileConnectionModalProps {
-  onSuccess: (unipileAccountId: string) => void
   blocking: boolean
 }
 
-export function UnipileConnectionModal({ onSuccess, blocking }: UnipileConnectionModalProps) {
+export function UnipileConnectionModal({ blocking }: UnipileConnectionModalProps) {
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
@@ -41,20 +40,38 @@ export function UnipileConnectionModal({ onSuccess, blocking }: UnipileConnectio
           </div>
 
           <button
-            onClick={() => {
-              // TODO: Implement proper Unipile OAuth flow
-              // For now, simulate connection
-              console.log('[UNIPILE_MODAL] Connect LinkedIn clicked')
+            onClick={async () => {
+              try {
+                console.log('[UNIPILE_MODAL] Connect LinkedIn clicked - calling API')
 
-              // In production, this would:
-              // 1. Redirect to /api/linkedin/auth?onboarding=true
-              // 2. Unipile OAuth flow completes
-              // 3. Returns to /onboard-new?unipile_account_id=xyz
-              // 4. onSuccess callback stores the ID
+                // Call the create-hosted-link API to get Unipile OAuth URL
+                const response = await fetch('/api/unipile/create-hosted-link', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    provider: 'linkedin',
+                    onboarding: true, // Flag to indicate this is onboarding flow
+                  }),
+                })
 
-              // Simulating successful connection for now
-              const mockUnipileId = `unipile_${Date.now()}`
-              onSuccess(mockUnipileId)
+                if (!response.ok) {
+                  const error = await response.json()
+                  console.error('[UNIPILE_MODAL] API error:', error)
+                  alert('Failed to generate LinkedIn connection link. Please try again.')
+                  return
+                }
+
+                const data = await response.json()
+                console.log('[UNIPILE_MODAL] Got auth URL, redirecting...')
+
+                // Redirect to Unipile OAuth page
+                // After OAuth, Unipile will redirect back to /onboard-new?step=linkedin-success
+                // and call the /api/unipile/notify webhook
+                window.location.href = data.authUrl
+              } catch (error) {
+                console.error('[UNIPILE_MODAL] Error:', error)
+                alert('An unexpected error occurred. Please try again.')
+              }
             }}
             className="w-full bg-blue-600 text-white font-semibold py-4 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
           >
