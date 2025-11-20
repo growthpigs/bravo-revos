@@ -91,7 +91,8 @@ Provide clear, actionable insights with specific citations.`
 
   // Extract citations from grounding metadata if available
   const citations: GeminiCitation[] = []
-  const groundingMetadata = response.candidates?.[0]?.groundingMetadata
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const groundingMetadata = response.candidates?.[0]?.groundingMetadata as any
   if (groundingMetadata?.groundingChunks) {
     for (const chunk of groundingMetadata.groundingChunks) {
       if (chunk.retrievedContext) {
