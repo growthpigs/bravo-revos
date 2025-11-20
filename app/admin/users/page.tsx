@@ -30,8 +30,9 @@ interface User {
   email: string
   first_name: string | null
   last_name: string | null
-  role: 'user' | 'super_admin'
+  role: 'user' | 'super_admin' | 'admin' | 'manager' | 'member'
   client_id: string | null
+  unipile_account_id: string | null
   pod_members?: Array<{ id: string; pods: { name: string }[] }>
   last_login_at: string | null
   created_at: string
@@ -87,6 +88,7 @@ export default function AdminUsersPage() {
           last_name,
           role,
           client_id,
+          unipile_account_id,
           last_login_at,
           created_at
         `)
@@ -413,15 +415,25 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenEdit(user)}
-                    className="ml-4 flex-shrink-0"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
+                  <div className="flex flex-col items-end gap-2 ml-4 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenEdit(user)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Badge
+                      variant="secondary"
+                      className={user.unipile_account_id
+                        ? 'bg-green-100 text-green-700 text-xs'
+                        : 'bg-red-100 text-red-700 text-xs'
+                      }
+                    >
+                      {user.unipile_account_id ? 'LinkedIn Connected' : 'Not Connected'}
+                    </Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
