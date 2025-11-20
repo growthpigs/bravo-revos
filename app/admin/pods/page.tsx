@@ -263,11 +263,18 @@ export default function AdminPodsPage() {
         return
       }
 
+      // Build name from user details
+      const userName = `${selectedUser.first_name || ''} ${selectedUser.last_name || ''}`.trim() || selectedUser.email
+
       const { error } = await supabase
         .from('pod_members')
         .insert({
           pod_id: editingPod.id,
           user_id: selectedUserToAdd,
+          client_id: editingPod.client_id,
+          name: userName,
+          linkedin_url: '',  // Will be updated when user connects Unipile
+          is_active: true,
           status: 'active',
           role: 'member'
         })
