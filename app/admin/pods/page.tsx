@@ -141,7 +141,7 @@ export default function AdminPodsPage() {
       const memberUserIds = (members || []).map((m: any) => m.user_id)
       const { data: users, error: usersError } = await supabase
         .from('users')
-        .select('id, email, first_name, last_name')
+        .select('id, email, first_name, last_name, client_id')
         .not('id', 'in', `(${memberUserIds.join(',')})`)
 
       if (usersError) throw usersError
@@ -266,12 +266,20 @@ export default function AdminPodsPage() {
       // Build name from user details
       const userName = `${selectedUser.first_name || ''} ${selectedUser.last_name || ''}`.trim() || selectedUser.email
 
+      // Get client_id from user (pod may not have one)
+      const clientId = selectedUser.client_id || editingPod.client_id
+
+      if (!clientId) {
+        toast.error('User must have a client assigned')
+        return
+      }
+
       const { error } = await supabase
         .from('pod_members')
         .insert({
           pod_id: editingPod.id,
           user_id: selectedUserToAdd,
-          client_id: editingPod.client_id,
+          client_id: clientId,
           name: userName,
           linkedin_url: '',  // Will be updated when user connects Unipile
           is_active: true,
