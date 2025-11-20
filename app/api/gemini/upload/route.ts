@@ -216,6 +216,17 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
+    // Get user's client_id for ownership check
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData?.client_id) {
+      return NextResponse.json({ error: 'User has no client' }, { status: 400 })
+    }
+
     const { searchParams } = new URL(req.url)
     const documentId = searchParams.get('id')
 
@@ -223,30 +234,20 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Document ID required' }, { status: 400 })
     }
 
-    // Get document (with ownership check)
+    // Get document (with full ownership check: user_id AND client_id)
     const { data: doc, error: fetchError } = await supabase
       .from('gemini_documents')
       .select('id, supabase_path, gemini_file_uri')
       .eq('id', documentId)
       .eq('user_id', user.id)
+      .eq('client_id', userData.client_id)
       .single()
 
     if (fetchError || !doc) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 
-    // Delete from Gemini (best effort)
-    try {
-      const { deleteFromGemini } = await import('@/lib/gemini/client')
-      await deleteFromGemini(doc.gemini_file_uri)
-    } catch (e) {
-      console.warn('[GEMINI_UPLOAD] Failed to delete from Gemini:', e)
-    }
-
-    // Delete from storage
-    await supabase.storage.from('documents').remove([doc.supabase_path])
-
-    // Delete from database
+    // Delete from database FIRST (prevents orphaned external resources)
     const { error: deleteError } = await supabase
       .from('gemini_documents')
       .delete()
@@ -255,6 +256,17 @@ export async function DELETE(req: NextRequest) {
     if (deleteError) {
       return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 })
     }
+
+    // Delete from Gemini (best effort - already removed from DB)
+    try {
+      const { deleteFromGemini } = await import('@/lib/gemini/client')
+      await deleteFromGemini(doc.gemini_file_uri)
+    } catch (e) {
+      console.warn('[GEMINI_UPLOAD] Failed to delete from Gemini:', e)
+    }
+
+    // Delete from storage (best effort - already removed from DB)
+    await supabase.storage.from('documents').remove([doc.supabase_path])
 
     return NextResponse.json({ success: true })
   } catch (error) {
