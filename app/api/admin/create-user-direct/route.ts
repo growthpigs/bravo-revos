@@ -10,6 +10,7 @@ const CreateUserSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['user', 'super_admin']).default('user'),
 })
 
 export async function POST(request: NextRequest) {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, firstName, lastName, password } = validation.data
+    const { email, firstName, lastName, password, role } = validation.data
 
     // 3. Check if user already exists in Supabase auth
     // Use service role client for auth.admin operations
@@ -85,10 +86,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[CREATE_USER_DIRECT] User created successfully:', userData.user.id)
+    console.log('[CREATE_USER_DIRECT] Auth user created:', userData.user.id)
 
-    // 5. Return success with user details
-    // Admin will share the temporary password with the user
+    // 5. Insert into users table
+    const { error: insertError } = await supabaseAdmin
+      .from('users')
+      .insert({
+        id: userData.user.id,
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        role: role,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+
+    if (insertError) {
+      console.error('[CREATE_USER_DIRECT] Error inserting into users table:', insertError)
+      // User was created in auth but not in table - still return success but warn
+      return NextResponse.json({
+        success: true,
+        user_id: userData.user.id,
+        email: userData.user.email,
+        warning: 'User created in auth but failed to add to users table',
+        message: 'User account created. Share the temporary password with the user.',
+      })
+    }
+
+    console.log('[CREATE_USER_DIRECT] User added to users table:', userData.user.id)
+
+    // 6. Return success with user details
     return NextResponse.json({
       success: true,
       user_id: userData.user.id,

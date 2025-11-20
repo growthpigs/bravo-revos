@@ -198,6 +198,7 @@ export default function AdminUsersPage() {
           firstName: formData.first_name || 'User',
           lastName: formData.last_name || '',
           password: formData.password,
+          role: formData.role,
         };
 
         console.log('[USERS_PAGE] Creating user directly:', {
