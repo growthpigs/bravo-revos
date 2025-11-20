@@ -4,6 +4,7 @@ import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
+import { queueAmplification, queueRepost } from '@/lib/queues/pod-queue';
 
 interface PodSession {
   id: string;
@@ -38,7 +39,7 @@ export class PodChip extends BaseChip {
       name: 'coordinate_pod',
       description: 'Alert pod members to engage with posts for amplification. Sends notifications via Slack/Discord.',
       parameters: z.object({
-        action: z.enum(['alert_members', 'check_engagement', 'list_members', 'create_session']).describe('Pod coordination action'),
+        action: z.enum(['alert_members', 'check_engagement', 'list_members', 'create_session', 'trigger_amplification', 'check_status', 'cancel_amplification']).describe('Pod coordination action'),
         post_url: z.string().optional().describe('LinkedIn post URL to amplify'),
         pod_id: z.string().optional().describe('Pod ID (defaults to user\'s primary pod)'),
         message: z.string().optional().describe('Custom message to pod members'),
@@ -67,6 +68,15 @@ export class PodChip extends BaseChip {
 
         case 'create_session':
           return await this.createPodSession(context, pod_id, post_url);
+
+        case 'trigger_amplification':
+          return await this.triggerAmplification(context, pod_id, post_url);
+
+        case 'check_status':
+          return await this.checkAmplificationStatus(context, pod_id);
+
+        case 'cancel_amplification':
+          return await this.cancelAmplification(context, pod_id);
 
         default:
           return this.formatError(`Unknown action: ${action}`);
@@ -332,6 +342,148 @@ export class PodChip extends BaseChip {
       return `🚀 New post needs engagement! Please like, comment, and repost: ${postUrl}`;
     }
     return '🚀 Pod alert! Time to engage with the latest content.';
+  }
+
+  private async triggerAmplification(
+    context: AgentContext,
+    podId?: string,
+    postUrl?: string
+  ): Promise<any> {
+    const supabase = context.supabase as SupabaseClient<Database>;
+    const userId = context.userId;
+
+    if (!postUrl) {
+      return this.formatError('post_url is required for amplification');
+    }
+
+    // Get user's default pod if not specified
+    const finalPodId = podId || await this.getUserDefaultPod(context);
+    if (!finalPodId) {
+      return this.formatError('User has no associated pod');
+    }
+
+    // Get pod members (excluding the author)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: members, error: membersError } = await (supabase as any)
+      .from('pod_members')
+      .select('id, user_id, unipile_account_id')
+      .eq('pod_id', finalPodId)
+      .eq('status', 'active')
+      .neq('user_id', userId);
+
+    if (membersError) {
+      return this.formatError(`Failed to fetch members: ${membersError.message}`);
+    }
+
+    if (!members || members.length === 0) {
+      return this.formatError('No other pod members to amplify');
+    }
+
+    // Queue reposts with staggered timing (5-60 minutes apart)
+    const queuedJobs: string[] = [];
+    for (let i = 0; i < members.length; i++) {
+      const member = members[i];
+      if (!member.unipile_account_id) {
+        console.log(`[POD_CHIP] Skipping member ${member.id} - no Unipile account`);
+        continue;
+      }
+
+      const delayMs = i * 5 * 60 * 1000; // 5 minutes between each
+      const jobId = await queueRepost({
+        member_id: member.id,
+        post_url: postUrl,
+        unipile_account_id: member.unipile_account_id,
+        pod_id: finalPodId,
+      }, delayMs);
+
+      queuedJobs.push(jobId);
+    }
+
+    return this.formatSuccess({
+      pod_id: finalPodId,
+      post_url: postUrl,
+      members_queued: queuedJobs.length,
+      total_members: members.length,
+      job_ids: queuedJobs,
+      message: `⚡ Amplification triggered! ${queuedJobs.length} reposts queued over ${(queuedJobs.length * 5)} minutes.`
+    });
+  }
+
+  private async checkAmplificationStatus(
+    context: AgentContext,
+    podId?: string
+  ): Promise<any> {
+    const supabase = context.supabase as SupabaseClient<Database>;
+
+    // Get user's default pod if not specified
+    const finalPodId = podId || await this.getUserDefaultPod(context);
+    if (!finalPodId) {
+      return this.formatError('User has no associated pod');
+    }
+
+    // Get recent pod activities
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: activities, error } = await (supabase as any)
+      .from('pod_activities')
+      .select('*')
+      .eq('activity_type', 'repost')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      return this.formatError(`Failed to fetch status: ${error.message}`);
+    }
+
+    const completed = activities?.filter((a: any) => a.status === 'completed').length || 0;
+    const processing = activities?.filter((a: any) => a.status === 'processing').length || 0;
+    const failed = activities?.filter((a: any) => a.status === 'failed').length || 0;
+    const queued = activities?.filter((a: any) => a.status === 'queued').length || 0;
+
+    return this.formatSuccess({
+      total: activities?.length || 0,
+      completed,
+      processing,
+      queued,
+      failed,
+      recent_activities: activities?.slice(0, 5).map((a: any) => ({
+        id: a.id,
+        status: a.status,
+        post_url: a.post_url,
+        completed_at: a.completed_at,
+        error_message: a.error_message
+      })),
+      message: `📊 Amplification status: ${completed} completed, ${processing} processing, ${queued} queued, ${failed} failed`
+    });
+  }
+
+  private async cancelAmplification(
+    context: AgentContext,
+    podId?: string
+  ): Promise<any> {
+    const supabase = context.supabase as SupabaseClient<Database>;
+
+    // Get user's default pod if not specified
+    const finalPodId = podId || await this.getUserDefaultPod(context);
+    if (!finalPodId) {
+      return this.formatError('User has no associated pod');
+    }
+
+    // Cancel pending activities
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: cancelled, error } = await (supabase as any)
+      .from('pod_activities')
+      .update({ status: 'failed', error_message: 'Cancelled by user' })
+      .eq('status', 'queued')
+      .select();
+
+    if (error) {
+      return this.formatError(`Failed to cancel: ${error.message}`);
+    }
+
+    return this.formatSuccess({
+      cancelled_count: cancelled?.length || 0,
+      message: `🛑 Cancelled ${cancelled?.length || 0} pending amplification jobs`
+    });
   }
 
   private async sendNotification(member: PodMember, message: string): Promise<void> {

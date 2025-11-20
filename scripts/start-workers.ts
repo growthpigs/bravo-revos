@@ -1,32 +1,23 @@
-/**
- * Start Workers Script
- *
- * Starts all background workers for pod amplification.
- * Run with: npm run workers
- */
+import { RepostWorker } from '../lib/workers/repost-worker';
+import * as dotenv from 'dotenv';
 
-import podAmplificationWorker from '../lib/workers/pod-amplification-worker';
-import repostWorker from '../lib/workers/repost-worker';
+dotenv.config({ path: '.env.local' });
 
-console.log('🚀 Starting Pod Amplification Workers...');
-console.log('  - Pod Amplification Worker: Running');
-console.log('  - Repost Worker (Playwright): Running');
-console.log('\nPress Ctrl+C to stop workers\n');
+console.log('🚀 Starting pod amplification workers...');
+
+const repostWorker = new RepostWorker();
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('\n⏹️  Shutting down workers...');
-  await podAmplificationWorker.close();
-  await repostWorker.close();
-  process.exit(0);
-});
-
 process.on('SIGINT', async () => {
-  console.log('\n⏹️  Shutting down workers...');
-  await podAmplificationWorker.close();
-  await repostWorker.close();
+  console.log('\n🛑 Shutting down workers...');
+  repostWorker.stop();
   process.exit(0);
 });
 
-// Keep process alive
-process.stdin.resume();
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Shutting down workers...');
+  repostWorker.stop();
+  process.exit(0);
+});
+
+console.log('✅ Workers started. Press Ctrl+C to stop.');
