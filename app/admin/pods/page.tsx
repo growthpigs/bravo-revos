@@ -268,7 +268,8 @@ export default function AdminPodsPage() {
         .insert({
           pod_id: editingPod.id,
           user_id: selectedUserToAdd,
-          is_active: true
+          status: 'active',
+          role: 'member'
         })
 
       if (error) throw error
