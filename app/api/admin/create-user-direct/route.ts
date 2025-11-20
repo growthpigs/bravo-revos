@@ -9,6 +9,7 @@ const CreateUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
 export async function POST(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { email, firstName, lastName } = validation.data
+    const { email, firstName, lastName, password } = validation.data
 
     // 3. Check if user already exists in Supabase auth
     // Use service role client for auth.admin operations
@@ -65,49 +66,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. Create user and generate invite link in one step
-    // generateLink with type 'invite' both creates the user and generates the link
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    // IMPORTANT: Invite links return session tokens in hash fragments (#access_token=...)
-    // Server routes cannot read hash fragments, so redirect directly to client page
-    // The Supabase client on /onboard-new will automatically detect the session
-    const redirectTo = `${appUrl}/onboard-new`
-
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',  // Creates user + generates invite link (longer expiry)
+    // 4. Create user with email and password (simplest approach)
+    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      options: {
-        redirectTo,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-        },
+      password,
+      email_confirm: true, // Skip email verification
+      user_metadata: {
+        first_name: firstName,
+        last_name: lastName,
       },
     })
 
-    if (linkError || !linkData) {
-      console.error('[CREATE_USER_DIRECT] Error creating user and generating link:', linkError)
+    if (createError || !userData.user) {
+      console.error('[CREATE_USER_DIRECT] Error creating user:', createError)
       return NextResponse.json(
-        { error: 'Failed to create account' },
+        { error: createError?.message || 'Failed to create account' },
         { status: 500 }
       )
     }
 
-    console.log('[CREATE_USER_DIRECT] User created and invite link generated:', linkData.user.id)
+    console.log('[CREATE_USER_DIRECT] User created successfully:', userData.user.id)
 
-    console.log('[CREATE_USER_DIRECT] Magic link generated for:', email)
-    console.log('[CREATE_USER_DIRECT] Link data:', JSON.stringify(linkData, null, 2))
-
-    // 6. TODO: Send email via Resend (Phase 3)
-    // For now, we just return the link to the admin UI
-    // The admin can copy/paste it to send manually
-
-    // 5. Return success with invite link
+    // 5. Return success with user details
+    // Admin will share the temporary password with the user
     return NextResponse.json({
       success: true,
-      user_id: linkData.user.id,
-      magic_link: linkData.properties.action_link, // Full URL with token
-      message: 'User account created successfully',
+      user_id: userData.user.id,
+      email: userData.user.email,
+      message: 'User account created. Share the temporary password with the user.',
     })
 
   } catch (error) {

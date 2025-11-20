@@ -53,6 +53,7 @@ export default function AdminUsersPage() {
     email: '',
     first_name: '',
     last_name: '',
+    password: '',
     role: 'user' as 'user' | 'super_admin',
     client_id: ''
   })
@@ -141,6 +142,7 @@ export default function AdminUsersPage() {
       email: user.email,
       first_name: user.first_name || '',
       last_name: user.last_name || '',
+      password: '',
       role: (user.role === 'super_admin' ? 'super_admin' : 'user') as 'user' | 'super_admin',
       client_id: user.client_id || ''
     })
@@ -153,6 +155,7 @@ export default function AdminUsersPage() {
       email: '',
       first_name: '',
       last_name: '',
+      password: '',
       role: 'user',
       client_id: ''
     })
@@ -183,11 +186,18 @@ export default function AdminUsersPage() {
         toast.success('User updated successfully')
         setShowEditModal(false)
       } else {
+        // Validate password for new users
+        if (!formData.password || formData.password.length < 6) {
+          toast.error('Password must be at least 6 characters')
+          return
+        }
+
         // Create new user via direct creation API
         const createPayload = {
           email: formData.email,
           firstName: formData.first_name || 'User',
           lastName: formData.last_name || '',
+          password: formData.password,
         };
 
         console.log('[USERS_PAGE] Creating user directly:', {
@@ -217,11 +227,11 @@ export default function AdminUsersPage() {
 
         console.log('[USERS_PAGE] User created successfully:', {
           userId: result.user_id,
-          hasMagicLink: !!result.magic_link,
+          email: result.email,
         });
 
-        // Display the magic link in modal
-        setInviteUrl(result.magic_link)
+        // Display the credentials in modal
+        setInviteUrl(`Email: ${formData.email}\nPassword: ${formData.password}`)
         setShowInviteUrlModal(true)
         setShowCreateModal(false)
 
@@ -230,6 +240,7 @@ export default function AdminUsersPage() {
           email: '',
           first_name: '',
           last_name: '',
+          password: '',
           role: 'user',
           client_id: ''
         })
@@ -456,6 +467,22 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
+            {!editingUser && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Temporary Password *</Label>
+                <Input
+                  id="password"
+                  type="text"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="min 6 characters"
+                />
+                <p className="text-xs text-gray-500">
+                  Share this password with the user. They can change it later.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
               <Select
@@ -495,25 +522,26 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Invite URL Modal */}
+      {/* Credentials Modal */}
       <Dialog open={showInviteUrlModal} onOpenChange={setShowInviteUrlModal}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>User Account Created</DialogTitle>
             <DialogDescription>
-              Share this magic link with the user to complete their onboarding
+              Share these login credentials with the user
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="inviteLink">Magic Link</Label>
+              <Label htmlFor="inviteLink">Login Credentials</Label>
               <div className="flex gap-2">
-                <Input
+                <textarea
                   id="inviteLink"
                   value={inviteUrl}
                   readOnly
-                  className="font-mono text-sm"
+                  className="flex-1 font-mono text-sm p-3 border rounded-md bg-gray-50 resize-none"
+                  rows={2}
                 />
                 <Button
                   onClick={handleCopyInviteUrl}
@@ -535,19 +563,19 @@ export default function AdminUsersPage() {
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                This link expires in 24 hours. When clicked, the user will:
+                The user should:
               </p>
               <ol className="text-xs text-gray-600 ml-4 mt-2 space-y-1">
-                <li>1. Auto-login to their account</li>
-                <li>2. Connect their LinkedIn (required)</li>
-                <li>3. Set their password</li>
+                <li>1. Go to the login page</li>
+                <li>2. Enter these credentials</li>
+                <li>3. Connect their LinkedIn (required)</li>
                 <li>4. Access the dashboard</li>
               </ol>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                💡 <strong>Tip:</strong> Copy and paste this link to send via email, Slack, or during your call with the client.
+                💡 <strong>Tip:</strong> Copy and paste these credentials to send via email or Slack.
               </p>
             </div>
           </div>
