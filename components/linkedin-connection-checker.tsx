@@ -23,9 +23,14 @@ export function LinkedInConnectionChecker() {
 
       const { data: userData } = await supabase
         .from('users')
-        .select('unipile_account_id')
+        .select('unipile_account_id, role')
         .eq('id', user.id)
         .single()
+
+      // Super admins don't need LinkedIn connection
+      if (userData?.role === 'super_admin') {
+        return
+      }
 
       // If no LinkedIn connected, redirect directly to Unipile OAuth
       if (!userData?.unipile_account_id) {
