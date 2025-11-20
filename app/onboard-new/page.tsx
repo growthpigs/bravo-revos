@@ -83,44 +83,54 @@ function OnboardNewContent() {
 
   async function verifyMagicLink() {
     try {
-      // Extract token_hash from URL parameters
-      // Supabase magic links use these parameters:
-      // - token_hash: The actual OTP token
-      // - type: Should be 'magiclink'
-      const tokenHash = searchParams.get('token_hash')
-      const type = searchParams.get('type')
+      const supabase = createClient()
 
-      console.log('[ONBOARD_NEW] Verifying magic link:', { tokenHash: tokenHash?.substring(0, 10) + '...', type })
-
-      if (!tokenHash || type !== 'magiclink') {
-        console.error('[ONBOARD_NEW] Invalid URL parameters')
+      // Check for error passed from auth callback or in hash
+      const errorParam = searchParams.get('error')
+      if (errorParam) {
+        console.error('[ONBOARD_NEW] Error from auth callback:', errorParam)
         setState('invalid')
-        setError('Invalid magic link. Please request a new link from your administrator.')
+        setError(decodeURIComponent(errorParam))
         return
       }
 
-      // Verify the OTP token with Supabase
-      const supabase = createClient()
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: 'magiclink',
+      // Check for errors in hash fragment (Supabase error responses)
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const hashError = hashParams.get('error_description')
+        if (hashError) {
+          console.error('[ONBOARD_NEW] Error in hash:', hashError)
+          setState('invalid')
+          setError(decodeURIComponent(hashError.replace(/\+/g, ' ')))
+          return
+        }
+      }
+
+      // User should already be authenticated via auth callback
+      // The callback exchanged the code for a session before redirecting here
+      const { data: { user }, error: getUserError } = await supabase.auth.getUser()
+
+      console.log('[ONBOARD_NEW] Checking authenticated user:', {
+        hasUser: !!user,
+        userId: user?.id,
+        error: getUserError?.message
       })
 
-      if (verifyError || !data.user) {
-        console.error('[ONBOARD_NEW] OTP verification failed:', verifyError)
+      if (!user) {
+        console.error('[ONBOARD_NEW] No authenticated user - auth callback may have failed')
         setState('invalid')
-        setError(verifyError?.message || 'Failed to verify magic link. It may have expired.')
+        setError('Authentication failed. Please request a new invite link from your administrator.')
         return
       }
 
-      console.log('[ONBOARD_NEW] OTP verified successfully, user:', data.user.id)
+      console.log('[ONBOARD_NEW] User authenticated, proceeding:', user.id)
 
       // Check if user already has LinkedIn connected and password set
       // If so, redirect straight to dashboard
       const { data: userData } = await supabase
         .from('users')
         .select('unipile_account_id')
-        .eq('id', data.user.id)
+        .eq('id', user.id)
         .single()
 
       if (userData?.unipile_account_id) {

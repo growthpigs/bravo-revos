@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { getCurrentAdminUser } from '@/lib/auth/admin'
 import { z } from 'zod'
 
@@ -36,11 +37,13 @@ export async function POST(request: NextRequest) {
     const { email, firstName, lastName } = validation.data
 
     // 3. Check if user already exists in Supabase auth
-    const supabase = await createClient()
+    // Use service role client for auth.admin operations
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    // Note: We need service role access to check existing users and create new ones
-    // The regular client doesn't have permission to list auth users
-    const { data: existingUsers, error: checkError } = await supabase.auth.admin.listUsers()
+    const { data: existingUsers, error: checkError } = await supabaseAdmin.auth.admin.listUsers()
 
     if (checkError) {
       console.error('[CREATE_USER_DIRECT] Error checking existing users:', checkError)
@@ -62,60 +65,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. Create new Supabase auth user
-    const { data: newAuthUser, error: createError } = await supabase.auth.admin.createUser({
+    // 4. Create user and generate invite link in one step
+    // generateLink with type 'invite' both creates the user and generates the link
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    // IMPORTANT: Redirect to auth callback first, which exchanges code for session,
+    // then callback redirects to onboard-new with session cookies set
+    const redirectTo = `${appUrl}/auth/callback?next=/onboard-new`
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',  // Creates user + generates invite link (longer expiry)
       email,
-      email_confirm: true, // Skip email verification - they'll use magic link
-      user_metadata: {
-        first_name: firstName,
-        last_name: lastName,
+      options: {
+        redirectTo,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
       },
     })
 
-    if (createError || !newAuthUser.user) {
-      console.error('[CREATE_USER_DIRECT] Error creating auth user:', createError)
+    if (linkError || !linkData) {
+      console.error('[CREATE_USER_DIRECT] Error creating user and generating link:', linkError)
       return NextResponse.json(
         { error: 'Failed to create account' },
         { status: 500 }
       )
     }
 
-    console.log('[CREATE_USER_DIRECT] Auth user created:', newAuthUser.user.id)
-
-    // 5. Generate magic link (OTP)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const redirectTo = `${appUrl}/onboard-new`
-
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: {
-        redirectTo,
-      },
-    })
-
-    if (linkError || !linkData) {
-      console.error('[CREATE_USER_DIRECT] Error generating magic link:', linkError)
-
-      // Rollback: Delete the auth user we just created
-      await supabase.auth.admin.deleteUser(newAuthUser.user.id)
-
-      return NextResponse.json(
-        { error: 'Failed to generate magic link' },
-        { status: 500 }
-      )
-    }
+    console.log('[CREATE_USER_DIRECT] User created and invite link generated:', linkData.user.id)
 
     console.log('[CREATE_USER_DIRECT] Magic link generated for:', email)
+    console.log('[CREATE_USER_DIRECT] Link data:', JSON.stringify(linkData, null, 2))
 
     // 6. TODO: Send email via Resend (Phase 3)
     // For now, we just return the link to the admin UI
     // The admin can copy/paste it to send manually
 
-    // 7. Return success with magic link
+    // 5. Return success with invite link
     return NextResponse.json({
       success: true,
-      user_id: newAuthUser.user.id,
+      user_id: linkData.user.id,
       magic_link: linkData.properties.action_link, // Full URL with token
       message: 'User account created successfully',
     })
