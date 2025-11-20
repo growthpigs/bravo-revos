@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Search, Edit, UserCircle, Mail, Building2, Copy, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -42,6 +43,7 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
+  const [activeTab, setActiveTab] = useState<'users' | 'admins'>('users')
 
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false)
@@ -71,7 +73,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     filterUsers()
-  }, [users, searchTerm, roleFilter])
+  }, [users, searchTerm, roleFilter, activeTab])
 
   const loadUsers = async () => {
     try {
@@ -116,6 +118,13 @@ export default function AdminUsersPage() {
 
   const filterUsers = () => {
     let filtered = users
+
+    // Tab filter (users vs admins)
+    if (activeTab === 'users') {
+      filtered = filtered.filter((user) => user.role === 'user' || user.role === 'member')
+    } else {
+      filtered = filtered.filter((user) => user.role === 'super_admin' || user.role === 'admin')
+    }
 
     // Search filter
     if (searchTerm) {
@@ -307,6 +316,14 @@ export default function AdminUsersPage() {
           Invite User
         </Button>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'users' | 'admins')}>
+        <TabsList>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="admins">Admins</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Filters */}
       <Card>
