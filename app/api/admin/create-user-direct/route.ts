@@ -68,9 +68,10 @@ export async function POST(request: NextRequest) {
     // 4. Create user and generate invite link in one step
     // generateLink with type 'invite' both creates the user and generates the link
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    // IMPORTANT: Redirect to auth callback first, which exchanges code for session,
-    // then callback redirects to onboard-new with session cookies set
-    const redirectTo = `${appUrl}/auth/callback?next=/onboard-new`
+    // IMPORTANT: Invite links return session tokens in hash fragments (#access_token=...)
+    // Server routes cannot read hash fragments, so redirect directly to client page
+    // The Supabase client on /onboard-new will automatically detect the session
+    const redirectTo = `${appUrl}/onboard-new`
 
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',  // Creates user + generates invite link (longer expiry)
