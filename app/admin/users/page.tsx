@@ -230,8 +230,9 @@ export default function AdminUsersPage() {
           email: result.email,
         });
 
-        // Display the credentials in modal
-        setInviteUrl(`Email: ${formData.email}\nPassword: ${formData.password}`)
+        // Display the credentials in modal with login link
+        const appUrl = window.location.origin
+        setInviteUrl(`Log in to revOS:\n${appUrl}/auth/login\n\nEmail: ${formData.email}\nPassword: ${formData.password}`)
         setShowInviteUrlModal(true)
         setShowCreateModal(false)
 
