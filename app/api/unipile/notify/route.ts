@@ -64,6 +64,13 @@ export async function POST(request: Request) {
 
     // Store connection in database
     // CRITICAL: Use service role - webhook has no auth cookies, RLS would block insert
+    const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    console.log('[UniPile Notify] Service role key exists:', hasServiceKey);
+
+    if (!hasServiceKey) {
+      console.error('[UniPile Notify] CRITICAL: SUPABASE_SERVICE_ROLE_KEY is NOT set!');
+    }
+
     const supabase = await createClient({ isServiceRole: true });
 
     // Check if this is an onboarding connection (format: onboarding:{user_id})
@@ -112,39 +119,53 @@ export async function POST(request: Request) {
       const userId = identifier;
 
       // Update users table with unipile_account_id (for Settings UI)
-      const { error: updateError } = await supabase
+      console.log('[UniPile Notify] Attempting users table update for userId:', userId, 'with accountId:', accountId);
+      const { data: updateData, error: updateError } = await supabase
         .from('users')
         .update({
           unipile_account_id: accountId,
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (updateError) {
-        console.error('[UniPile Notify] Failed to update users table:', updateError);
+        console.error('[UniPile Notify] Failed to update users table:', JSON.stringify(updateError));
       } else {
-        console.log('[UniPile Notify] Updated users.unipile_account_id for:', userId);
+        console.log('[UniPile Notify] Users table update result:', JSON.stringify(updateData));
       }
 
       // Also store in connected_accounts for detailed tracking
-      const { error: insertError } = await supabase
+      const insertPayload = {
+        user_id: userId,
+        provider: account.type?.toLowerCase() || 'linkedin',
+        account_id: accountId,
+        profile_name: account.name || 'Unknown Account',
+        status: 'active',
+        last_synced: new Date().toISOString()
+      };
+      console.log('[UniPile Notify] Attempting connected_accounts insert:', JSON.stringify(insertPayload));
+
+      const { data: insertData, error: insertError } = await supabase
         .from('connected_accounts')
-        .upsert({
-          user_id: userId,
-          provider: account.type?.toLowerCase() || 'linkedin',
-          account_id: accountId,
-          profile_name: account.name || 'Unknown Account',
-          status: 'active',
-          last_synced: new Date().toISOString()
-        }, {
+        .upsert(insertPayload, {
           onConflict: 'user_id,provider,account_id',
           ignoreDuplicates: false
-        });
+        })
+        .select();
 
       if (insertError) {
-        console.error('[UniPile Notify] Failed to store connection:', insertError);
+        console.error('[UniPile Notify] Failed to store connection:', JSON.stringify(insertError));
       } else {
-        console.log('[UniPile Notify] Successfully stored connection for user:', userId);
+        console.log('[UniPile Notify] Connected_accounts insert result:', JSON.stringify(insertData));
       }
+
+      // Verify the data was actually inserted
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('connected_accounts')
+        .select('*')
+        .eq('user_id', userId);
+
+      console.log('[UniPile Notify] Verification query result:', JSON.stringify(verifyData), 'error:', JSON.stringify(verifyError));
     }
 
     return NextResponse.json({ received: true });
