@@ -1387,6 +1387,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       };
       setMessages(prev => [...prev, assistantMessage]);
 
+      // Check for document content (e.g., generated LinkedIn post)
+      if (data.document && data.document.content) {
+        console.log('[INLINE_FORM] 📄 Document received - sending to working document');
+        setIsFullscreen(true);
+        setDocumentContent(data.document.content);
+        setDocumentTitle(data.document.title || 'Working Document');
+        setDocumentSourceMessageId(assistantMessage.id);
+      }
+
       if (data.interactive) {
         console.log('[INLINE_FORM] 🎯 Next step:', data.interactive.type);
       }

@@ -343,23 +343,29 @@ Now generate 4 headlines for THIS brand:`;
         messages: [
           {
             role: 'system',
-            content: `You are an expert LinkedIn content creator. Generate engaging LinkedIn posts that drive engagement.
+            content: `You are an expert LinkedIn content creator.
 
 ${brandContext}
 
 ${styleContext}
 
-RULES:
-- Hook in first line (not "Imagine..." or "Picture this...")
+CRITICAL OUTPUT RULES:
+- Return ONLY the post content - NO preamble, NO introduction, NO "Here's a draft..."
+- Start directly with the hook line
+- 150-250 words maximum (LinkedIn optimal length)
 - 3-5 short paragraphs max
-- Include relevant emoji strategically (not excessive)
+- Hook in first line (not "Imagine..." or "Picture this...")
+- Include 1-2 relevant emoji (not excessive)
 - End with engagement question or call-to-action
 - Professional yet conversational
-- NO hashtags unless brand uses them`,
+- NO hashtags
+- NO explanations before or after the post`,
           },
           {
             role: 'user',
-            content: `Write a LinkedIn post about: ${topic}`,
+            content: `Write a LinkedIn post about: ${topic}
+
+Remember: Output ONLY the post content. No introduction or explanation.`,
           },
         ],
       });
