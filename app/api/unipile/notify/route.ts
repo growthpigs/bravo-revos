@@ -63,7 +63,8 @@ export async function POST(request: Request) {
     console.log('[UniPile Notify] Account details:', JSON.stringify(account, null, 2));
 
     // Store connection in database
-    const supabase = await createClient();
+    // CRITICAL: Use service role - webhook has no auth cookies, RLS would block insert
+    const supabase = await createClient({ isServiceRole: true });
 
     // Check if this is an onboarding connection (format: onboarding:{user_id})
     if (identifier.startsWith('onboarding:')) {
@@ -129,13 +130,13 @@ export async function POST(request: Request) {
         .from('connected_accounts')
         .upsert({
           user_id: userId,
-          provider: account.type?.toLowerCase() || 'unknown',
+          provider: account.type?.toLowerCase() || 'linkedin',
           account_id: accountId,
           profile_name: account.name || 'Unknown Account',
           status: 'active',
           last_synced: new Date().toISOString()
         }, {
-          onConflict: 'account_id',
+          onConflict: 'user_id,provider,account_id',
           ignoreDuplicates: false
         });
 
