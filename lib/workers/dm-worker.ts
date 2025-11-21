@@ -4,25 +4,37 @@
  * Tracks activity in pod_activities table
  */
 
-import * as dotenv from 'dotenv';
-dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
-
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { sendDirectMessage } from '../unipile-client';
 import { DMJobData } from '../queues/dm-queue';
 
-// Redis connection
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null
-});
+// Lazy initialization - all created on first use AFTER env vars are loaded
+let connection: Redis | null = null;
+let supabase: SupabaseClient | null = null;
+let worker: Worker<DMJobData> | null = null;
 
-// Supabase client (service role for worker operations)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getConnection(): Redis {
+  if (!connection) {
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    console.log('[DM_WORKER] Creating Redis connection:', redisUrl.substring(0, 30) + '...');
+    connection = new Redis(redisUrl, {
+      maxRetriesPerRequest: null
+    });
+  }
+  return connection;
+}
+
+function getSupabase(): SupabaseClient {
+  if (!supabase) {
+    supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return supabase;
+}
 
 // Rate limiting: LinkedIn allows ~100 DMs/day per account
 const DAILY_DM_LIMIT = 100;
@@ -45,7 +57,7 @@ interface CampaignConfig {
  * Get campaign configuration from database
  */
 async function getCampaignConfig(campaignId: string): Promise<CampaignConfig | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('campaigns')
     .select(`
       dm_template_step1,
@@ -78,7 +90,7 @@ async function getDailyDMCount(unipileAccountId: string): Promise<number> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const { count, error } = await supabase
+  const { count, error } = await getSupabase()
     .from('pod_activities')
     .select('*', { count: 'exact', head: true })
     .eq('unipile_account_id', unipileAccountId)
@@ -115,7 +127,7 @@ async function recordDMActivity(
   messageId?: string,
   errorMessage?: string
 ): Promise<void> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('pod_activities')
     .insert({
       campaign_id: jobData.campaign_id,
@@ -209,41 +221,58 @@ async function processDMJob(job: Job<DMJobData>): Promise<{ messageId: string }>
   }
 }
 
-// Create the worker
-export const dmWorker = new Worker<DMJobData>(
-  'dm-delivery',
-  async (job) => {
-    return processDMJob(job);
-  },
-  {
-    connection,
-    concurrency: 2, // Process 2 DM jobs at a time
-    limiter: {
-      max: 10,
-      duration: 60000, // Max 10 jobs per minute
-    },
+// Lazy worker initialization
+function getWorker(): Worker<DMJobData> {
+  if (!worker) {
+    console.log('[DM_WORKER] Creating worker...');
+    worker = new Worker<DMJobData>(
+      'dm-delivery',
+      async (job) => {
+        return processDMJob(job);
+      },
+      {
+        connection: getConnection(),
+        concurrency: 2, // Process 2 DM jobs at a time
+        limiter: {
+          max: 10,
+          duration: 60000, // Max 10 jobs per minute
+        },
+      }
+    );
+
+    // Event handlers
+    worker.on('completed', (job, result) => {
+      console.log(`[DM_WORKER] Job ${job.id} completed:`, result);
+    });
+
+    worker.on('failed', (job, error) => {
+      console.error(`[DM_WORKER] Job ${job?.id} failed:`, error.message);
+    });
+
+    worker.on('error', (error) => {
+      console.error('[DM_WORKER] Worker error:', error);
+    });
+
+    console.log('[DM_WORKER] DM worker started, listening for jobs...');
   }
-);
+  return worker;
+}
 
-// Event handlers
-dmWorker.on('completed', (job, result) => {
-  console.log(`[DM_WORKER] Job ${job.id} completed:`, result);
-});
+// Export the worker getter - creates worker on first access
+export const dmWorker = {
+  get instance() {
+    return getWorker();
+  },
+  async close() {
+    if (worker) {
+      await worker.close();
+    }
+    if (connection) {
+      await connection.quit();
+    }
+  }
+};
 
-dmWorker.on('failed', (job, error) => {
-  console.error(`[DM_WORKER] Job ${job?.id} failed:`, error.message);
-});
-
-dmWorker.on('error', (error) => {
-  console.error('[DM_WORKER] Worker error:', error);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('[DM_WORKER] Shutting down...');
-  await dmWorker.close();
-  await connection.quit();
-  process.exit(0);
-});
-
-console.log('[DM_WORKER] DM worker started, listening for jobs...');
+// Initialize worker when this module is imported (after env vars loaded)
+// The actual connection happens lazily on first access
+getWorker();
