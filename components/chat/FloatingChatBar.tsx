@@ -631,18 +631,19 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             throw new Error(data.error || 'Failed to post');
           }
 
-          toast.success('Posted to LinkedIn!', { id: 'linkedin-post' });
+          toast.success('Posted to LinkedIn!', { id: 'linkedin-post', duration: 5000 });
 
-          if (data.post?.url) {
-            // Add success message with link
-            const successMessage: Message = {
-              id: generateUniqueId(),
-              role: 'assistant',
-              content: `✅ **Posted to LinkedIn!**\n\n[View your post](${data.post.url})`,
-              createdAt: new Date(),
-            };
-            setMessages(prev => [...prev, successMessage]);
-          }
+          // Always add success message to chat
+          const postUrl = data.post?.url || data.url;
+          const successMessage: Message = {
+            id: generateUniqueId(),
+            role: 'assistant',
+            content: postUrl
+              ? `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live.\n\n👉 [View your post on LinkedIn](${postUrl})`
+              : `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live on your LinkedIn feed.`,
+            createdAt: new Date(),
+          };
+          setMessages(prev => [...prev, successMessage]);
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : 'Failed to post';
           toast.error(errorMsg, { id: 'linkedin-post' });
@@ -1859,6 +1860,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                     aria-label="Edit document"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => handleActionClick('post_linkedin')}
+                    className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    aria-label="Post to LinkedIn"
+                    disabled={!documentContent}
+                  >
+                    Post to LinkedIn
                   </button>
                   <button
                     onClick={handleCopyContent}
