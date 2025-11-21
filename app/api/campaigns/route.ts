@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       const { data: webhookConfig, error: webhookError } = await supabase
         .from('webhook_configs')
         .insert({
-          user_id: user.id,
+          client_id: user.id,
           name: `${validatedData.name} - Webhook`,
           url: validatedData.webhookUrl,
           esp_type: validatedData.webhookType || 'custom',
