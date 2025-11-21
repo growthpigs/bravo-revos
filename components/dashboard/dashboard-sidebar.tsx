@@ -30,7 +30,8 @@ import {
   BarChart,
   Key,
   Database,
-  Layers
+  Layers,
+  FileText
 } from 'lucide-react'
 import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
 
@@ -55,6 +56,7 @@ const menuSections: MenuSection[] = [
   {
     title: "OUTREACH",
     items: [
+      { icon: FileText, label: "Posts", href: "/dashboard/posts" },
       { icon: Rocket, label: "Campaigns", href: "/dashboard/campaigns" },
       { icon: Users2, label: "Pod Activity", href: "/dashboard/pod-activity", badge: "NEW" },
       { icon: MessageSquare, label: "Inbox", href: "/dashboard/inbox", badge: "Soon" },

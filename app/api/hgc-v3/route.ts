@@ -412,6 +412,38 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
 
       console.log('[HGC_V3] Generated post (cleaned):', generatedPost.substring(0, 100) + '...');
 
+      // Save generated post to database
+      let savedPostId = null;
+      try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: savedPost, error: saveError } = await supabase
+            .from('posts')
+            .insert({
+              user_id: user.id,
+              content: generatedPost,
+              status: 'draft',
+              campaign_id: null, // Standalone post
+              metrics: {},
+            })
+            .select('id')
+            .single();
+
+          if (saveError) {
+            console.error('[HGC_V3] Failed to save post:', saveError);
+          } else {
+            savedPostId = savedPost.id;
+            console.log('[HGC_V3] Post saved to database:', savedPostId);
+          }
+        } else {
+          console.log('[HGC_V3] No authenticated user, post not saved');
+        }
+      } catch (saveErr) {
+        console.error('[HGC_V3] Error saving post:', saveErr);
+      }
+
       // Build response object - include post in BOTH chat (response) AND working document
       const responseObj = {
         success: true,
@@ -419,6 +451,7 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
         document: {
           content: generatedPost, // Also send to working document
           title: `LinkedIn Post: ${topic}`,
+          postId: savedPostId, // Include saved post ID for future editing
         },
         sessionId: sessionId || crypto.randomUUID(),
         meta: {
@@ -426,6 +459,7 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
           topic,
           hasBrandData: !!brandData,
           hasStyleData: !!styleData,
+          savedPostId, // Also include in meta for easy access
         },
       };
 
