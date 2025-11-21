@@ -55,7 +55,7 @@ export function TopBar({ showLogo = true }: TopBarProps) {
         <div className="font-mono text-[9pt] uppercase text-gray-400 tracking-wide">
           {mounted && buildInfo ? (
             <>
-              {buildInfo.commit} · {new Date(buildInfo.timestamp).toLocaleString('en-GB', {
+              {buildInfo.branch} · {new Date(buildInfo.timestamp).toLocaleString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: '2-digit',

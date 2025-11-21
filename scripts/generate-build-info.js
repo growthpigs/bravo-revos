@@ -13,16 +13,24 @@ try {
   let commit = 'unknown';
   let branch = 'unknown';
 
-  try {
-    commit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
-  } catch (err) {
-    console.warn('[BUILD_INFO] Could not get commit hash (not a git repo?)');
-  }
+  // Use Vercel env vars if available (they don't have git history)
+  if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    commit = process.env.VERCEL_GIT_COMMIT_SHA.substring(0, 7);
+    branch = process.env.VERCEL_GIT_COMMIT_REF || 'unknown';
+    console.log('[BUILD_INFO] Using Vercel env vars');
+  } else {
+    // Fallback to git commands for local dev
+    try {
+      commit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+    } catch (err) {
+      console.warn('[BUILD_INFO] Could not get commit hash (not a git repo?)');
+    }
 
-  try {
-    branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-  } catch (err) {
-    console.warn('[BUILD_INFO] Could not get branch name');
+    try {
+      branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+    } catch (err) {
+      console.warn('[BUILD_INFO] Could not get branch name');
+    }
   }
 
   const buildInfo = {
