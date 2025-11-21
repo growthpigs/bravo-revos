@@ -381,14 +381,17 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
 
       // Strip preamble text that AI adds despite instructions
       const preamblePatterns = [
+        /^here['']?s a draft for your article[^:\n]*[:\n]\s*/i,
         /^here['']?s a draft[^:\n]*[:\n]\s*/i,
         /^here['']?s your[^:\n]*[:\n]\s*/i,
         /^here['']?s a linkedin post[^:\n]*[:\n]\s*/i,
         /^here['']?s a post[^:\n]*[:\n]\s*/i,
+        /^here['']?s an article[^:\n]*[:\n]\s*/i,
         /^here is[^:\n]*[:\n]\s*/i,
         /^draft[^:\n]*[:\n]\s*/i,
         /^linkedin post[^:\n]*[:\n]\s*/i,
         /^post[^:\n]*[:\n]\s*/i,
+        /^article[^:\n]*[:\n]\s*/i,
         /^---+\s*/,
         /^\*\*[^*]+\*\*\s*\n\s*/,  // Bold title lines like **Title**
       ];
@@ -403,12 +406,12 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
 
       console.log('[HGC_V3] Generated post (cleaned):', generatedPost.substring(0, 100) + '...');
 
-      // Build response object
+      // Build response object - include post in BOTH chat (response) AND working document
       const responseObj = {
         success: true,
-        response: '✅ LinkedIn post generated in working document',
+        response: generatedPost, // Show post in chat
         document: {
-          content: generatedPost,
+          content: generatedPost, // Also send to working document
           title: `LinkedIn Post: ${topic}`,
         },
         sessionId: sessionId || crypto.randomUUID(),

@@ -423,21 +423,22 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   }, [isFullscreen, isExpanded, showMessages, isCollapsed]);
 
   // Auto-sync document content when fullscreen opens (if no content loaded yet)
-  useEffect(() => {
-    if (isFullscreen && !documentContent && messages.length > 0) {
-      // Find the most recent assistant message with substantial content (> 500 chars)
-      const latestContent = [...messages].reverse().find(
-        msg => msg.role === 'assistant' && msg.content.length > 500
-      );
-
-      if (latestContent) {
-        console.log('[FCB] Auto-syncing latest content to document area on fullscreen open');
-        setDocumentContent(latestContent.content);
-        setDocumentSourceMessageId(latestContent.id);
-        extractDocumentTitle(latestContent.content);
-      }
-    }
-  }, [isFullscreen, documentContent, messages]);
+  // DISABLED: This was causing issues - when user types "write" and we clear the document,
+  // this would immediately refill it with old content. Document should only be filled
+  // when new content is explicitly generated.
+  // useEffect(() => {
+  //   if (isFullscreen && !documentContent && messages.length > 0) {
+  //     const latestContent = [...messages].reverse().find(
+  //       msg => msg.role === 'assistant' && msg.content.length > 500
+  //     );
+  //     if (latestContent) {
+  //       console.log('[FCB] Auto-syncing latest content to document area on fullscreen open');
+  //       setDocumentContent(latestContent.content);
+  //       setDocumentSourceMessageId(latestContent.id);
+  //       extractDocumentTitle(latestContent.content);
+  //     }
+  //   }
+  // }, [isFullscreen, documentContent, messages]);
 
   // Helper: Generate conversation title from first message
   const generateTitle = (content: string) => {
@@ -867,7 +868,9 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             setDocumentContent('');
             setDocumentTitle('Working Document');
             setDocumentSourceMessageId(null);
-            console.log('[FCB] 🗑️ Document cleared - AFTER (state will update on next render)');
+            // Open working document area immediately when user types "write"
+            setIsFullscreen(true);
+            console.log('[FCB] 🗑️ Document cleared and fullscreen opened - AFTER');
           }
 
           // Auto-fullscreen if content > 500 chars AND user triggered document creation
@@ -1417,6 +1420,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       }
 
       const data = await response.json();
+
+      // DEBUG: Log the full response to see what we're getting
+      console.log('[INLINE_FORM] 🔍 Full API response:', {
+        hasDocument: !!data.document,
+        documentContent: data.document?.content?.substring(0, 100),
+        response: data.response?.substring(0, 100),
+        hasInteractive: !!data.interactive,
+      });
 
       // Add assistant response (may contain next step of workflow)
       const assistantMessage: Message = {

@@ -21,7 +21,7 @@ interface CampaignWizardProps {
 }
 
 const steps = [
-  { id: 1, name: 'Lead Magnet Template', component: LeadMagnetSelectStep },
+  { id: 1, name: 'Lead Magnet', component: LeadMagnetSelectStep },
   { id: 2, name: 'Campaign Details', component: CampaignBasicsStep },
   { id: 3, name: 'Post Content', component: ContentCreationStep },
   { id: 4, name: 'Trigger Words', component: TriggerWordsStep },
