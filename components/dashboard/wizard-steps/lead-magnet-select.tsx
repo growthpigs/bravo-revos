@@ -182,6 +182,46 @@ export default function LeadMagnetSelectStep({ data, onNext, onBack, isFirstStep
             </Card>
           </div>
         )}
+
+        {/* Show selected library magnet */}
+        {isCustom === false && formData.libraryId && (
+          <Card className="p-6 border-2 border-emerald-600 bg-emerald-50">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <Library className="h-6 w-6 text-emerald-600 flex-shrink-0 mt-1" />
+                <div>
+                  <p className="font-semibold text-slate-900">Selected from Library</p>
+                  <p className="text-sm text-emerald-700 mt-1 font-medium">
+                    {formData.libraryMagnetTitle}
+                  </p>
+                  {formData.libraryMagnetCategory && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Category: {formData.libraryMagnetCategory}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsCustom(null)
+                  setFormData({
+                    ...formData,
+                    libraryId: null,
+                    libraryMagnetTitle: '',
+                    libraryMagnetUrl: '',
+                    libraryMagnetCategory: '',
+                    isCustom: false,
+                  })
+                }}
+              >
+                Change
+              </Button>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Step 2: Title */}

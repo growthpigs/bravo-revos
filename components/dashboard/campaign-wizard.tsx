@@ -66,43 +66,28 @@ export default function CampaignWizard({ onComplete }: CampaignWizardProps) {
       </div>
 
       {/* Steps Navigation */}
-      <div className="flex items-center justify-between">
-        {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center flex-1">
-            <div className="flex flex-col items-center">
-              <div
-                className={cn(
-                  'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all',
-                  currentStep > step.id
-                    ? 'bg-emerald-600 border-emerald-600 text-white'
-                    : currentStep === step.id
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-slate-300 text-slate-400'
-                )}
-              >
-                {currentStep > step.id ? (
-                  <Check className="h-5 w-5" />
-                ) : (
-                  <span className="text-sm font-medium">{step.id}</span>
-                )}
-              </div>
-              <span
-                className={cn(
-                  'mt-2 text-xs font-medium',
-                  currentStep >= step.id ? 'text-slate-900' : 'text-slate-400'
-                )}
-              >
-                {step.name}
-              </span>
+      <div className="flex items-start justify-between w-full">
+        {steps.map((step) => (
+          <div key={step.id} className="flex flex-col items-center">
+            <div
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all',
+                currentStep > step.id
+                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                  : currentStep === step.id
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'bg-white border-slate-200 text-slate-300'
+              )}
+            >
+              {currentStep > step.id ? (
+                <Check className="h-5 w-5" />
+              ) : (
+                <span className="text-sm font-medium">{step.id}</span>
+              )}
             </div>
-            {index < steps.length - 1 && (
-              <div
-                className={cn(
-                  'flex-1 h-0.5 mx-2 mt-5',
-                  currentStep > step.id ? 'bg-emerald-600' : 'bg-slate-200'
-                )}
-              />
-            )}
+            <span className="mt-2 text-xs font-normal text-slate-400 text-center whitespace-nowrap">
+              {step.name}
+            </span>
           </div>
         ))}
       </div>
