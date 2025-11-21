@@ -93,7 +93,7 @@ export function LibraryTab() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search library templates..."
+              placeholder="Search library..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -119,7 +119,7 @@ export function LibraryTab() {
       {/* Count */}
       <div className="flex items-center justify-between text-sm text-gray-600">
         <span>
-          Showing {filteredMagnets.length} of {magnets.length} templates
+          Showing {filteredMagnets.length} of {magnets.length} lead magnets
         </span>
       </div>
 
@@ -135,8 +135,8 @@ export function LibraryTab() {
           <CardContent className="p-12 text-center">
             <p className="text-gray-600">
               {searchTerm || selectedCategory !== 'All'
-                ? 'No templates found. Try adjusting filters.'
-                : 'No templates available.'}
+                ? 'No lead magnets found. Try adjusting filters.'
+                : 'No lead magnets available.'}
             </p>
           </CardContent>
         </Card>
@@ -193,7 +193,7 @@ export function LibraryTab() {
         <CardContent className="p-6">
           <h3 className="font-semibold text-blue-900 mb-2">About the Library</h3>
           <p className="text-sm text-blue-800">
-            Browse 98 pre-built lead magnet templates across 8 categories. Click &quot;Preview&quot; to see the template, or &quot;Use&quot; to add it to a campaign.
+            Browse 98 pre-built lead magnets across 8 categories. Click &quot;Preview&quot; to see the full content, or &quot;Use&quot; to add it to a campaign.
           </p>
         </CardContent>
       </Card>
