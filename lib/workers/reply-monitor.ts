@@ -5,7 +5,7 @@
  */
 
 import * as dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
 
 import { createClient } from '@supabase/supabase-js';
 import { getDirectMessages, sendDirectMessage } from '../unipile-client';

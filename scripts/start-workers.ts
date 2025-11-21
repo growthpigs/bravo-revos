@@ -2,7 +2,7 @@ import { RepostWorker } from '../lib/workers/repost-worker';
 import { dmWorker } from '../lib/workers/dm-worker';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
 
 console.log('🚀 Starting workers...');
 

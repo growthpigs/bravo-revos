@@ -17,9 +17,9 @@
  *   - SUPABASE_SERVICE_ROLE_KEY: Supabase service role key
  */
 
-// Load environment variables from .env.local before any other imports
+// Load environment variables before any other imports
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
 
 import {
   closePodAutomationQueue,

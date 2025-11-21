@@ -5,7 +5,7 @@
  */
 
 import * as dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
 
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
