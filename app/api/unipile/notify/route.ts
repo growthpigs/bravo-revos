@@ -145,12 +145,10 @@ export async function POST(request: Request) {
       };
       console.log('[UniPile Notify] Attempting connected_accounts insert:', JSON.stringify(insertPayload));
 
+      // Use insert instead of upsert - simpler and works with service role
       const { data: insertData, error: insertError } = await supabase
         .from('connected_accounts')
-        .upsert(insertPayload, {
-          onConflict: 'user_id,provider,account_id',
-          ignoreDuplicates: false
-        })
+        .insert(insertPayload)
         .select();
 
       if (insertError) {
