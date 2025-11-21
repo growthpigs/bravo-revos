@@ -603,8 +603,49 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
     switch (action) {
       case 'post_linkedin':
-        // TODO: Implement post to LinkedIn
-        toast.success('Post to LinkedIn - Coming soon!');
+        // Get content from working document or latest assistant message
+        let postContent = documentContent;
+        if (!postContent) {
+          const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant' && m.content.length > 100);
+          postContent = lastAssistant?.content || '';
+        }
+
+        if (!postContent) {
+          toast.error('No content to post. Generate a post first.');
+          break;
+        }
+
+        try {
+          toast.loading('Posting to LinkedIn...', { id: 'linkedin-post' });
+
+          const response = await fetch('/api/linkedin/posts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: postContent }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to post');
+          }
+
+          toast.success('Posted to LinkedIn!', { id: 'linkedin-post' });
+
+          if (data.post?.url) {
+            // Add success message with link
+            const successMessage: Message = {
+              id: generateUniqueId(),
+              role: 'assistant',
+              content: `✅ **Posted to LinkedIn!**\n\n[View your post](${data.post.url})`,
+              createdAt: new Date(),
+            };
+            setMessages(prev => [...prev, successMessage]);
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Failed to post';
+          toast.error(errorMsg, { id: 'linkedin-post' });
+        }
         break;
       case 'regenerate':
         // Send "try a new style" to HGC

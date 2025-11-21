@@ -268,8 +268,15 @@ Now generate 4 headlines for THIS brand:`;
       // ==========================================
 
       // Check if this is initial topic selection (not confirmation response)
+      console.log('[HGC_V3] 🔍 Workflow check:', {
+        workflow_id,
+        startsWithTopic: workflow_id.startsWith('topic-'),
+        hasConfirm: workflow_id.includes('-confirm'),
+        decision
+      });
+
       if (workflow_id.startsWith('topic-') && !workflow_id.includes('-confirm')) {
-        console.log('[HGC_V3] First topic selection - showing confirmation prompt');
+        console.log('[HGC_V3] ➡️ PATH: First topic selection - showing confirmation prompt');
 
         return NextResponse.json({
           success: true,
@@ -300,7 +307,7 @@ Now generate 4 headlines for THIS brand:`;
       }
 
       // If workflow has '-confirm', proceed with generation (user chose option)
-      console.log('[HGC_V3] Confirmation received, proceeding with post generation');
+      console.log('[HGC_V3] ➡️ PATH: Post generation - creating LinkedIn post');
 
       // Map decision value to topic description
       const topicMap: Record<string, string> = {
@@ -370,9 +377,31 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
         ],
       });
 
-      const generatedPost = completion.choices[0]?.message?.content || '';
+      let generatedPost = completion.choices[0]?.message?.content || '';
 
-      console.log('[HGC_V3] Generated post:', generatedPost.substring(0, 100) + '...');
+      // Strip preamble text that AI adds despite instructions
+      const preamblePatterns = [
+        /^here['']?s a draft[^:\n]*[:\n]\s*/i,
+        /^here['']?s your[^:\n]*[:\n]\s*/i,
+        /^here['']?s a linkedin post[^:\n]*[:\n]\s*/i,
+        /^here['']?s a post[^:\n]*[:\n]\s*/i,
+        /^here is[^:\n]*[:\n]\s*/i,
+        /^draft[^:\n]*[:\n]\s*/i,
+        /^linkedin post[^:\n]*[:\n]\s*/i,
+        /^post[^:\n]*[:\n]\s*/i,
+        /^---+\s*/,
+        /^\*\*[^*]+\*\*\s*\n\s*/,  // Bold title lines like **Title**
+      ];
+
+      for (const pattern of preamblePatterns) {
+        generatedPost = generatedPost.replace(pattern, '');
+      }
+
+      // Also strip trailing explanations
+      generatedPost = generatedPost.replace(/\n\n---+\n[\s\S]*$/, '');
+      generatedPost = generatedPost.trim();
+
+      console.log('[HGC_V3] Generated post (cleaned):', generatedPost.substring(0, 100) + '...');
 
       // Build response object
       const responseObj = {
