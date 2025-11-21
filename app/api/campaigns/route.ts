@@ -88,9 +88,10 @@ export async function POST(request: NextRequest) {
       leadMagnetSource = 'custom'
     }
 
-    // Prepare campaign data - created_by set from authenticated user
+    // Prepare campaign data - both created_by and user_id set from authenticated user
     const campaignData = {
       created_by: user.id,
+      user_id: user.id,
       name: validatedData.name,
       description: validatedData.description || null,
       status: validatedData.status,
