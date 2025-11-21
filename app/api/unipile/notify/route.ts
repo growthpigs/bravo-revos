@@ -131,9 +131,9 @@ export async function POST(request: Request) {
           user_id: userId,
           provider: account.type?.toLowerCase() || 'unknown',
           account_id: accountId,
-          account_name: account.name || 'Unknown Account',
+          profile_name: account.name || 'Unknown Account',
           status: 'active',
-          last_sync_at: new Date().toISOString()
+          last_synced: new Date().toISOString()
         }, {
           onConflict: 'account_id',
           ignoreDuplicates: false
