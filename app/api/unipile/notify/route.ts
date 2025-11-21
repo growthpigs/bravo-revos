@@ -107,9 +107,24 @@ export async function POST(request: Request) {
       }
 
     } else {
-      // Regular user connection - store in connected_accounts table
+      // Regular user connection - store in connected_accounts table AND update users table
       const userId = identifier;
 
+      // Update users table with unipile_account_id (for Settings UI)
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          unipile_account_id: accountId,
+        })
+        .eq('id', userId);
+
+      if (updateError) {
+        console.error('[UniPile Notify] Failed to update users table:', updateError);
+      } else {
+        console.log('[UniPile Notify] Updated users.unipile_account_id for:', userId);
+      }
+
+      // Also store in connected_accounts for detailed tracking
       const { error: insertError } = await supabase
         .from('connected_accounts')
         .upsert({
