@@ -35,6 +35,9 @@ export function ChatMessage({ message, isLoading, onExpand }: ChatMessageProps) 
   // Check if message is long enough to show expand button
   const showExpandButton = !isUser && onExpand && messageText.length > 500;
 
+  // Check if this is an error/warning message (starts with ❌ or contains "Required")
+  const isErrorMessage = !isUser && (messageText.startsWith('❌') || messageText.includes('Setup Required'));
+
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div
@@ -42,7 +45,9 @@ export function ChatMessage({ message, isLoading, onExpand }: ChatMessageProps) 
           'relative px-6 py-4 rounded-xl text-sm',
           isUser
             ? 'bg-gray-900 text-white max-w-[90%]'
-            : 'bg-gray-100 text-gray-900 max-w-[80%]'
+            : isErrorMessage
+              ? 'bg-red-50 text-red-800 border border-red-200 max-w-[80%]'
+              : 'bg-gray-100 text-gray-900 max-w-[80%]'
         )}
       >
         {isLoading && !messageText ? (

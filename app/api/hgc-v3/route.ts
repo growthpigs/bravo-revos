@@ -69,11 +69,19 @@ export async function POST(req: Request) {
         hasCoreMessaging: !!brandData?.core_messaging
       });
 
-      if (!brandData) {
+      // Check if brand data exists AND has required fields
+      const hasBrandContext = brandData && brandData.industry && brandData.target_audience;
+
+      if (!hasBrandContext) {
         return NextResponse.json({
           success: false,
-          response: '⚠️ Please complete your brand setup first. Go to Settings → Brand to add your brand information.',
+          response: '❌ **Brand Setup Required**\n\nYour brand profile is incomplete. Please add your industry and target audience.\n\n→ Go to **Settings → Brand** to complete setup.',
           sessionId: sessionId || crypto.randomUUID(),
+          meta: {
+            route: 'hgc-v3',
+            error: 'incomplete_brand',
+            errorType: 'warning', // Signal to frontend to show pink/red styling
+          },
         });
       }
 
