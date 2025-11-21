@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/health-check",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/poll-comments",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/poll-replies",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
