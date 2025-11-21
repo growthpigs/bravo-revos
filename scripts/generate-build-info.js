@@ -12,30 +12,36 @@ try {
 
   let commit = 'unknown';
   let branch = 'unknown';
+  let sourceBranch = '';
 
-  // Use Vercel env vars if available (they don't have git history)
+  // Always try to get local git branch (source branch)
+  try {
+    sourceBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+  } catch (err) {
+    console.warn('[BUILD_INFO] Could not get source branch');
+  }
+
+  // Use Vercel env vars if available
   if (process.env.VERCEL_GIT_COMMIT_SHA) {
     commit = process.env.VERCEL_GIT_COMMIT_SHA.substring(0, 7);
-    branch = process.env.VERCEL_GIT_COMMIT_REF || 'unknown';
+    const targetBranch = process.env.VERCEL_GIT_COMMIT_REF || 'unknown';
+    // Store both branches separately
+    branch = targetBranch;
     console.log('[BUILD_INFO] Using Vercel env vars');
   } else {
-    // Fallback to git commands for local dev
+    // Local dev - just show source branch
     try {
       commit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
     } catch (err) {
       console.warn('[BUILD_INFO] Could not get commit hash (not a git repo?)');
     }
-
-    try {
-      branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-    } catch (err) {
-      console.warn('[BUILD_INFO] Could not get branch name');
-    }
+    branch = sourceBranch || 'unknown';
   }
 
   const buildInfo = {
     commit,
     branch,
+    sourceBranch: sourceBranch || branch,
     timestamp: new Date().toISOString(),
     environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'local',
   };

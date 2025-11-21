@@ -12,6 +12,7 @@ interface TopBarProps {
 interface BuildInfo {
   commit: string;
   branch: string;
+  sourceBranch: string;
   timestamp: string;
   environment: string;
 }
@@ -52,18 +53,20 @@ export function TopBar({ showLogo = true }: TopBarProps) {
             />
           </Link>
         )}
-        <div className="font-mono text-[9pt] uppercase text-gray-400 tracking-wide">
+        <div className="font-mono text-[8pt] uppercase text-gray-400 tracking-wide leading-tight">
           {mounted && buildInfo ? (
-            <>
-              {buildInfo.branch} · {new Date(buildInfo.timestamp).toLocaleString('en-GB', {
+            <div className="flex flex-col">
+              <span>{buildInfo.branch}</span>
+              <span>{buildInfo.sourceBranch}</span>
+              <span>{new Date(buildInfo.timestamp).toLocaleString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false,
-              })}
-            </>
+              })}</span>
+            </div>
           ) : '—'}
         </div>
       </div>
