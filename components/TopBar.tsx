@@ -56,8 +56,7 @@ export function TopBar({ showLogo = true }: TopBarProps) {
         <div className="font-mono text-[8pt] uppercase text-gray-400 tracking-wide leading-tight">
           {mounted && buildInfo ? (
             <div className="flex flex-col">
-              <span>{buildInfo.branch}</span>
-              <span>{buildInfo.sourceBranch}</span>
+              <span>{buildInfo.branch}{buildInfo.sourceBranch !== buildInfo.branch ? ` : ${buildInfo.sourceBranch}` : ''}</span>
               <span>{new Date(buildInfo.timestamp).toLocaleString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
