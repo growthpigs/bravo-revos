@@ -9,27 +9,31 @@ interface TopBarProps {
   showLogo?: boolean;
 }
 
+interface BuildInfo {
+  commit: string;
+  branch: string;
+  timestamp: string;
+  environment: string;
+}
+
 export function TopBar({ showLogo = true }: TopBarProps) {
   const { data } = useHealthStatus();
   const { isVisible } = useHealthBannerVisibility();
-  const [dateTimeDisplay, setDateTimeDisplay] = useState('');
+  const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // Fix SSR hydration mismatch: only set time on client-side
+  // Fetch build info from Vercel deployment
   useEffect(() => {
-    const now = new Date();
-    const currentDate = now.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-    const currentTime = now.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    setDateTimeDisplay(`${currentDate} ${currentTime}`);
-    setMounted(true);
+    fetch('/build-info.json')
+      .then((r) => r.json())
+      .then((info) => {
+        setBuildInfo(info);
+        setMounted(true);
+      })
+      .catch((err) => {
+        console.error('[BUILD_INFO] Failed to load:', err);
+        setMounted(true);
+      });
   }, []);
 
   return (
@@ -49,7 +53,18 @@ export function TopBar({ showLogo = true }: TopBarProps) {
           </Link>
         )}
         <div className="font-mono text-[9pt] uppercase text-gray-400 tracking-wide">
-          V0.2 · {mounted ? dateTimeDisplay : '—'}
+          {mounted && buildInfo ? (
+            <>
+              {buildInfo.commit} · {new Date(buildInfo.timestamp).toLocaleString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              })}
+            </>
+          ) : '—'}
         </div>
       </div>
 
