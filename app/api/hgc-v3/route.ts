@@ -444,12 +444,12 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
         console.error('[HGC_V3] Error saving post:', saveErr);
       }
 
-      // Build response object - include post in BOTH chat (response) AND working document
+      // Build response object - brief message in chat, full post in working document
       const responseObj = {
         success: true,
-        response: generatedPost, // Show post in chat
+        response: `✅ LinkedIn post generated in working document`, // Brief confirmation in chat
         document: {
-          content: generatedPost, // Also send to working document
+          content: generatedPost, // Full post in working document
           title: `LinkedIn Post: ${topic}`,
           postId: savedPostId, // Include saved post ID for future editing
         },
