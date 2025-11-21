@@ -49,9 +49,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check for "write" command
-    const isWriteCommand = message?.toLowerCase().trim().match(/^write\W*$/i);
-    console.log('[HGC_V3] Write command check:', { message, isWriteCommand: !!isWriteCommand });
+    // Check for write/post commands - multiple keywords trigger the write flow
+    const WRITE_KEYWORDS = ['write', 'post', 'writing', 'create', 'content', 'linkedin'];
+    const normalizedMessage = message?.toLowerCase().trim() || '';
+    const isWriteCommand = WRITE_KEYWORDS.some(keyword =>
+      normalizedMessage === keyword ||
+      normalizedMessage.startsWith(keyword + ' ') ||
+      normalizedMessage.endsWith(' ' + keyword)
+    );
+    console.log('[HGC_V3] Write command check:', { message, normalizedMessage, isWriteCommand });
 
     if (isWriteCommand) {
       console.log('[HGC_V3] Write command detected');
@@ -441,7 +447,7 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
 
     return NextResponse.json({
       success: true,
-      response: `Received: "${displayMessage}". Try typing "write" to create a LinkedIn post!`,
+      response: `Received: "${displayMessage}". Try typing **write** or **post** to create a LinkedIn post!`,
       sessionId: sessionId || crypto.randomUUID(),
       meta: {
         route: 'hgc-v3',
