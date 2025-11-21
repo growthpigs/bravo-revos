@@ -1,10 +1,12 @@
+// Load environment variables FIRST - before any imports that use them
+// Must use require() to avoid ES module import hoisting
+require('dotenv').config();
+
 import { RepostWorker } from '../lib/workers/repost-worker';
 import { dmWorker } from '../lib/workers/dm-worker';
-import * as dotenv from 'dotenv';
-
-dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
 
 console.log('🚀 Starting workers...');
+console.log('📡 Redis URL:', process.env.REDIS_URL ? 'SET' : 'NOT SET');
 
 const repostWorker = new RepostWorker();
 // dmWorker auto-starts on import
