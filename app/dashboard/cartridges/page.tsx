@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus, Settings, Mic, AlertCircle, FileText, Heart,
   BookOpen, Building, Upload, Trash2, Download, Loader2,
-  Check, X, Eye, Edit
+  Check, X, Eye, Edit, Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -144,6 +144,10 @@ export default function CartridgesPage() {
   const [deletePreferencesDialogOpen, setDeletePreferencesDialogOpen] = useState(false);
   const [deleteStyleDialogOpen, setDeleteStyleDialogOpen] = useState(false);
   const [deleteBrandDialogOpen, setDeleteBrandDialogOpen] = useState(false);
+
+  // Blueprint generation state
+  const [generatingBlueprint, setGeneratingBlueprint] = useState(false);
+  const [showBlueprintDialog, setShowBlueprintDialog] = useState(false);
 
   // Polling state for processing status
   const [pollingIntervals, setPollingIntervals] = useState<{
@@ -765,6 +769,8 @@ export default function CartridgesPage() {
         toast.success('Brand information saved');
         await fetchBrandCartridge();
         setEditingBrand(false);
+        // Show blueprint dialog after saving brand
+        setShowBlueprintDialog(true);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Save failed');
@@ -801,6 +807,33 @@ export default function CartridgesPage() {
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload logo');
+    }
+  };
+
+  // Blueprint generation handler
+  const handleGenerateBlueprint = async () => {
+    setGeneratingBlueprint(true);
+    try {
+      const response = await fetch('/api/blueprint/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force_regenerate: true })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success('112-point marketing blueprint generated successfully!');
+        await fetchBrandCartridge();
+        setShowBlueprintDialog(false);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Blueprint generation failed');
+      }
+    } catch (error) {
+      console.error('Blueprint generation error:', error);
+      toast.error('Failed to generate blueprint');
+    } finally {
+      setGeneratingBlueprint(false);
     }
   };
 
@@ -1519,33 +1552,52 @@ export default function CartridgesPage() {
                     {Math.round((brandFormData.core_messaging || brandCartridge?.core_messaging || '').split(/\s+/).length / 1000 * 10) / 10}k words
                   </span>
                 </div>
-                <Button
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('/api/cartridges/brand', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          core_messaging: brandFormData.core_messaging
-                        })
-                      });
+                <div className="flex gap-2">
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/cartridges/brand', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            core_messaging: brandFormData.core_messaging
+                          })
+                        });
 
-                      if (response.ok) {
-                        toast.success('Core messaging saved');
-                        await fetchBrandCartridge();
-                      } else {
-                        const error = await response.json();
-                        toast.error(error.error || 'Save failed');
+                        if (response.ok) {
+                          toast.success('Core messaging saved');
+                          await fetchBrandCartridge();
+                        } else {
+                          const error = await response.json();
+                          toast.error(error.error || 'Save failed');
+                        }
+                      } catch (error) {
+                        console.error('Save error:', error);
+                        toast.error('Failed to save core messaging');
                       }
-                    } catch (error) {
-                      console.error('Save error:', error);
-                      toast.error('Failed to save core messaging');
-                    }
-                  }}
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Save Core Messaging
-                </Button>
+                    }}
+                  >
+                    <Check className="mr-2 h-4 w-4" />
+                    Save Core Messaging
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerateBlueprint}
+                    disabled={generatingBlueprint}
+                  >
+                    {generatingBlueprint ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="mr-2 h-4 w-4" />
+                        Generate 112-Point Blueprint
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1617,6 +1669,16 @@ export default function CartridgesPage() {
         confirmText="Delete"
         cancelText="Cancel"
         variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={showBlueprintDialog}
+        onOpenChange={setShowBlueprintDialog}
+        onConfirm={handleGenerateBlueprint}
+        title="Generate 112-Point Blueprint?"
+        description="Would you like us to generate your comprehensive marketing blueprint? This will analyze your brand data and create detailed messaging for topics, pain points, offers, testimonials, and more. This may take 30-60 seconds."
+        confirmText={generatingBlueprint ? "Generating..." : "Generate Blueprint"}
+        cancelText="Maybe Later"
       />
     </div>
   );
