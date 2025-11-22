@@ -103,10 +103,11 @@ async function executeTopicGeneration(
 
   // Use MarketingConsole to generate topics
   // NOTE: Brand/style/platform context already in system prompt from V2 route
+  // High temperature (0.95) ensures diverse, creative topics on each regeneration
   const marketingConsole = new MarketingConsole({
     baseInstructions: workflowPrompt,
     model: 'gpt-4o-mini',
-    temperature: 0.8,
+    temperature: 0.95,
     openai: context.openai,
     supabase: supabase,
   });
@@ -114,33 +115,36 @@ async function executeTopicGeneration(
   try {
     // Build detailed analysis prompt that uses the full 112-point blueprint
     const coreMessaging = context.cartridges.brand?.core_messaging || '';
-    const analysisPrompt = `Analyze the following 112-point marketing blueprint and generate 4 compelling LinkedIn post topics.
+    // Add randomness seed to ensure different results each time
+    const randomSeed = Math.floor(Math.random() * 1000);
 
-BLUEPRINT TO ANALYZE:
+    const analysisPrompt = `Analyze this 112-point marketing blueprint and generate 4 DIVERSE LinkedIn post topics.
+
+BLUEPRINT:
 ${coreMessaging}
 
-YOUR TASK:
-1. Deep dive into the blueprint - look at:
-   - BURNING QUESTIONS (what keeps them up at night)
-   - PAIN POINTS (what frustrates them)
-   - MOTIVATIONS (what they want to achieve)
-   - HOW THEY TALK (their language patterns)
-   - IDEAL OUTCOMES (where they want to be)
-   - TRANSFORMATION PROMISES
-   - OBJECTIONS AND FEARS
+CRITICAL REQUIREMENTS:
+1. Each topic MUST come from a DIFFERENT section of the blueprint:
+   - Topic 1: From PAIN POINTS or PRIMARY COMPLAINT
+   - Topic 2: From OBJECTIONS or FEARS
+   - Topic 3: From DREAMS or IDEAL OUTCOMES
+   - Topic 4: From LIES/TRUTHS or TRANSFORMATION PROMISES
 
-2. Generate 4 LinkedIn post headlines that directly address these insights
-3. Each topic should use curiosity gap technique and speak to a specific pain point or burning question
+2. DO NOT make all topics about the same theme (e.g., "feeling stuck in career")
+3. Use curiosity gap technique - make them want to click
+4. Be creative and specific - no generic headlines
 
-RESPOND WITH JSON ARRAY in this exact format:
+RANDOM SEED: ${randomSeed} (use this to vary your choices)
+
+RESPOND WITH JSON ARRAY:
 [
-  {"headline": "Topic 1 headline here", "rationale": "Addresses pain point: [specific pain point from blueprint]"},
-  {"headline": "Topic 2 headline here", "rationale": "Speaks to burning question: [specific question]"},
-  {"headline": "Topic 3 headline here", "rationale": "Targets motivation: [specific motivation]"},
-  {"headline": "Topic 4 headline here", "rationale": "Uses their language: [specific phrase pattern]"}
+  {"headline": "Topic 1 headline", "rationale": "From PAIN POINTS: [specific pain point]"},
+  {"headline": "Topic 2 headline", "rationale": "From OBJECTIONS: [specific objection]"},
+  {"headline": "Topic 3 headline", "rationale": "From DREAMS: [specific dream/outcome]"},
+  {"headline": "Topic 4 headline", "rationale": "From TRUTHS: [specific truth/transformation]"}
 ]
 
-Return ONLY the JSON array, no other text.`;
+Return ONLY the JSON array.`;
 
     const result = await marketingConsole.execute(
       user.id,
@@ -216,18 +220,16 @@ Return ONLY the JSON array, no other text.`;
     });
 
     // Format brand context for display - use double newlines for markdown paragraph breaks
-    // Parse the 112-point blueprint to find actual burning questions/pain points
+    // Parse the 112-point blueprint to find the PRIMARY COMPLAINT (this is the "burning question")
     let burningQuestion = '';
     if (context.cartridges.brand?.core_messaging) {
       const content = context.cartridges.brand.core_messaging;
 
-      // Look for specific sections in the blueprint
+      // Look for PRIMARY COMPLAINT - this is the core "burning question" in Jon Benson's framework
       const sectionPatterns = [
-        /BURNING QUESTION[S]?[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
-        /WHAT KEEPS THEM UP[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
-        /PAIN POINT[S]?[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
-        /BIGGEST FRUSTRATION[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
-        /WHAT THEY FEAR[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
+        /PRIMARY COMPLAINT[:\s]*([^\n]+)/i,
+        /ULTIMATE FEAR[:\s]*([^\n]+)/i,
+        /WHAT KEEPS THEM UP[:\s]*([^\n]+)/i,
       ];
 
       for (const pattern of sectionPatterns) {
@@ -237,7 +239,6 @@ Return ONLY the JSON array, no other text.`;
           let extracted = match[1].trim()
             .replace(/^[:\s-]+/, '') // Remove leading colons, spaces, dashes
             .replace(/["']/g, '') // Remove quotes
-            .split('\n')[0] // Take first line only
             .trim();
 
           if (extracted.length > 10) { // Must be meaningful
@@ -249,7 +250,7 @@ Return ONLY the JSON array, no other text.`;
 
       // Fallback: if no section found, don't show anything rather than garbage
       if (!burningQuestion) {
-        console.log('[WorkflowExecutor] No burning question section found in blueprint');
+        console.log('[WorkflowExecutor] No PRIMARY COMPLAINT found in blueprint');
       }
     }
 
