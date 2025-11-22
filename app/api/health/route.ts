@@ -116,11 +116,13 @@ async function checkAgentKit() {
     // Dynamic import to verify AgentKit loads
     const agentKit = await import('@openai/agents');
 
-    // Check version using require (avoids TS module resolution issues)
+    // Check version by reading package.json from node_modules
     let version = 'unknown';
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pkgJson = require('@openai/agents/package.json') as { version: string };
+      const fs = await import('fs');
+      const path = await import('path');
+      const pkgPath = path.join(process.cwd(), 'node_modules', '@openai', 'agents', 'package.json');
+      const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
       version = pkgJson.version;
     } catch {
       // Version check failed, but import worked
