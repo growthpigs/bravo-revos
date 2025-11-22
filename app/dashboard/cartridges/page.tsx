@@ -1567,7 +1567,21 @@ export default function CartridgesPage() {
                       </div>
                     )}
                   </div>
-                  <Button onClick={() => setEditingBrand(true)}>
+                  <Button onClick={() => {
+                    // Initialize form with existing brand data
+                    if (brandCartridge) {
+                      setBrandFormData({
+                        name: brandCartridge.name || '',
+                        company_name: brandCartridge.company_name || '',
+                        company_description: brandCartridge.company_description || '',
+                        company_tagline: brandCartridge.company_tagline || '',
+                        industry: brandCartridge.industry || '',
+                        target_audience: brandCartridge.target_audience || '',
+                        core_messaging: brandCartridge.core_messaging || ''
+                      });
+                    }
+                    setEditingBrand(true);
+                  }}>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Brand
                   </Button>
