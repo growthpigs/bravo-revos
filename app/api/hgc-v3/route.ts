@@ -188,8 +188,8 @@ Now generate 4 DISTINCTLY DIFFERENT headlines for THIS brand:`;
       let topicLabels: string[] = [];
       try {
         const topicCompletion = await openai.chat.completions.create({
-          model: 'gpt-5.1',
-          temperature: 0.8,
+          model: 'gpt-4o-mini',
+          temperature: 0.9,
           messages: [
             {
               role: 'system',
@@ -407,7 +407,7 @@ Now generate 4 DISTINCTLY DIFFERENT headlines for THIS brand:`;
 
       // Generate LinkedIn post using OpenAI
       const completion = await openai.chat.completions.create({
-        model: 'gpt-5.1',
+        model: 'gpt-4o',
         temperature: 0.7,
         messages: [
           {
