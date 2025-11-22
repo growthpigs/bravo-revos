@@ -836,6 +836,7 @@ export default function CartridgesPage() {
         if (blueprint) {
           const blueprintText = formatBlueprintAsText(blueprint);
           setBrandFormData(prev => ({ ...prev, core_messaging: blueprintText }));
+          toast.info('Core messaging updated with new blueprint. Click Save to keep changes.');
         }
 
         // Fetch updated brand data to sync with database
@@ -1610,7 +1611,7 @@ export default function CartridgesPage() {
               <div className="space-y-6">
                 <Textarea
                   placeholder="Paste your complete core messaging here...&#10;&#10;Example:&#10;**AI Big Pivot Core Messaging Sheet**&#10;&#10;**Project Name:** AI Big Pivot&#10;**URL:** www.aibigpivot.com&#10;**Niche:** AI-Enhanced Design Tools&#10;**Key Thematics:** Ease of Use, Cost Efficiency, Learning and Support&#10;**Core Keywords:** AI Graphic Design, Simple Design Tools&#10;**Mission:** To empower non-designer entrepreneurs...&#10;&#10;(Continue with your full messaging)"
-                  value={brandFormData.core_messaging || brandCartridge?.core_messaging || ''}
+                  value={brandFormData.core_messaging !== undefined ? brandFormData.core_messaging : (brandCartridge?.core_messaging || '')}
                   onChange={(e) => setBrandFormData(prev => ({ ...prev, core_messaging: e.target.value }))}
                   className="min-h-[400px] font-mono text-sm p-6"
                 />
