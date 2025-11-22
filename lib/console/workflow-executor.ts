@@ -216,22 +216,41 @@ Return ONLY the JSON array, no other text.`;
     });
 
     // Format brand context for display - use double newlines for markdown paragraph breaks
-    // Extract just the question text from core_messaging, skipping markdown headers
+    // Parse the 112-point blueprint to find actual burning questions/pain points
     let burningQuestion = '';
     if (context.cartridges.brand?.core_messaging) {
-      const lines = context.cartridges.brand.core_messaging.split('\n');
-      // Find lines that look like actual question content (not headers or labels)
-      const questionLines = lines.filter(line => {
-        const trimmed = line.trim();
-        return trimmed &&
-               !trimmed.startsWith('#') &&
-               !trimmed.startsWith('Burning Question') &&
-               !trimmed.startsWith('Step ') &&
-               !trimmed.startsWith('Ideal Customer');
-      });
-      // Get first meaningful content, strip quotes if present
-      const content = questionLines.join(' ').replace(/^["']|["']$/g, '').trim();
-      burningQuestion = content.slice(0, 150) + (content.length > 150 ? '...' : '');
+      const content = context.cartridges.brand.core_messaging;
+
+      // Look for specific sections in the blueprint
+      const sectionPatterns = [
+        /BURNING QUESTION[S]?[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
+        /WHAT KEEPS THEM UP[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
+        /PAIN POINT[S]?[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
+        /BIGGEST FRUSTRATION[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
+        /WHAT THEY FEAR[:\s]*([^\n]+(?:\n(?![A-Z]{2,})[^\n]+)*)/i,
+      ];
+
+      for (const pattern of sectionPatterns) {
+        const match = content.match(pattern);
+        if (match && match[1]) {
+          // Clean up the extracted text
+          let extracted = match[1].trim()
+            .replace(/^[:\s-]+/, '') // Remove leading colons, spaces, dashes
+            .replace(/["']/g, '') // Remove quotes
+            .split('\n')[0] // Take first line only
+            .trim();
+
+          if (extracted.length > 10) { // Must be meaningful
+            burningQuestion = extracted.slice(0, 150) + (extracted.length > 150 ? '...' : '');
+            break;
+          }
+        }
+      }
+
+      // Fallback: if no section found, don't show anything rather than garbage
+      if (!burningQuestion) {
+        console.log('[WorkflowExecutor] No burning question section found in blueprint');
+      }
     }
 
     const brandContextMessage = [
