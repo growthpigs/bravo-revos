@@ -825,6 +825,12 @@ export default function CartridgesPage() {
         toast.success('112-point marketing blueprint generated successfully!');
         await fetchBrandCartridge();
         setShowBlueprintDialog(false);
+
+        // Convert blueprint to readable format and populate textarea
+        if (data.blueprint) {
+          const blueprintText = formatBlueprintAsText(data.blueprint);
+          setBrandFormData(prev => ({ ...prev, core_messaging: blueprintText }));
+        }
       } else {
         const error = await response.json();
         toast.error(error.error || 'Blueprint generation failed');
@@ -835,6 +841,47 @@ export default function CartridgesPage() {
     } finally {
       setGeneratingBlueprint(false);
     }
+  };
+
+  // Format blueprint JSON as readable text for Core Messaging
+  const formatBlueprintAsText = (blueprint: Record<string, any>): string => {
+    const sections: string[] = [];
+
+    const sectionTitles: Record<string, string> = {
+      bio: 'BIO & CREDENTIALS',
+      positioning: 'POSITIONING & AVATARS',
+      pain_and_objections: 'PAIN POINTS & OBJECTIONS',
+      lies_and_truths: 'LIES & TRUTHS',
+      offer: 'OFFER DETAILS',
+      hooks: 'HOOKS',
+      sales: 'SALES ELEMENTS',
+      social_proof: 'SOCIAL PROOF',
+      consumption: 'CONSUMPTION',
+      page: 'PAGE',
+      service: 'SERVICE',
+      tips: 'TIPS',
+      lessons: 'LESSONS',
+      email: 'EMAIL',
+      lead_magnet: 'LEAD MAGNET',
+      visuals: 'VISUALS'
+    };
+
+    for (const [key, title] of Object.entries(sectionTitles)) {
+      if (blueprint[key]) {
+        sections.push(`\n**${title}**\n`);
+        const sectionData = blueprint[key];
+        for (const [field, value] of Object.entries(sectionData)) {
+          const fieldName = field.replace(/^\d+_/, '').replace(/_/g, ' ').toUpperCase();
+          if (Array.isArray(value)) {
+            sections.push(`${fieldName}:\n${value.map(v => `  - ${v}`).join('\n')}`);
+          } else {
+            sections.push(`${fieldName}: ${value}`);
+          }
+        }
+      }
+    }
+
+    return `**112-POINT MARKETING BLUEPRINT**\n${sections.join('\n')}`;
   };
 
   if (loading) {
@@ -1536,13 +1583,13 @@ export default function CartridgesPage() {
                 Comprehensive marketing messaging (10k+ words): mission, vision, target audience, core values, avatar stories, market narrative, promises, objections, and marketing frameworks
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               <div className="space-y-4">
                 <Textarea
                   placeholder="Paste your complete core messaging here...&#10;&#10;Example:&#10;**AI Big Pivot Core Messaging Sheet**&#10;&#10;**Project Name:** AI Big Pivot&#10;**URL:** www.aibigpivot.com&#10;**Niche:** AI-Enhanced Design Tools&#10;**Key Thematics:** Ease of Use, Cost Efficiency, Learning and Support&#10;**Core Keywords:** AI Graphic Design, Simple Design Tools&#10;**Mission:** To empower non-designer entrepreneurs...&#10;&#10;(Continue with your full messaging)"
                   value={brandFormData.core_messaging || brandCartridge?.core_messaging || ''}
                   onChange={(e) => setBrandFormData(prev => ({ ...prev, core_messaging: e.target.value }))}
-                  className="min-h-[400px] font-mono text-sm"
+                  className="min-h-[400px] font-mono text-sm p-4"
                 />
                 <div className="flex justify-between items-center text-sm text-muted-foreground">
                   <span>
