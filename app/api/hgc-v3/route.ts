@@ -62,17 +62,18 @@ export async function POST(req: Request) {
     if (isWriteCommand) {
       console.log('[HGC_V3] Write command detected');
 
-      // Load user's brand cartridge including core messaging
+      // Load user's brand cartridge including core messaging and 112-point blueprint
       const { data: brandData } = await supabase
         .from('brand_cartridges')
-        .select('industry, target_audience, core_values, core_messaging, brand_voice')
+        .select('industry, target_audience, core_values, core_messaging, brand_voice, blueprint_112')
         .eq('user_id', user.id)
         .single();
 
       console.log('[HGC_V3] Brand data:', {
         hasData: !!brandData,
         industry: brandData?.industry,
-        hasCoreMessaging: !!brandData?.core_messaging
+        hasCoreMessaging: !!brandData?.core_messaging,
+        hasBlueprint: !!brandData?.blueprint_112
       });
 
       // Check if brand data exists AND has required fields
@@ -92,15 +93,60 @@ export async function POST(req: Request) {
       }
 
       // Generate dynamic topic headlines using AI
+      // Use 112-point blueprint if available for much better variety
+      const blueprint = brandData.blueprint_112 as Record<string, any> | null;
+
+      let blueprintContext = '';
+      if (blueprint) {
+        // Extract key sections for topic variety
+        const painPoints = blueprint.pain_and_objections || {};
+        const positioning = blueprint.positioning || {};
+        const hooks = blueprint.hooks || {};
+        const lies = blueprint.lies_and_truths || {};
+        const offer = blueprint.offer || {};
+
+        blueprintContext = `
+112-POINT BLUEPRINT (use these for variety):
+
+PAIN POINTS & OBJECTIONS:
+- Primary Complaint: ${painPoints['22_primary_complaint'] || 'N/A'}
+- Objections: ${JSON.stringify(painPoints['25_objections'] || []).substring(0, 500)}
+- Ultimate Fear: ${painPoints['29_ultimate_fear'] || 'N/A'}
+
+POSITIONING:
+- Primary Goal: ${positioning['18_primary_goal'] || 'N/A'}
+- Dreams: ${positioning['20_dreams'] || 'N/A'}
+- Promises: ${positioning['21_promises'] || 'N/A'}
+
+HOOKS:
+- Positive Hook: ${hooks['56_positive_hook'] || 'N/A'}
+- Negative Hook: ${hooks['60_negative_hook'] || 'N/A'}
+
+LIES & TRUTHS:
+- False Solution Lie: ${lies['30_false_solution_lie'] || 'N/A'}
+- Mistaken Belief: ${lies['32_mistaken_belief_lie'] || 'N/A'}
+- Success Myth Lie: ${lies['35_success_myth_lie'] || 'N/A'}
+
+BIG IDEA: ${offer['41_big_idea'] || 'N/A'}
+USP: ${offer['46_usp'] || 'N/A'}`;
+      }
+
       const topicPrompt = `You are a world-class content strategist trained in Jon Benson's copywriting methodology.
 
 BRAND CONTEXT:
 - Industry: ${brandData.industry || 'business'}
 - Target Audience: ${brandData.target_audience || 'professionals'}
 - Brand Voice: ${brandData.brand_voice || 'professional'}
-${brandData.core_messaging ? `\nCORE MESSAGING:\n${brandData.core_messaging.substring(0, 2000)}` : ''}
+${blueprint ? blueprintContext : (brandData.core_messaging ? `\nCORE MESSAGING:\n${brandData.core_messaging.substring(0, 2000)}` : '')}
 
 TASK: Generate 4 compelling LinkedIn POST topic headlines (thought leadership content).
+
+CRITICAL VARIETY REQUIREMENT:
+Each topic MUST come from a DIFFERENT angle:
+1. One based on a PAIN POINT or OBJECTION
+2. One based on a DESIRE or DREAM
+3. One based on a LIE/MYTH to debunk
+4. One based on a POSITIVE HOOK or TRANSFORMATION
 
 CRITICAL CONSTRAINTS:
 - These are POSTS, NOT campaigns or advertisements
@@ -119,13 +165,14 @@ REQUIREMENTS:
 - Target THIS specific audience's pain points and desires
 - Use specific language from their industry
 - Make them feel "this is written for ME"
+- EACH TOPIC MUST BE DISTINCTLY DIFFERENT (no variations on same theme)
 
 FORMAT: Return ONLY a JSON array of 4 headline strings. No explanations.
 
 Example format (different content):
 ["How I 10X'd My LinkedIn Reach Without Posting Daily (and You Can Too)", "The One LinkedIn Mistake Costing You $100K+ in Lost Deals", "Why Your Best Content Gets Zero Engagement (and How to Fix It)", "The 3-Minute LinkedIn Strategy That Books 5+ Sales Calls Per Week"]
 
-Now generate 4 headlines for THIS brand:`;
+Now generate 4 DISTINCTLY DIFFERENT headlines for THIS brand:`;
 
       console.log('[HGC_V3] Generating dynamic topics with OpenAI...');
 
