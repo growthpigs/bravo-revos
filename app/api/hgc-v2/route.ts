@@ -55,9 +55,41 @@ Always be professional, data-driven, and focused on measurable business outcomes
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Parse and validate request
+    // 1. Parse and validate request - support both formats
     const body = await request.json();
-    const validation = safeParseLegacyV1Request(body);
+
+    // Transform messages array format to message + conversationHistory format
+    let normalizedBody = body;
+    if (body.messages && Array.isArray(body.messages) && !body.message) {
+      // Frontend sends { messages: [...] }, convert to { message, conversationHistory }
+      const messages = body.messages;
+      const lastUserMessage = [...messages].reverse().find((m: any) => m.role === 'user');
+
+      if (!lastUserMessage) {
+        return NextResponse.json(
+          { success: false, error: 'No user message found in messages array' },
+          { status: 400 }
+        );
+      }
+
+      // Get all messages except the last user message as history
+      const lastUserIndex = messages.lastIndexOf(lastUserMessage);
+      const conversationHistory = messages.slice(0, lastUserIndex);
+
+      normalizedBody = {
+        ...body,
+        message: lastUserMessage.content,
+        conversationHistory,
+      };
+      delete normalizedBody.messages;
+
+      console.log('[HGC_V2] Transformed messages array to message format:', {
+        message_preview: lastUserMessage.content.slice(0, 50),
+        history_length: conversationHistory.length,
+      });
+    }
+
+    const validation = safeParseLegacyV1Request(normalizedBody);
 
     if (!validation.success) {
       const errors = validation.error.issues.map((issue) => ({
