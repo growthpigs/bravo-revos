@@ -49,15 +49,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // IMPORTANT: Skip write command detection if this is a workflow decision
+    // This prevents accidental keyword matches in topic headlines
+    const isWorkflowDecision = !!(workflow_id && decision);
+
     // Check for write/post commands - multiple keywords trigger the write flow
     const WRITE_KEYWORDS = ['write', 'post', 'writing', 'create', 'content', 'linkedin'];
     const normalizedMessage = message?.toLowerCase().trim() || '';
-    const isWriteCommand = WRITE_KEYWORDS.some(keyword =>
+    const isWriteCommand = !isWorkflowDecision && WRITE_KEYWORDS.some(keyword =>
       normalizedMessage === keyword ||
       normalizedMessage.startsWith(keyword + ' ') ||
       normalizedMessage.endsWith(' ' + keyword)
     );
-    console.log('[HGC_V3] Write command check:', { message, normalizedMessage, isWriteCommand });
+    console.log('[HGC_V3] Write command check:', { message, normalizedMessage, isWriteCommand, isWorkflowDecision });
 
     if (isWriteCommand) {
       console.log('[HGC_V3] Write command detected');
