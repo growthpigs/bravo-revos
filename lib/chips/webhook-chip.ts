@@ -43,25 +43,25 @@ export class WebhookChip extends BaseChip {
       description: 'Send lead data to user\'s Email Service Provider (ConvertKit, Mailchimp, etc) via webhook.',
       parameters: z.object({
         action: z.enum(['send', 'bulk_send', 'test', 'check_status']).describe('Webhook action'),
-        webhook_url: z.string().optional().describe('ESP webhook endpoint URL'),
+        webhook_url: z.string().nullable().optional().describe('ESP webhook endpoint URL'),
         lead_data: z.object({
           email: z.string().email(),
-          first_name: z.string().optional(),
-          last_name: z.string().optional(),
-          linkedin_url: z.string().optional(),
-          campaign_id: z.string().optional(),
-          lead_magnet: z.string().optional(),
+          first_name: z.string().nullable().optional(),
+          last_name: z.string().nullable().optional(),
+          linkedin_url: z.string().nullable().optional(),
+          campaign_id: z.string().nullable().optional(),
+          lead_magnet: z.string().nullable().optional(),
           source: z.enum(['linkedin_dm', 'linkedin_comment', 'manual', 'import']).default('linkedin_dm'),
-          custom_fields: z.record(z.any()).optional()
-        }).optional().describe('Lead information to send'),
+          custom_fields: z.record(z.any()).nullable().optional()
+        }).nullable().optional().describe('Lead information to send'),
         leads: z.array(z.object({
           email: z.string().email(),
-          first_name: z.string().optional(),
-          last_name: z.string().optional(),
-        })).optional().describe('Multiple leads for bulk send'),
+          first_name: z.string().nullable().optional(),
+          last_name: z.string().nullable().optional(),
+        })).nullable().optional().describe('Multiple leads for bulk send'),
         retry_on_failure: z.boolean().default(true).describe('Retry with exponential backoff if webhook fails'),
-        webhook_secret: z.string().optional().describe('Secret for HMAC signature'),
-        delivery_id: z.string().optional().describe('Check status of specific delivery'),
+        webhook_secret: z.string().nullable().optional().describe('Secret for HMAC signature'),
+        delivery_id: z.string().nullable().optional().describe('Check status of specific delivery'),
       }),
       execute: async (input, context) => {
         const agentContext = extractAgentContext(context);
