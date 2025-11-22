@@ -76,13 +76,18 @@ export async function POST(req: Request) {
         hasBlueprint: !!brandData?.blueprint_112
       });
 
-      // Check if brand data exists AND has required fields
-      const hasBrandContext = brandData && brandData.industry && brandData.target_audience;
+      // Check if brand data exists AND has enough context to generate content
+      // Accept: blueprint OR core_messaging OR (industry AND target_audience)
+      const hasBrandContext = brandData && (
+        brandData.blueprint_112 ||
+        brandData.core_messaging ||
+        (brandData.industry && brandData.target_audience)
+      );
 
       if (!hasBrandContext) {
         return NextResponse.json({
           success: false,
-          response: '❌ **Brand Setup Required**\n\nYour brand profile is incomplete. Please add your industry and target audience.\n\n→ Go to **Settings → Brand** to complete setup.',
+          response: '❌ **Brand Setup Required**\n\nYour brand profile is incomplete. Please add your industry and target audience, or generate a 112-point blueprint.\n\n→ Go to **Settings → Brand** to complete setup.',
           sessionId: sessionId || crypto.randomUUID(),
           meta: {
             route: 'hgc-v3',
