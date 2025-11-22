@@ -57,17 +57,17 @@ export function TopBar({ showLogo = true }: TopBarProps) {
             />
           </Link>
         )}
-        <div className="font-mono text-[8px] uppercase text-gray-400 tracking-wide leading-tight">
+        <div className="font-mono text-[9px] uppercase text-gray-400 tracking-wide leading-tight">
           {mounted && buildInfo ? (
             <div className="flex flex-col">
+              <span>{buildInfo.branch}</span>
               <span>{new Date(buildInfo.timestamp).toLocaleString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
-                year: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false,
-              })} • {buildInfo.branch}</span>
+              }).replace(',', '')}</span>
               <span>HGC {hgcVersion}</span>
               <span>{llmModel}</span>
             </div>
