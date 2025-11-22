@@ -1606,6 +1606,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               options={message.interactive.decision_options}
               workflowId={message.interactive.workflow_id}
               onSelect={handleDecisionSelect}
+              onRegenerate={() => {
+                // Re-send "write" to get new topics
+                setInput('write');
+                setTimeout(() => {
+                  const form = document.querySelector('form');
+                  if (form) form.requestSubmit();
+                }, 50);
+              }}
             />
           )}
 

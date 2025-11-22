@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { PlusCircle, List } from 'lucide-react';
+import { PlusCircle, List, RefreshCw } from 'lucide-react';
 
 interface DecisionOption {
   label: string;
@@ -14,12 +14,16 @@ interface InlineDecisionButtonsProps {
   workflowId?: string;
   options: DecisionOption[];
   onSelect: (value: string, workflowId?: string) => void;
+  onRegenerate?: () => void;
+  showRegenerate?: boolean;
 }
 
 export function InlineDecisionButtons({
   workflowId,
   options,
   onSelect,
+  onRegenerate,
+  showRegenerate = true,
 }: InlineDecisionButtonsProps) {
   const handleClick = (value: string) => {
     onSelect(value, workflowId);
@@ -48,6 +52,15 @@ export function InlineDecisionButtons({
           {option.label}
         </button>
       ))}
+      {showRegenerate && onRegenerate && (
+        <button
+          onClick={onRegenerate}
+          className="flex items-center justify-start gap-1.5 px-3 py-1.5 mt-2 rounded text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Regenerate
+        </button>
+      )}
     </div>
   );
 }
