@@ -471,6 +471,24 @@ export default function CartridgesPage() {
       const data = await response.json();
       console.log('[TRACE_API] 7. Frontend: Success, got data:', data);
       setBrandCartridge(data.brand);
+
+      // CRITICAL: Initialize brandFormData from loaded brand to prevent empty overwrites
+      if (data.brand) {
+        setBrandFormData({
+          name: data.brand.name || '',
+          company_name: data.brand.company_name || '',
+          company_description: data.brand.company_description || '',
+          company_tagline: data.brand.company_tagline || '',
+          industry: data.brand.industry || '',
+          target_audience: data.brand.target_audience || '',
+          core_messaging: data.brand.core_messaging || ''
+        });
+        console.log('[TRACE_API] 7b. Initialized brandFormData from brand:', {
+          company_description: data.brand.company_description?.substring(0, 50),
+          industry: data.brand.industry,
+          target_audience: data.brand.target_audience
+        });
+      }
     } catch (error) {
       console.error('[TRACE_API] 8. Frontend: FULL ERROR:', error);
       console.error('Error fetching brand cartridge:', error);
@@ -758,6 +776,14 @@ export default function CartridgesPage() {
   };
 
   const handleBrandSave = async (data: Partial<BrandCartridge>) => {
+    // DEBUG: Log what we're saving
+    console.log('[BRAND_SAVE] Saving brand data:', {
+      company_description: data.company_description?.substring(0, 50),
+      industry: data.industry,
+      target_audience: data.target_audience,
+      has_core_messaging: !!data.core_messaging
+    });
+
     try {
       const response = await fetch('/api/cartridges/brand', {
         method: brandCartridge ? 'PATCH' : 'POST',

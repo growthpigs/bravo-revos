@@ -175,6 +175,15 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
 
+    // DEBUG: Log what we received
+    console.log('[BRAND_PATCH] Received data:', {
+      company_description: body.company_description?.substring(0, 50),
+      industry: body.industry,
+      target_audience: body.target_audience,
+      has_core_messaging: !!body.core_messaging,
+      all_keys: Object.keys(body)
+    });
+
     // Update brand (user can only have one)
     const { data, error } = await supabase
       .from('brand_cartridges')
