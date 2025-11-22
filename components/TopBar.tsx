@@ -37,10 +37,14 @@ export function TopBar({ showLogo = true }: TopBarProps) {
       });
   }, []);
 
+  // Get HGC version from env
+  const hgcVersion = process.env.NEXT_PUBLIC_HGC_VERSION || 'v3';
+  const llmModel = 'GPT-5.1';
+
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-40">
-      {/* Left: Logo + Version */}
-      <div className="flex flex-col gap-1">
+      {/* Left: Logo + Info */}
+      <div className="flex items-center gap-4">
         {showLogo && (
           <Link href="/">
             <Image
@@ -48,15 +52,14 @@ export function TopBar({ showLogo = true }: TopBarProps) {
               alt="RevOS"
               width={260}
               height={50}
-              className="h-4 w-auto"
+              className="h-8 w-auto"
               priority
             />
           </Link>
         )}
-        <div className="font-mono text-[8pt] uppercase text-gray-400 tracking-wide leading-tight">
+        <div className="font-mono text-[8px] uppercase text-gray-400 tracking-wide leading-tight">
           {mounted && buildInfo ? (
             <div className="flex flex-col">
-              <span>{buildInfo.branch}{buildInfo.sourceBranch !== buildInfo.branch ? ` : ${buildInfo.sourceBranch}` : ''}</span>
               <span>{new Date(buildInfo.timestamp).toLocaleString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
@@ -64,7 +67,9 @@ export function TopBar({ showLogo = true }: TopBarProps) {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false,
-              })}</span>
+              })} • {buildInfo.branch}</span>
+              <span>HGC {hgcVersion}</span>
+              <span>{llmModel}</span>
             </div>
           ) : '—'}
         </div>
