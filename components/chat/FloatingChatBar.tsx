@@ -732,6 +732,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
 
+    // Immediately expand to fullscreen for write commands (don't wait for API)
+    const writeKeywords = ['write', 'post', 'compose', 'draft', 'generate'];
+    const inputLower = input.toLowerCase();
+    const isWriteCommand = writeKeywords.some(kw => inputLower.includes(kw));
+    if (isWriteCommand && !isFullscreen) {
+      console.log('[HGC_STREAM] Write command detected - expanding to fullscreen immediately');
+      setIsFullscreen(true);
+    }
+
     setInput('');
     setIsLoading(true);
     setError(null);
