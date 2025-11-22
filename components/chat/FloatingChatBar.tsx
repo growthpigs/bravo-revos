@@ -634,12 +634,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           toast.success('Posted to LinkedIn!', { id: 'linkedin-post', duration: 5000 });
 
           // Always add success message to chat
-          const postUrl = data.post?.url || data.url;
+          // Use profile recent activity URL (more reliable than direct post URL which may 404 briefly)
+          const profileUrl = data.profileUrl;
+          const recentActivityUrl = profileUrl
+            ? `${profileUrl.replace(/\/$/, '')}/recent-activity/`
+            : null;
+
           const successMessage: Message = {
             id: generateUniqueId(),
             role: 'assistant',
-            content: postUrl
-              ? `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live.\n\n👉 [View your post on LinkedIn](${postUrl})`
+            content: recentActivityUrl
+              ? `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live.\n\n👉 [View your recent activity](${recentActivityUrl})`
               : `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live on your LinkedIn feed.`,
             createdAt: new Date(),
           };

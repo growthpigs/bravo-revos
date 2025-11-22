@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       // Fetch user's LinkedIn accounts
       const { data: linkedinAccounts, error: accountsError } = await supabase
         .from('linkedin_accounts')
-        .select('unipile_account_id, status')
+        .select('unipile_account_id, status, profile_url')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .limit(1);
@@ -62,14 +62,30 @@ export async function POST(request: NextRequest) {
     // Create the post via Unipile
     const postResult = await createLinkedInPost(unipileAccountId, text);
 
+    // Get profile URL for recent activity link
+    let profileUrl = null;
+    if (!accountId) {
+      // We already fetched the account above, use that profile_url
+      const { data: accountData } = await supabase
+        .from('linkedin_accounts')
+        .select('profile_url')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .limit(1)
+        .single();
+      profileUrl = accountData?.profile_url;
+    }
+
     console.log('[LINKEDIN_POST_API] Post created successfully:', {
       postId: postResult.id,
       url: postResult.url,
+      profileUrl,
     });
 
     return NextResponse.json({
       success: true,
       post: postResult,
+      profileUrl,
       message: 'LinkedIn post created successfully',
     });
   } catch (error) {
