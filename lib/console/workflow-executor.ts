@@ -112,48 +112,82 @@ async function executeTopicGeneration(
   });
 
   try {
+    // Build detailed analysis prompt that uses the full 112-point blueprint
+    const coreMessaging = context.cartridges.brand?.core_messaging || '';
+    const analysisPrompt = `Analyze the following 112-point marketing blueprint and generate 4 compelling LinkedIn post topics.
+
+BLUEPRINT TO ANALYZE:
+${coreMessaging}
+
+YOUR TASK:
+1. Deep dive into the blueprint - look at:
+   - BURNING QUESTIONS (what keeps them up at night)
+   - PAIN POINTS (what frustrates them)
+   - MOTIVATIONS (what they want to achieve)
+   - HOW THEY TALK (their language patterns)
+   - IDEAL OUTCOMES (where they want to be)
+   - TRANSFORMATION PROMISES
+   - OBJECTIONS AND FEARS
+
+2. Generate 4 LinkedIn post headlines that directly address these insights
+3. Each topic should use curiosity gap technique and speak to a specific pain point or burning question
+
+RESPOND WITH JSON ARRAY in this exact format:
+[
+  {"headline": "Topic 1 headline here", "rationale": "Addresses pain point: [specific pain point from blueprint]"},
+  {"headline": "Topic 2 headline here", "rationale": "Speaks to burning question: [specific question]"},
+  {"headline": "Topic 3 headline here", "rationale": "Targets motivation: [specific motivation]"},
+  {"headline": "Topic 4 headline here", "rationale": "Uses their language: [specific phrase pattern]"}
+]
+
+Return ONLY the JSON array, no other text.`;
+
     const result = await marketingConsole.execute(
       user.id,
       session.id,
-      [{ role: 'user', content: 'Generate 4 LinkedIn post topic headlines.' }]
+      [{ role: 'user', content: analysisPrompt }]
     );
 
-    console.log('[WorkflowExecutor] AI response received:', result.response.substring(0, 200));
+    console.log('[WorkflowExecutor] AI response received:', result.response.substring(0, 300));
 
-    // Parse AI response as JSON array
-    let topicHeadlines: string[] = [];
+    // Parse AI response as JSON array with rationale
+    let topicData: Array<{headline: string; rationale: string}> = [];
     try {
       const parsed = JSON.parse(result.response);
       if (Array.isArray(parsed)) {
-        topicHeadlines = parsed;
+        topicData = parsed.map(item => ({
+          headline: item.headline || String(item),
+          rationale: item.rationale || ''
+        }));
       } else {
         console.warn('[WorkflowExecutor] Parsed JSON is not an array:', typeof parsed);
-        topicHeadlines = [String(parsed)];
+        topicData = [{headline: String(parsed), rationale: ''}];
       }
     } catch (e) {
       console.log('[WorkflowExecutor] JSON parse failed, extracting from text');
       // If not JSON, try to extract topics from text
       const lines = result.response.split('\n').filter((l) => l.trim());
-      topicHeadlines = lines.slice(0, 4);
+      topicData = lines.slice(0, 4).map(line => ({headline: line, rationale: ''}));
     }
 
-    console.log('[WorkflowExecutor] Parsed topics:', topicHeadlines);
+    console.log('[WorkflowExecutor] Parsed topics with rationale:', topicData);
 
     // Ensure we have at least one topic
-    if (!Array.isArray(topicHeadlines) || topicHeadlines.length === 0) {
-      topicHeadlines = [
-        'How AI is transforming your industry',
-        'Building trust with your audience',
-        'Overcoming common challenges in 2024',
-        'The future of your business strategy',
+    if (!Array.isArray(topicData) || topicData.length === 0) {
+      topicData = [
+        {headline: 'How AI is transforming your industry', rationale: 'General audience topic'},
+        {headline: 'Building trust with your audience', rationale: 'General audience topic'},
+        {headline: 'Overcoming common challenges in 2024', rationale: 'General audience topic'},
+        {headline: 'The future of your business strategy', rationale: 'General audience topic'},
       ];
       console.warn('[WorkflowExecutor] Using fallback topics');
     }
 
-    // Convert to decision options
-    const topicOptions = topicHeadlines.map((headline, index) => ({
-      label: String(headline).trim(),
-      value: `topic:${index}:${String(headline).toLowerCase().replace(/\s+/g, '_')}`,
+    // Convert to decision options with rationale as description
+    const topicOptions = topicData.map((topic, index) => ({
+      label: String(topic.headline).trim(),
+      value: `topic:${index}:${String(topic.headline).toLowerCase().replace(/\s+/g, '_')}`,
+      description: topic.rationale, // WHY this topic was chosen
       icon: index === 0 ? 'brain' : 'star',
       variant: index === 0 ? 'primary' : 'secondary',
     }));

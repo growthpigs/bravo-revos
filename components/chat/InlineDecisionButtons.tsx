@@ -6,6 +6,7 @@ import { PlusCircle, List, RefreshCw } from 'lucide-react';
 interface DecisionOption {
   label: string;
   value: string;
+  description?: string; // WHY this option was suggested (rationale)
   icon?: 'plus' | 'list';
   variant?: 'primary' | 'secondary';
 }
@@ -41,16 +42,22 @@ export function InlineDecisionButtons({
   };
 
   return (
-    <div className="flex flex-col gap-1.5 items-start">
+    <div className="flex flex-col gap-2 items-start">
       {options.map((option) => (
-        <button
-          key={option.value}
-          onClick={() => handleClick(option.value)}
-          className="flex items-center justify-start gap-1.5 px-3 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-900 bg-white hover:border-gray-900 hover:bg-gray-50 transition-colors text-left"
-        >
-          {getIcon(option.icon)}
-          {option.label}
-        </button>
+        <div key={option.value} className="flex flex-col gap-0.5">
+          <button
+            onClick={() => handleClick(option.value)}
+            className="flex items-center justify-start gap-1.5 px-3 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-900 bg-white hover:border-gray-900 hover:bg-gray-50 transition-colors text-left"
+          >
+            {getIcon(option.icon)}
+            {option.label}
+          </button>
+          {option.description && (
+            <span className="text-[10px] text-gray-500 ml-3 italic">
+              {option.description}
+            </span>
+          )}
+        </div>
       ))}
       {showRegenerate && onRegenerate && (
         <button
