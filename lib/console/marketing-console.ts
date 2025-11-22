@@ -58,9 +58,11 @@ export class MarketingConsole {
         if (!agentKitVersionChecked) {
           agentKitVersionChecked = true;
           try {
-            // Use require to avoid TS module resolution issues
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const pkgJson = require('@openai/agents/package.json') as { version: string };
+            // Read package.json using fs to avoid module export restrictions
+            const fs = await import('fs');
+            const path = await import('path');
+            const pkgPath = path.join(process.cwd(), 'node_modules', '@openai', 'agents', 'package.json');
+            const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
             const currentVersion = pkgJson.version;
             if (currentVersion !== EXPECTED_AGENTKIT_VERSION) {
               console.warn(`⚠️ [MarketingConsole] AgentKit version changed: expected ${EXPECTED_AGENTKIT_VERSION}, got ${currentVersion}`);

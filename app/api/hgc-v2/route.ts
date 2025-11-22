@@ -17,9 +17,12 @@ export const runtime = 'nodejs';
 import { createClient } from '@/lib/supabase/server';
 // Dynamic imports to prevent build-time tiktoken/encoder.json loading:
 // - OpenAI SDK (dynamically imported in POST handler)
+// - MarketingConsole (imports @openai/agents which uses tiktoken)
+// - VoiceCartridge (imports types which imports @openai/agents)
 // - LinkedInCartridge (contains chips that import @openai/agents)
-import { MarketingConsole } from '@/lib/console/marketing-console';
-import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
+// All custom lib imports that chain to @openai/agents are dynamic
+
+// Type-only import - should be stripped at compile time
 import type { Message } from '@/lib/cartridges/types';
 import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
 import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
@@ -30,11 +33,9 @@ import { loadAllUserCartridges } from '@/lib/cartridges/loaders';
 import { createCartridgeSnapshot } from '@/lib/cartridges/snapshot';
 import { detectPlatformFromCommand } from '@/lib/console/platform-detector';
 import { ZodError } from 'zod';
-import { findWorkflowByTrigger } from '@/lib/console/workflow-loader';
-import {
-  executeContentGenerationWorkflow,
-  executeNavigationWorkflow,
-} from '@/lib/console/workflow-executor';
+// Dynamic imports for workflow functions to prevent build-time tiktoken loading
+// - findWorkflowByTrigger (imported when needed)
+// - executeContentGenerationWorkflow, executeNavigationWorkflow (imported when needed)
 
 /**
  * Fallback console configuration
@@ -176,6 +177,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Initialize MarketingConsole with database-driven config + all cartridges
+    // Dynamic import to prevent build-time tiktoken/encoder.json loading
+    const { MarketingConsole } = await import('@/lib/console/marketing-console');
     const console_instance = new MarketingConsole({
       model: 'gpt-4o-mini',
       temperature: 0.7,
@@ -263,6 +266,8 @@ export async function POST(request: NextRequest) {
     // 7.5 Check for workflow triggers (database-driven)
     console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', currentMessage);
 
+    // Dynamic import to prevent build-time tiktoken loading
+    const { findWorkflowByTrigger } = await import('@/lib/console/workflow-loader');
     const matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
 
     if (matchedWorkflow) {
@@ -290,6 +295,10 @@ export async function POST(request: NextRequest) {
 
       try {
         let workflowResult;
+
+        // Dynamic import to prevent build-time tiktoken loading
+        const { executeContentGenerationWorkflow, executeNavigationWorkflow } =
+          await import('@/lib/console/workflow-executor');
 
         // Execute workflow based on type
         if (matchedWorkflow.workflow_type === 'content_generation') {

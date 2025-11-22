@@ -6,9 +6,14 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-// CRITICAL FIX: Use 'import type' to prevent build-time bundling of OpenAI SDK
-// This file is imported by hgc-v2 route, and module-level 'import OpenAI' triggers tiktoken
-import type OpenAI from 'openai';
+
+// Local type definition to prevent OpenAI SDK build-time bundling
+// OpenAI SDK uses tiktoken which tries to load encoder.json at build time
+type ChatCompletionMessageToolCall = {
+  id: string;
+  function: { name: string; arguments: string };
+  type: 'function';
+};
 
 // ===== PART 1: VOICE CARTRIDGE TYPES (EXISTING) =====
 
@@ -125,8 +130,15 @@ export interface CartridgeResponse extends ApiResponse<VoiceCartridge> {
 
 // ===== PART 2: AGENTKIT CARTRIDGE SYSTEM (Chips + Cartridges) =====
 
-// Type-only import to prevent build-time tiktoken bundling
-import type { Tool } from '@openai/agents';
+// Local Tool type definition to prevent @openai/agents build-time bundling
+// This matches the structure expected by AgentKit
+type Tool = {
+  name: string;
+  description?: string;
+  parameters?: object;
+  strict?: boolean;
+  type?: string;
+};
 
 /**
  * Message structure for conversation history
@@ -134,7 +146,7 @@ import type { Tool } from '@openai/agents';
 export interface Message {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+  tool_calls?: ChatCompletionMessageToolCall[];
   tool_call_id?: string;
   name?: string;
 }

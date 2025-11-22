@@ -2,12 +2,14 @@ const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Dynamic imports in MarketingConsole prevent build-time tiktoken loading
-  // NO webpack externals needed - lazy initialization handles it
-  webpack: (config) => {
-    // No special configuration needed
-    // @openai/agents will be bundled normally
-    // tiktoken encoder.json won't load at build time due to dynamic imports
+  // Mark tokenizer packages as external to prevent encoder.json build-time loading
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Exclude tokenizer packages from server bundles - they try to load encoder.json at build time
+      config.externals = config.externals || [];
+      config.externals.push('gpt-tokenizer');
+      config.externals.push('gpt-3-encoder');
+    }
     return config;
   },
   eslint: {
