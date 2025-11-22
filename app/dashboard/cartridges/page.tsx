@@ -813,6 +813,10 @@ export default function CartridgesPage() {
   // Blueprint generation handler
   const handleGenerateBlueprint = async () => {
     setGeneratingBlueprint(true);
+
+    // Clear the old core_messaging first so user sees it's being replaced
+    setBrandFormData(prev => ({ ...prev, core_messaging: '' }));
+
     const toastId = toast.loading('Generating 112-point marketing blueprint... This may take 30-60 seconds.');
     try {
       const response = await fetch('/api/blueprint/generate', {
@@ -834,7 +838,7 @@ export default function CartridgesPage() {
           setBrandFormData(prev => ({ ...prev, core_messaging: blueprintText }));
         }
 
-        // Fetch updated brand data after setting form
+        // Fetch updated brand data to sync with database
         await fetchBrandCartridge();
       } else {
         const error = await response.json();
