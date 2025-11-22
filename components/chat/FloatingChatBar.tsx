@@ -656,7 +656,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             interactive: recentActivityUrl ? {
               type: 'external_link',
               url: recentActivityUrl,
-              label: 'View Recent Activity'
+              label: 'View Post'
             } : undefined,
             createdAt: new Date(),
           };
