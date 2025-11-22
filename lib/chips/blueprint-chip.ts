@@ -94,13 +94,13 @@ export class BlueprintChip extends BaseChip {
             core_values: brandData.core_values || '',
           };
 
-          console.log('[BlueprintChip] Brand context:', {
-            company_name: brandContext.company_name,
-            company_description: brandContext.company_description?.substring(0, 50),
-            industry: brandContext.industry,
-            hasTargetAudience: !!brandContext.target_audience,
-            hasCoreMessaging: !!brandContext.core_messaging,
-          });
+          // DIAGNOSTIC: Log exactly what we're sending to AI
+          console.log('[BlueprintChip] 🔍 DIAGNOSTIC - Data from database:');
+          console.log('[BlueprintChip] company_name:', brandContext.company_name);
+          console.log('[BlueprintChip] company_description:', brandContext.company_description);
+          console.log('[BlueprintChip] industry:', brandContext.industry);
+          console.log('[BlueprintChip] target_audience:', brandContext.target_audience);
+          console.log('[BlueprintChip] has_core_messaging:', !!brandContext.core_messaging, 'length:', brandContext.core_messaging?.length || 0);
 
           // Generate the 112-point blueprint using OpenAI
           const blueprint = await this.generateBlueprint(brandContext);
