@@ -652,9 +652,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           const successMessage: Message = {
             id: generateUniqueId(),
             role: 'assistant',
-            content: recentActivityUrl
-              ? `📤 **Queued for LinkedIn**\n\nYour post is being published. This usually takes a few seconds.\n\n👉 [Check your recent activity](${recentActivityUrl})`
-              : `📤 **Queued for LinkedIn**\n\nYour post is being published. This usually takes a few seconds.`,
+            content: `**Queued for LinkedIn**\n\nYour post is being published. This usually takes a few seconds.`,
+            interactive: recentActivityUrl ? {
+              type: 'external_link',
+              url: recentActivityUrl,
+              label: 'View Recent Activity'
+            } : undefined,
             createdAt: new Date(),
           };
           setMessages(prev => [...prev, successMessage]);
@@ -1613,6 +1616,17 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               content={message.interactive.initial_content}
               onSelect={handleDateTimeSelect}
             />
+          )}
+
+          {message.interactive.type === 'external_link' && message.interactive.url && (
+            <div className="flex flex-wrap gap-[7px] mt-2">
+              <button
+                onClick={() => window.open(message.interactive.url, '_blank')}
+                className="font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {message.interactive.label || 'Open Link'}
+              </button>
+            </div>
           )}
 
           {/* Content-specific buttons - only show if this message is synced to document */}
