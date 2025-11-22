@@ -85,6 +85,8 @@ export class BlueprintChip extends BaseChip {
 
           // Build context from available brand data
           const brandContext = {
+            company_name: brandData.company_name || '',
+            company_description: brandData.company_description || '',
             industry: brandData.industry || 'Unknown',
             target_audience: brandData.target_audience || 'Unknown',
             brand_voice: brandData.brand_voice || 'Professional',
@@ -93,6 +95,8 @@ export class BlueprintChip extends BaseChip {
           };
 
           console.log('[BlueprintChip] Brand context:', {
+            company_name: brandContext.company_name,
+            company_description: brandContext.company_description?.substring(0, 50),
             industry: brandContext.industry,
             hasTargetAudience: !!brandContext.target_audience,
             hasCoreMessaging: !!brandContext.core_messaging,
@@ -134,6 +138,8 @@ export class BlueprintChip extends BaseChip {
   }
 
   private async generateBlueprint(brandContext: {
+    company_name: string;
+    company_description: string;
     industry: string;
     target_audience: string;
     brand_voice: string;
@@ -151,11 +157,15 @@ export class BlueprintChip extends BaseChip {
 Generate a comprehensive 112-point marketing blueprint based on this brand information:
 
 BRAND CONTEXT:
+${brandContext.company_name ? `- Company Name: ${brandContext.company_name}` : ''}
+${brandContext.company_description ? `- Company Description (PRIMARY - USE THIS): ${brandContext.company_description}` : ''}
 - Industry: ${brandContext.industry}
 - Target Audience: ${brandContext.target_audience}
 - Brand Voice: ${brandContext.brand_voice}
 ${brandContext.core_messaging ? `\nExisting Core Messaging:\n${brandContext.core_messaging}` : ''}
 ${brandContext.core_values ? `\nCore Values: ${brandContext.core_values}` : ''}
+
+CRITICAL: The Company Description above is the PRIMARY source of truth. All generated content MUST align with and reflect this description. Do NOT default to generic "life coaching" or "career development" content unless that's specifically what the description says.
 
 Generate the following 112 points. Be specific, detailed, and actionable. Extrapolate intelligently from the given information.
 

@@ -813,6 +813,7 @@ export default function CartridgesPage() {
   // Blueprint generation handler
   const handleGenerateBlueprint = async () => {
     setGeneratingBlueprint(true);
+    const toastId = toast.loading('Generating 112-point marketing blueprint... This may take 30-60 seconds.');
     try {
       const response = await fetch('/api/blueprint/generate', {
         method: 'POST',
@@ -822,7 +823,7 @@ export default function CartridgesPage() {
 
       if (response.ok) {
         const result = await response.json();
-        toast.success('112-point marketing blueprint generated successfully!');
+        toast.success('112-point marketing blueprint generated successfully!', { id: toastId });
         setShowBlueprintDialog(false);
 
         // Convert blueprint to readable format and populate textarea
@@ -837,11 +838,11 @@ export default function CartridgesPage() {
         await fetchBrandCartridge();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Blueprint generation failed');
+        toast.error(error.error || 'Blueprint generation failed', { id: toastId });
       }
     } catch (error) {
       console.error('Blueprint generation error:', error);
-      toast.error('Failed to generate blueprint');
+      toast.error('Failed to generate blueprint', { id: toastId });
     } finally {
       setGeneratingBlueprint(false);
     }
