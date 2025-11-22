@@ -162,7 +162,6 @@ ${brandContext.company_description ? `- Company Description (PRIMARY - USE THIS)
 - Industry: ${brandContext.industry}
 - Target Audience: ${brandContext.target_audience}
 - Brand Voice: ${brandContext.brand_voice}
-${brandContext.core_messaging ? `\nExisting Core Messaging:\n${brandContext.core_messaging}` : ''}
 ${brandContext.core_values ? `\nCore Values: ${brandContext.core_values}` : ''}
 
 CRITICAL: The Company Description above is the PRIMARY source of truth. All generated content MUST align with and reflect this description. Do NOT default to generic "life coaching" or "career development" content unless that's specifically what the description says.
