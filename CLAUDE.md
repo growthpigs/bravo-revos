@@ -80,37 +80,39 @@ open http://localhost:3000/dashboard
 - ✅ Working Document = Content output (like Microsoft Word)
 - ✅ Chat = Navigation, confirmations, buttons only
 
-## CURRENT WORKING STATE (2025-11-16)
+## CURRENT WORKING STATE (2025-11-22)
 
-**ACTIVE ROUTE: V2** (`/api/hgc-v2`)
-- Frontend uses: `NEXT_PUBLIC_HGC_VERSION=v2` in `.env.local`
-- Status: ✅ **100% COMPLIANT** - All NON-NEGOTIABLES implemented
-- Architecture: AgentKit SDK ✅ + Mem0 ✅ + Workflow JSON ✅ + Console DB ✅
-- Features: Complete HGC workflow with proper multi-tenant support
+**ACTIVE ROUTE: V3** (`/api/hgc-v3`)
+- Frontend uses: `NEXT_PUBLIC_HGC_VERSION=v3` in Vercel env vars
+- Status: ⚠️ **WORKING but NON-COMPLIANT** - Uses raw OpenAI, hardcoded workflows
+- Architecture: Raw OpenAI SDK ❌ + No Mem0 ❌ + Hardcoded workflows ❌
+- Features: Write workflow functional, generates posts from brand cartridges
 
-**V2 COMPLETION UPDATE (2025-11-16):**
-- ✅ AgentKit SDK integration complete (`@openai/agents`)
-- ✅ Mem0 memory layer working (`agencyId::clientId::userId` scope)
-- ✅ Console DB loading system prompts (`loadConsolePrompt`)
-- ✅ **Workflow JSON refactoring complete** - 110 lines of hardcoded logic removed
-- ✅ Database-driven workflow execution (`console_workflows` table)
-- ✅ Session persistence to database
-- ✅ Health monitors with multi-source verification
+**V2 STATUS (Code Complete but DISABLED):**
+- Route file: `/app/api/hgc-v2/route.ts.disabled` (485 lines)
+- Infrastructure exists: MarketingConsole, workflow-loader, workflow-executor, Mem0 client
+- Status: ⚠️ **DISABLED** - Route has `.disabled` extension, never tested end-to-end
+- Why disabled: Had runtime errors, v3 created as workaround
 
-**Files Created:**
-- `/lib/console/workflow-loader.ts` - Load workflows from database
-- `/lib/console/workflow-executor.ts` - Execute workflow steps
-- `/supabase/migrations/20251116_create_console_workflows.sql` - Workflow table
+**V2 Infrastructure Created (exists but untested):**
+- `/lib/console/workflow-loader.ts` - Load workflows from database (250 lines)
+- `/lib/console/workflow-executor.ts` - Execute workflow steps (300+ lines)
+- `/lib/console/marketing-console.ts` - AgentKit wrapper (670+ lines)
+- `/lib/mem0/client.ts`, `/lib/mem0/memory.ts` - Mem0 integration
 
-**SUSPENDED ROUTES:**
-- V3 (`/api/hgc-v3`) - **SUSPENDED** - Violated architecture (raw OpenAI, hardcoded workflows)
-- Legacy (`/api/hgc`) - Old implementation
+**TO ENABLE V2 (Estimated 8-14 hours):**
+1. Verify database tables exist (`console_workflows`, `console_prompts`)
+2. Populate workflow configuration data
+3. Configure Mem0 API keys and scoping
+4. Rename `route.ts.disabled` → `route.ts`
+5. Test and debug runtime errors
+6. Set `NEXT_PUBLIC_HGC_VERSION=v2` in Vercel
 
 **HOW TO SWITCH ROUTES:**
 ```bash
-# In .env.local:
-NEXT_PUBLIC_HGC_VERSION=v2     # ✅ ACTIVE - 100% compliant architecture
-NEXT_PUBLIC_HGC_VERSION=v3     # ❌ SUSPENDED - Violated architecture
+# In Vercel env vars:
+NEXT_PUBLIC_HGC_VERSION=v3     # ✅ ACTIVE - Working but non-compliant
+NEXT_PUBLIC_HGC_VERSION=v2     # ⚠️ DISABLED - Code exists but untested
 NEXT_PUBLIC_HGC_VERSION=legacy # 🗑️ Old implementation
 ```
 
@@ -132,7 +134,7 @@ NEXT_PUBLIC_HGC_VERSION=legacy # 🗑️ Old implementation
 
 ## NON-NEGOTIABLES (MANDATORY - NO EXCEPTIONS)
 
-**⚠️ V3 SUSPENDED - These rules are NOW ENFORCED (2025-11-16)**
+**⚠️ V3 currently violates these rules - V2 was built to comply but is disabled**
 
 1. **AgentKit SDK ONLY** (`@openai/agents`) - NO raw `openai.chat.completions.create()`
 2. **Mem0 integration** - scope: `agencyId::clientId::userId` - MUST be working
@@ -415,37 +417,33 @@ Create docs in: `docs/projects/bravo-revos/` or `docs/features/YYYY-MM-DD-name/`
 
 ## Changelog
 
-**2025-11-16: ✅ V2 WORKFLOW JSON REFACTORING COMPLETE**
-- **Achieved 100% NON-NEGOTIABLE compliance** - All 8 rules now enforced
-- **Removed 110 lines of hardcoded workflow logic** from V2 route handler
-- **Created workflow loader + executor** (`workflow-loader.ts`, `workflow-executor.ts`)
-- **Database-driven workflows** - All logic now loads from `console_workflows` table
-- **Tested TypeScript compilation** - No errors in refactored code
-- **Frontend switched to V2** - ENV updated to use compliant route
-- **Time to complete:** ~2 hours (as estimated in plan)
+**2025-11-22: ⚠️ CLAUDE.MD CORRECTED - V2 STATUS CLARIFIED**
+- **V2 is DISABLED** - Route file has `.disabled` extension, not active
+- **V3 is ACTIVE** - Working but non-compliant (raw OpenAI, no Mem0)
+- **V2 Code Exists** - 2000+ lines of infrastructure built but untested
+- **Workload to Enable V2** - Estimated 8-14 hours to debug and activate
+- **CLAUDE.md was incorrect** - Previously claimed V2 was "100% compliant" and "active"
 
-**Files Created:**
-- `/lib/console/workflow-loader.ts` (239 lines)
+**2025-11-16: V2 INFRASTRUCTURE CREATED (but disabled)**
+- Created workflow loader + executor (`workflow-loader.ts`, `workflow-executor.ts`)
+- Created MarketingConsole with AgentKit integration
+- Created Mem0 client and memory integration
+- Route disabled due to runtime errors - v3 created as workaround
+- **NOTE**: Code was written but never successfully tested end-to-end
+
+**Files Created (exist but untested):**
+- `/lib/console/workflow-loader.ts` (250 lines)
 - `/lib/console/workflow-executor.ts` (300+ lines)
-- `/supabase/migrations/20251116_create_console_workflows.sql`
-- `/docs/plans/2025-11-16-v2-workflow-json-refactoring.md`
-- `/docs/plans/2025-11-16-pod-amplification-implementation.md`
-- `/docs/plans/2025-11-16-pod-amplification-design.md`
+- `/lib/console/marketing-console.ts` (670+ lines)
+- `/app/api/hgc-v2/route.ts.disabled` (485 lines)
 
-**Architecture Validation:**
-1. ✅ AgentKit SDK ONLY (`@openai/agents`) - No raw OpenAI calls
-2. ✅ Mem0 integration - scope: `agencyId::clientId::userId`
-3. ✅ Console DB - load via `loadConsolePrompt('marketing-console-v1')`
-4. ✅ **Workflow JSON** - load from `console_workflows` table ← **COMPLETED TODAY**
-5. ✅ Session persistence - save all conversations to DB
-6. ✅ Health monitors - multi-source verification
-7. ✅ RLS - backend: service role, frontend: anon key
-8. ✅ Admin control - `admin_users` table only
-
-**Earlier Today (2025-11-16):**
-- **V3 SUSPENDED** - Violated core architecture principles (raw OpenAI, hardcoded workflows)
-- **V2 RE-ACTIVATED** - Committed to proper AgentKit + Mem0 + Workflow JSON architecture
-- NO MORE technical debt excuses - enforcing NON-NEGOTIABLES immediately
+**V2 Architecture (exists in code, not proven working):**
+1. AgentKit SDK (`@openai/agents`) - Installed, used in MarketingConsole
+2. Mem0 integration - Client exists, scoping defined
+3. Console DB - Loader exists, prompts table needed
+4. Workflow JSON - Loader/executor exist, workflows table needed
+5. Session persistence - Code exists
+6. Health monitors - Implemented
 
 **2025-11-15:**
 - ~~Switched to V3 route~~ (REVERSED - V3 suspended)
@@ -459,8 +457,8 @@ Create docs in: `docs/projects/bravo-revos/` or `docs/features/YYYY-MM-DD-name/`
 
 ---
 
-VERSION: 2.1.0 (V2 Active - 100% Architecture Compliant)
-LAST UPDATED: 2025-11-16 17:30
-STATUS: ✅ Complete - V2 Workflow JSON Refactoring Done
+VERSION: 2.2.0 (V3 Active - V2 Code Complete but Disabled)
+LAST UPDATED: 2025-11-22 13:45
+STATUS: ⚠️ V3 Working but Non-Compliant - V2 Needs 8-14h to Enable
 
-ARCHITECTURE: AgentKit SDK + Mem0 + Workflow JSON from DB + Console DB (ALL NON-NEGOTIABLES ✅)
+ARCHITECTURE: V3 uses raw OpenAI (non-compliant) | V2 has AgentKit+Mem0 but is disabled
