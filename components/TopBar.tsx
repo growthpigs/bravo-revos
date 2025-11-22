@@ -50,9 +50,9 @@ export function TopBar({ showLogo = true }: TopBarProps) {
             <Image
               src="/revos-logo.png"
               alt="RevOS"
-              width={260}
-              height={50}
-              className="h-8 w-auto"
+              width={130}
+              height={25}
+              className="h-4 w-auto"
               priority
             />
           </Link>

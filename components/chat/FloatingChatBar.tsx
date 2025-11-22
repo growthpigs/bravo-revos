@@ -2255,7 +2255,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       {/* Blur overlay for canvas when chat is active - visual only, non-interactive */}
       {showMessages && (
         <div
-          className="fixed inset-0 left-64 bg-black/0 backdrop-blur-lg z-40 transition-all duration-200"
+          className="fixed top-16 bottom-0 left-64 right-0 bg-black/5 backdrop-blur-sm z-30 transition-all duration-200"
           style={{
             pointerEvents: 'none',
           }}
