@@ -164,6 +164,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [editedContent, setEditedContent] = useState<string>('');
   const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [showSaveToCampaignModal, setShowSaveToCampaignModal] = useState(false);
+  const [isPosted, setIsPosted] = useState(false); // Track if current content has been posted
+
+  // Reset isPosted when document content changes (new post generated)
+  useEffect(() => {
+    setIsPosted(false);
+  }, [documentContent]);
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
@@ -631,7 +637,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             throw new Error(data.error || 'Failed to post');
           }
 
-          toast.success('Posted to LinkedIn!', { id: 'linkedin-post', duration: 5000 });
+          toast.success('Queued for LinkedIn!', { id: 'linkedin-post', duration: 5000 });
+
+          // Mark as posted so button shows "Posted ✓"
+          setIsPosted(true);
 
           // Always add success message to chat
           // Use profile recent activity URL (more reliable than direct post URL which may 404 briefly)
@@ -644,8 +653,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             id: generateUniqueId(),
             role: 'assistant',
             content: recentActivityUrl
-              ? `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live.\n\n👉 [View your recent activity](${recentActivityUrl})`
-              : `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live on your LinkedIn feed.`,
+              ? `📤 **Queued for LinkedIn**\n\nYour post is being published. This usually takes a few seconds.\n\n👉 [Check your recent activity](${recentActivityUrl})`
+              : `📤 **Queued for LinkedIn**\n\nYour post is being published. This usually takes a few seconds.`,
             createdAt: new Date(),
           };
           setMessages(prev => [...prev, successMessage]);
@@ -1868,11 +1877,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                   </button>
                   <button
                     onClick={() => handleActionClick('post_linkedin')}
-                    className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                    aria-label="Post to LinkedIn"
-                    disabled={!documentContent}
+                    className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                      isPosted
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                    aria-label={isPosted ? "Posted" : "Post to LinkedIn"}
+                    disabled={!documentContent || isPosted}
                   >
-                    Post to LinkedIn
+                    {isPosted ? 'Posted ✓' : 'Post to LinkedIn'}
                   </button>
                   <button
                     onClick={handleCopyContent}
