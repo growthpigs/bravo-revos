@@ -821,16 +821,20 @@ export default function CartridgesPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
         toast.success('112-point marketing blueprint generated successfully!');
-        await fetchBrandCartridge();
         setShowBlueprintDialog(false);
 
         // Convert blueprint to readable format and populate textarea
-        if (data.blueprint) {
-          const blueprintText = formatBlueprintAsText(data.blueprint);
+        // API returns { success: true, data: { blueprint: {...} } }
+        const blueprint = result.data?.blueprint || result.blueprint;
+        if (blueprint) {
+          const blueprintText = formatBlueprintAsText(blueprint);
           setBrandFormData(prev => ({ ...prev, core_messaging: blueprintText }));
         }
+
+        // Fetch updated brand data after setting form
+        await fetchBrandCartridge();
       } else {
         const error = await response.json();
         toast.error(error.error || 'Blueprint generation failed');
@@ -1583,13 +1587,13 @@ export default function CartridgesPage() {
                 Comprehensive marketing messaging (10k+ words): mission, vision, target audience, core values, avatar stories, market narrative, promises, objections, and marketing frameworks
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
+            <CardContent className="p-8">
+              <div className="space-y-6">
                 <Textarea
                   placeholder="Paste your complete core messaging here...&#10;&#10;Example:&#10;**AI Big Pivot Core Messaging Sheet**&#10;&#10;**Project Name:** AI Big Pivot&#10;**URL:** www.aibigpivot.com&#10;**Niche:** AI-Enhanced Design Tools&#10;**Key Thematics:** Ease of Use, Cost Efficiency, Learning and Support&#10;**Core Keywords:** AI Graphic Design, Simple Design Tools&#10;**Mission:** To empower non-designer entrepreneurs...&#10;&#10;(Continue with your full messaging)"
                   value={brandFormData.core_messaging || brandCartridge?.core_messaging || ''}
                   onChange={(e) => setBrandFormData(prev => ({ ...prev, core_messaging: e.target.value }))}
-                  className="min-h-[400px] font-mono text-sm p-4"
+                  className="min-h-[400px] font-mono text-sm p-6"
                 />
                 <div className="flex justify-between items-center text-sm text-muted-foreground">
                   <span>
