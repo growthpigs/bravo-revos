@@ -189,9 +189,10 @@ Return ONLY the JSON array.`;
     }
 
     // Convert to decision options with rationale as description
+    // Store the EXACT headline in the value (base64 encoded to preserve special chars)
     const topicOptions = topicData.map((topic, index) => ({
       label: String(topic.headline).trim(),
-      value: `topic:${index}:${String(topic.headline).toLowerCase().replace(/\s+/g, '_')}`,
+      value: `topic:${index}::${Buffer.from(String(topic.headline)).toString('base64')}`,
       description: topic.rationale, // WHY this topic was chosen
       icon: index === 0 ? 'brain' : 'star',
       variant: index === 0 ? 'primary' : 'secondary',
@@ -300,11 +301,21 @@ async function executePostGeneration(
 ): Promise<WorkflowExecutionResult> {
   const { supabase, user, session, message } = context;
 
-  // Extract topic from message (format: "topic:0:headline_slug")
-  const topicMatch = message.match(/^topic:\d+:(.+)$/);
-  const topicSlug = topicMatch ? topicMatch[1].replace(/_/g, ' ') : 'general topic';
+  // Extract topic from message (format: "topic:0::base64_encoded_headline")
+  const topicMatch = message.match(/^topic:\d+::(.+)$/);
+  let exactHeadline = 'general topic';
 
-  console.log('[WorkflowExecutor] Generating post for topic:', topicSlug, '(using cartridges from system prompt)');
+  if (topicMatch) {
+    try {
+      // Decode base64 to get EXACT original headline
+      exactHeadline = Buffer.from(topicMatch[1], 'base64').toString('utf-8');
+    } catch (error) {
+      console.error('[WorkflowExecutor] Failed to decode headline:', error);
+      exactHeadline = topicMatch[1]; // Fallback to encoded value
+    }
+  }
+
+  console.log('[WorkflowExecutor] Generating post for EXACT headline:', exactHeadline);
 
   // Get post_generation prompt from workflow
   const promptTemplate = getWorkflowPrompt(workflow, 'post_generation');
@@ -319,12 +330,15 @@ async function executePostGeneration(
 
   // Interpolate workflow prompt with cartridge data
   const variables = {
-    topic: topicSlug,
+    topic: exactHeadline,
     brand_context: brandContext,
     style_context: styleContext,
   };
 
   const workflowPrompt = interpolatePrompt(promptTemplate, variables);
+
+  // Check emoji settings from platform template
+  const useEmojis = context.cartridges.platformTemplate?.use_emojis ?? false;
 
   // Use MarketingConsole to generate post
   // NOTE: Brand/style/platform context already in system prompt from V2 route
@@ -337,10 +351,15 @@ async function executePostGeneration(
   });
 
   try {
+    // Build explicit instructions for the AI
+    const emojiInstruction = useEmojis
+      ? ''
+      : '\n\nIMPORTANT: Do NOT use emojis in the post. The user has disabled emojis.';
+
     const result = await marketingConsole.execute(
       user.id,
       session.id,
-      [{ role: 'user', content: `Write a LinkedIn post about: ${topicSlug}` }]
+      [{ role: 'user', content: `Write a LinkedIn post using this EXACT headline (do not change it): "${exactHeadline}"${emojiInstruction}` }]
     );
 
     // Validate generated content
@@ -349,7 +368,7 @@ async function executePostGeneration(
         length: result.response?.length || 0,
         userId: user.id,
         sessionId: session.id,
-        topic: topicSlug,
+        headline: exactHeadline,
       });
       throw new Error('Generated content is too short or empty. Please try again.');
     }
@@ -361,7 +380,7 @@ async function executePostGeneration(
         length: result.response.length,
         max: LINKEDIN_MAX_LENGTH,
         userId: user.id,
-        topic: topicSlug,
+        headline: exactHeadline,
       });
       // Don't throw error - just log warning and let user edit if needed
     }
@@ -375,7 +394,7 @@ async function executePostGeneration(
       contentLength: result.response.length,
       userId: user.id,
       sessionId: session.id,
-      topic: topicSlug,
+      headline: exactHeadline,
     });
 
     return {
@@ -388,8 +407,9 @@ async function executePostGeneration(
       },
       meta: {
         workflowName: workflow.name,
-        topic: topicSlug,
+        headline: exactHeadline,
         cartridgesUsed: true,
+        emojisEnabled: useEmojis,
       },
     };
   } catch (error: any) {
