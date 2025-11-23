@@ -820,12 +820,12 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           documentData: data.document
         });
 
-        if (data.document && data.document.content) {
+        if (data.document) {
           console.log('[FCB] 📄 Document field detected - sending to working document area');
-          console.log('[FCB] Document content:', data.document.content.substring(0, 100));
+          console.log('[FCB] Document content:', data.document.content ? data.document.content.substring(0, 100) : '(empty)');
           console.log('[FCB] 🎬 Setting fullscreen = true (was:', isFullscreen, ')');
           setIsFullscreen(true);
-          setDocumentContent(data.document.content);
+          setDocumentContent(data.document.content || '');
           setDocumentTitle(data.document.title || 'Working Document');
           console.log('[FCB] ✅ Document state updated, will render on next cycle');
         }
