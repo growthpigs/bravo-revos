@@ -266,9 +266,30 @@ export class MarketingConsole {
           statusCode: agentError.status || agentError.response?.status || null,
         });
 
-        // Provide helpful error message based on error type
-        if (agentError.message?.includes('content.map')) {
-          throw new Error(`OpenAI API response format error (possibly model incompatibility). Model: ${this.model}. Original error: ${agentError.message}`);
+        // FALLBACK: If AgentKit fails due to the known "content.map" format error,
+        // bypass AgentKit and call OpenAI directly. This "V3-style" fallback ensures reliability.
+        if (agentError.message?.includes('content.map') || agentError.message?.includes('is not a function')) {
+          console.warn('[MarketingConsole] ⚠️ AgentKit response parsing failed. Attempting direct OpenAI fallback...');
+          
+          try {
+            const completion = await this.openai.chat.completions.create({
+              model: this.model,
+              messages: [
+                { role: 'system', content: agentWithMemory.instructions },
+                ...this.convertMessagesToAgentFormat(messages)
+              ],
+              temperature: this.config.temperature || 0.7,
+            });
+
+            // Mock a result object that extractResponseText can handle
+            result = {
+              finalOutput: completion.choices[0]?.message?.content || "Error: Empty fallback response",
+            };
+            console.log('[MarketingConsole] ✅ Fallback execution successful');
+          } catch (fallbackError: any) {
+            console.error('[MarketingConsole] ❌ Fallback failed:', fallbackError);
+            throw new Error(`AgentKit and Fallback both failed. Original: ${agentError.message}. Fallback: ${fallbackError.message}`);
+          }
         } else if (agentError.status === 404 || agentError.message?.includes('model')) {
           throw new Error(`Invalid or unsupported model: ${this.model}. API error: ${agentError.message}`);
         } else {
