@@ -5,7 +5,7 @@
 // due to the component's size and complexity. Use full page reload instead.
 
 import React from 'react';
-import { useState, useRef, useEffect, useCallback, KeyboardEvent, FormEvent } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
 import { ArrowUp, Paperclip, Mic, Maximize2, Minimize2, X, MessageSquare, Menu, Trash2, Plus, Lock, Copy, Save, Sparkles } from 'lucide-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { cn } from '@/lib/utils';
@@ -14,8 +14,6 @@ import { SaveToCampaignModal } from '../SaveToCampaignModal';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { InlineDecisionButtons } from './InlineDecisionButtons';
-import { DocumentPanel } from './DocumentPanel';
-import { ChatHistoryPanel } from './ChatHistoryPanel';
 import { InlineCampaignSelector } from './InlineCampaignSelector';
 import { InlineDateTimePicker } from './InlineDateTimePicker';
 import { SlashCommandAutocomplete } from './SlashCommandAutocomplete';
@@ -126,7 +124,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   };
 
   // Use deduplicated messages
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const messages = messagesInternal;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +146,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [showMessages, setShowMessages] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const messagesRef = useRef(messages);
 
   // Draggable sidebar resizers
   const [sidebarWidth, setSidebarWidth] = useState(600); // Total sidebar width
@@ -163,15 +159,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   const [documentContent, setDocumentContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('Working Document');
   const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [documentSourceMessageId, setDocumentSourceMessageId] = useState<string | null>(null); // Track which message is in document
   const [editedContent, setEditedContent] = useState<string>('');
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [showSaveToCampaignModal, setShowSaveToCampaignModal] = useState(false);
-  const [isPosted, setIsPosted] = useState(false); // Track if current content has been posted
-
-  // Reset isPosted when document content changes (new post generated)
-  useEffect(() => {
-    setIsPosted(false);
-  }, [documentContent]);
 
   // Handle clicks outside the floating chat to close message panel
   useEffect(() => {
@@ -540,6 +532,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }).join('\n');
   };
 
+  // Helper: Get conversations grouped by time
+  const getGroupedConversations = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const groups: Record<string, Conversation[]> = {
+      'Today': [],
+      'Yesterday': [],
+      'Last 7 days': [],
+      'Older': [],
+    };
 
     conversations.forEach(conv => {
       const convDate = new Date(conv.updatedAt);
@@ -559,16 +566,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     return groups;
   };
 
-
   // Extract document title from markdown content
-  const handleDeleteAllConversations = useCallback(() => {
-    if (window.confirm('Are you sure you want to delete all conversations?')) {
-      setConversations([]);
-      setCurrentConversationId(null);
-      setMessages([]);
-    }
-  }, []);
-
   const extractDocumentTitle = (markdown: string) => {
     // Look for markdown heading: # Title
     const h1Match = markdown.match(/^#\s+(.+)$/m);
@@ -601,68 +599,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   };
 
   // Handle action button clicks
-  const handleSaveToCampaign = useCallback(() => { 
-    setShowSaveToCampaignModal(true); 
-  }, []); 
-
   const handleActionClick = async (action: string, messageId?: string) => {
-  const handlePostLinkedIn = useCallback(async () => {
-    // Get content from working document or latest assistant message
-    let postContent = documentContent;
-    if (!postContent) {
-      const lastAssistant = [...messagesRef.current].reverse().find(m => m.role === 'assistant' && m.content.length > 100);
-      postContent = lastAssistant?.content || '';
-    }
-
-    if (!postContent) {
-      toast.error('No content to post. Generate a post first.');
-      return;
-    }
-
-    try {
-      toast.loading('Posting to LinkedIn...', { id: 'linkedin-post' });
-
-      const response = await fetch('/api/linkedin/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: postContent }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to post');
-      }
-
-      toast.success('Queued for LinkedIn!', { id: 'linkedin-post', duration: 5000 });
-
-      // Mark as posted so button shows 'Posted ✓'
-      setIsPosted(true);
-
-      // Always add success message to chat
-      const profileUrl = data.profileUrl;
-      const recentActivityUrl = profileUrl
-        ? `${profileUrl.replace(/\/$/, '')}/recent-activity/`
-        : null;
-
-      const successMessage: Message = {
-        id: generateUniqueId(),
-        role: 'assistant',
-        content: '**Queued for LinkedIn**\n\nYour post is being published. This usually takes a few seconds.',
-        interactive: recentActivityUrl ? {
-          type: 'external_link',
-          url: recentActivityUrl,
-          label: 'View Post'
-        } : undefined,
-        createdAt: new Date(),
-      };
-      setMessages(prev => [...prev, successMessage]);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to post';
-      toast.error(errorMsg, { id: 'linkedin-post' });
-    }
-  }, [documentContent]);
-
     console.log('[FCB] Action clicked:', action, 'messageId:', messageId);
 
     switch (action) {
@@ -694,27 +631,16 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             throw new Error(data.error || 'Failed to post');
           }
 
-          toast.success('Queued for LinkedIn!', { id: 'linkedin-post', duration: 5000 });
-
-          // Mark as posted so button shows "Posted ✓"
-          setIsPosted(true);
+          toast.success('Posted to LinkedIn!', { id: 'linkedin-post', duration: 5000 });
 
           // Always add success message to chat
-          // Use profile recent activity URL (more reliable than direct post URL which may 404 briefly)
-          const profileUrl = data.profileUrl;
-          const recentActivityUrl = profileUrl
-            ? `${profileUrl.replace(/\/$/, '')}/recent-activity/`
-            : null;
-
+          const postUrl = data.post?.url || data.url;
           const successMessage: Message = {
             id: generateUniqueId(),
             role: 'assistant',
-            content: `**Queued for LinkedIn**\n\nYour post is being published. This usually takes a few seconds.`,
-            interactive: recentActivityUrl ? {
-              type: 'external_link',
-              url: recentActivityUrl,
-              label: 'View Post'
-            } : undefined,
+            content: postUrl
+              ? `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live.\n\n👉 [View your post on LinkedIn](${postUrl})`
+              : `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live on your LinkedIn feed.`,
             createdAt: new Date(),
           };
           setMessages(prev => [...prev, successMessage]);
@@ -789,15 +715,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
     setShowMessages(true); // Show message panel when user sends a message
 
-    // Immediately expand to fullscreen for write commands (don't wait for API)
-    const writeKeywords = ['write', 'post', 'compose', 'draft', 'generate'];
-    const inputLower = input.toLowerCase();
-    const isWriteCommand = writeKeywords.some(kw => inputLower.includes(kw));
-    if (isWriteCommand && !isFullscreen) {
-      console.log('[HGC_STREAM] Write command detected - expanding to fullscreen immediately');
-      setIsFullscreen(true);
-    }
-
     setInput('');
     setIsLoading(true);
     setError(null);
@@ -868,23 +785,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           } catch (e2) {
             // Keep default error message
           }
-        }
-
-        // Check for cookie-related errors (Cloudflare outage Nov 18, 2025 pattern)
-        // These require the user to clear their browser cookies
-        const isCookieError = response.status === 400 && (
-          errorMessage.toLowerCase().includes('cookie') ||
-          errorMessage.toLowerCase().includes('header') ||
-          errorMessage.toLowerCase().includes('too large') ||
-          errorMessage.toLowerCase().includes('request entity')
-        );
-
-        if (isCookieError) {
-          console.error('[HGC_STREAM] Cookie-related error detected:', errorMessage);
-          throw new Error(
-            'Session cookie error detected. Please clear your browser cookies for this site and log in again. ' +
-            '(DevTools → Application → Cookies → Clear)'
-          );
         }
 
         throw new Error(errorMessage);
@@ -1356,22 +1256,28 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   };
 
   // Save edited content and exit edit mode
-    const handleSaveEdit = useCallback((newContent: string) => {
-    setDocumentContent(newContent);
-    if (documentSourceMessageId) {
-      setMessages(prev => prev.map(msg => 
-        msg.id === documentSourceMessageId 
-          ? { ...msg, content: newContent }
-          : msg
-      ));
-    }
-  }, [documentSourceMessageId]);
+  const handleSaveEdit = () => {
+    setDocumentContent(editedContent);
+    setIsEditMode(false);
+    setEditedContent('');
+  };
 
   // Cancel edit mode without saving
-  
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedContent('');
+  };
 
   // Copy document content to clipboard
-  
+  const handleCopyContent = async () => {
+    try {
+      await navigator.clipboard.writeText(documentContent);
+      setCopiedFeedback(true);
+      setTimeout(() => setCopiedFeedback(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   // ========================================
   // INLINE WORKFLOW HANDLERS
@@ -1511,22 +1417,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const errorMessage = errorData.error || `HTTP ${response.status}`;
-
-        // Check for cookie-related errors (Cloudflare outage pattern)
-        const isCookieError = response.status === 400 && (
-          errorMessage.toLowerCase().includes('cookie') ||
-          errorMessage.toLowerCase().includes('header') ||
-          errorMessage.toLowerCase().includes('too large')
-        );
-
-        if (isCookieError) {
-          throw new Error(
-            'Session cookie error. Please clear your browser cookies for this site and log in again.'
-          );
-        }
-
-        throw new Error(errorMessage);
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
@@ -1689,14 +1580,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               options={message.interactive.decision_options}
               workflowId={message.interactive.workflow_id}
               onSelect={handleDecisionSelect}
-              onRegenerate={() => {
-                // Re-send "write" to get new topics
-                setInput('write');
-                setTimeout(() => {
-                  const form = document.querySelector('form');
-                  if (form) form.requestSubmit();
-                }, 50);
-              }}
             />
           )}
 
@@ -1716,17 +1599,6 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
               content={message.interactive.initial_content}
               onSelect={handleDateTimeSelect}
             />
-          )}
-
-          {message.interactive.type === 'external_link' && message.interactive.url && (
-            <div className="flex flex-wrap gap-[7px] mt-2">
-              <button
-                onClick={() => window.open(message.interactive.url, '_blank')}
-                className="font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap bg-blue-600 text-white hover:bg-blue-700"
-              >
-                {message.interactive.label || 'Open Link'}
-              </button>
-            </div>
           )}
 
           {/* Content-specific buttons - only show if this message is synced to document */}
@@ -1954,30 +1826,134 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </Panel>
 
             {/* RESIZE HANDLE */}
-            {/* CHAT HISTORY PANEL - Always pinned to RIGHT edge */}
-            {showChatHistory && conversations.length > 0 && (
-              <Panel defaultSize={30} minSize={12} maxSize={37} collapsible={false}>
-                <ChatHistoryPanel
-                  conversations={conversations}
-                  currentConversationId={currentConversationId}
-                  onLoadConversation={loadConversation}
-                  onDeleteConversation={deleteConversation}
-                  onDeleteAllConversations={handleDeleteAllConversations}
-                />
-              </Panel>
-            )}
             <PanelResizeHandle className="w-1 bg-gray-200 hover:bg-blue-500 transition-colors cursor-col-resize active:bg-blue-600" />
 
             {/* RIGHT PANEL: Document Viewer */}
             <Panel defaultSize={60} minSize={30}>
-              <DocumentPanel 
-              documentTitle={documentTitle}
-              documentContent={documentContent}
-              onSaveContent={handleSaveEdit}
-              onPostLinkedIn={handlePostLinkedIn}
-              isPosted={isPosted}
-              onSaveToCampaign={handleSaveToCampaign}
-            />
+              <div className="h-full overflow-hidden bg-white flex flex-col">
+          {/* Document Header */}
+          <div className="h-14 px-6 bg-gray-50 flex items-center justify-between flex-shrink-0">
+            <h2 className="text-sm font-semibold text-gray-900">{documentTitle}</h2>
+            <div className="flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-3 py-1 text-xs font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+                    aria-label="Save changes"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                    aria-label="Cancel editing"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleEditClick}
+                    className="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-900 rounded hover:bg-gray-300 transition-colors"
+                    aria-label="Edit document"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleActionClick('post_linkedin')}
+                    className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    aria-label="Post to LinkedIn"
+                    disabled={!documentContent}
+                  >
+                    Post to LinkedIn
+                  </button>
+                  <button
+                    onClick={handleCopyContent}
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    aria-label={copiedFeedback ? "Copied!" : "Copy document"}
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <button
+                    onClick={() => setShowSaveToCampaignModal(true)}
+                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                    aria-label="Save document"
+                    title="Save to knowledge base (optionally link to campaign)"
+                  >
+                    <Save className="w-4 h-4 text-gray-600" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          {/* Document Content Area */}
+          <div className="flex-1 overflow-y-auto">
+            {isEditMode ? (
+              // Edit mode - show textarea with markdown
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full h-full p-6 text-sm text-gray-700 font-mono border-0 rounded-none focus:outline-none resize-none bg-white"
+                placeholder="Enter your markdown content here..."
+                spellCheck="false"
+              />
+            ) : (
+              // View mode - show formatted markdown (left-justified)
+              <div className="px-16 pb-12" style={{ paddingTop: '100px' }}>
+                <div className="max-w-4xl text-left">
+                  {documentContent ? (
+                    // Check if this is the placeholder text
+                    documentContent.startsWith('[') && documentContent.endsWith(']') ? (
+                      <p className="font-mono text-xs uppercase tracking-wide text-gray-400">
+                        {documentContent}
+                      </p>
+                    ) : (
+                      <div className="prose prose-lg max-w-none text-left">
+                        <ReactMarkdown
+                          components={{
+                          h1: ({ children }) => (
+                            <h1 className="text-6xl font-bold mb-8 text-gray-900">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-5xl font-bold mb-6 mt-10 text-gray-900">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-4xl font-semibold mb-4 mt-8 text-gray-900">{children}</h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-lg leading-relaxed mb-4 text-gray-700">{children}</p>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-bold text-gray-900">{children}</strong>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc ml-6 mb-4 space-y-2 text-gray-700">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal ml-6 mb-4 space-y-2 text-gray-700">{children}</ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-gray-700">{children}</li>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{children}</blockquote>
+                          ),
+                          hr: () => null,
+                        }}
+                        >
+                          {documentContent}
+                        </ReactMarkdown>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
             </Panel>
           </PanelGroup>
 
@@ -1995,8 +1971,10 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Expanded sidebar view (RIGHT side, embedded) - with ChatSDK-style history
   if (isExpanded) {
+    const groupedConversations = getGroupedConversations();
+    const hasAnyConversations = Object.values(groupedConversations).some(group => group.length > 0);
 
-    const historyWidth = showChatHistory && conversations.length > 0 ? 192 : 0;
+    const historyWidth = showChatHistory && hasAnyConversations ? 192 : 0;
 
     return (
       <>
@@ -2147,22 +2125,54 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </Panel>
 
             {/* RESIZE HANDLE - Between chat and history */}
-            {/* CHAT HISTORY PANEL - Always pinned to RIGHT edge */}
-            {showChatHistory && conversations.length > 0 && (
-              <Panel defaultSize={30} minSize={12} maxSize={37} collapsible={false}>
-                <ChatHistoryPanel
-                  conversations={conversations}
-                  currentConversationId={currentConversationId}
-                  onLoadConversation={loadConversation}
-                  onDeleteConversation={deleteConversation}
-                  onDeleteAllConversations={handleDeleteAllConversations}
-                />
-              </Panel>
-            )}
-            {showChatHistory {showChatHistory && conversations.length > 0 && ({showChatHistory && conversations.length > 0 && ( conversations.length > 0 {showChatHistory && conversations.length > 0 && ({showChatHistory && conversations.length > 0 && ( (
+            {showChatHistory && hasAnyConversations && (
               <PanelResizeHandle className="w-1 bg-gray-200 hover:bg-blue-500 transition-colors cursor-col-resize active:bg-blue-600" />
             )}
 
+            {/* CHAT HISTORY PANEL - Always pinned to RIGHT edge */}
+            {showChatHistory && hasAnyConversations && (
+              <Panel defaultSize={30} minSize={12} maxSize={37} collapsible={false}>
+                <div className="h-full flex flex-col bg-gray-50 border-l border-gray-200">
+                  {/* History Header */}
+                  <div className="h-16 px-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                    <h3 className="text-sm font-semibold text-gray-900">History</h3>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete all conversations?')) {
+                          setConversations([]);
+                          setCurrentConversationId(null);
+                          setMessages([]);
+                        }
+                      }}
+                      className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+                      aria-label="Delete all"
+                      title="Delete all conversations"
+                    >
+                      <Trash2 className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
+
+                  {/* Conversations List - Time grouped */}
+                  <div className="flex-1 overflow-y-auto">
+                    {Object.entries(groupedConversations).map(([timeGroup, convs]) =>
+                      convs.length > 0 ? (
+                        <div key={timeGroup}>
+                          {/* Time Group Label */}
+                          <div className="px-3 pt-3 pb-2">
+                            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {timeGroup}
+                            </h4>
+                          </div>
+
+                          {/* Conversations in this group */}
+                          {convs.map(conv => (
+                            <button
+                              key={conv.id}
+                              onClick={() => loadConversation(conv.id)}
+                              className={cn(
+                                "w-full text-left px-3 py-2 text-xs hover:bg-gray-200 transition-colors group flex items-center justify-between",
+                                currentConversationId === conv.id ? "bg-gray-200 text-gray-900 font-medium" : "text-gray-700"
+                              )}
                             >
                               <span className="truncate flex-1">{conv.title}</span>
                               {/* Delete button appears on hover */}
@@ -2183,7 +2193,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
                     )}
 
                     {/* End of history message */}
-                    {conversations.length > 0 && (
+                    {hasAnyConversations && (
                       <div className="px-3 py-4 text-center">
                         <p className="text-xs text-gray-500">End of history</p>
                       </div>
@@ -2204,7 +2214,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
       {/* Blur overlay for canvas when chat is active - visual only, non-interactive */}
       {showMessages && (
         <div
-          className="fixed top-16 bottom-0 left-64 right-0 bg-black/5 backdrop-blur-sm z-30 transition-all duration-200"
+          className="fixed inset-0 left-64 bg-black/0 backdrop-blur-lg z-40 transition-all duration-200"
           style={{
             pointerEvents: 'none',
           }}
