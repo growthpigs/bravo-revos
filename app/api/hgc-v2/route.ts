@@ -258,8 +258,10 @@ export async function POST(request: NextRequest) {
     } else {
       // New conversation - use provided history or start fresh
       console.log('[HGC_V2] New session - using provided conversationHistory');
+      // Ensure conversationHistory is an array (it's optional in schema)
+      const historyArray = Array.isArray(conversationHistory) ? conversationHistory : [];
       messages = [
-        ...conversationHistory.map((msg: any) => ({
+        ...historyArray.map((msg: any) => ({
           role: msg.role,
           content: msg.content,
           tool_calls: msg.tool_calls,
