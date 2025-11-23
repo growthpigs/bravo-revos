@@ -356,17 +356,12 @@ export class MarketingConsole {
     }
 
     return messages.map((msg) => {
-      // Normalize content to be an array of text parts if it's a string
-      // This prevents "item.content.map is not a function" error in AgentKit
-      // when it expects multimodal structure but receives simple string.
-      let content = msg.content;
-      if (typeof content === 'string') {
-        content = [{ type: 'text', text: content }];
-      }
-
+      // AgentKit v0.3.3 expects plain string content, NOT wrapped objects
+      // Previously tried wrapping in {type: 'text', text: content} but that causes
+      // "Unsupported input content type" error
       return {
         role: msg.role,
-        content: content,
+        content: msg.content, // Pass as-is (string)
         tool_calls: msg.tool_calls,
         tool_call_id: msg.tool_call_id,
         name: msg.name,
