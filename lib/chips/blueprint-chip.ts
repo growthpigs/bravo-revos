@@ -384,15 +384,23 @@ Return ONLY the JSON object, no markdown formatting.`;
     };
 
     for (const [key, title] of Object.entries(sectionTitles)) {
-      if (blueprint[key]) {
+      const sectionData = blueprint[key];
+
+      // Validate section exists and is a valid object
+      if (sectionData && typeof sectionData === 'object' && !Array.isArray(sectionData)) {
         sections.push(`\n**${title}**\n`);
-        const sectionData = blueprint[key];
+
         for (const [field, value] of Object.entries(sectionData)) {
           const fieldName = field.replace(/^\d+_/, '').replace(/_/g, ' ').toUpperCase();
+
           if (Array.isArray(value)) {
             sections.push(`${fieldName}:\n${value.map(v => `  - ${v}`).join('\n')}`);
-          } else {
-            sections.push(`${fieldName}: ${value}`);
+          } else if (value !== null && value !== undefined) {
+            // Convert objects to JSON, primitives to string
+            const displayValue = typeof value === 'object'
+              ? JSON.stringify(value)
+              : String(value);
+            sections.push(`${fieldName}: ${displayValue}`);
           }
         }
       }

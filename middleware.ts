@@ -49,18 +49,22 @@ export async function middleware(request: NextRequest) {
     // This prevents users from being stuck with corrupted sessions
     const errorMessage = error instanceof Error ? error.message : String(error)
 
-    // Check for common cookie/session corruption indicators
-    if (errorMessage.includes('cookie') ||
-        errorMessage.includes('session') ||
-        errorMessage.includes('token') ||
-        errorMessage.includes('400') ||
-        errorMessage.includes('invalid')) {
+    // Check for common cookie/session corruption indicators (case-insensitive)
+    const errorLower = errorMessage.toLowerCase()
+    if (errorLower.includes('cookie') ||
+        errorLower.includes('session') ||
+        errorLower.includes('token') ||
+        errorLower.includes('400') ||
+        errorLower.includes('invalid')) {
       console.warn('[Middleware] Clearing auth cookies due to session error')
 
-      // Clear Supabase auth cookies
-      response.cookies.delete('sb-trdoainmejxanrownbuz-auth-token')
-      response.cookies.delete('sb-trdoainmejxanrownbuz-auth-token.0')
-      response.cookies.delete('sb-trdoainmejxanrownbuz-auth-token.1')
+      // Clear Supabase auth cookies dynamically based on project ID
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+      const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || 'trdoainmejxanrownbuz'
+
+      response.cookies.delete(`sb-${projectRef}-auth-token`)
+      response.cookies.delete(`sb-${projectRef}-auth-token.0`)
+      response.cookies.delete(`sb-${projectRef}-auth-token.1`)
     }
   }
 
