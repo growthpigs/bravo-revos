@@ -272,14 +272,14 @@ Return ONLY the JSON array.`;
         workflow_id: workflowId,
         decision_options: topicOptions,
       },
-      // NO document field during topic generation - Working Document should only
-      // populate when actual content is generated (after topic selection)
-      // But DO signal to open Working Document area (empty) via clearDocument flag
+      document: {
+        title: 'LinkedIn Post',
+        content: '', // Empty - will be filled when user selects topic
+      },
       meta: {
         workflowName: workflow.name,
         cartridgesLoaded: true,
         topicsGenerated: topicOptions.length,
-        clearDocument: true, // Signal frontend to open Working Document area (empty)
       },
     };
   } catch (error: any) {
