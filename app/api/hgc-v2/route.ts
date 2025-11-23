@@ -310,11 +310,30 @@ export async function POST(request: NextRequest) {
     }
 
     // 7.5 Check for workflow triggers (database-driven)
-    console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', currentMessage);
+    let matchedWorkflow;
 
-    // Dynamic import to prevent build-time tiktoken loading
-    const { findWorkflowByTrigger } = await import('@/lib/console/workflow-loader');
-    const matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
+    if (workflow_id && decision) {
+      // Decision from existing workflow - extract workflow name from workflow_id
+      // Format: "write-linkedin-post-1234567890"
+      // Extract everything before the timestamp suffix
+      const workflowName = workflow_id.split('-').slice(0, -1).join('-');
+      console.log('[HGC_V2_WORKFLOW] Decision for existing workflow, loading:', workflowName);
+
+      // Dynamic import to prevent build-time tiktoken loading
+      const { loadWorkflow } = await import('@/lib/console/workflow-loader');
+      matchedWorkflow = await loadWorkflow(workflowName, supabase, user.id);
+
+      if (!matchedWorkflow) {
+        console.error('[HGC_V2_WORKFLOW] Failed to load workflow from workflow_id:', workflow_id);
+      }
+    } else {
+      // New command - find workflow by trigger
+      console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', currentMessage);
+
+      // Dynamic import to prevent build-time tiktoken loading
+      const { findWorkflowByTrigger } = await import('@/lib/console/workflow-loader');
+      matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
+    }
 
     if (matchedWorkflow) {
       console.log('[HGC_V2_WORKFLOW] Workflow matched:', {
