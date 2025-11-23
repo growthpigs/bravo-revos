@@ -105,11 +105,15 @@ export class BlueprintChip extends BaseChip {
           // Generate the 112-point blueprint using OpenAI
           const blueprint = await this.generateBlueprint(brandContext);
 
-          // Save to database
+          // Format blueprint as text for core_messaging
+          const formattedText = this.formatBlueprintAsText(blueprint);
+
+          // Save BOTH blueprint_112 (JSON) AND core_messaging (text) to database
           const { error: updateError } = await supabase
             .from('brand_cartridges')
             .update({
               blueprint_112: blueprint,
+              core_messaging: formattedText,
               updated_at: new Date().toISOString()
             })
             .eq('user_id', userId);
@@ -352,5 +356,48 @@ Return ONLY the JSON object, no markdown formatting.`;
       console.error('[BlueprintChip] Failed to parse blueprint JSON:', parseError);
       throw new Error('Failed to parse generated blueprint. Please try again.');
     }
+  }
+
+  /**
+   * Format blueprint JSON as readable text for core_messaging field
+   */
+  private formatBlueprintAsText(blueprint: Record<string, any>): string {
+    const sections: string[] = [];
+
+    const sectionTitles: Record<string, string> = {
+      bio: 'BIO & CREDENTIALS',
+      positioning: 'POSITIONING & AVATARS',
+      pain_and_objections: 'PAIN POINTS & OBJECTIONS',
+      lies_and_truths: 'LIES & TRUTHS',
+      offer: 'OFFER DETAILS',
+      hooks: 'HOOKS',
+      sales: 'SALES ELEMENTS',
+      social_proof: 'SOCIAL PROOF',
+      consumption: 'CONSUMPTION',
+      page: 'PAGE',
+      service: 'SERVICE',
+      tips: 'TIPS',
+      lessons: 'LESSONS',
+      email: 'EMAIL',
+      lead_magnet: 'LEAD MAGNET',
+      visuals: 'VISUALS'
+    };
+
+    for (const [key, title] of Object.entries(sectionTitles)) {
+      if (blueprint[key]) {
+        sections.push(`\n**${title}**\n`);
+        const sectionData = blueprint[key];
+        for (const [field, value] of Object.entries(sectionData)) {
+          const fieldName = field.replace(/^\d+_/, '').replace(/_/g, ' ').toUpperCase();
+          if (Array.isArray(value)) {
+            sections.push(`${fieldName}:\n${value.map(v => `  - ${v}`).join('\n')}`);
+          } else {
+            sections.push(`${fieldName}: ${value}`);
+          }
+        }
+      }
+    }
+
+    return `**112-POINT MARKETING BLUEPRINT**\n${sections.join('\n')}`;
   }
 }
