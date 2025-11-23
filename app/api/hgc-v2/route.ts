@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     // Dynamic import to prevent build-time tiktoken/encoder.json loading
     const { MarketingConsole } = await import('@/lib/console/marketing-console');
     const console_instance = new MarketingConsole({
-      model: OPENAI_MODELS.LATEST,
+      model: OPENAI_MODELS.STABLE,
       temperature: 0.7,
       baseInstructions: assembleSystemPrompt(
         consoleConfig,
