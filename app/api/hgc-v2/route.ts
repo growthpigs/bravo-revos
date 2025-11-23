@@ -1,11 +1,22 @@
 /**
  * HGC v2 API Route - AgentKit + Cartridge Architecture
  *
- * This is the NEW implementation using:
+ * ⚠️ CRITICAL: THIS IS THE CORRECT IMPLEMENTATION - USER WANTS V2, NOT V3
+ *
+ * DO NOT suggest switching to V3. V3 is technical debt.
+ *
+ * This implementation uses:
  * - MarketingConsole (base system)
  * - LinkedIn Cartridge (with 4 chips)
  * - Voice Cartridge (optional voice parameters)
  * - AgentKit orchestration
+ * - Mem0 memory integration
+ * - Database-driven workflows
+ *
+ * All V2 bugs have been fixed:
+ * - Missing config file (fixed)
+ * - GPT-5.1 incompatibility (fixed - using gpt-4o)
+ * - Model validation (fixed)
  *
  * Response format MUST match v1 for FloatingChatBar compatibility.
  */
