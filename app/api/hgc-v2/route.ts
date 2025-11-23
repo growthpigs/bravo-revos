@@ -313,6 +313,16 @@ export async function POST(request: NextRequest) {
     let matchedWorkflow;
 
     if (workflow_id && decision) {
+      // Validate workflow_id format to prevent SQL injection
+      // Expected format: "write-linkedin-post-1234567890" (workflow-name-timestamp)
+      if (!workflow_id || !/^[a-z]+-[a-z-]+-\d+$/.test(workflow_id)) {
+        console.error('[HGC_V2_WORKFLOW] Invalid workflow_id format:', workflow_id);
+        return NextResponse.json(
+          { success: false, error: 'Invalid workflow identifier format' },
+          { status: 400 }
+        );
+      }
+
       // Decision from existing workflow - extract workflow name from workflow_id
       // Format: "write-linkedin-post-1234567890"
       // Extract everything before the timestamp suffix
@@ -401,7 +411,15 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (error: any) {
-        console.error('[HGC_V2_WORKFLOW] Workflow execution failed:', error);
+        console.error('[HGC_V2_WORKFLOW] Workflow execution failed:', {
+          error: error.message,
+          userId: user.id,
+          sessionId: session.id,
+          workflowName: matchedWorkflow?.name,
+          workflowId: workflow_id,
+          decision: decision,
+          stack: error.stack,
+        });
 
         // Return error response
         return NextResponse.json(

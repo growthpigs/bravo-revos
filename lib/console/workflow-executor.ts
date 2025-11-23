@@ -343,12 +343,40 @@ async function executePostGeneration(
       [{ role: 'user', content: `Write a LinkedIn post about: ${topicSlug}` }]
     );
 
+    // Validate generated content
+    if (!result.response || result.response.trim().length < 10) {
+      console.error('[WorkflowExecutor] Generated content is too short or empty:', {
+        length: result.response?.length || 0,
+        userId: user.id,
+        sessionId: session.id,
+        topic: topicSlug,
+      });
+      throw new Error('Generated content is too short or empty. Please try again.');
+    }
+
+    // LinkedIn max post length is 3000 characters
+    const LINKEDIN_MAX_LENGTH = 3000;
+    if (result.response.length > LINKEDIN_MAX_LENGTH) {
+      console.warn('[WorkflowExecutor] Generated content exceeds LinkedIn max length:', {
+        length: result.response.length,
+        max: LINKEDIN_MAX_LENGTH,
+        userId: user.id,
+        topic: topicSlug,
+      });
+      // Don't throw error - just log warning and let user edit if needed
+    }
+
     // Save messages (minimal - just the user action)
     await supabase.from('hgc_messages').insert([
       { session_id: session.id, role: 'user', content: message },
     ]);
 
-    console.log('[WorkflowExecutor] Post generated successfully');
+    console.log('[WorkflowExecutor] Post generated successfully:', {
+      contentLength: result.response.length,
+      userId: user.id,
+      sessionId: session.id,
+      topic: topicSlug,
+    });
 
     return {
       success: true,
