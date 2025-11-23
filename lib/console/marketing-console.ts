@@ -334,13 +334,23 @@ export class MarketingConsole {
       return [];
     }
 
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-      tool_calls: msg.tool_calls,
-      tool_call_id: msg.tool_call_id,
-      name: msg.name,
-    }));
+    return messages.map((msg) => {
+      // Normalize content to be an array of text parts if it's a string
+      // This prevents "item.content.map is not a function" error in AgentKit
+      // when it expects multimodal structure but receives simple string.
+      let content = msg.content;
+      if (typeof content === 'string') {
+        content = [{ type: 'text', text: content }];
+      }
+
+      return {
+        role: msg.role,
+        content: content,
+        tool_calls: msg.tool_calls,
+        tool_call_id: msg.tool_call_id,
+        name: msg.name,
+      };
+    });
   }
 
   /**
