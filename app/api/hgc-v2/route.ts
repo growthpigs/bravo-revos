@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     // Dynamic import to prevent build-time tiktoken/encoder.json loading
     const { MarketingConsole } = await import('@/lib/console/marketing-console');
     const console_instance = new MarketingConsole({
-      model: 'gpt-5.1',
+      model: 'gpt-4o',
       temperature: 0.7,
       baseInstructions: assembleSystemPrompt(
         consoleConfig,
