@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -62,7 +63,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
 }`;
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: OPENAI_MODELS.FAST,
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },
     temperature: 0.7,

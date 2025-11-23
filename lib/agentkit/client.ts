@@ -5,6 +5,7 @@
  */
 
 import OpenAI from 'openai';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 // Lazy-initialize OpenAI client to avoid build-time execution
 let openaiClient: OpenAI | null = null;
@@ -27,7 +28,7 @@ export interface AgentKitConfig {
 }
 
 const DEFAULT_CONFIG: Required<AgentKitConfig> = {
-  model: 'gpt-4o',
+  model: OPENAI_MODELS.LATEST,
   temperature: 0.7,
   maxTokens: 4096,
 };

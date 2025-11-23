@@ -10,6 +10,7 @@ import { z } from 'zod';
 // REMOVED: import OpenAI from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
 import { BaseChip } from './base-chip';
 import { AgentContext } from '@/lib/cartridges/types';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 const WriteInputSchema = z.object({
   action: z.enum(['select_topic', 'generate_post', 'finalize_post']),
@@ -184,7 +185,7 @@ Write the post now:`;
           });
 
           const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: OPENAI_MODELS.FAST,
             messages: [
               {
                 role: 'system',

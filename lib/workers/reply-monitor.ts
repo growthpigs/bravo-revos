@@ -10,6 +10,7 @@ dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
 import { createClient } from '@supabase/supabase-js';
 import { getDirectMessages, sendDirectMessage } from '../unipile-client';
 import * as crypto from 'crypto';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 // Supabase client (service role for worker operations)
 const supabase = createClient(
@@ -84,7 +85,7 @@ async function extractEmailGPT(text: string): Promise<string | null> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: OPENAI_MODELS.FAST,
         messages: [
           {
             role: 'system',

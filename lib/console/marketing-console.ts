@@ -12,6 +12,7 @@ import { Cartridge, AgentContext, Message } from '@/lib/cartridges/types';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { buildTenantKey } from '@/lib/mem0/client';
 import { searchMemories, addMemory } from '@/lib/mem0/memory';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 // Store Agent class after first dynamic import
 let AgentClass: any | null = null;
@@ -35,13 +36,21 @@ export class MarketingConsole {
   private config: MarketingConsoleConfig;
   private openai: any; // OpenAI instance from constructor
   private supabase: SupabaseClient;
+  private model: string; // Extracted for easier access and validation
 
   constructor(config: MarketingConsoleConfig) {
+    // Validate model is provided and not undefined
+    if (!config.model) {
+      console.error('[MarketingConsole] No model provided in config. Config:', config);
+      throw new Error('MarketingConsole requires a valid model. Received: undefined. Check OPENAI_MODELS import.');
+    }
+
     this.config = config;
     this.openai = config.openai;
     this.supabase = config.supabase;
+    this.model = config.model;
 
-    console.log('[MarketingConsole] Initialized (AgentKit lazy-loaded to prevent build-time execution)');
+    console.log('[MarketingConsole] Initialized with model:', this.model, '(AgentKit lazy-loaded to prevent build-time execution)');
   }
 
   /**
@@ -77,7 +86,7 @@ export class MarketingConsole {
       }
       this.agent = new AgentClass({
         name: 'MarketingConsole',
-        model: this.config.model || 'gpt-4o-mini',
+        model: this.model, // Validated in constructor, no fallback needed
         instructions: this.config.baseInstructions,
         modelSettings: {
           temperature: this.config.temperature || 0.7,
@@ -228,16 +237,38 @@ export class MarketingConsole {
 
       // STEP 6: Run agent using AgentKit's run() function (dynamic import)
       const { run } = await import('@openai/agents');
-      const result = await run(
-        agentWithMemory,
-        this.convertMessagesToAgentFormat(messages),
-        {
-          context, // Pass context to tools
-          stream: false,
-        }
-      );
 
-      console.log('[MarketingConsole] Agent execution complete');
+      let result;
+      try {
+        result = await run(
+          agentWithMemory,
+          this.convertMessagesToAgentFormat(messages),
+          {
+            context, // Pass context to tools
+            stream: false,
+          }
+        );
+        console.log('[MarketingConsole] Agent execution complete');
+      } catch (agentError: any) {
+        // Enhanced error logging for AgentKit/OpenAI API failures
+        console.error('[MarketingConsole] AgentKit run() failed:', {
+          errorMessage: agentError.message,
+          errorName: agentError.name,
+          errorType: agentError.constructor.name,
+          model: this.model,
+          apiError: agentError.error || agentError.response?.data || null,
+          statusCode: agentError.status || agentError.response?.status || null,
+        });
+
+        // Provide helpful error message based on error type
+        if (agentError.message?.includes('content.map')) {
+          throw new Error(`OpenAI API response format error (possibly model incompatibility). Model: ${this.model}. Original error: ${agentError.message}`);
+        } else if (agentError.status === 404 || agentError.message?.includes('model')) {
+          throw new Error(`Invalid or unsupported model: ${this.model}. API error: ${agentError.message}`);
+        } else {
+          throw new Error(`AgentKit execution failed: ${agentError.message}`);
+        }
+      }
 
       // Extract response text
       const responseText = this.extractResponseText(result);
@@ -668,7 +699,7 @@ export class MarketingConsole {
     }
     this.agent = new AgentClass({
       name: 'MarketingConsole',
-      model: this.config.model || 'gpt-4o-mini',
+      model: this.config.model || OPENAI_MODELS.FAST,
       instructions: this.config.baseInstructions,
       modelSettings: {
         temperature: this.config.temperature || 0.7,

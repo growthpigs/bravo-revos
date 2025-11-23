@@ -17,6 +17,7 @@ import {
   interpolatePrompt,
 } from './workflow-loader';
 import type { CartridgeSnapshot } from '@/lib/cartridges/snapshot';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 export interface WorkflowExecutionContext {
   supabase: SupabaseClient;
@@ -106,7 +107,7 @@ async function executeTopicGeneration(
   // High temperature (0.95) ensures diverse, creative topics on each regeneration
   const marketingConsole = new MarketingConsole({
     baseInstructions: workflowPrompt,
-    model: 'gpt-4o-mini',
+    model: OPENAI_MODELS.FAST,
     temperature: 0.95,
     openai: context.openai,
     supabase: supabase,
@@ -329,7 +330,7 @@ async function executePostGeneration(
   // NOTE: Brand/style/platform context already in system prompt from V2 route
   const marketingConsole = new MarketingConsole({
     baseInstructions: workflowPrompt,
-    model: 'gpt-4o',
+    model: OPENAI_MODELS.LATEST,
     temperature: 0.7,
     openai: context.openai,
     supabase: supabase,

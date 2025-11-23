@@ -5,6 +5,7 @@ import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { openai } from '@/lib/openai-client';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 interface LeadMagnet {
   id: string;
@@ -121,7 +122,7 @@ export class LeadMagnetChip extends BaseChip {
     const userPrompt = this.buildUserPrompt(prompt);
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: OPENAI_MODELS.LEGACY_PREVIEW,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }

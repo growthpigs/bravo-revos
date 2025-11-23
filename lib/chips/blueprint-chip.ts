@@ -9,6 +9,7 @@ import { tool } from '@openai/agents';
 import { z } from 'zod';
 import { BaseChip } from './base-chip';
 import { AgentContext } from '@/lib/cartridges/types';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 const BlueprintInputSchema = z.object({
   action: z.enum(['generate', 'get_status']),
@@ -328,7 +329,7 @@ Return ONLY the JSON object, no markdown formatting.`;
     console.log('[BlueprintChip] Generating blueprint with OpenAI...');
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',  // Use full GPT-4 for better quality
+      model: OPENAI_MODELS.LATEST,  // Use full GPT-4 for better quality
       messages: [
         {
           role: 'system',

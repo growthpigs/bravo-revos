@@ -1,0 +1,20 @@
+export const OPENAI_MODELS = {
+  // The flagship model for complex reasoning and orchestration
+  LATEST: 'gpt-5.1',
+  
+  // Cost-effective model for simple tasks and high-volume processing
+  FAST: 'gpt-4o-mini',
+  
+  // Legacy high-performance model (keep for backward compatibility if needed)
+  STABLE: 'gpt-4o',
+  
+  // Legacy Preview
+  LEGACY_PREVIEW: 'gpt-4-turbo-preview',
+
+  // Legacy Turbo
+  LEGACY_TURBO: 'gpt-4-turbo',
+} as const;
+
+export const DEFAULT_MODEL = OPENAI_MODELS.LATEST;
+export const DEFAULT_FAST_MODEL = OPENAI_MODELS.FAST;
+

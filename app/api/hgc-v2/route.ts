@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Force Node.js runtime (dependencies may use Node APIs)
 export const runtime = 'nodejs';
 import { createClient } from '@/lib/supabase/server';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 // Dynamic imports to prevent build-time tiktoken/encoder.json loading:
 // - OpenAI SDK (dynamically imported in POST handler)
 // - MarketingConsole (imports @openai/agents which uses tiktoken)
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
     // Dynamic import to prevent build-time tiktoken/encoder.json loading
     const { MarketingConsole } = await import('@/lib/console/marketing-console');
     const console_instance = new MarketingConsole({
-      model: 'gpt-5.1',
+      model: OPENAI_MODELS.LATEST,
       temperature: 0.7,
       baseInstructions: assembleSystemPrompt(
         consoleConfig,

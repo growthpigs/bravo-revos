@@ -1,6 +1,7 @@
 import { openai } from '@ai-sdk/openai';
 import { streamText } from 'ai';
 import { NextRequest } from 'next/server';
+import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 // Allow streaming responses properly
 export const runtime = 'edge';
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await streamText({
-      model: openai('gpt-4-turbo'),
+      model: openai(OPENAI_MODELS.LEGACY_TURBO),
       messages,
       system: `You are a helpful AI assistant for Bravo revOS, a LinkedIn automation platform.
 You help users with:

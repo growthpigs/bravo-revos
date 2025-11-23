@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { OPENAI_MODELS } from '@/lib/config/openai-models'
 // REMOVED: import OpenAI from 'openai' - moved to dynamic import to prevent build-time tiktoken execution
 import { hgcRequestSchema } from '@/lib/validations/hgc'
 import { createLinkedInPost } from '@/lib/unipile-client'
@@ -1329,7 +1330,7 @@ export async function POST(request: NextRequest) {
 
     // Call OpenAI with function calling
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: OPENAI_MODELS.LATEST,
       messages: [
         {
           role: 'system',
@@ -1669,7 +1670,7 @@ IMPORTANT:
       // Get final response with tool results
       console.log('[HGC_TS] Getting final response with tool results...')
       const finalResponse = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: OPENAI_MODELS.LATEST,
         messages: [
           {
             role: 'system',
@@ -1758,7 +1759,7 @@ export async function GET() {
     version: '5.0.0-typescript-agentkit',
     mode: 'workflow-driven',
     backend: 'Database-driven workflows + OpenAI Function Calling',
-    features: ['Database Workflows', 'OpenAI gpt-4o', 'Direct Supabase', 'Campaign-free Write Flow'],
+    features: ['Database Workflows', `OpenAI ${OPENAI_MODELS.LATEST}`, 'Direct Supabase', 'Campaign-free Write Flow'],
     tools: [
       'schedule_post',
       'trigger_dm_scraper',
