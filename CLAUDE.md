@@ -82,38 +82,39 @@ open http://localhost:3000/dashboard
 
 ## CURRENT WORKING STATE (2025-11-22)
 
-**ACTIVE ROUTE: V3** (`/api/hgc-v3`)
-- Frontend uses: `NEXT_PUBLIC_HGC_VERSION=v3` in Vercel env vars
-- Status: ⚠️ **WORKING but NON-COMPLIANT** - Uses raw OpenAI, hardcoded workflows
+**ACTIVE ROUTE: V2** (`/api/hgc-v2`)
+- Frontend uses: `NEXT_PUBLIC_HGC_VERSION=v2` in .env and Vercel env vars
+- Status: ✅ **PRODUCTION READY** - Full AgentKit architecture, tested and working
+- Architecture: AgentKit SDK ✅ + Mem0 ✅ + Database workflows ✅
+- Features: Write workflow functional, preserves context across decisions
+- Latest Fix: Workflow context preservation (commit 34e21a4, 2025-11-24)
+
+**V3 STATUS (DEPRECATED):**
+- Route file: `/app/api/hgc-v3/route.ts` (exists but unused)
+- Status: ❌ **DEPRECATED** - Raw OpenAI implementation, technical debt
 - Architecture: Raw OpenAI SDK ❌ + No Mem0 ❌ + Hardcoded workflows ❌
-- Features: Write workflow functional, generates posts from brand cartridges
+- **DO NOT USE** - V2 is the production route
 
-**V2 STATUS (Code Complete but DISABLED):**
-- Route file: `/app/api/hgc-v2/route.ts.disabled` (485 lines)
-- Infrastructure exists: MarketingConsole, workflow-loader, workflow-executor, Mem0 client
-- Status: ⚠️ **DISABLED** - Route has `.disabled` extension, never tested end-to-end
-- Why disabled: Had runtime errors, v3 created as workaround
+**V2 Infrastructure (ACTIVE AND TESTED):**
+- `/lib/console/workflow-loader.ts` - Load workflows from database (250 lines) ✅
+- `/lib/console/workflow-executor.ts` - Execute workflow steps (300+ lines) ✅
+- `/lib/console/marketing-console.ts` - AgentKit wrapper (670+ lines) ✅
+- `/lib/mem0/client.ts`, `/lib/mem0/memory.ts` - Mem0 integration ✅
+- `/app/api/hgc-v2/route.ts` - Main API route (500+ lines) ✅
 
-**V2 Infrastructure Created (exists but untested):**
-- `/lib/console/workflow-loader.ts` - Load workflows from database (250 lines)
-- `/lib/console/workflow-executor.ts` - Execute workflow steps (300+ lines)
-- `/lib/console/marketing-console.ts` - AgentKit wrapper (670+ lines)
-- `/lib/mem0/client.ts`, `/lib/mem0/memory.ts` - Mem0 integration
+**V2 PRODUCTION STATUS:**
+1. ✅ Database tables exist and populated
+2. ✅ Workflow configuration loaded from DB
+3. ✅ Mem0 API configured and working
+4. ✅ Route active and handling requests
+5. ✅ Tested and debugged (commit 34e21a4)
+6. ✅ `NEXT_PUBLIC_HGC_VERSION=v2` locked in
 
-**TO ENABLE V2 (Estimated 8-14 hours):**
-1. Verify database tables exist (`console_workflows`, `console_prompts`)
-2. Populate workflow configuration data
-3. Configure Mem0 API keys and scoping
-4. Rename `route.ts.disabled` → `route.ts`
-5. Test and debug runtime errors
-6. Set `NEXT_PUBLIC_HGC_VERSION=v2` in Vercel
-
-**HOW TO SWITCH ROUTES:**
+**CURRENT ROUTE CONFIGURATION:**
 ```bash
-# In Vercel env vars:
-NEXT_PUBLIC_HGC_VERSION=v3     # ✅ ACTIVE - Working but non-compliant
-NEXT_PUBLIC_HGC_VERSION=v2     # ⚠️ DISABLED - Code exists but untested
-NEXT_PUBLIC_HGC_VERSION=legacy # 🗑️ Old implementation
+# In .env and Vercel env vars:
+NEXT_PUBLIC_HGC_VERSION=v2     # ✅ ACTIVE - Full architecture compliance
+# ⚠️ DO NOT CHANGE BACK TO V3 - V2 is production route
 ```
 
 ## CRITICAL ARCHITECTURE PRINCIPLES
