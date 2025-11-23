@@ -241,6 +241,11 @@ export class MarketingConsole {
 
       let result;
       try {
+        console.log('[MarketingConsole] AgentKit setup:', {
+          hasClient: !!agentWithMemory.client,
+          clientType: agentWithMemory.client?.constructor?.name,
+          model: agentWithMemory.model,
+        });
         result = await run(
           agentWithMemory,
           this.convertMessagesToAgentFormat(messages),
