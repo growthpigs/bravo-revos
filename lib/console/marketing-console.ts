@@ -143,6 +143,19 @@ export class MarketingConsole {
     interactive?: any;
   }> {
     console.log(`[MarketingConsole] Executing for user ${userId}, session ${sessionId}`);
+
+    // Defensive check: ensure messages is an array
+    if (!Array.isArray(messages)) {
+      console.error('[MarketingConsole] execute() received non-array messages:', typeof messages);
+      throw new Error('Invalid messages parameter: expected array');
+    }
+
+    // Defensive check: ensure messages has at least one item
+    if (messages.length === 0) {
+      console.error('[MarketingConsole] execute() received empty messages array');
+      throw new Error('Invalid messages parameter: array is empty');
+    }
+
     console.log(`[MarketingConsole] Message count: ${messages.length}`);
 
     // Ensure agent is initialized (lazy-loaded to prevent build-time execution)
@@ -231,20 +244,29 @@ export class MarketingConsole {
 
       // STEP 7: Save new memories to Mem0
       try {
-        await addMemory(
-          tenantKey,
-          {
-            messages: [
-              { role: 'user', content: messages[messages.length - 1].content },
-              { role: 'assistant', content: responseText },
-            ],
-          },
-          {
-            session_id: sessionId,
-            timestamp: new Date().toISOString(),
-          }
-        );
-        console.log('[MarketingConsole] Saved conversation to Mem0');
+        // Defensive check: ensure messages array still has items before accessing
+        const lastMessage = Array.isArray(messages) && messages.length > 0
+          ? messages[messages.length - 1]
+          : null;
+
+        if (lastMessage) {
+          await addMemory(
+            tenantKey,
+            {
+              messages: [
+                { role: 'user', content: lastMessage.content },
+                { role: 'assistant', content: responseText },
+              ],
+            },
+            {
+              session_id: sessionId,
+              timestamp: new Date().toISOString(),
+            }
+          );
+          console.log('[MarketingConsole] Saved conversation to Mem0');
+        } else {
+          console.warn('[MarketingConsole] Could not save memories: no messages to save');
+        }
       } catch (error) {
         console.warn('[MarketingConsole] Failed to save memories:', error);
         // Don't fail request on memory save failure
@@ -269,6 +291,12 @@ export class MarketingConsole {
    * AgentKit expects specific message format.
    */
   private convertMessagesToAgentFormat(messages: Message[]): any[] {
+    // Defensive check: ensure messages is an array
+    if (!Array.isArray(messages)) {
+      console.error('[MarketingConsole] convertMessagesToAgentFormat received non-array:', typeof messages);
+      return [];
+    }
+
     return messages.map((msg) => ({
       role: msg.role,
       content: msg.content,

@@ -720,8 +720,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setError(null);
 
     try {
+      // Defensive check: ensure messages is an array before spreading
+      const messagesArray = Array.isArray(messages) ? messages : [];
+
       const requestPayload = {
-        messages: [...messages, userMessage]
+        messages: [...messagesArray, userMessage]
           .slice(-40) // Keep only last 40 messages to stay under 50-message API limit
           .map(m => {
             let cleanContent = m.content;
@@ -1083,11 +1086,14 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         setError(null);
 
         try {
+          // Defensive check: ensure messages is an array
+          const messagesArray = Array.isArray(messages) ? messages : [];
+
           const response = await fetch(HGC_API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              messages: [...messages, userMessage].slice(-40).map(m => ({
+              messages: [...messagesArray, userMessage].slice(-40).map(m => ({
                 role: m.role,
                 content: m.content,
               })),
@@ -1195,12 +1201,18 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
 
     // Add last 2 user messages from state (we check 3 total)
-    const recentUserMessages = [...messages]
+    // Defensive check: ensure messages is an array
+    const messagesArray = Array.isArray(messages) ? messages : [];
+
+    const recentUserMessages = [...messagesArray]
       .reverse()
       .filter(msg => msg.role === 'user')
       .slice(0, includeCurrentInput ? 2 : 3); // If we have current input, only get 2 more
 
-    messagesToCheck.push(...recentUserMessages.map(msg => msg.content.toLowerCase()));
+    // Defensive check: ensure recentUserMessages is an array and has items
+    if (Array.isArray(recentUserMessages) && recentUserMessages.length > 0) {
+      messagesToCheck.push(...recentUserMessages.map(msg => msg.content.toLowerCase()));
+    }
 
     if (messagesToCheck.length === 0) {
       console.log('[FULLSCREEN_DEBUG] No messages to check, returning false');
@@ -1404,12 +1416,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      // Defensive check: ensure messages is an array
+      const messagesArray = Array.isArray(messages) ? messages : [];
+
       // Send decision to backend with workflow context
       const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
+          messages: [...messagesArray.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           decision: decision,
         }),
@@ -1473,12 +1488,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      // Defensive check: ensure messages is an array
+      const messagesArray = Array.isArray(messages) ? messages : [];
+
       // Send campaign selection to backend
       const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
+          messages: [...messagesArray.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           campaign_id: campaignId,
         }),
@@ -1519,12 +1537,15 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      // Defensive check: ensure messages is an array
+      const messagesArray = Array.isArray(messages) ? messages : [];
+
       // Send datetime selection to backend (final step - should execute schedule)
       const response = await sandboxFetch(HGC_API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
+          messages: [...messagesArray.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userMessage.content }].slice(-40), // Keep last 40 messages
           workflow_id: workflowId,
           schedule_time: datetime,
           campaign_id: campaignId,
@@ -1750,7 +1771,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             ref={scrollAreaRef}
             className="flex-1 overflow-y-auto p-4 space-y-3"
           >
-            {messages.length === 0 ? (
+            {(!Array.isArray(messages) || messages.length === 0) ? (
               <div className="text-center text-gray-500 mt-8">
                 <p className="text-sm">Start a conversation with your AI assistant</p>
               </div>
@@ -2045,7 +2066,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             ref={scrollAreaRef}
             className="flex-1 overflow-y-auto p-4 space-y-4"
           >
-            {messages.length === 0 ? (
+            {(!Array.isArray(messages) || messages.length === 0) ? (
               <div className="text-center text-gray-500 mt-8">
                 <p className="text-sm">Start a conversation with your AI assistant</p>
               </div>
@@ -2263,7 +2284,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
             </button>
             <div className="p-4 space-y-3">
               <SandboxIndicator />
-              {messages.map((message, index) => renderMessage(message, index))}
+              {Array.isArray(messages) && messages.map((message, index) => renderMessage(message, index))}
             </div>
           </div>
         )}

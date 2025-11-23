@@ -54,7 +54,7 @@ async function checkDatabase() {
 async function checkSupabase() {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getSession();
 
     return {
       status: error ? 'degraded' : 'healthy',
