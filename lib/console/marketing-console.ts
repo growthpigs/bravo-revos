@@ -92,6 +92,7 @@ export class MarketingConsole {
           temperature: this.config.temperature || 0.7,
         },
         tools: [], // Start with no tools
+        client: this.openai, // CRITICAL: Must pass OpenAI client instance to AgentKit
       });
 
       // Apply all loaded cartridges to the agent
