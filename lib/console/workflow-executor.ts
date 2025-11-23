@@ -272,10 +272,8 @@ Return ONLY the JSON array.`;
         workflow_id: workflowId,
         decision_options: topicOptions,
       },
-      document: {
-        title: 'LinkedIn Post',
-        content: '[SELECT A HOOK FOR YOUR LINKEDIN POST FROM ONE OF THE FOUR BUTTONS]',
-      },
+      // NO document field during topic generation - Working Document should only
+      // populate when actual content is generated (after topic selection)
       meta: {
         workflowName: workflow.name,
         cartridgesLoaded: true,
