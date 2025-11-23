@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
+// Max cookie size in bytes (4KB per cookie is standard browser limit)
+const MAX_COOKIE_SIZE = 4096
+
 export async function middleware(request: NextRequest) {
   // Create response object that we'll modify with cookies
   let response = NextResponse.next()
@@ -16,10 +19,22 @@ export async function middleware(request: NextRequest) {
             return request.cookies.getAll()
           },
           setAll(cookiesToSet) {
-            // Update cookies in response so they get sent back to client
-            cookiesToSet.forEach(({ name, value, options }) =>
+            // Update cookies in response with size validation
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Check cookie size to prevent "Cookie Too Large" errors
+              // (Cloudflare outage Nov 18, 2025 caused oversized cookies)
+              const cookieSize = new TextEncoder().encode(value).length
+
+              if (cookieSize > MAX_COOKIE_SIZE) {
+                console.error(`[Middleware] Cookie "${name}" exceeds max size: ${cookieSize} bytes (max: ${MAX_COOKIE_SIZE})`)
+                // Don't set oversized cookie - will cause 400 error
+                // Clear the cookie instead to force re-auth
+                response.cookies.delete(name)
+                return
+              }
+
               response.cookies.set(name, value, options)
-            )
+            })
           },
         },
       }
@@ -28,8 +43,25 @@ export async function middleware(request: NextRequest) {
     // Refresh session - this updates cookies if needed for server-side auth checks
     await supabase.auth.getUser()
   } catch (error) {
-    console.error('Middleware: Session refresh error:', error)
-    // Continue even if refresh fails - user might be unauthenticated
+    console.error('[Middleware] Session refresh error:', error)
+
+    // On session refresh failure, clear auth cookies to force fresh login
+    // This prevents users from being stuck with corrupted sessions
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    // Check for common cookie/session corruption indicators
+    if (errorMessage.includes('cookie') ||
+        errorMessage.includes('session') ||
+        errorMessage.includes('token') ||
+        errorMessage.includes('400') ||
+        errorMessage.includes('invalid')) {
+      console.warn('[Middleware] Clearing auth cookies due to session error')
+
+      // Clear Supabase auth cookies
+      response.cookies.delete('sb-trdoainmejxanrownbuz-auth-token')
+      response.cookies.delete('sb-trdoainmejxanrownbuz-auth-token.0')
+      response.cookies.delete('sb-trdoainmejxanrownbuz-auth-token.1')
+    }
   }
 
   return response
