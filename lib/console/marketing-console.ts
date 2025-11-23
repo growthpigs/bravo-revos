@@ -19,7 +19,7 @@ let AgentClass: any | null = null;
 
 // ⚠️ CRITICAL: AgentKit version that is known to work
 // If this version changes, the extraction paths may break
-const EXPECTED_AGENTKIT_VERSION = '0.3.0';
+const EXPECTED_AGENTKIT_VERSION = '0.3.3';
 let agentKitVersionChecked = false;
 
 export interface MarketingConsoleConfig {
