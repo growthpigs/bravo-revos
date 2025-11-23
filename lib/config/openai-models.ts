@@ -1,6 +1,7 @@
 export const OPENAI_MODELS = {
   // The flagship model for complex reasoning and orchestration
-  LATEST: 'gpt-5.1',
+  // NOTE: GPT-5.1 not compatible with AgentKit SDK v0.3.0 - using gpt-4o until SDK update
+  LATEST: 'gpt-4o',
 
   // Cost-effective model for simple tasks and high-volume processing
   FAST: 'gpt-4o-mini',
