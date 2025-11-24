@@ -296,79 +296,74 @@ Architecture:
 - `/docs/projects/bravo-revos/archon-specs/01-RevOS-Technical-Architecture-v3.md`
 - `/docs/projects/bravo-revos/archon-specs/02-Cartridge-System-Specification.md`
 
-## Three-Tier Deployment Strategy
+## Deployment Strategy (Updated 2025-11-24)
 
-**CRITICAL: Use this workflow for ALL deployments. Always report deployment status.**
+**🚨 CRITICAL: MAIN BRANCH ONLY - NO LOCALHOST TESTING**
+
+### Current Workflow (AS OF 2025-11-24)
+
+**ACTIVE BRANCH:** `main` only
+- All development happens on `main` branch
+- Push directly to `main` for all changes
+- **NO localhost testing** - test on deployed main environment
+- **NO staging/production branches** - they are frozen/deprecated
 
 ### Environment URLs
 
-1. **Local Development (Limited)** - `http://localhost:3000`
-   - **Use For:** Quick UI/logic checks only
-   - **Limitations:** No OAuth ❌, No webhooks ❌, No LinkedIn posting ❌
-   - **Works:** React components ✅, Styling ✅, Basic interactions ✅
-
-2. **Staging (Primary Testing)** - `https://bravo-revos-git-staging-agro-bros.vercel.app`
-   - **Branch:** `staging`
-   - **Use For:** REAL testing with full environment
-   - **Works:** EVERYTHING ✅ - OAuth ✅, Webhooks ✅, LinkedIn ✅, All integrations ✅
-   - **Deploy:** Auto-deploys when you push to staging branch
-
-3. **Production (Stable)** - `https://bravo-revos.vercel.app`
+1. **Main (Active Development & Testing)** - `https://bravo-revos-git-main-growthpigs.vercel.app`
    - **Branch:** `main`
-   - **Use For:** Live production (locked/stable)
-   - **Deploy:** ONLY merge staging → main after testing
-   - **Rule:** NEVER push directly to main without testing on staging first
+   - **Use For:** ALL development and testing
+   - **Deploy:** Auto-deploys when you push to main
+   - **Works:** EVERYTHING ✅ - OAuth ✅, Webhooks ✅, LinkedIn ✅, All integrations ✅
+
+2. **Deprecated Environments (DO NOT USE):**
+   - ~~`staging`~~ - Frozen, no longer updated
+   - ~~`production`~~ - Frozen, no longer updated
+   - ~~`localhost:3000`~~ - Not used for testing
+
+### Why No Localhost?
+
+Localhost cannot test:
+- ❌ OAuth (requires public HTTPS callback)
+- ❌ Webhooks (can't reach localhost)
+- ❌ LinkedIn account connection
+- ❌ Any external API callbacks
+
+**Solution:** Always test on deployed `main` environment where everything works.
 
 ### Standard Workflow (Follow This)
 
 ```bash
-# 1. Work on staging branch (or feature branch)
-git checkout staging
-# ... make changes ...
+# 1. Make sure you're on main
+git checkout main
+
+# 2. Make your changes
+# ... edit files ...
 git add .
 git commit -m "fix: your change"
 
-# 2. Push to staging for testing
-git push origin staging
-# Vercel auto-deploys to: https://bravo-revos-git-staging-agro-bros.vercel.app
-
-# 3. Test on staging URL (FULL ENVIRONMENT)
-open https://bravo-revos-git-staging-agro-bros.vercel.app
-# Test: Login, write workflow, LinkedIn posting, all features
-
-# 4. If everything works, promote to production
-git checkout main
-git merge staging --no-edit
+# 3. Push to main
 git push origin main
-# Vercel auto-deploys to: https://bravo-revos.vercel.app
+# Vercel auto-deploys to: https://bravo-revos-git-main-growthpigs.vercel.app
+
+# 4. Test on deployed main URL (FULL ENVIRONMENT)
+open https://bravo-revos-git-main-growthpigs.vercel.app
+# Test: Login, write workflow, LinkedIn posting, all features
 
 # 5. ALWAYS report deployment status
 echo "
 DEPLOYMENT STATUS:
-✅ Staging: https://bravo-revos-git-staging-agro-bros.vercel.app (commit-hash)
-✅ Production: https://bravo-revos.vercel.app (commit-hash)
+✅ Main: https://bravo-revos-git-main-growthpigs.vercel.app (commit-hash)
 📝 Note: What was deployed
 "
-
-# 6. Switch back to staging for next work
-git checkout staging
 ```
 
-### Feature Branch Workflow
+### Important Notes
 
-```bash
-# For larger features, use feature branches
-git checkout -b feat/feature-name
-# ... work ...
-git push origin feat/feature-name
-# Vercel creates: https://bravo-revos-git-feat-feature-name-agro-bros.vercel.app
-
-# When ready, merge to staging first
-git checkout staging
-git merge feat/feature-name
-git push origin staging
-# Test on staging, then promote to main
-```
+- **No localhost** - Can't test OAuth, webhooks, or LinkedIn integration
+- **No feature branches needed** - Work directly on main
+- **No staging/production** - Those branches are deprecated
+- **Test on deployed main** - Full environment with all integrations working
 
 ### Emergency Rollback
 
