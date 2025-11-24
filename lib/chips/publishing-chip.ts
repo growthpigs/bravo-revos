@@ -24,12 +24,13 @@ export class PublishingChip extends BaseChip {
         action: z.enum(['post_now', 'schedule']).describe('Publish now or schedule for later'),
         content: z.string().describe('LinkedIn post content'),
         campaign_id: z.string().optional().describe('Campaign UUID to associate with (optional)'),
+        target_account_id: z.string().optional().describe('Specific LinkedIn Account UUID to post to (required if user has multiple accounts)'),
         trigger_word: z
           .string()
           .optional()
           .describe('Trigger word to monitor in DMs (default: "interested")'),
-        schedule_time: z
-          .string()
+        schedule_time:
+          z.string()
           .optional()
           .describe('ISO timestamp for scheduled posts (required for schedule action)'),
       }),
@@ -45,7 +46,7 @@ export class PublishingChip extends BaseChip {
   async execute(input: any, context: AgentContext): Promise<any> {
     this.validateContext(context);
 
-    const { action, content, campaign_id, trigger_word, schedule_time } = input;
+    const { action, content, campaign_id, target_account_id, trigger_word, schedule_time } = input;
 
     try {
       switch (action) {
@@ -53,6 +54,7 @@ export class PublishingChip extends BaseChip {
           return await this.handleExecuteLinkedInCampaign(
             content,
             campaign_id,
+            target_account_id,
             trigger_word,
             context
           );
@@ -74,14 +76,16 @@ export class PublishingChip extends BaseChip {
   /**
    * Post content to LinkedIn NOW
    *
-   * 1. Create DB record (Draft/Pending) to prevent zombie posts
-   * 2. Post to LinkedIn via Unipile
-   * 3. Update DB record to 'published'
-   * 4. Create monitoring job
+   * 1. Validate Account Selection (Handle multiple accounts)
+   * 2. Create DB record (Draft/Pending) to prevent zombie posts
+   * 3. Post to LinkedIn via Unipile
+   * 4. Update DB record to 'published'
+   * 5. Create monitoring job
    */
   private async handleExecuteLinkedInCampaign(
     content: string,
     campaign_id: string,
+    target_account_id: string | undefined,
     trigger_word: string | undefined,
     context: AgentContext
   ) {
@@ -92,15 +96,15 @@ export class PublishingChip extends BaseChip {
         campaign_id,
         content_length: content.length,
         trigger_word: trigger_word || 'interested',
+        target_account_id: target_account_id || 'auto-select'
       });
 
-      // Get user's LinkedIn account
+      // Get ALL user's active LinkedIn accounts
       const { data: linkedinAccounts } = await context.supabase
         .from('linkedin_accounts')
-        .select('unipile_account_id')
+        .select('id, account_name, unipile_account_id')
         .eq('user_id', context.userId)
-        .eq('status', 'active')
-        .limit(1);
+        .eq('status', 'active');
 
       if (!linkedinAccounts || linkedinAccounts.length === 0) {
         return this.formatError(
@@ -108,7 +112,34 @@ export class PublishingChip extends BaseChip {
         );
       }
 
-      const unipileAccountId = linkedinAccounts[0].unipile_account_id;
+      let selectedAccount;
+
+      // Logic: Account Selection
+      if (linkedinAccounts.length === 1) {
+        // Case A: Only one account - auto-select
+        selectedAccount = linkedinAccounts[0];
+      } else {
+        // Case B: Multiple accounts
+        if (target_account_id) {
+          // Case B1: ID provided - validate it
+          selectedAccount = linkedinAccounts.find(acc => acc.id === target_account_id);
+          if (!selectedAccount) {
+            return this.formatError(
+              `Invalid target_account_id. Account not found or not active. Available accounts: ${linkedinAccounts.map(a => `${a.account_name} (${a.id})`).join(', ')}`
+            );
+          }
+        } else {
+          // Case B2: No ID provided - Prompt user
+          const accountOptions = linkedinAccounts.map(acc => `- ${acc.account_name} (ID: ${acc.id})`).join('\n');
+          return this.formatError(
+            `Ambiguous Account: You have multiple connected LinkedIn accounts. Please specify which one to post to:\n\n${accountOptions}\n\nPlease retry with 'target_account_id'.`
+          );
+        }
+      }
+
+      console.log('[PublishingChip] Selected account:', selectedAccount.account_name);
+      const unipileAccountId = selectedAccount.unipile_account_id;
+      const linkedinAccountId = selectedAccount.id; // Store local ID for DB relation
 
       // 1. Create DB record first (Draft state)
       // This ensures we have a record even if the API call succeeds but the subsequent DB update fails.
@@ -116,6 +147,7 @@ export class PublishingChip extends BaseChip {
         .from('posts')
         .insert({
           campaign_id,
+          linkedin_account_id: linkedinAccountId, // Link to specific account
           content,
           status: 'draft', // Start as draft (pending), update to published on success
           user_id: context.userId, // Ensure user ownership
@@ -168,7 +200,7 @@ export class PublishingChip extends BaseChip {
         // Return success with warning because the post IS live
         return this.formatSuccess({
           post: dbPost, // Return the draft record
-          message: `⚠️ Post published to LinkedIn, but database update failed.
+          message: `⚠️ Post published to LinkedIn, but database update failed. 
           
 Link: ${post.url}
 
@@ -205,6 +237,7 @@ Please check your dashboard manually.`,
 
 It may take a few minutes to appear on your LinkedIn profile.
 
+Account: ${selectedAccount.account_name}
 🔍 Started monitoring for comments with trigger: "${effectiveTriggerWord}"
 
 Link: ${post.url}`,
