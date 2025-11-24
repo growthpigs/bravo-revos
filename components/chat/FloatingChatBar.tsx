@@ -699,15 +699,20 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         toast.info('Schedule post - Coming soon!');
         break;
       default:
-        console.log('[FCB] Handling generic action:', action);
-        setInput(`I select the topic: ${action}`);
-        setTimeout(() => {
-           if (floatingBarRef.current) {
-             floatingBarRef.current.requestSubmit();
-           } else {
-             handleSubmit(new Event('submit') as any);
-           }
-        }, 0);
+        // Handle topic selection (format: "topic:0:slug")
+        if (action.startsWith('topic:')) {
+          console.log('[FCB] Topic selected:', action);
+          setInput(action); // Send clean value to backend
+          setTimeout(() => {
+             if (floatingBarRef.current) {
+               floatingBarRef.current.requestSubmit();
+             } else {
+               handleSubmit(new Event('submit') as any);
+             }
+          }, 0);
+        } else {
+          console.warn('[FCB] Unknown action:', action);
+        }
         break;
     }
   };
