@@ -706,6 +706,7 @@ export class MarketingConsole {
         temperature: this.config.temperature || 0.7,
       },
       tools: [],
+      client: this.openai, // CRITICAL: DO NOT REMOVE - Must pass OpenAI client instance
     });
 
     // Reload all remaining cartridges
