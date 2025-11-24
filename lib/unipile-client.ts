@@ -20,8 +20,8 @@ export interface UnipileCredentials {
 
 /**
  * Check if mock mode is enabled
- * Mock mode is enabled when UNIPILE_MOCK_MODE is NOT explicitly set to 'false'
- * This provides a consistent way to check mock mode across all files
+ * Mock mode is enabled when UNIPILE_MOCK_MODE is explicitly set to 'true' or '1'
+ * This ensures production safety by defaulting to false
  */
 function isMockMode(): boolean {
   // Handle string environment variables safely
@@ -152,7 +152,7 @@ export async function authenticateLinkedinAccount(
       byteLength: Buffer.from(password).length,
       starts: password.slice(0, 3),
       ends: password.slice(-3),
-      hasSpecialChars: /[!@#$%^&*(),.?":{}|<>\\/[\]+=_-]/.test(password)
+      hasSpecialChars: /[!@#$%^&*(),.?":{}|<>\[\]+=_-]/.test(password)
     });
 
     // Log the full request for debugging (mask password in display)

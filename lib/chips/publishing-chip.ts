@@ -74,9 +74,10 @@ export class PublishingChip extends BaseChip {
   /**
    * Post content to LinkedIn NOW
    *
-   * 1. Posts to LinkedIn via Unipile
-   * 2. Stores post in database
-   * 3. Creates monitoring job for trigger word
+   * 1. Create DB record (Draft/Pending) to prevent zombie posts
+   * 2. Post to LinkedIn via Unipile
+   * 3. Update DB record to 'published'
+   * 4. Create monitoring job
    */
   private async handleExecuteLinkedInCampaign(
     content: string,
@@ -84,6 +85,8 @@ export class PublishingChip extends BaseChip {
     trigger_word: string | undefined,
     context: AgentContext
   ) {
+    let dbPostId: string | null = null;
+
     try {
       console.log('[PublishingChip] Starting campaign execution:', {
         campaign_id,
@@ -107,44 +110,80 @@ export class PublishingChip extends BaseChip {
 
       const unipileAccountId = linkedinAccounts[0].unipile_account_id;
 
-      // 1. Post to LinkedIn via Unipile
-      console.log('[PublishingChip] Posting to LinkedIn...');
-      const post = await createLinkedInPost(unipileAccountId, content);
-
-      console.log('[PublishingChip] Post created:', {
-        id: post.id,
-        url: post.url,
-      });
-
-      // 2. Store post in database
-      const { data: dbPost, error: postError } = await context.supabase
+      // 1. Create DB record first (Draft state)
+      // This ensures we have a record even if the API call succeeds but the subsequent DB update fails.
+      const { data: dbPost, error: insertError } = await context.supabase
         .from('posts')
         .insert({
           campaign_id,
-          unipile_post_id: post.id,
           content,
-          status: 'published',
-          published_at: new Date().toISOString(),
-          post_url: post.url,
+          status: 'draft', // Start as draft (pending), update to published on success
+          user_id: context.userId, // Ensure user ownership
+          created_at: new Date().toISOString()
         })
         .select()
         .single();
 
-      if (postError) {
-        console.error('[PublishingChip] Failed to store post:', postError);
-        return this.formatError(
-          `Post published but failed to save to database: ${postError.message}`
-        );
+      if (insertError) {
+        console.error('[PublishingChip] Failed to create pending post record:', insertError);
+        throw new Error(`Database error: Failed to initialize post record. ${insertError.message}`);
       }
 
-      console.log('[PublishingChip] Post stored in database:', dbPost.id);
+      dbPostId = dbPost.id;
+      console.log('[PublishingChip] Created pending post record:', dbPostId);
 
-      // 3. Create monitoring job
+      // 2. Post to LinkedIn via Unipile
+      console.log('[PublishingChip] Posting to LinkedIn...');
+      const post = await createLinkedInPost(unipileAccountId, content);
+
+      console.log('[PublishingChip] Post created on LinkedIn:', {
+        id: post.id,
+        url: post.url,
+      });
+
+      // 3. Update post status to 'published'
+      const { data: updatedPost, error: updateError } = await context.supabase
+        .from('posts')
+        .update({
+          unipile_post_id: post.id,
+          status: 'published',
+          published_at: new Date().toISOString(),
+          post_url: post.url,
+        })
+        .eq('id', dbPostId)
+        .select()
+        .single();
+
+      if (updateError) {
+        // Critical Error: Zombie Post (Live on LinkedIn, but DB update failed)
+        // Since we have the ID, we can log this explicitly or try a backup mechanism.
+        // For now, we log heavily.
+        console.error('[PublishingChip] CRITICAL: Failed to update post status to published:', updateError);
+        console.error('[PublishingChip] Zombie Post Details:', {
+          dbId: dbPostId,
+          unipileId: post.id,
+          url: post.url
+        });
+        
+        // Return success with warning because the post IS live
+        return this.formatSuccess({
+          post: dbPost, // Return the draft record
+          message: `⚠️ Post published to LinkedIn, but database update failed.
+          
+Link: ${post.url}
+
+Please check your dashboard manually.`,
+        });
+      }
+
+      console.log('[PublishingChip] Post stored in database:', updatedPost.id);
+
+      // 4. Create monitoring job
       const effectiveTriggerWord = trigger_word || 'interested';
       const { data: job, error: jobError } = await context.supabase
         .from('scrape_jobs')
         .insert({
-          post_id: dbPost.id,
+          post_id: updatedPost.id,
           linkedin_post_id: post.id,
           trigger_word: effectiveTriggerWord,
           status: 'scheduled',
@@ -160,7 +199,7 @@ export class PublishingChip extends BaseChip {
       console.log('[PublishingChip] Campaign execution complete');
 
       return this.formatSuccess({
-        post: dbPost,
+        post: updatedPost,
         job,
         message: `✅ Post queued for publication!
 
@@ -170,8 +209,26 @@ It may take a few minutes to appear on your LinkedIn profile.
 
 Link: ${post.url}`,
       });
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('[PublishingChip] Execution error:', error);
+      
+      // Attempt to mark as failed if we have a DB record
+      if (dbPostId) {
+        try {
+          await context.supabase
+            .from('posts')
+            .update({
+              status: 'failed',
+              metrics: { error: error.message || 'Unknown error during publishing' } // Store error in JSONB
+            })
+            .eq('id', dbPostId);
+          console.log('[PublishingChip] Marked post as failed in DB:', dbPostId);
+        } catch (updateErr) {
+          console.error('[PublishingChip] Failed to mark post as failed:', updateErr);
+        }
+      }
+
       return this.formatError(error);
     }
   }
