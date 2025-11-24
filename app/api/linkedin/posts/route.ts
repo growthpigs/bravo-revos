@@ -11,22 +11,37 @@ import { createClient } from '@/lib/supabase/server';
 import { createLinkedInPost } from '@/lib/unipile-client';
 
 export async function POST(request: NextRequest) {
+  console.log('[LINKEDIN_POST_API] ========================================');
+  console.log('[LINKEDIN_POST_API] POST REQUEST RECEIVED');
+  console.log('[LINKEDIN_POST_API] ========================================');
+
   try {
     // Get authenticated user
+    console.log('[LINKEDIN_POST_API] Getting authenticated user...');
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
+      console.log('[LINKEDIN_POST_API] ❌ No authenticated user');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('[LINKEDIN_POST_API] ✅ User authenticated:', user.email);
+
     // Get request body
+    console.log('[LINKEDIN_POST_API] Parsing request body...');
     const body = await request.json();
     const { text, accountId } = body;
+    console.log('[LINKEDIN_POST_API] Request body:', {
+      hasText: !!text,
+      textLength: text?.length || 0,
+      accountId: accountId || 'not provided',
+    });
 
     if (!text) {
+      console.log('[LINKEDIN_POST_API] ❌ Missing text field');
       return NextResponse.json(
         { error: 'Missing required field: text' },
         { status: 400 }
@@ -59,13 +74,26 @@ export async function POST(request: NextRequest) {
 
     console.log('[LINKEDIN_POST_API] Using Unipile account:', unipileAccountId);
 
+    // Get user's LinkedIn profile URL
+    let profileUrl = null;
+    try {
+      const { data: accountData } = await supabase
+        .from('linkedin_accounts')
+        .select('profile_url')
+        .eq('unipile_account_id', unipileAccountId)
+        .single();
+
+      profileUrl = accountData?.profile_url || null;
+      console.log('[LINKEDIN_POST_API] Profile URL:', profileUrl || 'not found');
+    } catch (error) {
+      console.warn('[LINKEDIN_POST_API] Could not fetch profile_url:', error);
+    }
+
     // Create the post via Unipile
+    console.log('[LINKEDIN_POST_API] Calling createLinkedInPost...');
     const postResult = await createLinkedInPost(unipileAccountId, text);
 
-    // Note: profile_url column doesn't exist yet - skip for now
-    const profileUrl = null;
-
-    console.log('[LINKEDIN_POST_API] Post created successfully:', {
+    console.log('[LINKEDIN_POST_API] ✅ Post created successfully:', {
       postId: postResult.id,
       url: postResult.url,
       profileUrl,

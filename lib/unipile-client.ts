@@ -24,9 +24,11 @@ export interface UnipileCredentials {
  * This provides a consistent way to check mock mode across all files
  */
 function isMockMode(): boolean {
-  // Safety: Default to FALSE (Real Mode) unless explicitly enabled.
-  // Previous default of true caused silent failures in production.
-  return process.env.UNIPILE_MOCK_MODE === 'true';
+  // Handle string environment variables safely
+  // "true" or "1" enables mock mode
+  // "false", "0", undefined, or empty disables mock mode
+  const envValue = process.env.UNIPILE_MOCK_MODE?.toLowerCase() || '';
+  return envValue === 'true' || envValue === '1';
 }
 
 /**

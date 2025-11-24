@@ -601,50 +601,75 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // Handle action button clicks
   const handleActionClick = async (action: string, messageId?: string) => {
     console.log('[FCB] Action clicked:', action, 'messageId:', messageId);
+    console.log('[FCB] Action type:', typeof action, 'value:', JSON.stringify(action));
+    console.log('[FCB] Entering switch statement...');
 
     switch (action) {
       case 'post_linkedin':
+        console.log('[FCB] ✅ MATCHED post_linkedin case!');
+        console.log('[FCB] documentContent:', documentContent ? `${documentContent.length} chars` : 'EMPTY');
+
         // Get content from working document or latest assistant message
         let postContent = documentContent;
+        console.log('[FCB] Step 1: postContent from document:', postContent ? `${postContent.length} chars` : 'EMPTY');
+
         if (!postContent) {
+          console.log('[FCB] No document content, searching messages...');
           const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant' && m.content.length > 100);
           postContent = lastAssistant?.content || '';
+          console.log('[FCB] Found from messages:', postContent ? `${postContent.length} chars` : 'EMPTY');
         }
 
         if (!postContent) {
+          console.log('[FCB] ❌ No content found, showing error toast');
           toast.error('No content to post. Generate a post first.');
           break;
         }
 
+        console.log('[FCB] ✅ Have content, proceeding with post...');
+
         try {
+          console.log('[FCB] Showing loading toast...');
           toast.loading('Posting to LinkedIn...', { id: 'linkedin-post' });
 
+          console.log('[FCB] Making fetch call to /api/linkedin/posts...');
           const response = await fetch('/api/linkedin/posts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: postContent }),
           });
 
+          console.log('[FCB] Got response:', response.status, response.statusText);
           const data = await response.json();
+          console.log('[FCB] Response data:', data);
 
           if (!response.ok) {
+            console.log('[FCB] ❌ Response not OK, throwing error');
             throw new Error(data.error || 'Failed to post');
           }
 
+          console.log('[FCB] ✅ Post successful!');
           toast.success('Posted to LinkedIn!', { id: 'linkedin-post', duration: 5000 });
 
-          // Always add success message to chat
+          // Always add success message to chat - direct to recent activity page
           const postUrl = data.post?.url || data.url;
+          const profileUrl = data.profileUrl; // Profile URL from API response
+
+          // Use recent activity URL instead of direct post link
+          const activityUrl = profileUrl
+            ? `${profileUrl}/recent-activity/all/`
+            : 'https://www.linkedin.com/me/recent-activity/all/';
+
           const successMessage: Message = {
             id: generateUniqueId(),
             role: 'assistant',
-            content: postUrl
-              ? `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live.\n\n👉 [View your post on LinkedIn](${postUrl})`
-              : `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live on your LinkedIn feed.`,
+            content: `✅ **Successfully Posted to LinkedIn!**\n\nYour post is now live and will appear on your profile shortly.\n\n👉 [View your recent activity](${activityUrl})\n\n_Note: LinkedIn posts may take a few moments to appear on your feed._`,
             createdAt: new Date(),
           };
           setMessages(prev => [...prev, successMessage]);
+          console.log('[FCB] Success message added to chat');
         } catch (error) {
+          console.error('[FCB] ❌ Error posting to LinkedIn:', error);
           const errorMsg = error instanceof Error ? error.message : 'Failed to post';
           toast.error(errorMsg, { id: 'linkedin-post' });
         }
