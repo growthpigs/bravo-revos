@@ -65,12 +65,18 @@ export async function executeContentGenerationWorkflow(
   // No need to load brand/style cartridges here - AI already has full context
   console.log('[WorkflowExecutor] Using cartridges from system prompt (loaded upfront)');
 
-  // Step 1: Check if this is topic generation or topic selection
+  // Step 1: Check message type (topic generation, confirmation, or post generation)
   const isTopicSelection = message.startsWith('topic:');
+  const isConfirmation = message.startsWith('confirm:');
+
+  if (isConfirmation) {
+    // User answered personal story confirmation - generate post
+    return await executePostGeneration(workflow, context);
+  }
 
   if (isTopicSelection) {
-    // User selected a topic - generate content
-    return await executePostGeneration(workflow, context);
+    // User selected a topic - show confirmation prompt
+    return await executeConfirmation(workflow, context);
   }
 
   // Step 2: Generate topics using AI
@@ -294,6 +300,64 @@ Return ONLY the JSON array.`;
 }
 
 /**
+ * Ask confirmation for personal story/angle after topic selection
+ */
+async function executeConfirmation(
+  workflow: WorkflowDefinition,
+  context: WorkflowExecutionContext
+): Promise<WorkflowExecutionResult> {
+  const { supabase, session, message } = context;
+
+  // Extract topic from message (format: "topic:0:headline_slug")
+  const topicMatch = message.match(/^topic:\d+:(.+)$/);
+  const topicSlug = topicMatch ? topicMatch[1].replace(/_/g, ' ') : 'general topic';
+
+  console.log('[WorkflowExecutor] Showing confirmation for topic:', topicSlug);
+
+  // Get confirmation prompt from workflow
+  const confirmationPrompt = getWorkflowPrompt(workflow, 'confirmation');
+  const displayPrompt = confirmationPrompt
+    ? interpolatePrompt(confirmationPrompt, { topic: topicSlug })
+    : `Perfect! Writing about: "${topicSlug}"\n\nAny personal story or specific angle to add?`;
+
+  // Save message
+  await supabase.from('hgc_messages').insert({
+    session_id: session.id,
+    role: 'user',
+    content: message,
+  });
+
+  return {
+    success: true,
+    response: displayPrompt,
+    sessionId: session.id,
+    interactive: {
+      type: 'decision',
+      workflow_id: `${workflow.name}-confirm-${Date.now()}`,
+      decision_options: [
+        {
+          label: 'Add personal story',
+          value: `confirm:add_story:${message}`,
+          variant: 'primary',
+          icon: 'user'
+        },
+        {
+          label: 'Generate without story',
+          value: `confirm:skip:${message}`,
+          variant: 'secondary',
+          icon: 'zap'
+        }
+      ],
+    },
+    meta: {
+      workflowName: workflow.name,
+      step: 'confirmation',
+      originalTopic: message,
+    },
+  };
+}
+
+/**
  * Generate LinkedIn post content after topic selection
  *
  * NOTE: Brand, style, and platform context are now in the system prompt.
@@ -305,11 +369,22 @@ async function executePostGeneration(
 ): Promise<WorkflowExecutionResult> {
   const { supabase, user, session, message } = context;
 
-  // Extract topic from message (format: "topic:0:headline_slug")
-  const topicMatch = message.match(/^topic:\d+:(.+)$/);
-  const topicSlug = topicMatch ? topicMatch[1].replace(/_/g, ' ') : 'general topic';
+  // Extract topic from message - handle both formats:
+  // - "confirm:add_story:topic:0:headline_slug" (new - with personal story confirmation)
+  // - "confirm:skip:topic:0:headline_slug" (new - skip personal story)
+  let topicSlug = 'general topic';
+  let includePersonalStory = false;
 
-  console.log('[WorkflowExecutor] Generating post for topic:', topicSlug, '(using cartridges from system prompt)');
+  if (message.startsWith('confirm:')) {
+    // New format: confirm:add_story:topic:0:headline_slug
+    const confirmMatch = message.match(/^confirm:(add_story|skip):topic:\d+:(.+)$/);
+    if (confirmMatch) {
+      includePersonalStory = confirmMatch[1] === 'add_story';
+      topicSlug = confirmMatch[2].replace(/_/g, ' ');
+    }
+  }
+
+  console.log('[WorkflowExecutor] Generating post for topic:', topicSlug, '(personal story:', includePersonalStory ? 'yes' : 'no', ')');
 
   // Get post_generation prompt from workflow
   const promptTemplate = getWorkflowPrompt(workflow, 'post_generation');
@@ -342,10 +417,15 @@ async function executePostGeneration(
   });
 
   try {
+    // Build user prompt - include personal story instruction if requested
+    const userPrompt = includePersonalStory
+      ? `Write a LinkedIn post about: ${topicSlug}\n\nIMPORTANT: Include a personal story or anecdote to make it more relatable and engaging.`
+      : `Write a LinkedIn post about: ${topicSlug}`;
+
     const result = await marketingConsole.execute(
       user.id,
       session.id,
-      [{ role: 'user', content: `Write a LinkedIn post about: ${topicSlug}` }]
+      [{ role: 'user', content: userPrompt }]
     );
 
     // Save messages (minimal - just the user action)
