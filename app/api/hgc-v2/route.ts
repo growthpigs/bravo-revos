@@ -278,10 +278,12 @@ export async function POST(request: NextRequest) {
 
     // 7.3 Handle workflow decision (workflow-based)
     let currentMessage = message;
+    let workflowContinuation = false;
     if (workflow_id && decision) {
-      console.log('[HGC_V2_WORKFLOW] Decision received:', {
+      console.log('[HGC_V2_WORKFLOW] 🔄 Decision received (WORKFLOW CONTINUATION):', {
         decision,
         workflow_id,
+        has_workflow_id: true,
       });
 
       // For workflow-based decisions, the decision value IS the message
@@ -296,14 +298,63 @@ export async function POST(request: NextRequest) {
 
       // Use decision as the message for workflow triggers
       currentMessage = decision;
+      workflowContinuation = true;
     }
 
     // 7.5 Check for workflow triggers (database-driven)
-    console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', currentMessage);
+    console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', {
+      currentMessage,
+      workflowContinuation,
+      has_workflow_id: !!workflow_id,
+    });
 
     // Dynamic import to prevent build-time tiktoken loading
-    const { findWorkflowByTrigger } = await import('@/lib/console/workflow-loader');
-    const matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
+    const { findWorkflowByTrigger, loadWorkflow } = await import('@/lib/console/workflow-loader');
+
+    // 🔍 DIAGNOSTIC: Log workflow matching attempt
+    console.log('[HGC_V2_WORKFLOW] 🔍 DIAGNOSTIC - Workflow matching:', {
+      workflow_id_provided: !!workflow_id,
+      workflow_id_value: workflow_id,
+      will_skip_trigger_matching: workflowContinuation,
+      decision_value: decision,
+    });
+
+    let matchedWorkflow;
+
+    // **FIX: When workflow_id is provided, load that workflow directly**
+    // This fixes the bug where workflow state was lost and code fell through to console_instance.execute()
+    if (workflowContinuation && workflow_id) {
+      // Extract base workflow name from workflow_id
+      // Format: "workflow-name-timestamp" → Extract "workflow-name"
+      const workflowNameMatch = workflow_id.match(/^(.+)-\d+$/);
+      const baseWorkflowName = workflowNameMatch ? workflowNameMatch[1] : workflow_id;
+
+      console.log('[HGC_V2_WORKFLOW] 🔧 FIX - Loading workflow by name:', {
+        workflow_id_original: workflow_id,
+        extracted_base_name: baseWorkflowName,
+      });
+
+      matchedWorkflow = await loadWorkflow(baseWorkflowName, supabase, user.id);
+
+      if (!matchedWorkflow) {
+        console.error('[HGC_V2_WORKFLOW] ❌ Failed to load workflow by name:', baseWorkflowName);
+        // Fall back to trigger matching as last resort
+        matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
+      } else {
+        console.log('[HGC_V2_WORKFLOW] ✅ Workflow loaded successfully:', matchedWorkflow.name);
+      }
+    } else {
+      // Normal flow: match by trigger
+      matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
+    }
+
+    // 🔍 DIAGNOSTIC: Log matching result
+    console.log('[HGC_V2_WORKFLOW] 🔍 DIAGNOSTIC - Workflow match result:', {
+      matched: !!matchedWorkflow,
+      workflow_name: matchedWorkflow?.name,
+      workflow_type: matchedWorkflow?.workflow_type,
+      will_fall_through_to_console_execute: !matchedWorkflow,
+    });
 
     if (matchedWorkflow) {
       console.log('[HGC_V2_WORKFLOW] Workflow matched:', {
