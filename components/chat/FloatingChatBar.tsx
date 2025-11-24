@@ -694,8 +694,21 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         // TODO: Implement schedule post
         toast.info('Schedule post - Coming soon!');
         break;
+      case 'schedule':
+        // TODO: Implement schedule post
+        toast.info('Schedule post - Coming soon!');
+        break;
       default:
-        console.warn('[FCB] Unknown action:', action);
+        console.log('[FCB] Handling generic action:', action);
+        setInput(`I select the topic: ${action}`);
+        setTimeout(() => {
+           if (floatingBarRef.current) {
+             floatingBarRef.current.requestSubmit();
+           } else {
+             handleSubmit(new Event('submit') as any);
+           }
+        }, 0);
+        break;
     }
   };
 
@@ -716,37 +729,11 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     console.log('[HGC_STREAM] SUBMIT BUTTON CLICKED - handleSubmit called');
     console.log('[HGC_STREAM] ========================================');
 
-      case 'schedule':
-        // TODO: Implement schedule post
-        toast.info('Schedule post - Coming soon!');
-        break;
-      default:
-        // Generic action handling (e.g., Topic Selection from WriteChip)
-        // If it's not a system command, assume it's a user selection and send it as a message
-        console.log('[FCB] Handling generic action as user message:', action);
-        
-        // Use a clearer, natural language format for the AI
-        // If the action is a slug like "talent_myth", the AI might prefer "I select the topic: talent_myth"
-        const messageText = `I select the topic: ${action}`;
-        
-        // Update input and submit
-        // Note: setInput is async, so we use a timeout to ensure state update before submit
-        setInput(messageText);
-        
-        setTimeout(() => {
-           // Try to use native form submission if ref exists
-           if (floatingBarRef.current) {
-             floatingBarRef.current.requestSubmit();
-           } else {
-             // Fallback
-             handleSubmit(new Event('submit') as any);
-           }
-        }, 100);
-        
-        break;
+    e.preventDefault();
+    if (!input.trim() || isLoading) {
+      return;
     }
-  };
-    // Create new conversation if needed
+
     if (!currentConversationId) {
       createNewConversation();
     }
