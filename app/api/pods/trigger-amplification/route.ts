@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '~/lib/supabase/client'; // Or server if this is a server-side API route
-import { podAmplificationQueue } from '~/lib/queues/pod-amplification-queue';
+import { createClient } from '@/lib/supabase/client';
+import { podAmplificationQueue } from '@/lib/queues/pod-amplification-queue';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
