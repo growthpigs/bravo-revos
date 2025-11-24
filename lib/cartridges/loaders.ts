@@ -18,6 +18,8 @@ export interface BrandCartridge {
   brand_voice?: string;
   brand_personality?: string[];
   core_messaging?: string; // 10k+ words of marketing messaging
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SwipeCartridge {
@@ -61,6 +63,8 @@ export async function loadBrandCartridge(
       .from('brand_cartridges')
       .select('*')
       .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (error || !data) {

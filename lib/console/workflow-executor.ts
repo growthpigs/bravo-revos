@@ -219,14 +219,19 @@ Return ONLY the JSON array.`;
 
     console.log('[WorkflowExecutor] Topics generated:', topicOptions.length);
 
-    // DIAGNOSTIC: Check brand cartridge data
+    // DIAGNOSTIC: Check brand cartridge data (ENHANCED - shows which cartridge is loaded)
     console.log('[WorkflowExecutor] 🔍 Brand cartridge diagnostic:', {
       has_cartridges_obj: !!context.cartridges,
       has_brand: !!context.cartridges?.brand,
+      brand_id: context.cartridges?.brand?.id,
+      brand_updated_at: context.cartridges?.brand?.updated_at,
       brand_data: context.cartridges?.brand ? {
+        cartridge_name: context.cartridges.brand.name,
+        company_name: context.cartridges.brand.company_name,
         industry: context.cartridges.brand.industry,
         target_audience: context.cartridges.brand.target_audience,
-        has_core_messaging: !!context.cartridges.brand.core_messaging,
+        core_messaging_length: context.cartridges.brand.core_messaging?.length || 0,
+        core_messaging_preview: context.cartridges.brand.core_messaging?.substring(0, 150) + '...',
         has_brand_voice: !!context.cartridges.brand.brand_voice
       } : null
     });
