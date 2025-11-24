@@ -92,6 +92,7 @@ export class MarketingConsole {
           temperature: this.config.temperature || 0.7,
         },
         tools: [], // Start with no tools
+        client: this.openai, // CRITICAL: DO NOT REMOVE - Regression in f8df620 broke this (fixed in 9cc8f96)
       });
 
       // Apply all loaded cartridges to the agent
