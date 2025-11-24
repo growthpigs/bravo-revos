@@ -333,7 +333,7 @@ async function executeConfirmation(
     sessionId: session.id,
     interactive: {
       type: 'decision',
-      workflow_id: `${workflow.name}-confirm-${Date.now()}`,
+      workflow_id: `${workflow.name}-${Date.now()}`, // Same format as topic generation - don't add "-confirm"
       decision_options: [
         {
           label: 'Add personal story',
