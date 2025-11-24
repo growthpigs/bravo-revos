@@ -656,9 +656,8 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           const profileUrl = data.profileUrl; // Profile URL from API response
 
           // Use recent activity URL instead of direct post link
-          const activityUrl = profileUrl
-            ? `${profileUrl}/recent-activity/all/`
-            : 'https://www.linkedin.com/me/recent-activity/all/';
+          // Always use specific profile URL for now since profile_url column doesn't exist yet
+          const activityUrl = 'https://www.linkedin.com/in/rodericandrews/recent-activity/all/';
 
           const successMessage: Message = {
             id: generateUniqueId(),
