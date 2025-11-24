@@ -153,29 +153,34 @@ Return ONLY the JSON array.`;
       [{ role: 'user', content: analysisPrompt }]
     );
 
-    console.log('[WorkflowExecutor] AI response received:', result.response.substring(0, 300));
+    console.log('[WorkflowExecutor] 🔍 AI response received (first 300 chars):', result.response.substring(0, 300));
+    console.log('[WorkflowExecutor] 🔍 FULL AI response:', result.response); // ← NEW: See complete response
 
     // Parse AI response as JSON array with rationale
     let topicData: Array<{headline: string; rationale: string}> = [];
     try {
       const parsed = JSON.parse(result.response);
+      console.log('[WorkflowExecutor] 🔍 Parsed JSON type:', Array.isArray(parsed) ? 'array' : typeof parsed); // ← NEW
+      console.log('[WorkflowExecutor] 🔍 Parsed JSON:', JSON.stringify(parsed, null, 2)); // ← NEW
+
       if (Array.isArray(parsed)) {
         topicData = parsed.map(item => ({
           headline: item.headline || String(item),
           rationale: item.rationale || ''
         }));
       } else {
-        console.warn('[WorkflowExecutor] Parsed JSON is not an array:', typeof parsed);
+        console.warn('[WorkflowExecutor] ⚠️ Parsed JSON is not an array:', typeof parsed);
         topicData = [{headline: String(parsed), rationale: ''}];
       }
     } catch (e) {
-      console.log('[WorkflowExecutor] JSON parse failed, extracting from text');
+      console.log('[WorkflowExecutor] ❌ JSON parse failed, extracting from text');
+      console.log('[WorkflowExecutor] ❌ Parse error:', e);
       // If not JSON, try to extract topics from text
       const lines = result.response.split('\n').filter((l) => l.trim());
       topicData = lines.slice(0, 4).map(line => ({headline: line, rationale: ''}));
     }
 
-    console.log('[WorkflowExecutor] Parsed topics with rationale:', topicData);
+    console.log('[WorkflowExecutor] ✅ Final topicData with rationale:', JSON.stringify(topicData, null, 2));
 
     // Ensure we have at least one topic
     if (!Array.isArray(topicData) || topicData.length === 0) {
