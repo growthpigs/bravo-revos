@@ -570,6 +570,7 @@ export async function getUserLatestPosts(
  * @param accountId - Unipile account ID
  * @param text - Post content text
  * @param clientCredentials - Optional per-client Unipile credentials
+ * @param timeoutMs - Timeout in milliseconds (default 25000)
  * @returns Created post details with ID and URL
  */
 export interface CreatePostResponse {
@@ -664,8 +665,13 @@ export async function getDirectMessages(
 export async function createLinkedInPost(
   accountId: string,
   text: string,
-  clientCredentials?: UnipileCredentials | null
+  clientCredentials?: UnipileCredentials | null,
+  timeoutMs: number = 25000 // Default 25s timeout (safe for 30s/60s serverless limits)
 ): Promise<CreatePostResponse> {
+  // Setup AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const credentials = getUnipileCredentials(clientCredentials);
 
@@ -691,6 +697,7 @@ export async function createLinkedInPost(
       accountId,
       textLength: text.length,
       dsn: credentials.dsn,
+      timeout: timeoutMs
     });
 
     const response = await fetch(
@@ -707,6 +714,7 @@ export async function createLinkedInPost(
           text,
           provider: 'LINKEDIN',
         }),
+        signal: controller.signal, // Attach abort signal
       }
     );
 
@@ -748,8 +756,17 @@ export async function createLinkedInPost(
       created_at: data.created_at || data.parsed_datetime || new Date().toISOString(),
       status: data.status || 'published',
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Handle abort error specifically
+    if (error.name === 'AbortError') {
+      console.error('[UNIPILE_POST_TIMEOUT] Request timed out after', timeoutMs, 'ms');
+      throw new Error(`LinkedIn post creation timed out after ${timeoutMs}ms`);
+    }
+    
     console.error('Error creating LinkedIn post:', error);
     throw error;
+  } finally {
+    // Clear the timeout to prevent memory leaks
+    clearTimeout(timeoutId);
   }
 }
