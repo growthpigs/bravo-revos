@@ -23,7 +23,7 @@ export class PublishingChip extends BaseChip {
       parameters: z.object({
         action: z.enum(['post_now', 'schedule']).describe('Publish now or schedule for later'),
         content: z.string().describe('LinkedIn post content'),
-        campaign_id: z.string().describe('Campaign UUID to associate with'),
+        campaign_id: z.string().optional().describe('Campaign UUID to associate with (optional)'),
         trigger_word: z
           .string()
           .optional()
