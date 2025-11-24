@@ -324,25 +324,49 @@ export async function POST(request: NextRequest) {
     // **FIX: When workflow_id is provided, load that workflow directly**
     // This fixes the bug where workflow state was lost and code fell through to console_instance.execute()
     if (workflowContinuation && workflow_id) {
-      // Extract base workflow name from workflow_id
-      // Format: "workflow-name-timestamp" → Extract "workflow-name"
-      const workflowNameMatch = workflow_id.match(/^(.+)-\d+$/);
-      const baseWorkflowName = workflowNameMatch ? workflowNameMatch[1] : workflow_id;
+      // SECURITY: Validate workflow_id format before processing
+      // Expected format: "workflow-name-{13-digit-timestamp}"
+      const workflowIdPattern = /^([a-z0-9-]+)-(\d{13})$/i;
+      const workflowNameMatch = workflow_id.match(workflowIdPattern);
+
+      if (!workflowNameMatch) {
+        console.error('[HGC_V2_WORKFLOW] ❌ Invalid workflow_id format:', workflow_id);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Invalid workflow session. Please start over.',
+          },
+          { status: 400 }
+        );
+      }
+
+      // Extract and sanitize workflow name
+      // Remove any potentially dangerous characters (defense in depth)
+      const baseWorkflowName = workflowNameMatch[1]
+        .replace(/[^a-z0-9_-]/gi, '')
+        .toLowerCase();
 
       console.log('[HGC_V2_WORKFLOW] 🔧 FIX - Loading workflow by name:', {
         workflow_id_original: workflow_id,
         extracted_base_name: baseWorkflowName,
+        timestamp: workflowNameMatch[2],
       });
 
       matchedWorkflow = await loadWorkflow(baseWorkflowName, supabase, user.id);
 
+      // CRITICAL: If workflow not found, return explicit error (don't fall through)
       if (!matchedWorkflow) {
-        console.error('[HGC_V2_WORKFLOW] ❌ Failed to load workflow by name:', baseWorkflowName);
-        // Fall back to trigger matching as last resort
-        matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
-      } else {
-        console.log('[HGC_V2_WORKFLOW] ✅ Workflow loaded successfully:', matchedWorkflow.name);
+        console.error('[HGC_V2_WORKFLOW] ❌ Workflow not found:', baseWorkflowName);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Workflow session expired or not found. Please start over.',
+          },
+          { status: 410 } // 410 Gone - resource no longer available
+        );
       }
+
+      console.log('[HGC_V2_WORKFLOW] ✅ Workflow loaded successfully:', matchedWorkflow.name);
     } else {
       // Normal flow: match by trigger
       matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
