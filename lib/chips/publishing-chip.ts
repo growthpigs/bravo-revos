@@ -162,7 +162,13 @@ export class PublishingChip extends BaseChip {
       return this.formatSuccess({
         post: dbPost,
         job,
-        message: `✅ Post published to LinkedIn!\n\n🔍 Now monitoring for trigger word: "${effectiveTriggerWord}"\n\nView post: ${post.url}`,
+        message: `✅ Post queued for publication!
+
+It may take a few minutes to appear on your LinkedIn profile.
+
+🔍 Started monitoring for comments with trigger: "${effectiveTriggerWord}"
+
+Link: ${post.url}`,
       });
     } catch (error) {
       console.error('[PublishingChip] Execution error:', error);

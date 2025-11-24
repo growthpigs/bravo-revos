@@ -24,7 +24,9 @@ export interface UnipileCredentials {
  * This provides a consistent way to check mock mode across all files
  */
 function isMockMode(): boolean {
-  return process.env.UNIPILE_MOCK_MODE !== 'false';
+  // Safety: Default to FALSE (Real Mode) unless explicitly enabled.
+  // Previous default of true caused silent failures in production.
+  return process.env.UNIPILE_MOCK_MODE === 'true';
 }
 
 /**
