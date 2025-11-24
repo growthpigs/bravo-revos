@@ -1,12 +1,11 @@
 import { Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import playwright, { BrowserContext } from 'playwright';
-import { env } from '@/env';
 import { PodAmplificationJob, podAmplificationQueue } from '@/lib/queues/pod-amplification-queue';
 import { createClient } from '@/lib/supabase/client';
 
 // Use a shared Redis connection for the worker
-const redisConnection = new Redis(env.REDIS_URL, {
+const redisConnection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
 });

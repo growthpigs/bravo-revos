@@ -1,9 +1,8 @@
 import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
-import { env } from '@/env';
 
 // Use a shared Redis connection for both the queue and workers
-const redisConnection = new Redis(env.REDIS_URL, {
+const redisConnection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
 });
