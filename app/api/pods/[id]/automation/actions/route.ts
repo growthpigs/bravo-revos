@@ -8,7 +8,7 @@ import {
   scheduleLikeJobs,
   scheduleCommentJobs,
   getAutomationQueueStatus,
-} from '@/lib/queue/pod-automation-queue';
+} from '@/lib/queues/pod-automation-queue';
 import { getPodEngagementStats } from '@/lib/pods/engagement-scheduler';
 
 export async function POST(

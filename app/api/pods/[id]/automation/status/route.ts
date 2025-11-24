@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAutomationQueueStatus } from '@/lib/queue/pod-automation-queue';
+import { getAutomationQueueStatus } from '@/lib/queues/pod-automation-queue';
 import { getPodEngagementStats, getPendingActivities } from '@/lib/pods/engagement-scheduler';
 import { createClient } from '@/lib/supabase/server';
 

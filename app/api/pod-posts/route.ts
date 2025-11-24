@@ -9,7 +9,7 @@ import {
   stopPodPostDetection,
   getQueueStatus,
   PodPostJobData,
-} from '@/lib/queue/pod-post-queue';
+} from '@/lib/queues/pod-post-queue';
 
 // POST - Start or stop pod post detection
 export async function POST(request: NextRequest) {

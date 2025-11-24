@@ -15,7 +15,7 @@ import {
   WebhookPayload,
   isValidWebhookUrl,
 } from '@/lib/webhook-delivery';
-import { queueWebhookDelivery } from '@/lib/queue/webhook-delivery-queue';
+import { queueWebhookDelivery } from '@/lib/queues/webhook-delivery-queue';
 import {
   generateLeadMagnetEmail,
   generateFallbackEmail,

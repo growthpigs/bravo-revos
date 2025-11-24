@@ -1,22 +1,11 @@
 /**
  * HGC v2 API Route - AgentKit + Cartridge Architecture
  *
- * ⚠️ CRITICAL: THIS IS THE CORRECT IMPLEMENTATION - USER WANTS V2, NOT V3
- *
- * DO NOT suggest switching to V3. V3 is technical debt.
- *
- * This implementation uses:
+ * This is the NEW implementation using:
  * - MarketingConsole (base system)
  * - LinkedIn Cartridge (with 4 chips)
  * - Voice Cartridge (optional voice parameters)
  * - AgentKit orchestration
- * - Mem0 memory integration
- * - Database-driven workflows
- *
- * All V2 bugs have been fixed:
- * - Missing config file (fixed)
- * - GPT-5.1 incompatibility (fixed - using gpt-4o)
- * - Model validation (fixed)
  *
  * Response format MUST match v1 for FloatingChatBar compatibility.
  */
@@ -310,40 +299,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 7.5 Check for workflow triggers (database-driven)
-    let matchedWorkflow;
+    console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', currentMessage);
 
-    if (workflow_id && decision) {
-      // Validate workflow_id format to prevent SQL injection
-      // Expected format: "write-linkedin-post-1234567890" (workflow-name-timestamp)
-      if (!workflow_id || !/^[a-z]+-[a-z-]+-\d+$/.test(workflow_id)) {
-        console.error('[HGC_V2_WORKFLOW] Invalid workflow_id format:', workflow_id);
-        return NextResponse.json(
-          { success: false, error: 'Invalid workflow identifier format' },
-          { status: 400 }
-        );
-      }
-
-      // Decision from existing workflow - extract workflow name from workflow_id
-      // Format: "write-linkedin-post-1234567890"
-      // Extract everything before the timestamp suffix
-      const workflowName = workflow_id.split('-').slice(0, -1).join('-');
-      console.log('[HGC_V2_WORKFLOW] Decision for existing workflow, loading:', workflowName);
-
-      // Dynamic import to prevent build-time tiktoken loading
-      const { loadWorkflow } = await import('@/lib/console/workflow-loader');
-      matchedWorkflow = await loadWorkflow(workflowName, supabase, user.id);
-
-      if (!matchedWorkflow) {
-        console.error('[HGC_V2_WORKFLOW] Failed to load workflow from workflow_id:', workflow_id);
-      }
-    } else {
-      // New command - find workflow by trigger
-      console.log('[HGC_V2_WORKFLOW] Checking for workflow triggers:', currentMessage);
-
-      // Dynamic import to prevent build-time tiktoken loading
-      const { findWorkflowByTrigger } = await import('@/lib/console/workflow-loader');
-      matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
-    }
+    // Dynamic import to prevent build-time tiktoken loading
+    const { findWorkflowByTrigger } = await import('@/lib/console/workflow-loader');
+    const matchedWorkflow = await findWorkflowByTrigger(currentMessage, supabase, user.id);
 
     if (matchedWorkflow) {
       console.log('[HGC_V2_WORKFLOW] Workflow matched:', {
@@ -411,15 +371,7 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (error: any) {
-        console.error('[HGC_V2_WORKFLOW] Workflow execution failed:', {
-          error: error.message,
-          userId: user.id,
-          sessionId: session.id,
-          workflowName: matchedWorkflow?.name,
-          workflowId: workflow_id,
-          decision: decision,
-          stack: error.stack,
-        });
+        console.error('[HGC_V2_WORKFLOW] Workflow execution failed:', error);
 
         // Return error response
         return NextResponse.json(

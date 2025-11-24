@@ -210,6 +210,29 @@ Please check your dashboard manually.`,
 
       console.log('[PublishingChip] Post stored in database:', updatedPost.id);
 
+      // Trigger Pod Amplification (Non-blocking)
+      try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+        const triggerUrl = `${appUrl}/api/pods/trigger-amplification`;
+        console.log(`[PublishingChip] Triggering pod amplification at ${triggerUrl} for postId:`, updatedPost.id);
+        
+        // Fire and forget - don't await the result to keep UI responsive? 
+        // The prompt says "Wrap this in a try/catch block so that if the trigger fails, the user still gets a 'Post Published' success message".
+        // Use await but catch errors so it doesn't throw.
+        fetch(triggerUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ postId: updatedPost.id }),
+        }).then(res => {
+            if (!res.ok) console.error('[PublishingChip] Trigger API failed:', res.statusText);
+        }).catch(err => console.error('[PublishingChip] Trigger API network error:', err));
+
+      } catch (triggerError) {
+        console.error('[PublishingChip] Error initiating trigger-amplification:', triggerError);
+      }
+
       // 4. Create monitoring job
       const effectiveTriggerWord = trigger_word || 'interested';
       const { data: job, error: jobError } = await context.supabase

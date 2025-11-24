@@ -10,7 +10,7 @@ import {
   getPodMembersWithAccounts,
 } from '@/lib/pods/post-detector';
 import { UnipilePost } from '@/lib/unipile-client';
-import { podPostQueue, startPodPostDetection, stopPodPostDetection } from '@/lib/queue/pod-post-queue';
+import { podPostQueue, startPodPostDetection, stopPodPostDetection } from '@/lib/queues/pod-post-queue';
 import { POD_POST_CONFIG } from '@/lib/config';
 
 // Mock Supabase

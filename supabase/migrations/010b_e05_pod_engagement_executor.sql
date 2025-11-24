@@ -1,6 +1,7 @@
 -- E-05: Pod Engagement Executor
 -- Add columns for execution result tracking, idempotency, error handling, and dead-letter queue
--- Project ID: kvjcidxbyimoswntpjcp
+-- Supabase Project: kvjcidxbyimoswntpjcp
+-- Click: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
 
 -- Track execution results and enable idempotency checks
 ALTER TABLE pod_activities

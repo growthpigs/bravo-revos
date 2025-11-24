@@ -25,20 +25,29 @@
 
 ## Session Reporting Requirements
 
-**After completing any proposal, plan, or SITREP, always provide:**
+**After completing any proposal, plan, SITREP, or deployment, ALWAYS provide:**
 
 - **MCPs Used:** List all MCP servers accessed (e.g., Archon, Sentry, Supabase)
-- **Feature Branch:** Current branch name (e.g., `feat/v2-agentkit-architecture`)
+- **Current Branch:** Branch you're working on (e.g., `staging`, `feat/feature-name`)
 - **Repository:** `growthpigs/bravo-revos`
 - **Last Commit:** Short hash and message
+- **Deployed To:** Which environments were updated (staging, production, both, or none)
+- **Status:** What's deployed where
 
 **Example:**
 ```
 MCPs Used: Archon, Supabase
-Branch: feat/v2-agentkit-architecture
+Current Branch: staging
 Repo: growthpigs/bravo-revos
-Last Commit: 308d6de - docs: suspend V3, enforce AgentKit architecture
+Last Commit: 6aca0b7 - fix: Hardcode LinkedIn profile URL for recent activity link
+
+DEPLOYMENT STATUS:
+✅ Staging: https://bravo-revos-git-staging-agro-bros.vercel.app (6aca0b7)
+✅ Production: https://bravo-revos.vercel.app (6aca0b7)
+📝 Note: Both environments updated with LinkedIn posting fixes
 ```
+
+**CRITICAL:** Always provide deployment status so user knows exactly what's deployed where.
 
 ---
 
@@ -287,25 +296,131 @@ Architecture:
 - `/docs/projects/bravo-revos/archon-specs/01-RevOS-Technical-Architecture-v3.md`
 - `/docs/projects/bravo-revos/archon-specs/02-Cartridge-System-Specification.md`
 
-## Development Workflow
+## Three-Tier Deployment Strategy
 
-Branch: `feat/name → main (dev) → staging (review) → production (live)`
+**CRITICAL: Use this workflow for ALL deployments. Always report deployment status.**
 
-New Feature:
-1. `git checkout -b feat/name`
-2. Create `docs/features/YYYY-MM-DD-name/` (001-spec.md, 002-plan.md, 003-sitrep-DATE.md, 999-final.md)
-3. Code + commit
-4. Test: `npm test && npx tsc --noEmit`
-5. Push: `git push -u origin feat/name`
-6. Upload all .md to Archon via `manage_document()`
+### Environment URLs
 
-SQL migrations start with:
+1. **Local Development (Limited)** - `http://localhost:3000`
+   - **Use For:** Quick UI/logic checks only
+   - **Limitations:** No OAuth ❌, No webhooks ❌, No LinkedIn posting ❌
+   - **Works:** React components ✅, Styling ✅, Basic interactions ✅
+
+2. **Staging (Primary Testing)** - `https://bravo-revos-git-staging-agro-bros.vercel.app`
+   - **Branch:** `staging`
+   - **Use For:** REAL testing with full environment
+   - **Works:** EVERYTHING ✅ - OAuth ✅, Webhooks ✅, LinkedIn ✅, All integrations ✅
+   - **Deploy:** Auto-deploys when you push to staging branch
+
+3. **Production (Stable)** - `https://bravo-revos.vercel.app`
+   - **Branch:** `main`
+   - **Use For:** Live production (locked/stable)
+   - **Deploy:** ONLY merge staging → main after testing
+   - **Rule:** NEVER push directly to main without testing on staging first
+
+### Standard Workflow (Follow This)
+
+```bash
+# 1. Work on staging branch (or feature branch)
+git checkout staging
+# ... make changes ...
+git add .
+git commit -m "fix: your change"
+
+# 2. Push to staging for testing
+git push origin staging
+# Vercel auto-deploys to: https://bravo-revos-git-staging-agro-bros.vercel.app
+
+# 3. Test on staging URL (FULL ENVIRONMENT)
+open https://bravo-revos-git-staging-agro-bros.vercel.app
+# Test: Login, write workflow, LinkedIn posting, all features
+
+# 4. If everything works, promote to production
+git checkout main
+git merge staging --no-edit
+git push origin main
+# Vercel auto-deploys to: https://bravo-revos.vercel.app
+
+# 5. ALWAYS report deployment status
+echo "
+DEPLOYMENT STATUS:
+✅ Staging: https://bravo-revos-git-staging-agro-bros.vercel.app (commit-hash)
+✅ Production: https://bravo-revos.vercel.app (commit-hash)
+📝 Note: What was deployed
+"
+
+# 6. Switch back to staging for next work
+git checkout staging
+```
+
+### Feature Branch Workflow
+
+```bash
+# For larger features, use feature branches
+git checkout -b feat/feature-name
+# ... work ...
+git push origin feat/feature-name
+# Vercel creates: https://bravo-revos-git-feat-feature-name-agro-bros.vercel.app
+
+# When ready, merge to staging first
+git checkout staging
+git merge feat/feature-name
+git push origin staging
+# Test on staging, then promote to main
+```
+
+### Emergency Rollback
+
+```bash
+# Find last good commit
+git log --oneline -5
+
+# Rollback main branch
+git checkout main
+git reset --hard <good-commit-hash>
+git push origin main --force
+
+# Vercel auto-deploys reverted version
+```
+
+### Why Localhost is Limited
+
+**What DOESN'T work on localhost:**
+- ❌ LinkedIn OAuth (requires public HTTPS callback)
+- ❌ Unipile webhooks (can't reach localhost)
+- ❌ ESP webhooks (ConvertKit, Mailchimp, etc.)
+- ❌ LinkedIn account connection
+- ❌ Any external API callbacks
+
+**What DOES work on localhost:**
+- ✅ UI changes, styling, layout
+- ✅ Chat interface (messages, responses)
+- ✅ Content generation (AI/GPT calls)
+- ✅ Database queries (Supabase remote)
+- ✅ Mock mode (`UNIPILE_MOCK_MODE=true`)
+
+**Bottom Line:** Use staging as your primary test environment, not localhost.
+
+### SQL Migrations
+
+Path: `supabase/migrations/YYYYMMDD_description.sql`
+
+Always start with:
 ```sql
 -- Supabase Project: trdoainmejxanrownbuz
 -- Click: https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/new
 ```
 
-Path: `supabase/migrations/YYYYMMDD_description.sql`
+### Documentation for Features
+
+Create: `docs/features/YYYY-MM-DD-name/`
+- `001-spec.md` - What & why
+- `002-plan.md` - Tasks, timeline
+- `003-sitrep-DATE.md` - Progress updates
+- `999-final.md` - What shipped, learnings
+
+Upload all .md to Archon: `manage_document()`
 
 ## Coding Standards
 

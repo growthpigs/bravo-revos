@@ -4,7 +4,7 @@
  * Tests all 7 identified edge cases from code review
  */
 
-import { checkRateLimit, queueDM, dmQueue, generateJobId } from '@/lib/queue/dm-queue';
+import { checkRateLimit, queueDM, dmQueue, generateJobId } from '@/lib/queues/dm-queue';
 import { getRedisConnection } from '@/lib/redis';
 import { Job } from 'bullmq';
 

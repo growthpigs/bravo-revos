@@ -4,8 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { addEngagementJob, initializeEngagementWorker } from '@/lib/queue/pod-engagement-worker';
-import type { EngagementJobData } from '@/lib/queue/pod-engagement-worker';
+import { addEngagementJob, initializeEngagementWorker } from '@/lib/queues/pod-engagement-worker';
+import type { EngagementJobData } from '@/lib/queues/pod-engagement-worker';
 
 export async function POST(
   request: NextRequest,

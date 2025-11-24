@@ -9,7 +9,7 @@ import {
   stopCommentPolling,
   getQueueStatus,
   CommentPollingJobData,
-} from '@/lib/queue/comment-polling-queue';
+} from '@/lib/queues/comment-polling-queue';
 
 // POST - Start comment polling for a campaign
 export async function POST(request: NextRequest) {

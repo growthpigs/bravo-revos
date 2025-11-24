@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getEngagementWorkerHealth, getEngagementQueueStats } from '@/lib/queue/pod-engagement-worker';
+import { getEngagementWorkerHealth, getEngagementQueueStats } from '@/lib/queues/pod-engagement-worker';
 
 export async function GET(
   request: NextRequest,

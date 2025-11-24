@@ -9,7 +9,7 @@ import {
   scheduleCommentJobs,
   getAutomationQueueStatus,
   getPodAutomationStats,
-} from '@/lib/queue/pod-automation-queue';
+} from '@/lib/queues/pod-automation-queue';
 
 /**
  * POST - Manually trigger engagement scheduling for a pod

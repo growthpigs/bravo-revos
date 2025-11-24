@@ -14,7 +14,7 @@ import {
   pauseEngagementWorker,
   resumeEngagementWorker,
   type EngagementJobData,
-} from '@/lib/queue/pod-engagement-worker';
+} from '@/lib/queues/pod-engagement-worker';
 
 // Mock Supabase
 jest.mock('@/lib/supabase/server', (): any => ({

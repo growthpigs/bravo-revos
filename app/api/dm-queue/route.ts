@@ -14,7 +14,7 @@ import {
   resumeQueue,
   DMJobData,
   generateJobId,
-} from '@/lib/queue/dm-queue';
+} from '@/lib/queues/dm-queue';
 
 // POST - Queue a DM or perform action
 export async function POST(request: NextRequest) {

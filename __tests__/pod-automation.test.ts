@@ -24,7 +24,7 @@ import {
   getAutomationQueueStatus,
   getPodAutomationStats,
   clearAutomationJobs,
-} from '@/lib/queue/pod-automation-queue';
+} from '@/lib/queues/pod-automation-queue';
 import { POD_AUTOMATION_CONFIG } from '@/lib/config';
 
 // Mock Supabase
