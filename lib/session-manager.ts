@@ -143,12 +143,26 @@ export async function saveMessage(
   sessionId: string,
   message: Message
 ): Promise<ChatMessage> {
+  // Normalize content to ALWAYS be a string before saving to database
+  let normalizedContent: string;
+
+  if (typeof message.content === 'string') {
+    normalizedContent = message.content;
+  } else if (typeof message.content === 'undefined' || message.content === null) {
+    normalizedContent = '';
+  } else if (typeof message.content === 'object') {
+    console.warn('[session-manager] Content is object, stringifying before save:', message.content);
+    normalizedContent = JSON.stringify(message.content);
+  } else {
+    normalizedContent = String(message.content);
+  }
+
   const { data: savedMessage, error } = await supabase
     .from('chat_messages')
     .insert({
       session_id: sessionId,
       role: message.role,
-      content: message.content,
+      content: normalizedContent,
       tool_calls: message.tool_calls || null,
       tool_call_id: message.tool_call_id || null,
       name: message.name || null,
@@ -177,15 +191,35 @@ export async function saveMessages(
   sessionId: string,
   messages: Message[]
 ): Promise<ChatMessage[]> {
-  const messagesToInsert = messages.map((msg) => ({
-    session_id: sessionId,
-    role: msg.role,
-    content: msg.content,
-    tool_calls: msg.tool_calls || null,
-    tool_call_id: msg.tool_call_id || null,
-    name: msg.name || null,
-    metadata: {},
-  }));
+  const messagesToInsert = messages.map((msg) => {
+    // Normalize content to ALWAYS be a string before saving to database
+    // This prevents "e.content.map is not a function" errors when loading history
+    let normalizedContent: string;
+
+    if (typeof msg.content === 'string') {
+      normalizedContent = msg.content;
+    } else if (typeof msg.content === 'undefined' || msg.content === null) {
+      // Tool calls or empty messages can have null/undefined content
+      normalizedContent = '';
+    } else if (typeof msg.content === 'object') {
+      // Objects (arrays or malformed content) need to be stringified
+      console.warn('[session-manager] Content is object, stringifying before save:', msg.content);
+      normalizedContent = JSON.stringify(msg.content);
+    } else {
+      // Fallback for any other type (number, boolean, etc.)
+      normalizedContent = String(msg.content);
+    }
+
+    return {
+      session_id: sessionId,
+      role: msg.role,
+      content: normalizedContent,
+      tool_calls: msg.tool_calls || null,
+      tool_call_id: msg.tool_call_id || null,
+      name: msg.name || null,
+      metadata: {},
+    };
+  });
 
   const { data: savedMessages, error } = await supabase
     .from('chat_messages')
