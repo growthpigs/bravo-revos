@@ -103,6 +103,7 @@ export class MarketingConsole {
         const updatedConfig: any = {
           tools: [...currentTools, ...injection.tools],
           instructions: `${this.agent.instructions}\n\n${injection.instructions}`,
+          client: this.openai, // CRITICAL: Must preserve client when cloning agent
         };
 
         if (injection.model) {
