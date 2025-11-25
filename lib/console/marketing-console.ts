@@ -241,14 +241,43 @@ export class MarketingConsole {
 
       let result;
       try {
+        const formattedMessages = this.convertMessagesToAgentFormat(messages);
+
+        // 🔍 DIAGNOSTIC: Log EXACT format being passed to AgentKit
+        console.log('🔍 [BEFORE_AGENTKIT] Message count:', formattedMessages.length);
+        formattedMessages.forEach((msg, i) => {
+          console.log(`🔍 [MSG_${i}] role:`, msg.role);
+          console.log(`🔍 [MSG_${i}] content type:`, typeof msg.content);
+          console.log(`🔍 [MSG_${i}] content is array:`, Array.isArray(msg.content));
+          console.log(`🔍 [MSG_${i}] content value:`, JSON.stringify(msg.content).substring(0, 200));
+        });
+
         result = await run(
           agentWithMemory,
-          this.convertMessagesToAgentFormat(messages),
+          formattedMessages,
           {
             context, // Pass context to tools
             stream: false,
           }
         );
+
+        // 🔍 DIAGNOSTIC: Log what AgentKit RETURNED
+        console.log('🔍 [AGENTKIT_RESULT] Type:', typeof result);
+        console.log('🔍 [AGENTKIT_RESULT] Keys:', Object.keys(result || {}));
+        if (result?.output && Array.isArray(result.output)) {
+          console.log('🔍 [AGENTKIT_RESULT] output.length:', result.output.length);
+          result.output.forEach((item: any, i: number) => {
+            console.log(`🔍 [OUTPUT_${i}] role:`, item.role);
+            console.log(`🔍 [OUTPUT_${i}] content type:`, typeof item.content);
+            console.log(`🔍 [OUTPUT_${i}] content is array:`, Array.isArray(item.content));
+            if (Array.isArray(item.content)) {
+              console.log(`🔍 [OUTPUT_${i}] content[0]:`, JSON.stringify(item.content[0]).substring(0, 200));
+            } else {
+              console.log(`🔍 [OUTPUT_${i}] content:`, JSON.stringify(item.content).substring(0, 200));
+            }
+          });
+        }
+
         console.log('[MarketingConsole] Agent execution complete');
       } catch (agentError: any) {
         // Enhanced error logging for AgentKit/OpenAI API failures
