@@ -329,13 +329,36 @@ export class MarketingConsole {
       return [];
     }
 
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-      tool_calls: msg.tool_calls,
-      tool_call_id: msg.tool_call_id,
-      name: msg.name,
-    }));
+    return messages.map((msg) => {
+      // Normalize content to ensure it's valid for AgentKit SDK
+      // AgentKit expects content to be either:
+      // 1. A string (for text messages)
+      // 2. An array of content parts (for multimodal messages)
+      // 3. null/undefined for tool calls
+      let normalizedContent = msg.content;
+
+      // If content is undefined or null, convert to empty string for text messages
+      if (normalizedContent === undefined || normalizedContent === null) {
+        // Only set empty string for user/assistant messages, leave null for tool messages
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          normalizedContent = '';
+        }
+      }
+
+      // If content is an object (but not an array), stringify it
+      if (typeof normalizedContent === 'object' && !Array.isArray(normalizedContent)) {
+        console.warn('[MarketingConsole] Content is object, converting to string:', normalizedContent);
+        normalizedContent = JSON.stringify(normalizedContent);
+      }
+
+      return {
+        role: msg.role,
+        content: normalizedContent,
+        tool_calls: msg.tool_calls,
+        tool_call_id: msg.tool_call_id,
+        name: msg.name,
+      };
+    });
   }
 
   /**
