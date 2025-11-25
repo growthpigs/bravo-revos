@@ -26,7 +26,15 @@ const TRIGGER_WORDS = [
   'link please',
   'yes!',
   'absolutely',
-  'definitely'
+  'definitely',
+  // Common lead magnet triggers
+  'guide',
+  'checklist',
+  'download',
+  'free',
+  'want it',
+  'need this',
+  'share it',
 ];
 
 // Lazy init
