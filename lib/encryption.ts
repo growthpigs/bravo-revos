@@ -15,6 +15,12 @@ const ENCODING = 'hex';
 function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'CRITICAL: ENCRYPTION_KEY environment variable is required in production. ' +
+        'Generate one with: openssl rand -hex 32'
+      );
+    }
     console.warn(
       'Warning: ENCRYPTION_KEY not set. Using default development key. ' +
       'Set ENCRYPTION_KEY environment variable for production.'

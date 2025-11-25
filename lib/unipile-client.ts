@@ -6,6 +6,8 @@
  * When client credentials are provided, they take precedence over system-wide env vars.
  */
 
+import crypto from 'crypto';
+
 // Note: We're using REST API calls directly instead of UnipileClient SDK
 // because the SDK initialization happens at build-time and fails if UNIPILE_API_KEY is not set
 
@@ -130,7 +132,7 @@ export async function authenticateLinkedinAccount(
       await new Promise(resolve => setTimeout(resolve, 500));
 
       return {
-        account_id: `mock_${Math.random().toString(36).substr(2, 9)}`,
+        account_id: `mock_${crypto.randomBytes(9).toString('base64url')}`,
         provider: 'LINKEDIN',
         status: 'OK',
         name: username.split('@')[0].toUpperCase(),
@@ -368,7 +370,7 @@ export async function getAllPostComments(
 
       return [
         {
-          id: `mock_comment_${Math.random().toString(36).substr(2, 9)}`,
+          id: `mock_comment_${crypto.randomBytes(9).toString('base64url')}`,
           text: 'SCALE - I would love to get this!',
           created_at: new Date().toISOString(),
           author: {
@@ -381,7 +383,7 @@ export async function getAllPostComments(
           replies_count: 0,
         },
         {
-          id: `mock_comment_${Math.random().toString(36).substr(2, 9)}`,
+          id: `mock_comment_${crypto.randomBytes(9).toString('base64url')}`,
           text: 'Great post!',
           created_at: new Date(Date.now() - 60000).toISOString(),
           author: {
@@ -447,7 +449,7 @@ export async function sendDirectMessage(
       }
 
       return {
-        message_id: `mock_msg_${Math.random().toString(36).substr(2, 9)}`,
+        message_id: `mock_msg_${crypto.randomBytes(9).toString('base64url')}`,
         status: 'sent',
       };
     }
@@ -527,7 +529,7 @@ export async function getUserLatestPosts(
       // Return mock posts
       return [
         {
-          id: `mock_post_${Math.random().toString(36).substr(2, 9)}`,
+          id: `mock_post_${crypto.randomBytes(9).toString('base64url')}`,
           text: 'Just launched our new product! Excited to share with everyone.',
           created_at: new Date().toISOString(),
           likes_count: 234,
@@ -614,7 +616,7 @@ export async function getDirectMessages(
       // Return mock DM reply with email
       return [
         {
-          id: `mock_dm_${Math.random().toString(36).substr(2, 9)}`,
+          id: `mock_dm_${crypto.randomBytes(9).toString('base64url')}`,
           text: 'Sure! My email is john.doe@example.com - looking forward to it!',
           created_at: new Date().toISOString(),
           direction: 'inbound',
@@ -685,7 +687,7 @@ export async function createLinkedInPost(
       await new Promise(resolve => setTimeout(resolve, 500));
 
       return {
-        id: `mock_post_${Math.random().toString(36).substr(2, 9)}`,
+        id: `mock_post_${crypto.randomBytes(9).toString('base64url')}`,
         url: `https://www.linkedin.com/feed/update/urn:li:activity:${Date.now()}`,
         text,
         created_at: new Date().toISOString(),

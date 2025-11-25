@@ -23,9 +23,7 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
 
   if (error || !data) {
     console.log('[ADMIN_CHECK] User is NOT admin:', userId)
-    // TEMPORARY: Allow all authenticated users to test the flow
-    console.log('[ADMIN_CHECK] BYPASSING - allowing user for testing')
-    return true
+    return false
   }
 
   console.log('[ADMIN_CHECK] User IS admin:', userId)

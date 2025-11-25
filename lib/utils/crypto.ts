@@ -17,6 +17,7 @@ export function generateSecureToken(byteLength: number = 32): string {
 
 /**
  * Generate a simple numeric code for SMS/email verification
+ * Uses cryptographically secure random number generation
  *
  * @param length - Number of digits (default: 6)
  * @returns Numeric code as string
@@ -24,5 +25,5 @@ export function generateSecureToken(byteLength: number = 32): string {
 export function generateVerificationCode(length: number = 6): string {
   const min = Math.pow(10, length - 1);
   const max = Math.pow(10, length) - 1;
-  return Math.floor(Math.random() * (max - min + 1) + min).toString();
+  return crypto.randomInt(min, max + 1).toString();
 }
