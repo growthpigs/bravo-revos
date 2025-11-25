@@ -6,7 +6,7 @@
 
 import { Worker, Job, Queue } from 'bullmq';
 import { createClient } from '@/lib/supabase/server';
-import { getRedisConnection } from '@/lib/redis';
+import { getRedisConnectionSync } from '@/lib/redis';
 import { LOGGING_CONFIG, FEATURE_FLAGS } from '@/lib/config';
 
 const LOG_PREFIX = '[POD_ENGAGEMENT_WORKER]';
@@ -83,7 +83,7 @@ let queueInstance: Queue<EngagementJobData> | null = null;
 export function getEngagementQueue(): Queue<EngagementJobData> {
   if (!queueInstance) {
     queueInstance = new Queue<EngagementJobData>(QUEUE_NAME, {
-      connection: getRedisConnection(),
+      connection: getRedisConnectionSync(),
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -116,7 +116,7 @@ export async function initializeEngagementWorker(): Promise<Worker<EngagementJob
 
   console.log(`${LOG_PREFIX} Initializing engagement worker...`);
 
-  const redis = getRedisConnection();
+  const redis = getRedisConnectionSync();
 
   workerInstance = new Worker<EngagementJobData>(QUEUE_NAME, processEngagementJob, {
     connection: redis,

@@ -24,18 +24,20 @@ export async function GET(request: NextRequest) {
       .from('cartridges')
       .select('*')
       .eq('is_active', true)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false});
 
-    // Apply filters
+    // Apply SAFE filters (tier, agency, client filtering still allowed)
     const tier = searchParams.get('tier');
     const agencyId = searchParams.get('agency_id');
     const clientId = searchParams.get('client_id');
-    const userId = searchParams.get('user_id');
+    // ⚠️ SECURITY FIX: Removed user_id filter - RLS handles this automatically
+    // Users should NEVER be able to specify user_id via query params (auth bypass vulnerability)
 
     if (tier) query = query.eq('tier', tier);
     if (agencyId) query = query.eq('agency_id', agencyId);
     if (clientId) query = query.eq('client_id', clientId);
-    if (userId) query = query.eq('user_id', userId);
+    // ⚠️ REMOVED: if (userId) query = query.eq('user_id', userId);
+    //    RLS policy automatically filters by authenticated user's ID
 
     const { data: cartridges, error } = await query;
 

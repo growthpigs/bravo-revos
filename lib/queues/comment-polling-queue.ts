@@ -6,7 +6,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { getAllPostComments } from '../unipile-client';
 import { processComments } from '../comment-processor';
-import { getRedisConnection } from '../redis';
+import { getRedisConnectionSync } from '../redis';
 import { COMMENT_POLLING_CONFIG, LOGGING_CONFIG } from '../config';
 import { validateCommentPollingJobData } from '../validation';
 
@@ -32,7 +32,7 @@ let queueInstance: Queue<CommentPollingJobData> | null = null;
 
 function createQueue(): Queue<CommentPollingJobData> {
   return new Queue<CommentPollingJobData>(QUEUE_NAME, {
-    connection: getRedisConnection(),
+    connection: getRedisConnectionSync(),
     defaultJobOptions: {
       attempts: COMMENT_POLLING_CONFIG.QUEUE_ATTEMPTS,
       backoff: {
@@ -242,7 +242,7 @@ function createWorker(): Worker<CommentPollingJobData> {
       await processCommentPollingJob(job);
     },
     {
-      connection: getRedisConnection(),
+      connection: getRedisConnectionSync(),
       concurrency: COMMENT_POLLING_CONFIG.QUEUE_CONCURRENCY || 3,
     }
   );
