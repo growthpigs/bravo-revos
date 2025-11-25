@@ -248,8 +248,29 @@ export async function POST(request: NextRequest) {
       // NOTE: conversationHistory parameter is IGNORED when sessionId is provided
       console.log('[HGC_V2] Loading conversation history from database...');
       const dbHistory = await getConversationHistory(supabase, session.id);
+
+      // Normalize database history content as well (defense-in-depth)
+      const normalizedHistory = dbHistory.map((msg) => {
+        let normalizedContent: string;
+        if (typeof msg.content === 'string') {
+          normalizedContent = msg.content;
+        } else if (typeof msg.content === 'undefined' || msg.content === null) {
+          normalizedContent = '';
+        } else if (typeof msg.content === 'object') {
+          console.warn('[HGC_V2] DB returned object content, stringifying:', msg.content);
+          normalizedContent = JSON.stringify(msg.content);
+        } else {
+          normalizedContent = String(msg.content);
+        }
+
+        return {
+          ...msg,
+          content: normalizedContent,
+        };
+      });
+
       messages = [
-        ...dbHistory,
+        ...normalizedHistory,
         {
           role: 'user' as const,
           content: message,
@@ -262,13 +283,29 @@ export async function POST(request: NextRequest) {
       // Ensure conversationHistory is an array (it's optional in schema)
       const historyArray = Array.isArray(conversationHistory) ? conversationHistory : [];
       messages = [
-        ...historyArray.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-          tool_calls: msg.tool_calls,
-          tool_call_id: msg.tool_call_id,
-          name: msg.name,
-        })),
+        ...historyArray.map((msg: any) => {
+          // Normalize content to prevent "e.content.map is not a function" errors
+          // Frontend may send malformed content (objects, undefined, etc.)
+          let normalizedContent: string;
+          if (typeof msg.content === 'string') {
+            normalizedContent = msg.content;
+          } else if (typeof msg.content === 'undefined' || msg.content === null) {
+            normalizedContent = '';
+          } else if (typeof msg.content === 'object') {
+            console.warn('[HGC_V2] Frontend sent object content, stringifying:', msg.content);
+            normalizedContent = JSON.stringify(msg.content);
+          } else {
+            normalizedContent = String(msg.content);
+          }
+
+          return {
+            role: msg.role,
+            content: normalizedContent,
+            tool_calls: msg.tool_calls,
+            tool_call_id: msg.tool_call_id,
+            name: msg.name,
+          };
+        }),
         {
           role: 'user' as const,
           content: message,
