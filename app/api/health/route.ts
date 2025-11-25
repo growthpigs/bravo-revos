@@ -12,21 +12,31 @@ import { checkRedisHealth } from '@/lib/redis';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Helper to timeout slow health checks so one bad service doesn't block all indicators
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, defaultValue: any): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(defaultValue), timeoutMs)),
+  ]);
+}
+
 export async function GET() {
+  // Run all checks in parallel with 3s timeout each
+  // If a check times out, return degraded status instead of blocking
   const checks = {
     timestamp: new Date().toISOString(),
-    database: await checkDatabase(),
-    supabase: await checkSupabase(),
+    database: await withTimeout(checkDatabase(), 3000, { status: 'degraded', error: 'Timeout' }),
+    supabase: await withTimeout(checkSupabase(), 3000, { status: 'degraded', error: 'Timeout' }),
     api: { status: 'healthy' }, // If this responds, API is up
-    agentkit: await checkAgentKit(), // ✅ Real AgentKit version check
-    mem0: await checkMem0(), // ✅ Real Mem0 health check
-    unipile: await checkUnipile(), // ✅ Real Unipile connectivity check
-    email: await checkEmail(), // ✅ Real webhook delivery check
-    console: await checkConsole(), // ✅ Real console database check
-    cache: await checkCache(), // ✅ Real Redis health check
-    queue: await checkQueue(), // ✅ Real BullMQ queue check
-    cron: await checkCron(), // ✅ Real cron session check
-    webhooks: await checkWebhooks(), // ✅ Real webhook delivery check
+    agentkit: await withTimeout(checkAgentKit(), 3000, { status: 'degraded', error: 'Timeout' }),
+    mem0: await withTimeout(checkMem0(), 3000, { status: 'degraded', error: 'Timeout' }),
+    unipile: await withTimeout(checkUnipile(), 3000, { status: 'degraded', error: 'Timeout' }),
+    email: await withTimeout(checkEmail(), 3000, { status: 'degraded', error: 'Timeout' }),
+    console: await withTimeout(checkConsole(), 3000, { status: 'degraded', error: 'Timeout' }),
+    cache: await withTimeout(checkCache(), 3000, { status: 'degraded', error: 'Timeout' }),
+    queue: await withTimeout(checkQueue(), 3000, { status: 'degraded', error: 'Timeout' }),
+    cron: await withTimeout(checkCron(), 3000, { status: 'degraded', error: 'Timeout' }),
+    webhooks: await withTimeout(checkWebhooks(), 3000, { status: 'degraded', error: 'Timeout' }),
   };
 
   const overallStatus = Object.values(checks)
