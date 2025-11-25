@@ -505,13 +505,56 @@ export async function POST(request: NextRequest) {
       has_interactive: !!result.interactive,
     });
 
-    // 8a. Check for campaign creation intent and return orchestration if detected
+    // 8a. Check for campaign intents and return orchestration if detected
     const userMessageLower = message.toLowerCase();
+
+    // Check for campaign creation intent (existing)
     const isCampaignCreationIntent =
       (userMessageLower.includes('create') && userMessageLower.includes('campaign')) ||
       (userMessageLower.includes('new') && userMessageLower.includes('campaign')) ||
       userMessageLower.includes('start campaign');
 
+    // Check for campaign view/list intent (NEW)
+    const isCampaignViewIntent =
+      userMessageLower === 'campaigns' ||
+      userMessageLower === 'campaign' ||
+      userMessageLower.includes('show campaigns') ||
+      userMessageLower.includes('list campaigns') ||
+      userMessageLower.includes('my campaigns');
+
+    // Handle campaign VIEW intent - navigate to campaigns list
+    if (isCampaignViewIntent) {
+      console.log('[HGC_V2] Campaign view intent detected - navigating to campaigns list');
+
+      const orchestrationResponse = new OrchestrationResponseBuilder()
+        .withMessage('Here are your campaigns.')
+        .withNavigation('/dashboard/campaigns', 'Opening campaigns...')
+        .withSessionId(session.id)
+        .withMemoryContext(true)
+        .build();
+
+      // Save messages to database
+      try {
+        await saveMessages(supabase, session.id, [
+          { role: 'user' as const, content: message },
+          { role: 'assistant' as const, content: 'Here are your campaigns.' },
+        ]);
+      } catch (saveError: any) {
+        console.error('[HGC_V2] Message save failed for campaign view:', saveError.message);
+      }
+
+      return NextResponse.json({
+        success: true,
+        ...orchestrationResponse,
+        meta: {
+          consoleSource,
+          orchestrationDetected: true,
+          cartridgesRetrieved,
+        },
+      });
+    }
+
+    // Handle campaign CREATE intent - navigate to wizard
     if (isCampaignCreationIntent) {
       console.log('[HGC_V2] Campaign creation intent detected - returning orchestration response');
 

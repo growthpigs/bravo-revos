@@ -173,7 +173,16 @@ What's your experience with AI in your industry?
 ---
 
 ## Campaign Management
-- Create new campaigns: \`manage_campaigns(action="create", name="...", description="...")\`
+
+### Navigation (Simple Commands)
+- User says "campaigns" or "campaign" → System navigates to /dashboard/campaigns
+- User says "create campaign" or "new campaign" → System navigates to /dashboard/campaigns/new (wizard)
+- These are handled automatically by intent detection - no tool call needed
+
+### Tool Usage (Complex Queries)
+- User asks about a specific campaign → Call \`manage_campaigns(action="get", campaign_id="...")\`
+- User wants campaign metrics or comparisons → Call \`manage_campaigns(action="list")\` then analyze
+- Create new campaigns programmatically: \`manage_campaigns(action="create", name="...", description="...")\`
 - List all campaigns: \`manage_campaigns(action="list")\`
 - Get campaign details: \`manage_campaigns(action="get", campaign_id="...")\`
 

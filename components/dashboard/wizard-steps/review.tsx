@@ -25,8 +25,9 @@ export default function ReviewStep({ data, onBack }: StepProps) {
   const handleLaunch = async () => {
     setLoading(true)
     try {
-      console.log('[CAMPAIGN_CREATE] Starting campaign creation...')
-      console.log('[CAMPAIGN_CREATE] Full campaign data:', data)
+      console.log('[CAMPAIGN_LAUNCH] ========================================')
+      console.log('[CAMPAIGN_LAUNCH] Starting full launch sequence...')
+      console.log('[CAMPAIGN_LAUNCH] Full campaign data:', data)
 
       // Validate required fields
       if (!data.name || !data.name.trim()) {
@@ -35,7 +36,12 @@ export default function ReviewStep({ data, onBack }: StepProps) {
         return
       }
 
-      // Call API endpoint to create campaign with ALL wizard data
+      // ========================================
+      // STEP 1: Create Campaign (Save to DB)
+      // ========================================
+      console.log('[CAMPAIGN_LAUNCH] Step 1: Creating campaign...')
+      toast.info('Creating campaign...', { id: 'launch-progress' })
+
       const response = await fetch('/api/campaigns', {
         method: 'POST',
         headers: {
@@ -45,7 +51,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
           // Campaign details
           name: data.name.trim(),
           description: data.description || null,
-          status: 'draft',
+          status: 'active', // Set to active since we're launching
 
           // Lead magnet
           leadMagnetSource: data.libraryId ? 'library' : data.isCustom ? 'custom' : 'none',
@@ -74,11 +80,11 @@ export default function ReviewStep({ data, onBack }: StepProps) {
         }),
       })
 
-      console.log('[CAMPAIGN_CREATE] API Response status:', response.status)
+      console.log('[CAMPAIGN_LAUNCH] Campaign API Response status:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('[CAMPAIGN_CREATE] Error response:', errorText)
+        console.error('[CAMPAIGN_LAUNCH] Campaign creation error:', errorText)
         try {
           const error = JSON.parse(errorText)
           throw new Error(error.error || `Failed to create campaign (${response.status})`)
@@ -87,22 +93,132 @@ export default function ReviewStep({ data, onBack }: StepProps) {
         }
       }
 
-      const result = await response.json()
-      console.log('[CAMPAIGN_CREATE] Campaign created successfully:', result.data)
+      const campaignResult = await response.json()
+      const campaign = campaignResult.data
+      console.log('[CAMPAIGN_LAUNCH] ✅ Campaign created:', campaign.id)
 
-      // Show success toast
-      toast.success('Campaign created successfully!', {
-        description: 'Redirecting to campaigns page...',
+      // ========================================
+      // STEP 2: Publish to LinkedIn
+      // ========================================
+      console.log('[CAMPAIGN_LAUNCH] Step 2: Publishing to LinkedIn...')
+      toast.info('Publishing to LinkedIn...', { id: 'launch-progress' })
+
+      let postUrl: string | null = null
+      let publishError: string | null = null
+
+      if (data.postContent) {
+        try {
+          const publishResponse = await fetch('/api/linkedin/posts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: data.postContent,
+            }),
+          })
+
+          if (publishResponse.ok) {
+            const publishResult = await publishResponse.json()
+            postUrl = publishResult.post?.url || null
+            console.log('[CAMPAIGN_LAUNCH] ✅ Post published:', postUrl)
+          } else {
+            const publishErrorText = await publishResponse.text()
+            console.warn('[CAMPAIGN_LAUNCH] ⚠️ LinkedIn publish failed:', publishErrorText)
+            publishError = 'LinkedIn post failed - you can post manually later'
+          }
+        } catch (err) {
+          console.warn('[CAMPAIGN_LAUNCH] ⚠️ LinkedIn API error:', err)
+          publishError = 'LinkedIn API unavailable - post manually'
+        }
+      }
+
+      // ========================================
+      // STEP 3: Trigger Pod Amplification
+      // ========================================
+      let podTriggered = false
+      let podError: string | null = null
+
+      if (postUrl && campaign.pod_id) {
+        console.log('[CAMPAIGN_LAUNCH] Step 3: Triggering pod amplification...')
+        toast.info('Activating pod boost...', { id: 'launch-progress' })
+
+        try {
+          const podResponse = await fetch('/api/campaigns/trigger-pod', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              campaign_id: campaign.id,
+              post_url: postUrl,
+            }),
+          })
+
+          if (podResponse.ok) {
+            const podResult = await podResponse.json()
+            console.log('[CAMPAIGN_LAUNCH] ✅ Pod triggered:', podResult)
+            podTriggered = true
+          } else {
+            const podErrorText = await podResponse.text()
+            console.warn('[CAMPAIGN_LAUNCH] ⚠️ Pod trigger failed:', podErrorText)
+            podError = 'Pod notification failed'
+          }
+        } catch (err) {
+          console.warn('[CAMPAIGN_LAUNCH] ⚠️ Pod API error:', err)
+          podError = 'Pod API unavailable'
+        }
+      } else if (!campaign.pod_id) {
+        console.log('[CAMPAIGN_LAUNCH] ℹ️ No pod associated - skipping amplification')
+        podError = 'No pod assigned'
+      } else if (!postUrl) {
+        console.log('[CAMPAIGN_LAUNCH] ℹ️ No post URL - cannot trigger pod')
+        podError = 'Post not published'
+      }
+
+      // ========================================
+      // STEP 4: Show Final Result
+      // ========================================
+      console.log('[CAMPAIGN_LAUNCH] ========================================')
+      console.log('[CAMPAIGN_LAUNCH] Launch sequence complete!')
+      console.log('[CAMPAIGN_LAUNCH] Summary:', {
+        campaignCreated: true,
+        campaignId: campaign.id,
+        postPublished: !!postUrl,
+        postUrl,
+        podTriggered,
       })
 
-      // Small delay to ensure DB is ready before redirect
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Build success message
+      if (podTriggered) {
+        toast.success('🚀 Campaign Created & Pod Activated!', {
+          id: 'launch-progress',
+          description: 'Your post is live and your pod has been notified!',
+          duration: 5000,
+        })
+      } else if (postUrl) {
+        toast.success('✅ Campaign Created & Post Published!', {
+          id: 'launch-progress',
+          description: podError ? `Note: ${podError}` : 'Redirecting to campaigns...',
+          duration: 5000,
+        })
+      } else {
+        toast.success('✅ Campaign Created!', {
+          id: 'launch-progress',
+          description: publishError || 'You can publish your post later.',
+          duration: 5000,
+        })
+      }
+
+      // Small delay to show success message
+      await new Promise(resolve => setTimeout(resolve, 1000))
       router.push('/dashboard/campaigns')
     } catch (error) {
-      console.error('[CAMPAIGN_CREATE] Error:', error)
+      console.error('[CAMPAIGN_LAUNCH] Fatal error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-      toast.error('Failed to create campaign', {
+      toast.error('Failed to launch campaign', {
+        id: 'launch-progress',
         description: errorMessage,
         duration: 5000,
       })

@@ -80,6 +80,22 @@ export async function POST(request: NextRequest) {
 
     console.log('[CAMPAIGNS_API] Creating campaign for user:', user.id)
 
+    // Get user's default pod (first active pod membership)
+    let defaultPodId: string | null = null
+    const { data: podMemberships } = await supabase
+      .from('pod_members')
+      .select('pod_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+
+    if (podMemberships && podMemberships.length > 0) {
+      defaultPodId = podMemberships[0].pod_id
+      console.log('[CAMPAIGNS_API] Found user default pod:', defaultPodId)
+    } else {
+      console.log('[CAMPAIGNS_API] No pod membership found for user')
+    }
+
     // Determine lead magnet source
     let leadMagnetSource: 'library' | 'custom' | 'none' = 'none'
     if (validatedData.libraryId) {
@@ -95,6 +111,9 @@ export async function POST(request: NextRequest) {
       name: validatedData.name,
       description: validatedData.description || null,
       status: validatedData.status,
+
+      // Pod assignment (auto-assign user's default pod)
+      pod_id: defaultPodId,
 
       // Lead magnet
       lead_magnet_source: leadMagnetSource,
