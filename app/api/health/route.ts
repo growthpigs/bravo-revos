@@ -8,6 +8,10 @@ import { createClient } from '@/lib/supabase/server';
 import { searchMemories } from '@/lib/mem0/memory';
 import { checkRedisHealth } from '@/lib/redis';
 
+// Force dynamic rendering - health checks must run at request time, not build time
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
   const checks = {
     timestamp: new Date().toISOString(),
