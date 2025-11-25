@@ -121,13 +121,34 @@ export async function getConversationHistory(
   }
 
   // Convert database messages to Message format
-  return (messages || []).map((msg: ChatMessage) => ({
-    role: msg.role as 'user' | 'assistant' | 'system' | 'tool',
-    content: msg.content,
-    tool_calls: msg.tool_calls,
-    tool_call_id: msg.tool_call_id,
-    name: msg.name,
-  }));
+  return (messages || []).map((msg: ChatMessage) => {
+    // CRITICAL FIX: Parse JSON strings back to arrays
+    // When we save arrays to TEXT column, we stringify them
+    // When loading back, we need to parse them to restore original format
+    let parsedContent: string | any[] | null | undefined = msg.content;
+
+    if (typeof msg.content === 'string' && msg.content.trim().startsWith('[')) {
+      // Looks like a JSON array, try to parse it
+      try {
+        const parsed = JSON.parse(msg.content);
+        if (Array.isArray(parsed)) {
+          parsedContent = parsed;
+          console.log('[session-manager] ✅ Parsed array content from DB');
+        }
+      } catch (e) {
+        // Not valid JSON, keep as string
+        console.log('[session-manager] Content looks like array but failed to parse, keeping as string');
+      }
+    }
+
+    return {
+      role: msg.role as 'user' | 'assistant' | 'system' | 'tool',
+      content: parsedContent,
+      tool_calls: msg.tool_calls,
+      tool_call_id: msg.tool_call_id,
+      name: msg.name,
+    };
+  });
 }
 
 /**
