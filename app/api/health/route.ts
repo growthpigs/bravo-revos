@@ -108,7 +108,7 @@ async function checkMem0() {
  * Tests: Package import, version match
  */
 async function checkAgentKit() {
-  const EXPECTED_VERSION = '0.3.0';
+  const EXPECTED_VERSION = '0.3.3';
 
   try {
     const start = Date.now();
