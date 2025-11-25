@@ -103,6 +103,7 @@ export class MarketingConsole {
         const updatedConfig: any = {
           tools: [...currentTools, ...injection.tools],
           instructions: `${this.agent.instructions}\n\n${injection.instructions}`,
+          client: this.openai, // CRITICAL: Must preserve client when cloning agent
         };
 
         if (injection.model) {
@@ -241,14 +242,43 @@ export class MarketingConsole {
 
       let result;
       try {
+        const formattedMessages = this.convertMessagesToAgentFormat(messages);
+
+        // 🔍 DIAGNOSTIC: Log EXACT format being passed to AgentKit
+        console.log('🔍 [BEFORE_AGENTKIT] Message count:', formattedMessages.length);
+        formattedMessages.forEach((msg, i) => {
+          console.log(`🔍 [MSG_${i}] role:`, msg.role);
+          console.log(`🔍 [MSG_${i}] content type:`, typeof msg.content);
+          console.log(`🔍 [MSG_${i}] content is array:`, Array.isArray(msg.content));
+          console.log(`🔍 [MSG_${i}] content value:`, JSON.stringify(msg.content).substring(0, 200));
+        });
+
         result = await run(
           agentWithMemory,
-          this.convertMessagesToAgentFormat(messages),
+          formattedMessages,
           {
             context, // Pass context to tools
             stream: false,
           }
         );
+
+        // 🔍 DIAGNOSTIC: Log what AgentKit RETURNED
+        console.log('🔍 [AGENTKIT_RESULT] Type:', typeof result);
+        console.log('🔍 [AGENTKIT_RESULT] Keys:', Object.keys(result || {}));
+        if (result?.output && Array.isArray(result.output)) {
+          console.log('🔍 [AGENTKIT_RESULT] output.length:', result.output.length);
+          result.output.forEach((item: any, i: number) => {
+            console.log(`🔍 [OUTPUT_${i}] role:`, item.role);
+            console.log(`🔍 [OUTPUT_${i}] content type:`, typeof item.content);
+            console.log(`🔍 [OUTPUT_${i}] content is array:`, Array.isArray(item.content));
+            if (Array.isArray(item.content)) {
+              console.log(`🔍 [OUTPUT_${i}] content[0]:`, JSON.stringify(item.content[0]).substring(0, 200));
+            } else {
+              console.log(`🔍 [OUTPUT_${i}] content:`, JSON.stringify(item.content).substring(0, 200));
+            }
+          });
+        }
+
         console.log('[MarketingConsole] Agent execution complete');
       } catch (agentError: any) {
         // Enhanced error logging for AgentKit/OpenAI API failures
@@ -329,13 +359,36 @@ export class MarketingConsole {
       return [];
     }
 
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-      tool_calls: msg.tool_calls,
-      tool_call_id: msg.tool_call_id,
-      name: msg.name,
-    }));
+    return messages.map((msg) => {
+      // Normalize content to ensure it's valid for AgentKit SDK
+      // AgentKit expects content to be either:
+      // 1. A string (for text messages)
+      // 2. An array of content parts (for multimodal messages)
+      // 3. null/undefined for tool calls
+      let normalizedContent = msg.content;
+
+      // If content is undefined or null, convert to empty string for text messages
+      if (normalizedContent === undefined || normalizedContent === null) {
+        // Only set empty string for user/assistant messages, leave null for tool messages
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          normalizedContent = '';
+        }
+      }
+
+      // If content is an object (but not an array), stringify it
+      if (typeof normalizedContent === 'object' && !Array.isArray(normalizedContent)) {
+        console.warn('[MarketingConsole] Content is object, converting to string:', normalizedContent);
+        normalizedContent = JSON.stringify(normalizedContent);
+      }
+
+      return {
+        role: msg.role,
+        content: normalizedContent,
+        tool_calls: msg.tool_calls,
+        tool_call_id: msg.tool_call_id,
+        name: msg.name,
+      };
+    });
   }
 
   /**

@@ -121,13 +121,34 @@ export async function getConversationHistory(
   }
 
   // Convert database messages to Message format
-  return (messages || []).map((msg: ChatMessage) => ({
-    role: msg.role as 'user' | 'assistant' | 'system' | 'tool',
-    content: msg.content,
-    tool_calls: msg.tool_calls,
-    tool_call_id: msg.tool_call_id,
-    name: msg.name,
-  }));
+  return (messages || []).map((msg: ChatMessage) => {
+    // CRITICAL FIX: Parse JSON strings back to arrays
+    // When we save arrays to TEXT column, we stringify them
+    // When loading back, we need to parse them to restore original format
+    let parsedContent: string | any[] | null | undefined = msg.content;
+
+    if (typeof msg.content === 'string' && msg.content.trim().startsWith('[')) {
+      // Looks like a JSON array, try to parse it
+      try {
+        const parsed = JSON.parse(msg.content);
+        if (Array.isArray(parsed)) {
+          parsedContent = parsed;
+          console.log('[session-manager] ✅ Parsed array content from DB');
+        }
+      } catch (e) {
+        // Not valid JSON, keep as string
+        console.log('[session-manager] Content looks like array but failed to parse, keeping as string');
+      }
+    }
+
+    return {
+      role: msg.role as 'user' | 'assistant' | 'system' | 'tool',
+      content: parsedContent,
+      tool_calls: msg.tool_calls,
+      tool_call_id: msg.tool_call_id,
+      name: msg.name,
+    };
+  });
 }
 
 /**
@@ -143,12 +164,26 @@ export async function saveMessage(
   sessionId: string,
   message: Message
 ): Promise<ChatMessage> {
+  // Normalize content to ALWAYS be a string before saving to database
+  let normalizedContent: string;
+
+  if (typeof message.content === 'string') {
+    normalizedContent = message.content;
+  } else if (typeof message.content === 'undefined' || message.content === null) {
+    normalizedContent = '';
+  } else if (typeof message.content === 'object') {
+    console.warn('[session-manager] Content is object, stringifying before save:', message.content);
+    normalizedContent = JSON.stringify(message.content);
+  } else {
+    normalizedContent = String(message.content);
+  }
+
   const { data: savedMessage, error } = await supabase
     .from('chat_messages')
     .insert({
       session_id: sessionId,
       role: message.role,
-      content: message.content,
+      content: normalizedContent,
       tool_calls: message.tool_calls || null,
       tool_call_id: message.tool_call_id || null,
       name: message.name || null,
@@ -177,15 +212,35 @@ export async function saveMessages(
   sessionId: string,
   messages: Message[]
 ): Promise<ChatMessage[]> {
-  const messagesToInsert = messages.map((msg) => ({
-    session_id: sessionId,
-    role: msg.role,
-    content: msg.content,
-    tool_calls: msg.tool_calls || null,
-    tool_call_id: msg.tool_call_id || null,
-    name: msg.name || null,
-    metadata: {},
-  }));
+  const messagesToInsert = messages.map((msg) => {
+    // Normalize content to ALWAYS be a string before saving to database
+    // This prevents "e.content.map is not a function" errors when loading history
+    let normalizedContent: string;
+
+    if (typeof msg.content === 'string') {
+      normalizedContent = msg.content;
+    } else if (typeof msg.content === 'undefined' || msg.content === null) {
+      // Tool calls or empty messages can have null/undefined content
+      normalizedContent = '';
+    } else if (typeof msg.content === 'object') {
+      // Objects (arrays or malformed content) need to be stringified
+      console.warn('[session-manager] Content is object, stringifying before save:', msg.content);
+      normalizedContent = JSON.stringify(msg.content);
+    } else {
+      // Fallback for any other type (number, boolean, etc.)
+      normalizedContent = String(msg.content);
+    }
+
+    return {
+      session_id: sessionId,
+      role: msg.role,
+      content: normalizedContent,
+      tool_calls: msg.tool_calls || null,
+      tool_call_id: msg.tool_call_id || null,
+      name: msg.name || null,
+      metadata: {},
+    };
+  });
 
   const { data: savedMessages, error } = await supabase
     .from('chat_messages')

@@ -61,21 +61,34 @@ git push origin staging
 
 ---
 
-### 3. **production** = Live/Production Environment
+### 3. **production** = Live/Production Environment 🔒
 **Purpose:** Live code serving real users
 **Who:** Only deploy after staging approval
 **Render Deploy:** Yes (production environment)
-**Deployment Trigger:** Push to production
+**Deployment Trigger:** 🔒 **GitHub PR approval only** (branch is LOCKED)
 **Testing:** Already tested in staging, no issues reported
+**GitHub Protection:** ✅ Branch protection enabled - direct pushes blocked
 
-**Workflow:**
+**Workflow (PR-ONLY):**
 ```bash
 # After staging approval and validation
-git checkout production
-git merge staging
-git push origin production
+# 🔒 DO NOT PUSH DIRECTLY - Create PR instead
+
+# Option 1: Via GitHub UI (Recommended)
+# 1. Go to https://github.com/growthpigs/bravo-revos
+# 2. Click "New Pull Request"
+# 3. Base: production ← Compare: staging
+# 4. Get approval from team
+# 5. Merge PR
+# 6. Render auto-deploys to production (LIVE)
+
+# Option 2: Via GitHub CLI
+gh pr create --base production --head staging --title "Deploy staging to production"
+gh pr merge <pr-number> --squash
 # Render auto-deploys to production (LIVE)
 ```
+
+**⚠️ IMPORTANT:** Direct pushes to production will fail due to GitHub branch protection.
 
 ---
 
@@ -99,12 +112,15 @@ git push origin production
    ├─ Team validates in staging (APIs, UI, edge cases)
    └─ If issues: fix on main, repeat step 2
 
-3. PRODUCTION (production)
+3. PRODUCTION (production) 🔒
    ├─ Staging approval confirmed ✅
-   ├─ Merge to production: git checkout production && git merge staging
-   ├─ Push: git push origin production
+   ├─ Create PR: staging → production (via GitHub UI or gh cli)
+   ├─ Get team approval on PR
+   ├─ Merge PR (squash or merge commit)
    ├─ Render auto-deploys to production (LIVE)
    └─ Monitor Sentry for errors
+
+   ⚠️ Direct pushes blocked by GitHub branch protection
 ```
 
 ---
@@ -196,20 +212,104 @@ git commit -m "config: Update environment variables"
 
 ## 🚨 Emergency Rollback Procedure
 
-If production has a critical issue:
+### For main or staging branches:
 
 ```bash
 # Identify last stable commit
-git log --oneline production
+git log --oneline main  # or staging
 
 # Checkout previous working version
-git checkout production
+git checkout main  # or staging
 git reset --hard <commit-hash>
 
-# Force push to production (CAUTION!)
-git push -f origin production
+# Force push (main/staging allow this)
+git push -f origin main  # or staging
 
 # Render auto-deploys reverted version
+```
+
+### For production branch (LOCKED - PR-only):
+
+```bash
+# 🔒 Cannot force push - use PR revert workflow instead
+
+# 1. Create emergency revert branch
+git checkout production
+git pull origin production
+git log --oneline -10  # Find last good commit
+git checkout -b emergency/revert-to-<commit-hash>
+git reset --hard <good-commit-hash>
+git push origin emergency/revert-to-<commit-hash>
+
+# 2. Create emergency PR on GitHub
+# Go to: https://github.com/growthpigs/bravo-revos
+# Create PR: emergency/revert-to-<commit-hash> → production
+# Title: "🚨 EMERGENCY: Revert production to <commit-hash>"
+
+# 3. Get emergency approval (team lead)
+# 4. Merge PR immediately
+# 5. Render auto-deploys reverted version to production
+
+# Alternative: Use GitHub CLI
+gh pr create --base production --head emergency/revert-to-<commit-hash> \
+  --title "🚨 EMERGENCY: Revert production to <commit-hash>"
+gh pr merge <pr-number> --admin --squash  # Requires admin rights
+```
+
+**⚠️ IMPORTANT:** Production branch has GitHub protection - force pushes will fail. Always use PR workflow for production rollbacks.
+
+---
+
+## 🔒 GitHub Branch Protection (Production Only)
+
+**Status:** ✅ Configured for production branch
+
+### Protection Rules Enabled:
+
+The `production` branch has the following GitHub protections:
+
+1. **Require Pull Request Reviews**
+   - ✅ At least 1 approval required before merging
+   - ✅ Dismiss stale pull request approvals when new commits pushed
+
+2. **Restrict Pushes**
+   - ✅ Direct pushes blocked for all users (including admins)
+   - ✅ Only PR merges allowed
+
+3. **Prevent Force Pushes**
+   - ✅ Force pushes disabled
+   - ✅ History cannot be rewritten
+
+4. **Prevent Deletion**
+   - ✅ Branch cannot be deleted
+
+5. **Require Status Checks** (Optional - configure if needed)
+   - Tests must pass before merge
+   - TypeScript compilation must succeed
+
+### How to Configure:
+
+1. Go to: https://github.com/growthpigs/bravo-revos/settings/branches
+2. Click "Add branch protection rule"
+3. Branch name pattern: `production`
+4. Enable these protections:
+   - ✅ Require pull request reviews before merging (1 approval)
+   - ✅ Lock branch (prevent force pushes and deletions)
+   - ✅ Restrict who can push to matching branches (admins only for emergencies)
+   - ✅ Do not allow bypassing the above settings
+5. Save changes
+
+### Testing the Protection:
+
+```bash
+# This should FAIL:
+git checkout production
+git push origin production
+# Error: protected branch hook declined
+
+# This is the CORRECT way:
+# Create PR on GitHub: staging → production
+# Get approval, merge PR
 ```
 
 ---
@@ -225,8 +325,10 @@ git push -f origin production
 
 ❌ **DON'T:**
 - Force push to main, staging, or production
+- Push directly to production (use PR workflow)
 - Skip testing before merging
 - Merge to production without staging validation
+- Bypass PR approval process for production
 - Commit secrets or credentials
 - Deploy untested code to production
 
@@ -244,6 +346,8 @@ Feature flow is clean: `feature` → `main` (dev) → `staging` (review) → `pr
 ---
 
 **Established:** 2025-11-05
+**Updated:** 2025-11-25 (Added GitHub branch protection for production)
 **Status:** ✅ ACTIVE AND DEPLOYED
-**Next:** Start new feature work following this workflow
+**Production Protection:** 🔒 LOCKED - PR-only workflow enforced via GitHub
+**Next:** Configure GitHub branch protection rules, then continue feature work
 

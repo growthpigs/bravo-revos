@@ -4,6 +4,7 @@
  * Uses in-memory storage (can be switched to Supabase later)
  */
 
+import crypto from 'crypto';
 import type {
   Offering,
   CreateOfferingData,
@@ -119,7 +120,7 @@ export class OfferingsChip {
     data: CreateOfferingData
   ): Promise<OfferingsChipResult> {
     const offering: Offering = {
-      id: `offering-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `offering-${Date.now()}-${crypto.randomBytes(9).toString('base64url')}`,
       user_id: userId,
       name: data.name,
       elevator_pitch: data.elevator_pitch,

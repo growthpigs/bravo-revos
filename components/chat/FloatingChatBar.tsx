@@ -586,10 +586,7 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
 
   // Content-specific buttons - only under messages that synced to document area
   const getContentButtons = (): ActionButton[] => {
-    return [
-      { id: 'try_new_style', label: 'TRY NEW STYLE', action: 'regenerate' },
-      { id: 'change_voice', label: 'DIFFERENT VOICE', action: 'change_voice' },
-    ];
+    return [];
   };
 
   // Get background color for action button (consistent gray shades)

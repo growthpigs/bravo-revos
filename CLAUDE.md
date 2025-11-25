@@ -296,30 +296,39 @@ Architecture:
 - `/docs/projects/bravo-revos/archon-specs/01-RevOS-Technical-Architecture-v3.md`
 - `/docs/projects/bravo-revos/archon-specs/02-Cartridge-System-Specification.md`
 
-## Deployment Strategy (Updated 2025-11-24)
+## Deployment Strategy (Updated 2025-11-25)
 
-**🚨 CRITICAL: MAIN BRANCH ONLY - NO LOCALHOST TESTING**
+**🚨 CRITICAL: THREE-TIER BRANCH STRATEGY - NO LOCALHOST TESTING**
 
-### Current Workflow (AS OF 2025-11-24)
+### Current Workflow (AS OF 2025-11-25)
 
-**ACTIVE BRANCH:** `main` only
-- All development happens on `main` branch
-- Push directly to `main` for all changes
-- **NO localhost testing** - test on deployed main environment
-- **NO staging/production branches** - they are frozen/deprecated
+**ACTIVE BRANCHES:**
+- **main** - Development environment (active, unrestricted pushes)
+- **staging** - Code review/testing environment (active, unrestricted pushes)
+- **production** - Live/production environment (🔒 LOCKED - PR-only)
 
 ### Environment URLs
 
-1. **Main (Active Development & Testing)** - `https://bravo-revos-git-main-growthpigs.vercel.app`
+1. **Main (Active Development)** - `https://bravo-revos-git-main-agro-bros.vercel.app`
    - **Branch:** `main`
-   - **Use For:** ALL development and testing
+   - **Use For:** Primary development, feature testing
    - **Deploy:** Auto-deploys when you push to main
+   - **Push Access:** ✅ Unrestricted
    - **Works:** EVERYTHING ✅ - OAuth ✅, Webhooks ✅, LinkedIn ✅, All integrations ✅
 
-2. **Deprecated Environments (DO NOT USE):**
-   - ~~`staging`~~ - Frozen, no longer updated
-   - ~~`production`~~ - Frozen, no longer updated
-   - ~~`localhost:3000`~~ - Not used for testing
+2. **Staging (Code Review/Testing)** - `https://bravo-revos-git-staging-agro-bros.vercel.app`
+   - **Branch:** `staging`
+   - **Use For:** Pre-production validation, team review
+   - **Deploy:** Auto-deploys when you push to staging
+   - **Push Access:** ✅ Unrestricted
+   - **Workflow:** Merge from main when ready for review
+
+3. **Production (Live/LOCKED)** - `https://bravo-revos.vercel.app`
+   - **Branch:** `production`
+   - **Use For:** Live production serving real users
+   - **Deploy:** Auto-deploys via GitHub PR approval only
+   - **Push Access:** 🔒 **LOCKED** - GitHub branch protection enabled
+   - **Workflow:** PR from staging after approval only
 
 ### Why No Localhost?
 
@@ -334,49 +343,63 @@ Localhost cannot test:
 ### Standard Workflow (Follow This)
 
 ```bash
-# 1. Make sure you're on main
+# 1. Development on main
 git checkout main
-
-# 2. Make your changes
-# ... edit files ...
 git add .
-git commit -m "fix: your change"
-
-# 3. Push to main
+git commit -m "feat: your feature"
 git push origin main
-# Vercel auto-deploys to: https://bravo-revos-git-main-growthpigs.vercel.app
+# Vercel auto-deploys to main: https://bravo-revos-git-main-agro-bros.vercel.app
 
-# 4. Test on deployed main URL (FULL ENVIRONMENT)
-open https://bravo-revos-git-main-growthpigs.vercel.app
-# Test: Login, write workflow, LinkedIn posting, all features
+# 2. Code review on staging (when ready)
+git checkout staging
+git merge main
+git push origin staging
+# Vercel auto-deploys to staging: https://bravo-revos-git-staging-agro-bros.vercel.app
+# Team reviews and validates
 
-# 5. ALWAYS report deployment status
-echo "
-DEPLOYMENT STATUS:
-✅ Main: https://bravo-revos-git-main-growthpigs.vercel.app (commit-hash)
-📝 Note: What was deployed
-"
+# 3. Production deployment (PR-only - DO NOT PUSH DIRECTLY)
+# Create PR from staging → production on GitHub
+# After PR approval, GitHub auto-deploys to production
+# 🔒 production branch is LOCKED - direct pushes will fail
 ```
 
 ### Important Notes
 
 - **No localhost** - Can't test OAuth, webhooks, or LinkedIn integration
-- **No feature branches needed** - Work directly on main
-- **No staging/production** - Those branches are deprecated
-- **Test on deployed main** - Full environment with all integrations working
+- **main + staging** - Active development and review environments
+- **production** - 🔒 LOCKED via GitHub branch protection (PR-only)
+- **Test on deployed environments** - Full environment with all integrations working
 
 ### Emergency Rollback
 
+**For main or staging:**
 ```bash
 # Find last good commit
 git log --oneline -5
 
-# Rollback main branch
-git checkout main
+# Rollback branch
+git checkout main  # or staging
 git reset --hard <good-commit-hash>
-git push origin main --force
+git push origin main --force  # or staging
 
 # Vercel auto-deploys reverted version
+```
+
+**For production (LOCKED):**
+```bash
+# 1. Create emergency revert branch from last good production commit
+git checkout production
+git pull origin production
+git log --oneline -5  # Find last good commit
+git checkout -b emergency/revert-to-<commit-hash>
+git reset --hard <good-commit-hash>
+git push origin emergency/revert-to-<commit-hash>
+
+# 2. Create PR on GitHub: emergency/revert-to-<commit-hash> → production
+# 3. Get emergency approval and merge PR
+# 4. GitHub auto-deploys reverted version to production
+
+# NOTE: Cannot force push to production - it is GitHub protected
 ```
 
 ### Why Localhost is Limited
