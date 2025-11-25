@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     // 1. Get the original post and the user who created it
     const { data: post, error: postError } = await supabase
       .from('posts')
-      .select('id, linkedin_account_id, campaign_id') // Select necessary fields
+      .select('id, linkedin_account_id, campaign_id, post_url') // Include post_url for repost navigation
       .eq('id', postId)
       .single();
 
@@ -84,11 +84,17 @@ export async function POST(req: Request) {
         scheduled_for: scheduledFor,
       });
 
+      // Validate post_url exists before queueing
+      if (!post.post_url) {
+        console.warn(`Post ${postId} has no post_url. Skipping repost for member ${member.id}.`);
+        continue;
+      }
+
       jobsToAdd.push({
         name: `repost-${podActivityId}`,
         data: {
           podActivityId: podActivityId,
-          postUrl: post.linkedin_post_id, // Assuming linkedin_post_id is the URL
+          postUrl: post.post_url, // Use actual LinkedIn URL for Playwright navigation
           memberUnipileAccountId: memberUnipileAccountId,
         },
         opts: {

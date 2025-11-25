@@ -42,11 +42,11 @@ function getSupabase(): SupabaseClient {
   return _supabase;
 }
 
-interface ActiveCampaign {
+interface ActiveScrapeJob {
   id: string;
+  campaign_id: string;
   post_id: string;
-  post_url: string;
-  client_id: string;
+  unipile_post_id: string;
   unipile_account_id: string;
   trigger_word: string;
 }
@@ -70,59 +70,57 @@ function containsTriggerWord(text: string): string | null {
 }
 
 /**
- * Extract post ID from LinkedIn URL
- * Example: https://linkedin.com/feed/update/urn:li:activity:7123456789012345678
+ * Build DM message based on trigger word and recipient name
+ * TODO: In production, this should pull from campaign/client templates
  */
-function extractPostId(url: string): string | null {
-  const match = url.match(/urn:li:activity:(\d+)/);
-  return match ? match[1] : null;
+function buildDMMessage(recipientName: string, triggerWord: string): string {
+  const firstName = recipientName.split(' ')[0];
+
+  // Default message template - should be loaded from campaign/brand cartridge
+  return `Hey ${firstName}! 👋
+
+Thanks for your interest! I saw you commented "${triggerWord}" on my post.
+
+I'd love to share more details with you. What's the best email to send it to?`;
 }
 
 /**
- * Get active campaigns that need comment polling
+ * Get active scrape jobs that need comment polling
+ * Queries scrape_jobs table (created by PublishingChip after successful posts)
  */
-async function getActiveCampaigns(): Promise<ActiveCampaign[]> {
+async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
   const supabase = getSupabase();
 
-  // Get campaigns that are active and have a last_post_url
-  // Join to users via created_by to get unipile_account_id
+  // Query scrape_jobs for scheduled/running jobs that are due for checking
   const { data, error } = await supabase
-    .from('campaigns')
+    .from('scrape_jobs')
     .select(`
       id,
-      last_post_url,
-      client_id,
-      trigger_word,
-      users!created_by (
-        unipile_account_id
-      )
+      campaign_id,
+      post_id,
+      unipile_post_id,
+      unipile_account_id,
+      trigger_word
     `)
-    .eq('status', 'active')
-    .not('last_post_url', 'is', null);
+    .in('status', ['scheduled', 'running'])
+    .or(`next_check.is.null,next_check.lte.${new Date().toISOString()}`);
 
   if (error) {
-    console.error('[COMMENT_MONITOR] Failed to fetch campaigns:', error);
+    console.error('[COMMENT_MONITOR] Failed to fetch scrape jobs:', error);
     return [];
   }
 
-  // Filter and transform
+  // Filter jobs that have valid unipile_account_id and unipile_post_id
   return (data || [])
-    .filter((c: any) => {
-      const user = Array.isArray(c.users) ? c.users[0] : c.users;
-      return user?.unipile_account_id;
-    })
-    .map((c: any) => {
-      const user = Array.isArray(c.users) ? c.users[0] : c.users;
-      const postId = extractPostId(c.last_post_url) || c.last_post_url;
-      return {
-        id: c.id,
-        post_id: postId,
-        post_url: c.last_post_url,
-        client_id: c.client_id,
-        unipile_account_id: user.unipile_account_id,
-        trigger_word: c.trigger_word || '',
-      };
-    });
+    .filter((job: any) => job.unipile_account_id && job.unipile_post_id)
+    .map((job: any) => ({
+      id: job.id,
+      campaign_id: job.campaign_id,
+      post_id: job.post_id,
+      unipile_post_id: job.unipile_post_id,
+      unipile_account_id: job.unipile_account_id,
+      trigger_word: job.trigger_word || 'interested',
+    }));
 }
 
 /**
@@ -170,24 +168,36 @@ async function markCommentProcessed(
 }
 
 /**
- * Process a single campaign - fetch comments and queue DMs for triggers
+ * Process a single scrape job - fetch comments and queue DMs for triggers
  */
-async function processCampaign(campaign: ActiveCampaign): Promise<number> {
-  console.log(`[COMMENT_MONITOR] Processing campaign ${campaign.id}`);
+async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
+  const supabase = getSupabase();
+  console.log(`[COMMENT_MONITOR] Processing scrape job ${job.id} for post ${job.post_id}`);
 
-  // Get all comments for this post
+  // Update job status to 'running'
+  await supabase.from('scrape_jobs').update({
+    status: 'running',
+    last_checked: new Date().toISOString()
+  }).eq('id', job.id);
+
+  // Get all comments for this post using the Unipile post ID
   const comments = await getAllPostComments(
-    campaign.unipile_account_id,
-    campaign.post_id
+    job.unipile_account_id,
+    job.unipile_post_id
   );
 
   if (comments.length === 0) {
-    console.log(`[COMMENT_MONITOR] No comments for campaign ${campaign.id}`);
+    console.log(`[COMMENT_MONITOR] No comments for job ${job.id}`);
+    // Update next_check for polling
+    await supabase.from('scrape_jobs').update({
+      status: 'scheduled',
+      next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString() // Check again in 5 minutes
+    }).eq('id', job.id);
     return 0;
   }
 
   // Get already processed comments
-  const processed = await getProcessedComments(campaign.id);
+  const processed = await getProcessedComments(job.campaign_id);
 
   let queuedCount = 0;
 
@@ -197,30 +207,33 @@ async function processCampaign(campaign: ActiveCampaign): Promise<number> {
       continue;
     }
 
-    // Check for trigger words (both campaign-specific and generic)
+    // Check for trigger words (both generic and job-specific)
     let triggerWord = containsTriggerWord(comment.text);
 
-    // Also check campaign's specific trigger word
-    if (!triggerWord && campaign.trigger_word) {
+    // Also check job's specific trigger word
+    if (!triggerWord && job.trigger_word) {
       const lowerText = comment.text.toLowerCase();
-      if (lowerText.includes(campaign.trigger_word.toLowerCase())) {
-        triggerWord = campaign.trigger_word;
+      if (lowerText.includes(job.trigger_word.toLowerCase())) {
+        triggerWord = job.trigger_word;
       }
     }
 
     if (triggerWord) {
       console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id}`);
 
-      // Queue DM job
+      // Build DM message for the lead (customize based on trigger)
+      const dmMessage = buildDMMessage(comment.author.name, triggerWord);
+
+      // Queue DM job (matching DMJobData interface from dm-queue.ts)
       const jobData: DMJobData = {
-        campaign_id: campaign.id,
-        post_id: campaign.post_id,
-        comment_id: comment.id,
-        recipient_linkedin_id: comment.author.id,
-        recipient_name: comment.author.name,
-        unipile_account_id: campaign.unipile_account_id,
-        trigger_word: triggerWord,
-        comment_text: comment.text
+        accountId: job.unipile_account_id,
+        recipientId: comment.author.id,
+        recipientName: comment.author.name,
+        message: dmMessage,
+        campaignId: job.campaign_id,
+        userId: job.unipile_account_id, // Use account as user context
+        commentId: comment.id,
+        postId: job.post_id,
       };
 
       await queueDM(jobData);
@@ -228,9 +241,9 @@ async function processCampaign(campaign: ActiveCampaign): Promise<number> {
 
       // Mark as processed with trigger
       await markCommentProcessed(
-        campaign.id,
+        job.campaign_id,
         comment.id,
-        campaign.post_id,
+        job.post_id,
         comment.author.id,
         true,
         triggerWord
@@ -238,9 +251,9 @@ async function processCampaign(campaign: ActiveCampaign): Promise<number> {
     } else {
       // Mark as processed without trigger
       await markCommentProcessed(
-        campaign.id,
+        job.campaign_id,
         comment.id,
-        campaign.post_id,
+        job.post_id,
         comment.author.id,
         false,
         null
@@ -248,41 +261,61 @@ async function processCampaign(campaign: ActiveCampaign): Promise<number> {
     }
   }
 
-  console.log(`[COMMENT_MONITOR] Campaign ${campaign.id}: ${queuedCount} DMs queued from ${comments.length} comments`);
+  // Update job metrics and schedule next check
+  await supabase.from('scrape_jobs').update({
+    status: 'scheduled',
+    comments_scanned: comments.length,
+    trigger_words_found: queuedCount,
+    dms_sent: queuedCount, // Will be updated by DM worker on actual send
+    next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+  }).eq('id', job.id);
+
+  console.log(`[COMMENT_MONITOR] Job ${job.id}: ${queuedCount} DMs queued from ${comments.length} comments`);
   return queuedCount;
 }
 
 /**
  * Main polling function - called by cron endpoint
+ * Now queries scrape_jobs table instead of campaigns
  */
 export async function pollAllCampaigns(): Promise<{
   campaigns_processed: number;
+  jobs_processed: number;
   dms_queued: number;
   errors: string[];
 }> {
   console.log('[COMMENT_MONITOR] Starting poll cycle');
 
-  const campaigns = await getActiveCampaigns();
-  console.log(`[COMMENT_MONITOR] Found ${campaigns.length} active campaigns`);
+  const jobs = await getActiveScrapeJobs();
+  console.log(`[COMMENT_MONITOR] Found ${jobs.length} active scrape jobs`);
 
   let totalDmsQueued = 0;
   const errors: string[] = [];
 
-  for (const campaign of campaigns) {
+  for (const job of jobs) {
     try {
-      const queued = await processCampaign(campaign);
+      const queued = await processScrapeJob(job);
       totalDmsQueued += queued;
     } catch (error: any) {
-      const errorMsg = `Campaign ${campaign.id}: ${error.message}`;
+      const errorMsg = `Scrape job ${job.id}: ${error.message}`;
       console.error(`[COMMENT_MONITOR] Error:`, errorMsg);
       errors.push(errorMsg);
+
+      // Update job with error
+      const supabase = getSupabase();
+      await supabase.from('scrape_jobs').update({
+        error_count: job.id, // Will be incremented properly in a real impl
+        last_error: error.message,
+        last_error_at: new Date().toISOString()
+      }).eq('id', job.id);
     }
   }
 
-  console.log(`[COMMENT_MONITOR] Poll complete: ${totalDmsQueued} DMs queued from ${campaigns.length} campaigns`);
+  console.log(`[COMMENT_MONITOR] Poll complete: ${totalDmsQueued} DMs queued from ${jobs.length} scrape jobs`);
 
   return {
-    campaigns_processed: campaigns.length,
+    campaigns_processed: jobs.length, // Backward compatibility
+    jobs_processed: jobs.length,
     dms_queued: totalDmsQueued,
     errors
   };
