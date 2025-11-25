@@ -1,152 +1,164 @@
 /**
- * Simple Health Check API
- * GET /api/health - Returns basic system status
+ * Production-Safe Health Check API
+ * GET /api/health - Returns system status for monitoring
+ *
+ * CRITICAL: This endpoint is called by automated monitors (Render, Vercel)
+ * without authentication. All checks must work without user sessions.
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { searchMemories } from '@/lib/mem0/memory';
+import { checkRedisHealth } from '@/lib/redis';
 
 export async function GET() {
   const checks = {
     timestamp: new Date().toISOString(),
     database: await checkDatabase(),
-    supabase: await checkSupabase(),
-    api: { status: 'healthy' }, // If this responds, API is up
-    agentkit: await checkAgentKit(), // ✅ Real AgentKit version check
-    mem0: await checkMem0(), // ✅ Real Mem0 health check
-    unipile: { status: 'healthy' }, // TODO: Real check
-    email: { status: 'healthy' }, // TODO: Real check
-    console: { status: 'healthy' }, // TODO: Real check
-    cache: { status: 'healthy' }, // TODO: Real check
-    queue: { status: 'healthy' }, // TODO: Real check
-    cron: { status: 'healthy' }, // TODO: Real check
-    webhooks: { status: 'healthy' }, // TODO: Real check
+    queue: await checkQueue(),
+    agentkit: await checkAgentKit(),
+    mem0: checkMem0(),
+    unipile: checkUnipile(),
   };
 
-  const overallStatus = Object.values(checks)
-    .filter(c => typeof c === 'object' && 'status' in c)
-    .every(c => c.status === 'healthy')
-    ? 'healthy'
-    : 'degraded';
+  // System is healthy only if critical services (DB + Queue) are up
+  const isHealthy =
+    checks.database.status === 'healthy' &&
+    checks.queue.status === 'healthy';
 
-  return NextResponse.json({
-    status: overallStatus,
-    checks,
-  });
+  const overallStatus = isHealthy ? 'healthy' : 'degraded';
+
+  // Return 503 if degraded (tells monitoring systems we're having issues)
+  return NextResponse.json(
+    {
+      status: overallStatus,
+      checks,
+    },
+    { status: isHealthy ? 200 : 503 }
+  );
 }
 
+/**
+ * Check Database (Critical)
+ * Uses simple query that requires no authentication
+ */
 async function checkDatabase() {
   try {
     const supabase = await createClient();
     const start = Date.now();
-    const { error } = await supabase.from('campaigns').select('count').limit(1);
 
-    return {
-      status: error ? 'unhealthy' : 'healthy',
-      latency: Date.now() - start,
-    };
-  } catch {
-    return { status: 'unhealthy' };
-  }
-}
-
-async function checkSupabase() {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.getSession();
-
-    return {
-      status: error ? 'degraded' : 'healthy',
-    };
-  } catch {
-    return { status: 'unhealthy' };
-  }
-}
-
-/**
- * Check Mem0 connectivity and memory operations
- * Tests: API connection, search functionality, latency
- */
-async function checkMem0() {
-  // Skip if MEM0_API_KEY not configured
-  if (!process.env.MEM0_API_KEY) {
-    return {
-      status: 'disabled',
-      message: 'MEM0_API_KEY not configured',
-    };
-  }
-
-  try {
-    const start = Date.now();
-
-    // Test with dedicated health check tenant key
-    const healthTenantKey = 'health::check::test';
-
-    // Attempt to search memories (lightweight operation)
-    await searchMemories(healthTenantKey, 'health check query', 1);
+    // Simple query - no auth required
+    const { error } = await supabase
+      .from('campaigns')
+      .select('count')
+      .limit(1);
 
     const latency = Date.now() - start;
 
-    return {
-      status: latency < 2000 ? 'healthy' : 'degraded',
-      latency,
-      message: latency >= 2000 ? 'High latency detected' : undefined,
-    };
-  } catch (error: any) {
-    console.error('[HEALTH_CHECK] Mem0 check failed:', error.message);
-
-    return {
-      status: 'unhealthy',
-      error: error.message || 'Connection failed',
-    };
-  }
-}
-
-/**
- * Check AgentKit SDK version and import functionality
- * Tests: Package import, version match
- */
-async function checkAgentKit() {
-  const EXPECTED_VERSION = '0.3.3';
-
-  try {
-    const start = Date.now();
-
-    // Dynamic import to verify AgentKit loads
-    const agentKit = await import('@openai/agents');
-
-    // Check version by reading package.json from node_modules
-    let version = 'unknown';
-    try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const pkgPath = path.join(process.cwd(), 'node_modules', '@openai', 'agents', 'package.json');
-      const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      version = pkgJson.version;
-    } catch {
-      // Version check failed, but import worked
+    if (error) {
+      return {
+        status: 'unhealthy' as const,
+        error: error.message,
+        latency,
+      };
     }
 
+    return {
+      status: 'healthy' as const,
+      latency,
+    };
+  } catch (error: any) {
+    return {
+      status: 'unhealthy' as const,
+      error: error.message || 'Database connection failed',
+    };
+  }
+}
+
+/**
+ * Check Redis Queue (Critical for Pods/DMs)
+ * Uses existing health check function from lib/redis.ts
+ */
+async function checkQueue() {
+  if (!process.env.REDIS_URL) {
+    return {
+      status: 'disabled' as const,
+      message: 'REDIS_URL not configured',
+    };
+  }
+
+  try {
+    const start = Date.now();
+    const isHealthy = await checkRedisHealth();
     const latency = Date.now() - start;
-    const versionMatch = version === EXPECTED_VERSION;
 
     return {
-      status: versionMatch ? 'healthy' : 'degraded',
-      version,
-      expectedVersion: EXPECTED_VERSION,
+      status: isHealthy ? ('healthy' as const) : ('unhealthy' as const),
       latency,
-      message: !versionMatch ? `Version mismatch: expected ${EXPECTED_VERSION}, got ${version}` : undefined,
+      message: isHealthy ? undefined : 'Redis ping failed',
+    };
+  } catch (error: any) {
+    return {
+      status: 'unhealthy' as const,
+      error: error.message || 'Redis connection failed',
+    };
+  }
+}
+
+/**
+ * Check AgentKit SDK (Non-Critical)
+ * Only verifies module loads - no file system reads
+ */
+async function checkAgentKit() {
+  try {
+    // Just check if the module loads
+    const agentKit = await import('@openai/agents');
+
+    return {
+      status: 'healthy' as const,
+      message: 'AgentKit SDK loaded successfully',
       hasAgent: !!agentKit.Agent,
       hasRun: !!agentKit.run,
     };
   } catch (error: any) {
-    console.error('[HEALTH_CHECK] AgentKit check failed:', error.message);
-
     return {
-      status: 'unhealthy',
-      error: error.message || 'Import failed',
-      expectedVersion: EXPECTED_VERSION,
+      status: 'unhealthy' as const,
+      error: error.message || 'Failed to import AgentKit',
     };
   }
+}
+
+/**
+ * Check Mem0 Configuration (Non-Critical)
+ * Only checks if API key is configured - doesn't burn API credits
+ */
+function checkMem0() {
+  if (!process.env.MEM0_API_KEY) {
+    return {
+      status: 'disabled' as const,
+      message: 'MEM0_API_KEY not configured',
+    };
+  }
+
+  return {
+    status: 'healthy' as const,
+    message: 'Mem0 API key configured',
+  };
+}
+
+/**
+ * Check Unipile Configuration (Non-Critical)
+ * Only checks if API key is configured - doesn't burn API credits
+ */
+function checkUnipile() {
+  if (!process.env.UNIPILE_API_KEY) {
+    return {
+      status: 'disabled' as const,
+      message: 'UNIPILE_API_KEY not configured',
+    };
+  }
+
+  return {
+    status: 'healthy' as const,
+    message: 'Unipile API key configured',
+  };
 }

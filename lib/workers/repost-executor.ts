@@ -43,9 +43,16 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
 
       // Step A: Fetch the pod member's session cookies from Unipile API
       // Assuming Unipile API endpoint for session is /v1/accounts/{id}/session
-      const unipileSessionRes = await fetch(`${env.UNIPILE_API_BASE_URL}/v1/accounts/${memberUnipileAccountId}/session`, {
+      const unipileBaseUrl = process.env.UNIPILE_API_BASE_URL || 'https://api1.unipile.com:13211';
+      const unipileApiKey = process.env.UNIPILE_API_KEY;
+
+      if (!unipileApiKey) {
+        throw new Error('UNIPILE_API_KEY environment variable is not configured');
+      }
+
+      const unipileSessionRes = await fetch(`${unipileBaseUrl}/v1/accounts/${memberUnipileAccountId}/session`, {
         headers: {
-          'Authorization': `Bearer ${env.UNIPILE_API_KEY}`,
+          'Authorization': `Bearer ${unipileApiKey}`,
           'Content-Type': 'application/json',
         },
       });
