@@ -230,7 +230,7 @@ export default function AdminWorkflowsPage() {
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-lg font-semibold mb-2">Delete Workflow?</h3>
             <p className="text-gray-600 mb-4">
-              Are you sure you want to delete "{deleteConfirm.name}"?
+              Are you sure you want to delete &quot;{deleteConfirm.name}&quot;?
             </p>
             <div className="flex justify-end gap-3">
               <button

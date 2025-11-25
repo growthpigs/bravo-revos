@@ -6,13 +6,14 @@
 
 import { Worker, Job, Queue } from 'bullmq';
 import { createClient } from '@/lib/supabase/server';
-import { getRedisConnection } from '@/lib/redis';
+import { getRedisConnectionSync } from '@/lib/redis';
 import { LOGGING_CONFIG, FEATURE_FLAGS } from '@/lib/config';
 
 const LOG_PREFIX = '[POD_ENGAGEMENT_WORKER]';
 const QUEUE_NAME = 'pod-engagement';
 const WORKER_NAME = 'pod-engagement-executor';
-const JOB_TIMEOUT_MS = 30000; // 30 seconds max per engagement
+const JOB_TIMEOUT_MS = 30_000; // 30 seconds max per engagement
+const API_CALL_TIMEOUT_MS = 25_000; // 25 seconds for individual API calls
 const WORKER_CONCURRENCY = 5; // Process 5 jobs simultaneously
 
 /**
@@ -82,7 +83,7 @@ let queueInstance: Queue<EngagementJobData> | null = null;
 export function getEngagementQueue(): Queue<EngagementJobData> {
   if (!queueInstance) {
     queueInstance = new Queue<EngagementJobData>(QUEUE_NAME, {
-      connection: getRedisConnection(),
+      connection: getRedisConnectionSync(),
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -115,7 +116,7 @@ export async function initializeEngagementWorker(): Promise<Worker<EngagementJob
 
   console.log(`${LOG_PREFIX} Initializing engagement worker...`);
 
-  const redis = getRedisConnection();
+  const redis = getRedisConnectionSync();
 
   workerInstance = new Worker<EngagementJobData>(QUEUE_NAME, processEngagementJob, {
     connection: redis,
@@ -339,9 +340,9 @@ async function executeLikeEngagement(params: {
       console.log(`${LOG_PREFIX} [Activity ${activityId}] Calling Unipile like API: ${likeUrl}`);
     }
 
-    // Use AbortController for timeout (25 seconds)
+    // Use AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const timeoutId = setTimeout(() => controller.abort(), API_CALL_TIMEOUT_MS);
 
     try {
       const response = await fetch(likeUrl, {

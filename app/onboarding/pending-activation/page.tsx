@@ -179,12 +179,12 @@ export default function PendingActivationPage() {
           {/* Info message */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-gray-700">
-              <strong>What's next:</strong>
+              <strong>What&apos;s next:</strong>
             </p>
             <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
               <li>An admin from {podMember.clients.name} will review your connection</li>
-              <li>You'll be activated within 24 hours</li>
-              <li>Once activated, you'll automatically repost team content</li>
+              <li>You&apos;ll be activated within 24 hours</li>
+              <li>Once activated, you&apos;ll automatically repost team content</li>
               <li>This page will auto-refresh when you&apos;re activated</li>
             </ul>
           </div>

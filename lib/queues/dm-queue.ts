@@ -5,7 +5,7 @@
 
 import { Queue, Worker, Job } from 'bullmq';
 import { sendDirectMessage } from '../unipile-client';
-import { getRedisConnection } from '../redis';
+import { getRedisConnectionSync } from '../redis';
 import { DM_QUEUE_CONFIG, LOGGING_CONFIG } from '../config';
 import { validateDMJobData, validateAccountId } from '../validation';
 
@@ -55,7 +55,7 @@ let queueInstance: Queue<DMJobData> | null = null;
 
 function createQueue(): Queue<DMJobData> {
   return new Queue<DMJobData>(QUEUE_NAME, {
-    connection: getRedisConnection(),
+    connection: getRedisConnectionSync(),
     defaultJobOptions: {
       attempts: DM_QUEUE_CONFIG.QUEUE_ATTEMPTS,
       backoff: {
@@ -105,7 +105,7 @@ function getDMCountKey(accountId: string): string {
 export async function checkRateLimit(accountId: string): Promise<RateLimitStatus> {
   validateAccountId(accountId);
 
-  const connection = getRedisConnection();
+  const connection = getRedisConnectionSync();
   const key = getDMCountKey(accountId);
   const count = await connection.get(key);
   const sentToday = count ? parseInt(count, 10) : 0;
@@ -130,7 +130,7 @@ export async function checkRateLimit(accountId: string): Promise<RateLimitStatus
  * Sets expiry to midnight UTC (24 hours + remaining seconds to midnight)
  */
 async function incrementDMCount(accountId: string): Promise<number> {
-  const connection = getRedisConnection();
+  const connection = getRedisConnectionSync();
   const key = getDMCountKey(accountId);
 
   // Increment counter
@@ -270,7 +270,7 @@ let workerInstance: Worker<DMJobData> | null = null;
 
 function createWorker(): Worker<DMJobData> {
   const worker = new Worker<DMJobData>(QUEUE_NAME, processDMJob, {
-    connection: getRedisConnection(),
+    connection: getRedisConnectionSync(),
     concurrency: DM_QUEUE_CONFIG.QUEUE_CONCURRENCY,
     limiter: {
       max: DM_QUEUE_CONFIG.RATE_LIMITER_MAX_JOBS,

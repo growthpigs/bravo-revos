@@ -4,7 +4,7 @@
  */
 
 import { Queue, Worker, Job } from 'bullmq';
-import { getRedisConnection } from '../redis';
+import { getRedisConnectionSync } from '../redis';
 import { createClient } from '@supabase/supabase-js';
 import {
   sendWebhook,
@@ -31,7 +31,7 @@ export interface WebhookJobData {
  * Create webhook delivery queue
  */
 export function createWebhookQueue(): Queue<WebhookJobData> {
-  const connection = getRedisConnection();
+  const connection = getRedisConnectionSync();
 
   const queue = new Queue<WebhookJobData>(QUEUE_NAME, {
     connection,
@@ -147,7 +147,7 @@ export async function cancelWebhookDelivery(deliveryId: string): Promise<boolean
  * Create webhook delivery worker
  */
 export function createWebhookWorker(): Worker<WebhookJobData> {
-  const connection = getRedisConnection();
+  const connection = getRedisConnectionSync();
 
   const worker = new Worker<WebhookJobData>(
     QUEUE_NAME,

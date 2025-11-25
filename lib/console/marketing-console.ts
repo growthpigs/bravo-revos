@@ -169,6 +169,22 @@ export class MarketingConsole {
 
     console.log(`[MarketingConsole] Message count: ${messages.length}`);
 
+    // FIX: Truncate conversation history to prevent memory leak
+    // Keep first message (often contains important context) + last N messages
+    const MAX_HISTORY_MESSAGES = 20;
+    let truncatedMessages = messages;
+
+    if (messages.length > MAX_HISTORY_MESSAGES) {
+      truncatedMessages = [
+        messages[0], // Keep first message (system context or initial prompt)
+        ...messages.slice(-(MAX_HISTORY_MESSAGES - 1)) // Keep last N-1 messages
+      ];
+      console.log(`[MarketingConsole] Truncated ${messages.length} messages to ${truncatedMessages.length} (kept first + last ${MAX_HISTORY_MESSAGES - 1})`);
+    }
+
+    // Use truncated messages for all subsequent processing
+    messages = truncatedMessages;
+
     // Ensure agent is initialized (lazy-loaded to prevent build-time execution)
     const agent = await this.ensureAgent();
 
@@ -359,7 +375,13 @@ export class MarketingConsole {
       return [];
     }
 
-    return messages.map((msg) => {
+    // FIX: Pre-allocate array for better performance (avoids dynamic resizing)
+    const result = new Array(messages.length);
+
+    // FIX: Use for loop instead of map for better performance with large arrays
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+
       // Normalize content to ensure it's valid for AgentKit SDK
       // AgentKit expects content to be either:
       // 1. A string (for text messages)
@@ -381,14 +403,16 @@ export class MarketingConsole {
         normalizedContent = JSON.stringify(normalizedContent);
       }
 
-      return {
+      result[i] = {
         role: msg.role,
         content: normalizedContent,
         tool_calls: msg.tool_calls,
         tool_call_id: msg.tool_call_id,
         name: msg.name,
       };
-    });
+    }
+
+    return result;
   }
 
   /**

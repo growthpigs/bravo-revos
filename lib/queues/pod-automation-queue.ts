@@ -12,7 +12,7 @@ import {
   updateMemberEngagementMetrics,
   getPodEngagementStats,
 } from '../pods/engagement-scheduler';
-import { getRedisConnection } from '../redis';
+import { getRedisConnectionSync } from '../redis';
 import { POD_AUTOMATION_CONFIG, LOGGING_CONFIG } from '../config';
 
 const QUEUE_NAME = 'pod-automation';
@@ -28,7 +28,7 @@ let queueInstance: Queue<PodAutomationJobData> | null = null;
 
 function createQueue(): Queue<PodAutomationJobData> {
   return new Queue<PodAutomationJobData>(QUEUE_NAME, {
-    connection: getRedisConnection(),
+    connection: getRedisConnectionSync(),
     defaultJobOptions: {
       attempts: POD_AUTOMATION_CONFIG.QUEUE_ATTEMPTS,
       backoff: {
@@ -243,7 +243,7 @@ function createWorker(): Worker<PodAutomationJobData> {
     QUEUE_NAME,
     processPodAutomationJob,
     {
-      connection: getRedisConnection(),
+      connection: getRedisConnectionSync(),
       concurrency: POD_AUTOMATION_CONFIG.QUEUE_CONCURRENCY,
     }
   );

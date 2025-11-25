@@ -5,6 +5,9 @@
 
 import crypto from 'crypto';
 
+// Constants
+const WEBHOOK_TIMEOUT_MS = 30_000; // 30 seconds
+
 /**
  * Validate webhook URL format
  * Ensures URL is a valid HTTPS endpoint (or HTTP for localhost/private IPs)
@@ -170,9 +173,9 @@ export async function sendWebhook(
   body: string;
   error?: string;
 }> {
-  // Create abort controller for 30 second timeout
+  // Create abort controller for timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
 
   try {
     const response = await fetch(delivery.webhookUrl, {

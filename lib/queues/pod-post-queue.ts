@@ -6,7 +6,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { getUserLatestPosts } from '../unipile-client';
 import { saveDetectedPost, getPodMemberByLinkedInAccountId } from '../pods/post-detector';
-import { getRedisConnection } from '../redis';
+import { getRedisConnectionSync } from '../redis';
 import { POD_POST_CONFIG, LOGGING_CONFIG } from '../config';
 import { validatePodPostJobData } from '../validation';
 import { scheduleLikeJobs, scheduleCommentJobs } from './pod-automation-queue';
@@ -26,7 +26,7 @@ let queueInstance: Queue<PodPostJobData> | null = null;
 
 function createQueue(): Queue<PodPostJobData> {
   return new Queue<PodPostJobData>(QUEUE_NAME, {
-    connection: getRedisConnection(),
+    connection: getRedisConnectionSync(),
     defaultJobOptions: {
       attempts: POD_POST_CONFIG.QUEUE_ATTEMPTS,
       backoff: {
@@ -77,7 +77,7 @@ function getSeenPostsKey(podId: string): string {
  * Check if post was already detected
  */
 async function isPostSeen(podId: string, postId: string): Promise<boolean> {
-  const connection = getRedisConnection();
+  const connection = getRedisConnectionSync();
   const key = getSeenPostsKey(podId);
   return (await connection.sismember(key, postId)) === 1;
 }
@@ -86,7 +86,7 @@ async function isPostSeen(podId: string, postId: string): Promise<boolean> {
  * Mark post as seen
  */
 async function markPostSeen(podId: string, postId: string): Promise<void> {
-  const connection = getRedisConnection();
+  const connection = getRedisConnectionSync();
   const key = getSeenPostsKey(podId);
   await connection.sadd(key, postId);
   // Keep for configured days then auto-expire
@@ -246,7 +246,7 @@ let workerInstance: Worker<PodPostJobData> | null = null;
 
 function createWorker(): Worker<PodPostJobData> {
   const worker = new Worker<PodPostJobData>(QUEUE_NAME, processPodPostJob, {
-    connection: getRedisConnection(),
+    connection: getRedisConnectionSync(),
     concurrency: POD_POST_CONFIG.QUEUE_CONCURRENCY,
   });
 
