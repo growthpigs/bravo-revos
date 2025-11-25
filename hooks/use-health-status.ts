@@ -3,25 +3,20 @@
 import { useEffect, useState } from 'react';
 
 interface HealthCheck {
-  status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'disabled';
   latency?: number;
+  message?: string;
+  error?: string;
 }
 
 interface HealthData {
   status: string;
   checks: {
     database: HealthCheck;
-    supabase: HealthCheck;
-    api: HealthCheck;
+    queue: HealthCheck;
     agentkit: HealthCheck;
     mem0: HealthCheck;
     unipile: HealthCheck;
-    email: HealthCheck;
-    console: HealthCheck;
-    cache: HealthCheck;
-    queue: HealthCheck;
-    cron: HealthCheck;
-    webhooks: HealthCheck;
     timestamp: string;
   };
 }
