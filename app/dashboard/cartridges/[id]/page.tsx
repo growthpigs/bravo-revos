@@ -357,9 +357,9 @@ export default function CartridgeDetailPage() {
             <strong>System Instructions:</strong> Be specific about tone, style, and behavior. For example:
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li>"You are a friendly, professional sales representative..."</li>
-            <li>"Keep responses concise and action-oriented..."</li>
-            <li>"Use casual language but maintain professionalism..."</li>
+            <li>&quot;You are a friendly, professional sales representative...&quot;</li>
+            <li>&quot;Keep responses concise and action-oriented...&quot;</li>
+            <li>&quot;Use casual language but maintain professionalism...&quot;</li>
           </ul>
           <p>
             <strong>Active Status:</strong> Only active cartridges can be selected for campaigns.

@@ -257,7 +257,7 @@ export function AddPodMemberModal({
               <p className="text-sm text-red-600">{formErrors.linkedin_url}</p>
             )}
             <p className="text-xs text-gray-500">
-              The member's LinkedIn profile URL
+              The member&apos;s LinkedIn profile URL
             </p>
           </div>
 

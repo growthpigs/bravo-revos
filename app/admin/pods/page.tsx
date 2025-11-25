@@ -876,7 +876,7 @@ export default function AdminPodsPage() {
           <DialogHeader>
             <DialogTitle>Delete Pod</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{podToDelete?.name}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{podToDelete?.name}&quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

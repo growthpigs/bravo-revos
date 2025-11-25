@@ -669,7 +669,7 @@ export default function ConsoleConfigPage() {
                     placeholder="Core system instructions for the AI agent..."
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Primary instructions that define the agent's personality, capabilities, and behavior
+                    Primary instructions that define the agent&apos;s personality, capabilities, and behavior
                   </p>
                 </div>
 

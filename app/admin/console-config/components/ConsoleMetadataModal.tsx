@@ -165,7 +165,7 @@ export function ConsoleMetadataModal({
                 disabled={saving}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Used in code (e.g., loadConsolePrompt('marketing-console-v2'))
+                Used in code (e.g., loadConsolePrompt(&apos;marketing-console-v2&apos;))
               </p>
               {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
             </div>

@@ -144,8 +144,8 @@ export default function ConnectUnipilePage() {
               <strong>What happens next:</strong>
             </p>
             <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
-              <li>You'll be redirected to LinkedIn to authorize access</li>
-              <li>We'll use your account to amplify team posts</li>
+              <li>You&apos;ll be redirected to LinkedIn to authorize access</li>
+              <li>We&apos;ll use your account to amplify team posts</li>
               <li>Your account stays secure - we never see your password</li>
               <li>Admin will activate you after connection</li>
             </ul>

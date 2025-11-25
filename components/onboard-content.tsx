@@ -133,7 +133,7 @@ export default function OnboardContent() {
       <CardContent className="space-y-6">
         <div>
           <p className="text-sm text-gray-600">Hi {invitation?.firstName} {invitation?.lastName}</p>
-          <p className="text-sm text-gray-600">You've been invited to join</p>
+          <p className="text-sm text-gray-600">You&apos;ve been invited to join</p>
           <p className="font-semibold">{invitation?.email}</p>
         </div>
 
