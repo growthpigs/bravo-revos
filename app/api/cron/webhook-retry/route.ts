@@ -3,6 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { verifyCronAuth } from '@/lib/cron-auth'
 import { generateWebhookSignature, calculateRetryDelay } from '@/lib/webhook-delivery'
 
+// Constants
+const WEBHOOK_RETRY_TIMEOUT_MS = 10_000 // 10 seconds
+const MAX_WEBHOOKS_PER_RUN = 20
+const MAX_RETRY_COUNT = 3
+
 /**
  * POST /api/cron/webhook-retry
  * Background worker that retries failed webhook deliveries
@@ -36,9 +41,9 @@ export async function POST(request: NextRequest) {
         last_attempt_at
       `)
       .eq('status', 'failed')
-      .lt('retry_count', 3)
+      .lt('retry_count', MAX_RETRY_COUNT)
       .order('last_attempt_at', { ascending: true })
-      .limit(20) // Process max 20 per run
+      .limit(MAX_WEBHOOKS_PER_RUN)
 
     if (queryError) {
       console.error('[WEBHOOK_RETRY] Failed to query webhooks:', queryError)
@@ -89,9 +94,9 @@ export async function POST(request: NextRequest) {
         // Generate signature
         const signature = generateWebhookSignature(webhook.payload, webhookSecret)
 
-        // Send webhook
+        // Send webhook with timeout
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 10000)
+        const timeout = setTimeout(() => controller.abort(), WEBHOOK_RETRY_TIMEOUT_MS)
 
         const response = await fetch(webhook.webhook_url, {
           method: 'POST',
