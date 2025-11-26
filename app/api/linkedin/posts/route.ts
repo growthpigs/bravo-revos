@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
             unipile_account_id: unipileAccountId,
             trigger_word: triggerWord,  // NO DEFAULT - must come from campaign
             status: 'scheduled',  // Must be 'scheduled' for comment-monitor to pick it up
+            next_check: new Date().toISOString(),  // CRITICAL: Set next_check for cron pickup
           })
           .select()
           .single();

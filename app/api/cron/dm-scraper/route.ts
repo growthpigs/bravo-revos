@@ -143,13 +143,33 @@ export async function POST(request: NextRequest) {
 
         console.log(`[DM_SCRAPER] Found ${comments.length} comments on post`)
 
-        // Filter comments containing trigger word
-        const triggerWord = job.trigger_word.toLowerCase()
-        const triggeredComments = comments.filter((comment) =>
-          comment.text?.toLowerCase().includes(triggerWord)
-        )
+        // Get post owner's profile URL for self-comment filtering
+        const { data: postOwner } = await supabase
+          .from('linkedin_accounts')
+          .select('profile_url')
+          .eq('unipile_account_id', job.unipile_account_id)
+          .single()
 
-        console.log(`[DM_SCRAPER] Found ${triggeredComments.length} comments with trigger word "${job.trigger_word}"`)
+        const ownerProfileUrl = postOwner?.profile_url?.toLowerCase() || ''
+        console.log(`[DM_SCRAPER] Post owner profile URL: ${ownerProfileUrl || 'not found'}`)
+
+        // Filter comments containing trigger word AND exclude self-comments
+        const triggerWord = job.trigger_word.toLowerCase()
+        const triggeredComments = comments.filter((comment) => {
+          const hasTriggerWord = comment.text?.toLowerCase().includes(triggerWord)
+          if (!hasTriggerWord) return false
+
+          // Exclude self-comments (post author commenting on their own post)
+          const commentAuthorUrl = comment.author.profile_url?.toLowerCase() || ''
+          if (ownerProfileUrl && commentAuthorUrl && commentAuthorUrl.includes(ownerProfileUrl.replace('https://www.linkedin.com/in/', ''))) {
+            console.log(`[DM_SCRAPER] Skipping self-comment from ${comment.author.name}`)
+            return false
+          }
+
+          return true
+        })
+
+        console.log(`[DM_SCRAPER] Found ${triggeredComments.length} comments with trigger word "${job.trigger_word}" (excluding self-comments)`)
 
         // Get active DM sequence for this campaign (if exists)
         const { data: dmSequence } = await supabase
@@ -170,7 +190,7 @@ export async function POST(request: NextRequest) {
             // This replaces the unsafe check-then-insert pattern
             const upsertResult = await upsertLead(supabase, {
               campaign_id: job.campaign_id,
-              linkedin_profile_url: comment.author.profile_url,
+              linkedin_profile_url: comment.author.profile_url || '',
               name: comment.author.name,
               status: 'dm_pending',
               source: 'comment_trigger',
