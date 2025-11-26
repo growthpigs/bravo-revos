@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllPostComments } from '@/lib/unipile-client'
+import { getAllPostComments, extractCommentAuthor } from '@/lib/unipile-client'
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -59,13 +59,16 @@ export async function GET(request: NextRequest) {
       postId,
       accountId,
       commentsCount: comments.length,
-      comments: comments.map(c => ({
-        id: c.id,
-        author: c.author?.name,
-        authorUrl: c.author?.profile_url,
-        text: c.text?.substring(0, 100),
-        createdAt: c.created_at
-      }))
+      comments: comments.map(c => {
+        const author = extractCommentAuthor(c);
+        return {
+          id: c.id,
+          author: author.name,
+          authorUrl: author.profile_url,
+          text: c.text?.substring(0, 100),
+          createdAt: c.created_at || c.date
+        };
+      })
     })
 
   } catch (error: any) {

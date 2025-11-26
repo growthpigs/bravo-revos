@@ -4,7 +4,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getAllPostComments, UnipileComment } from '../unipile-client';
+import { getAllPostComments, UnipileComment, extractCommentAuthor } from '../unipile-client';
 import { queueDM, DMJobData } from '../queues/dm-queue';
 
 // NO HARD-CODED TRIGGER WORDS
@@ -251,19 +251,18 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
       continue;
     }
 
-    // CRITICAL: Skip comments without valid author data (prevents TypeError crashes)
-    if (!comment.author || !comment.author.id) {
-      console.warn(`[COMMENT_MONITOR] Skipping comment ${comment.id} - missing author data`);
+    // Extract author info safely using helper (handles both real API and mock formats)
+    const authorInfo = extractCommentAuthor(comment);
+    if (!authorInfo.id) {
+      console.warn(`[COMMENT_MONITOR] Skipping comment ${comment.id} - no author ID found`);
       continue;
     }
+    const authorId = authorInfo.id;
+    const authorName = authorInfo.name;
 
     // Check ONLY for the campaign's specific trigger word (multi-tenant)
     // NO generic triggers - each campaign defines its own
     const triggerWord = containsTriggerWord(comment.text, job.trigger_word);
-
-    // Extract author info safely
-    const authorId = comment.author.id;
-    const authorName = comment.author.name || 'Unknown User';
 
     if (triggerWord) {
       console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id}`);

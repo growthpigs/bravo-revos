@@ -4,7 +4,7 @@
  */
 
 import { Queue, Worker, Job } from 'bullmq';
-import { getAllPostComments } from '../unipile-client';
+import { getAllPostComments, extractCommentAuthor } from '../unipile-client';
 import { processComments } from '../comment-processor';
 import { getRedisConnectionSync } from '../redis';
 import { COMMENT_POLLING_CONFIG, LOGGING_CONFIG } from '../config';
@@ -185,22 +185,28 @@ async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promis
     const { queueDM } = await import('./dm-queue');
 
     for (const processed of validComments) {
-      console.log(`${LOG_PREFIX} Queueing DM for: ${processed.comment.author.name}`);
+      const authorInfo = extractCommentAuthor(processed.comment);
+      console.log(`${LOG_PREFIX} Queueing DM for: ${authorInfo.name}`);
       console.log(`  - Matched words: ${processed.matchedTriggerWords.join(', ')}`);
       console.log(`  - Bot score: ${processed.botScore}`);
+
+      if (!authorInfo.id) {
+        console.warn(`${LOG_PREFIX} Skipping - no author ID for comment ${processed.comment.id}`);
+        continue;
+      }
 
       try {
         // Generate personalized DM message
         const message = generateDMMessage(
-          processed.comment.author.name,
+          authorInfo.name,
           processed.matchedTriggerWords
         );
 
         // Queue DM for delivery
         const result = await queueDM({
           accountId,
-          recipientId: processed.comment.author.id,
-          recipientName: processed.comment.author.name,
+          recipientId: authorInfo.id,
+          recipientName: authorInfo.name,
           message,
           campaignId,
           userId,
@@ -214,7 +220,7 @@ async function processCommentPollingJob(job: Job<CommentPollingJobData>): Promis
         );
       } catch (error) {
         console.error(
-          `${LOG_PREFIX} ❌ Failed to queue DM for ${processed.comment.author.name}:`,
+          `${LOG_PREFIX} ❌ Failed to queue DM for ${authorInfo.name}:`,
           error
         );
         // Continue with other comments even if one fails

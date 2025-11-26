@@ -3,7 +3,7 @@
  * Tests for comment fetching API with mock mode support
  */
 
-import { getAllPostComments, UnipileComment } from '../lib/unipile-client';
+import { getAllPostComments, UnipileComment, extractCommentAuthor } from '../lib/unipile-client';
 
 // Mock fetch globally
 global.fetch = jest.fn();
@@ -54,11 +54,11 @@ describe('Unipile Client', () => {
         const comments = await getAllPostComments('acc123', 'post456');
 
         // At least one comment should be bot-like
-        const hasBotComment = comments.some(
-          (c) =>
-            c.author.headline?.toLowerCase().includes('bot') ||
-            c.author.connections_count !== undefined && c.author.connections_count < 10
-        );
+        const hasBotComment = comments.some((c) => {
+          const author = extractCommentAuthor(c);
+          return author.headline?.toLowerCase().includes('bot') ||
+            (author.connections_count !== undefined && author.connections_count < 10);
+        });
         expect(hasBotComment).toBe(true);
       });
 

@@ -84,18 +84,69 @@ export interface UnipileCheckpointResponse {
   checkpoint_type?: 'OTP' | '2FA' | 'IN_APP_VALIDATION' | 'PHONE_REGISTER' | 'CAPTCHA';
 }
 
+// Unipile API returns author as string + author_details object
+// Mock mode uses author as object for backwards compatibility
 export interface UnipileComment {
   id: string;
   text: string;
-  created_at: string;
-  author: {
+  created_at?: string;
+  date?: string; // Unipile uses 'date' field
+  post_id?: string;
+  post_urn?: string;
+  // Real API: author is string name, author_details has id/profile
+  // Mock mode: author is object with id/name/etc
+  author: string | {
     id: string;
     name: string;
     headline?: string;
     profile_url?: string;
     connections_count?: number;
   };
+  author_details?: {
+    id: string;
+    is_company?: boolean;
+    headline?: string;
+    profile_url?: string;
+    network_distance?: string;
+  };
   replies_count?: number;
+}
+
+/**
+ * Extract author info from a UnipileComment (handles both real API and mock formats)
+ * Real API: author is string, author_details has {id, profile_url, etc}
+ * Mock mode: author is object {id, name, headline, etc}
+ */
+export function extractCommentAuthor(comment: UnipileComment): {
+  id: string | undefined;
+  name: string;
+  headline?: string;
+  profile_url?: string;
+  connections_count?: number;
+} {
+  if (typeof comment.author === 'object' && comment.author?.id) {
+    // Mock mode format: author is object with id/name
+    return {
+      id: comment.author.id,
+      name: comment.author.name || 'Unknown User',
+      headline: comment.author.headline,
+      profile_url: comment.author.profile_url,
+      connections_count: comment.author.connections_count,
+    };
+  } else if (comment.author_details?.id) {
+    // Real API format: author is string, author_details has id
+    return {
+      id: comment.author_details.id,
+      name: typeof comment.author === 'string' ? comment.author : 'Unknown User',
+      headline: comment.author_details.headline,
+      profile_url: comment.author_details.profile_url,
+    };
+  }
+  // Fallback
+  return {
+    id: undefined,
+    name: typeof comment.author === 'string' ? comment.author : 'Unknown User',
+  };
 }
 
 /**

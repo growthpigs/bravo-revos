@@ -3,7 +3,7 @@
  * Bot filtering, trigger word detection, and comment analysis
  */
 
-import { UnipileComment } from './unipile-client';
+import { UnipileComment, extractCommentAuthor } from './unipile-client';
 
 export interface ProcessedComment {
   comment: UnipileComment;
@@ -47,22 +47,23 @@ export function detectBot(comment: UnipileComment): {
 } {
   let score = 0;
   const reasons: string[] = [];
+  const author = extractCommentAuthor(comment);
 
   // Check 1: Headline contains "bot" or automation keywords
-  if (comment.author.headline) {
+  if (author.headline) {
     for (const pattern of BOT_HEADLINE_PATTERNS) {
-      if (pattern.test(comment.author.headline)) {
+      if (pattern.test(author.headline)) {
         score += 50;
-        reasons.push(`Headline contains bot keyword: "${comment.author.headline}"`);
+        reasons.push(`Headline contains bot keyword: "${author.headline}"`);
         break;
       }
     }
   }
 
   // Check 2: Low connection count (<10)
-  if (comment.author.connections_count !== undefined && comment.author.connections_count < 10) {
+  if (author.connections_count !== undefined && author.connections_count < 10) {
     score += 30;
-    reasons.push(`Low connections: ${comment.author.connections_count}`);
+    reasons.push(`Low connections: ${author.connections_count}`);
   }
 
   // Check 3: Very short comment (< 10 chars) with no substance

@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
-import { getAllPostComments, sendDirectMessage } from '@/lib/unipile-client';
+import { getAllPostComments, sendDirectMessage, extractCommentAuthor } from '@/lib/unipile-client';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -189,24 +189,31 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          console.log(`[TEST_POLL_DM] Checking comment: "${comment.text}" by ${comment.author.name}`);
+          // Extract author info (handles both real API and mock formats)
+          const author = extractCommentAuthor(comment);
+          if (!author.id) {
+            console.log(`[TEST_POLL_DM] Skipping comment ${comment.id} - no author ID`);
+            continue;
+          }
+
+          console.log(`[TEST_POLL_DM] Checking comment: "${comment.text}" by ${author.name}`);
 
           // Check for trigger words
           const triggerWord = containsTriggerWord(comment.text, job.trigger_word);
 
           if (triggerWord) {
-            console.log(`[TEST_POLL_DM] TRIGGER FOUND: "${triggerWord}" in comment by ${comment.author.name}`);
+            console.log(`[TEST_POLL_DM] TRIGGER FOUND: "${triggerWord}" in comment by ${author.name}`);
             results.triggers_matched++;
 
             // Build DM message
-            const dmMessage = buildDMMessage(comment.author.name, triggerWord);
+            const dmMessage = buildDMMessage(author.name, triggerWord);
 
             // Send DM immediately (synchronous, no queue)
             try {
-              console.log(`[TEST_POLL_DM] Sending DM to ${comment.author.name} (${comment.author.id})...`);
+              console.log(`[TEST_POLL_DM] Sending DM to ${author.name} (${author.id})...`);
               const dmResult = await sendDirectMessage(
                 job.unipile_account_id,
-                comment.author.id,
+                author.id,
                 dmMessage
               );
 
@@ -215,7 +222,7 @@ export async function POST(request: NextRequest) {
 
               results.details.push({
                 comment_id: comment.id,
-                commenter: comment.author.name,
+                commenter: author.name,
                 trigger_word: triggerWord,
                 dm_sent: true,
                 dm_result: dmResult,
@@ -226,24 +233,24 @@ export async function POST(request: NextRequest) {
                 campaign_id: job.campaign_id,
                 comment_id: comment.id,
                 post_id: job.post_id,
-                commenter_linkedin_id: comment.author.id,
+                commenter_linkedin_id: author.id,
                 dm_queued: true,
                 trigger_word: triggerWord,
                 processed_at: new Date().toISOString(),
               });
 
               // Create lead record (schema: first_name, last_name, linkedin_url, title, status)
-              const nameParts = comment.author.name.split(' ');
+              const nameParts = author.name.split(' ');
               const firstName = nameParts[0] || '';
               const lastName = nameParts.slice(1).join(' ') || '';
 
               const { error: leadError } = await serviceSupabase.from('leads').upsert({
                 campaign_id: job.campaign_id,
-                linkedin_id: comment.author.id,
+                linkedin_id: author.id,
                 first_name: firstName,
                 last_name: lastName,
-                title: comment.author.headline || null,
-                linkedin_url: comment.author.profile_url || null,
+                title: author.headline || null,
+                linkedin_url: author.profile_url || null,
                 source: 'comment_trigger',
                 status: 'dm_sent',
               }, { onConflict: 'linkedin_id' });
@@ -255,11 +262,11 @@ export async function POST(request: NextRequest) {
             } catch (dmError: any) {
               console.error('[TEST_POLL_DM] DM FAILED:', dmError);
               results.dms_failed++;
-              results.errors.push(`DM to ${comment.author.name}: ${dmError.message}`);
+              results.errors.push(`DM to ${author.name}: ${dmError.message}`);
 
               results.details.push({
                 comment_id: comment.id,
-                commenter: comment.author.name,
+                commenter: author.name,
                 trigger_word: triggerWord,
                 dm_sent: false,
                 error: dmError.message,
@@ -270,7 +277,7 @@ export async function POST(request: NextRequest) {
                 campaign_id: job.campaign_id,
                 comment_id: comment.id,
                 post_id: job.post_id,
-                commenter_linkedin_id: comment.author.id,
+                commenter_linkedin_id: author.id,
                 dm_queued: false,
                 trigger_word: triggerWord,
                 processed_at: new Date().toISOString(),
@@ -282,7 +289,7 @@ export async function POST(request: NextRequest) {
               campaign_id: job.campaign_id,
               comment_id: comment.id,
               post_id: job.post_id,
-              commenter_linkedin_id: comment.author.id,
+              commenter_linkedin_id: author.id,
               dm_queued: false,
               trigger_word: null,
               processed_at: new Date().toISOString(),
