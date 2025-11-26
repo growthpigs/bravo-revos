@@ -248,7 +248,8 @@ export async function POST(request: NextRequest) {
             // This replaces the unsafe check-then-insert pattern
             const upsertResult = await upsertLead(supabase, {
               campaign_id: job.campaign_id,
-              linkedin_profile_url: authorProfileUrl,
+              linkedin_id: authorId, // Required - unique LinkedIn identifier
+              linkedin_url: authorProfileUrl, // Optional - full profile URL
               name: authorName,
               status: 'dm_pending',
               source: 'comment_trigger',
@@ -256,8 +257,7 @@ export async function POST(request: NextRequest) {
                 comment_id: comment.id,
                 comment_text: comment.text,
                 trigger_word: job.trigger_word,
-                post_id: job.unipile_post_id,
-                author_id: authorId
+                post_id: job.unipile_post_id
               }
             })
 

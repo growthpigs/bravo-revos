@@ -28,13 +28,12 @@ export interface UpsertResult<T> {
  */
 export interface LeadUpsertData {
   campaign_id: string;
-  linkedin_profile_url: string;
+  linkedin_id: string; // Required - unique identifier for the LinkedIn user
+  linkedin_url?: string; // Optional - full profile URL
   name: string;
   status?: string;
   source?: string;
   metadata?: Record<string, unknown>;
-  linkedin_headline?: string;
-  linkedin_profile_id?: string;
 }
 
 /**
@@ -74,22 +73,28 @@ export async function upsertLead(
   try {
     const now = new Date().toISOString();
 
+    // Split name into first/last for the leads table
+    const nameParts = leadData.name.split(' ');
+    const firstName = nameParts[0] || leadData.name;
+    const lastName = nameParts.slice(1).join(' ') || null;
+
     const { data, error } = await supabase
       .from('leads')
       .upsert(
         {
           campaign_id: leadData.campaign_id,
-          linkedin_profile_url: leadData.linkedin_profile_url,
-          name: leadData.name,
-          status: leadData.status || 'new',
-          source: leadData.source || 'unknown',
-          metadata: leadData.metadata || {},
-          linkedin_headline: leadData.linkedin_headline,
-          linkedin_profile_id: leadData.linkedin_profile_id,
+          linkedin_id: leadData.linkedin_id, // Required unique identifier
+          linkedin_url: leadData.linkedin_url || null, // Optional profile URL
+          first_name: firstName,
+          last_name: lastName,
+          status: leadData.status || 'comment_detected',
+          source: leadData.source || 'comment',
+          custom_fields: leadData.metadata || {},
           updated_at: now,
         },
         {
-          onConflict: 'campaign_id,linkedin_profile_url',
+          // Matches the actual unique constraint: leads_campaign_id_linkedin_id_key
+          onConflict: 'campaign_id,linkedin_id',
           ignoreDuplicates: false,
         }
       )

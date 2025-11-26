@@ -29,7 +29,8 @@ function createMockSupabase(): MockSupabaseClient {
 describe('upsertLead', () => {
   const mockLeadData: LeadUpsertData = {
     campaign_id: 'campaign-123',
-    linkedin_profile_url: 'https://linkedin.com/in/johndoe',
+    linkedin_id: 'johndoe-123', // Required unique identifier
+    linkedin_url: 'https://linkedin.com/in/johndoe', // Optional URL
     name: 'John Doe',
     status: 'dm_pending',
     source: 'comment_trigger',
@@ -135,13 +136,13 @@ describe('upsertLead', () => {
 
     await upsertLead(mockSupabase as any, {
       campaign_id: 'campaign-123',
-      linkedin_profile_url: 'https://linkedin.com/in/test',
+      linkedin_id: 'test-user-123', // Required
       name: 'Test User',
     });
 
-    expect(capturedData.status).toBe('new');
-    expect(capturedData.source).toBe('unknown');
-    expect(capturedData.metadata).toEqual({});
+    expect(capturedData.status).toBe('comment_detected');
+    expect(capturedData.source).toBe('comment');
+    expect(capturedData.custom_fields).toEqual({});
   });
 });
 
