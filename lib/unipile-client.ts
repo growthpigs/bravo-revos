@@ -398,22 +398,33 @@ export async function getAllPostComments(
       ];
     }
 
-    const response = await fetch(
-      `${process.env.UNIPILE_DSN || 'https://api1.unipile.com:13211'}/api/v1/posts/${postId}/comments?account_id=${accountId}`,
-      {
-        method: 'GET',
-        headers: {
-          'X-API-KEY': process.env.UNIPILE_API_KEY || '',
-          'Accept': 'application/json',
-        },
-      }
-    );
+    const credentials = getUnipileCredentials();
+
+    // Unipile needs the social_id format: urn:li:activity:XXXXX
+    // If postId is just the number, convert it
+    const socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+
+    console.log('[UNIPILE_COMMENTS] Fetching comments:', { accountId, postId, socialId });
+
+    const url = `${credentials.dsn}/api/v1/posts/${encodeURIComponent(socialId)}/comments?account_id=${accountId}`;
+    console.log('[UNIPILE_COMMENTS] Request URL:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': credentials.apiKey,
+        'Accept': 'application/json',
+      },
+    });
 
     if (!response.ok) {
-      throw new Error(`Failed to get post comments: ${response.status}`);
+      const errorBody = await response.text();
+      console.error('[UNIPILE_COMMENTS] Error response:', response.status, errorBody);
+      throw new Error(`Failed to get post comments: ${response.status} - ${errorBody}`);
     }
 
     const data = await response.json();
+    console.log('[UNIPILE_COMMENTS] Found comments:', data.items?.length || 0);
     return data.items || [];
   } catch (error) {
     console.error('Error getting post comments:', error);
