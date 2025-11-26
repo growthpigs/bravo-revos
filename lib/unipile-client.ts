@@ -805,17 +805,43 @@ export async function createLinkedInPost(
 
     const data = await response.json();
 
-    // Unipile returns different field names: post_id (on create) vs id (on get)
-    const postId = data.post_id || data.id;
+    // CRITICAL: Extract the LinkedIn activity ID from share_url for comment retrieval
+    // Unipile's post_id is their internal ID, but we need the LinkedIn activity ID
+    // Format: https://www.linkedin.com/feed/update/urn:li:activity:7399434743425105920
+    // We need: 7399434743425105920 (the activity number)
+    const shareUrl = data.share_url || data.url || '';
+    let linkedinActivityId: string | null = null;
+
+    // Try to extract from share_url
+    const activityMatch = shareUrl.match(/urn:li:(?:activity|ugcPost):(\d+)/);
+    if (activityMatch) {
+      linkedinActivityId = activityMatch[1];
+      console.log('[UNIPILE_POST] Extracted LinkedIn activity ID from URL:', linkedinActivityId);
+    }
+
+    // Also check for social_id in response (some Unipile versions return this)
+    if (!linkedinActivityId && data.social_id) {
+      const socialIdMatch = data.social_id.match(/urn:li:(?:activity|ugcPost):(\d+)/);
+      if (socialIdMatch) {
+        linkedinActivityId = socialIdMatch[1];
+        console.log('[UNIPILE_POST] Extracted LinkedIn activity ID from social_id:', linkedinActivityId);
+      }
+    }
+
+    // Fallback to Unipile's post_id (may not work for comments API)
+    const postId = linkedinActivityId || data.post_id || data.id;
 
     console.log('[UNIPILE_POST] Post created successfully:', {
-      id: postId,
-      url: data.share_url || data.url,
+      unipile_internal_id: data.post_id || data.id,
+      linkedin_activity_id: linkedinActivityId,
+      final_id: postId,
+      url: shareUrl,
+      social_id: data.social_id,
     });
 
     return {
       id: postId,
-      url: data.share_url || data.url,
+      url: shareUrl,
       text: data.text || text,
       created_at: data.created_at || data.parsed_datetime || new Date().toISOString(),
       status: data.status || 'published',
