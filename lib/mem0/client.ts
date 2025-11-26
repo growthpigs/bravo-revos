@@ -34,19 +34,20 @@ export function getMem0Client(): MemoryClient {
 /**
  * Build tenant-isolated memory key
  * Ensures complete isolation: agencyId::clientId::userId
+ * If agencyId or clientId not provided, uses "default" placeholders
  */
 export function buildTenantKey(
-  agencyId: string,
-  clientId: string,
+  agencyId: string | undefined | null,
+  clientId: string | undefined | null,
   userId: string
 ): string {
-  if (!agencyId || !clientId || !userId) {
+  if (!userId) {
     throw new Error(
-      `${LOG_PREFIX} All tenant identifiers required: agencyId, clientId, userId`
+      `${LOG_PREFIX} userId is required for tenant key`
     );
   }
 
-  const key = `${agencyId}::${clientId}::${userId}`;
+  const key = `${agencyId || 'default'}::${clientId || 'default'}::${userId}`;
   return key;
 }
 

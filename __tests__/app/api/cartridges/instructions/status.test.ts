@@ -354,10 +354,11 @@ describe('GET /api/cartridges/instructions/[id]/status', () => {
       error: null
     });
 
-    const eqCalls: Array<[string, any]> = [];
+    const eqCalls: Array<[string, unknown]> = [];
     const mockFrom = jest.fn().mockReturnThis();
     const mockSelect = jest.fn().mockReturnThis();
-    const mockEq = jest.fn((field: string, value: any) => {
+    type MockEqReturn = { eq: jest.Mock; single: jest.Mock };
+    const mockEq: jest.Mock<MockEqReturn> = jest.fn((field: string, value: unknown): MockEqReturn => {
       eqCalls.push([field, value]);
       return {
         eq: mockEq,

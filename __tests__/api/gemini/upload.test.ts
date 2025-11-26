@@ -8,34 +8,41 @@
 import { NextRequest } from 'next/server'
 import { POST, GET, DELETE } from '@/app/api/gemini/upload/route'
 
-// Mock Supabase
-const mockSupabase = {
-  auth: {
-    getUser: jest.fn()
-  },
-  from: jest.fn(() => ({
-    select: jest.fn(() => ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MockFn = jest.Mock<any, any, any>;
+
+// Helper to create chainable mock with proper typing
+const createChainMock = (finalValue: unknown) => ({
+  select: jest.fn(() => ({
+    eq: jest.fn(() => ({
+      single: jest.fn(() => Promise.resolve(finalValue)),
       eq: jest.fn(() => ({
-        single: jest.fn(),
-        order: jest.fn(() => ({
-          // For query chaining
-        }))
-      }))
-    })),
-    insert: jest.fn(() => ({
-      select: jest.fn(() => ({
-        single: jest.fn()
-      }))
-    })),
-    delete: jest.fn(() => ({
-      eq: jest.fn()
+        single: jest.fn(() => Promise.resolve(finalValue))
+      })),
+      order: jest.fn(() => Promise.resolve(finalValue))
     }))
   })),
+  insert: jest.fn(() => ({
+    select: jest.fn(() => ({
+      single: jest.fn(() => Promise.resolve(finalValue))
+    }))
+  })),
+  delete: jest.fn(() => ({
+    eq: jest.fn(() => Promise.resolve(finalValue))
+  }))
+});
+
+// Mock Supabase - using type assertion for flexibility
+const mockSupabase = {
+  auth: {
+    getUser: jest.fn() as MockFn
+  },
+  from: jest.fn(() => createChainMock(null)) as MockFn,
   storage: {
     from: jest.fn(() => ({
       upload: jest.fn(),
       remove: jest.fn()
-    }))
+    })) as MockFn
   }
 }
 
@@ -90,13 +97,7 @@ describe('Gemini Upload API', () => {
         data: { user: { id: 'user-123' } },
         error: null
       })
-      mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({ data: null, error: null })
-          })
-        })
-      })
+      mockSupabase.from.mockReturnValueOnce(createChainMock({ data: null, error: null }))
 
       const req = new NextRequest('http://localhost/api/gemini/upload', {
         method: 'POST',
@@ -104,8 +105,7 @@ describe('Gemini Upload API', () => {
       })
 
       const formData = new FormData()
-      // @ts-expect-error - mock request
-      req.formData = () => Promise.resolve(formData)
+      Object.defineProperty(req, 'formData', { value: () => Promise.resolve(formData) })
 
       const res = await POST(req)
       expect(res.status).toBe(400)
@@ -116,24 +116,17 @@ describe('Gemini Upload API', () => {
         data: { user: { id: 'user-123' } },
         error: null
       })
-      mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({
-              data: { client_id: 'client-123' },
-              error: null
-            })
-          })
-        })
-      })
+      mockSupabase.from.mockReturnValueOnce(createChainMock({
+        data: { client_id: 'client-123' },
+        error: null
+      }))
 
       const formData = new FormData()
       const req = new NextRequest('http://localhost/api/gemini/upload', {
         method: 'POST',
         headers: { Authorization: 'Bearer valid-token' }
       })
-      // @ts-expect-error - mock request
-      req.formData = () => Promise.resolve(formData)
+      Object.defineProperty(req, 'formData', { value: () => Promise.resolve(formData) })
 
       const res = await POST(req)
       const data = await res.json()
@@ -147,16 +140,10 @@ describe('Gemini Upload API', () => {
         data: { user: { id: 'user-123' } },
         error: null
       })
-      mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({
-              data: { client_id: 'client-123' },
-              error: null
-            })
-          })
-        })
-      })
+      mockSupabase.from.mockReturnValueOnce(createChainMock({
+        data: { client_id: 'client-123' },
+        error: null
+      }))
 
       const largeFile = new File([new ArrayBuffer(11 * 1024 * 1024)], 'large.pdf', {
         type: 'application/pdf'
@@ -168,8 +155,7 @@ describe('Gemini Upload API', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer valid-token' }
       })
-      // @ts-expect-error - mock request
-      req.formData = () => Promise.resolve(formData)
+      Object.defineProperty(req, 'formData', { value: () => Promise.resolve(formData) })
 
       const res = await POST(req)
       const data = await res.json()
@@ -184,14 +170,14 @@ describe('Gemini Upload API', () => {
         error: null
       })
       mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            single: jest.fn(() => Promise.resolve({
               data: { client_id: 'client-123' },
               error: null
-            })
-          })
-        })
+            }))
+          }))
+        }))
       })
 
       const invalidFile = new File(['test'], 'test.exe', {
@@ -204,8 +190,7 @@ describe('Gemini Upload API', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer valid-token' }
       })
-      // @ts-expect-error - mock request
-      req.formData = () => Promise.resolve(formData)
+      Object.defineProperty(req, 'formData', { value: () => Promise.resolve(formData) })
 
       const res = await POST(req)
       const data = await res.json()
@@ -220,14 +205,14 @@ describe('Gemini Upload API', () => {
         error: null
       })
       mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            single: jest.fn(() => Promise.resolve({
               data: { client_id: 'client-123' },
               error: null
-            })
-          })
-        })
+            }))
+          }))
+        }))
       })
 
       const mockStorageRemove = jest.fn().mockResolvedValueOnce({})
@@ -248,8 +233,7 @@ describe('Gemini Upload API', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer valid-token' }
       })
-      // @ts-expect-error - mock request
-      req.formData = () => Promise.resolve(formData)
+      Object.defineProperty(req, 'formData', { value: () => Promise.resolve(formData) })
 
       const res = await POST(req)
 
@@ -264,19 +248,19 @@ describe('Gemini Upload API', () => {
       })
       mockSupabase.from
         .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({
+          select: jest.fn(() => ({
+            eq: jest.fn(() => ({
+              single: jest.fn(() => Promise.resolve({
                 data: { client_id: 'client-123' },
                 error: null
-              })
-            })
-          })
+              }))
+            }))
+          }))
         })
         .mockReturnValueOnce({
-          insert: () => ({
-            select: () => ({
-              single: () => Promise.resolve({
+          insert: jest.fn(() => ({
+            select: jest.fn(() => ({
+              single: jest.fn(() => Promise.resolve({
                 data: {
                   id: 'doc-123',
                   filename: 'test.pdf',
@@ -285,9 +269,9 @@ describe('Gemini Upload API', () => {
                   created_at: new Date().toISOString()
                 },
                 error: null
-              })
-            })
-          })
+              }))
+            }))
+          }))
         })
 
       mockSupabase.storage.from.mockReturnValueOnce({
@@ -306,8 +290,7 @@ describe('Gemini Upload API', () => {
         method: 'POST',
         headers: { Authorization: 'Bearer valid-token' }
       })
-      // @ts-expect-error - mock request
-      req.formData = () => Promise.resolve(formData)
+      Object.defineProperty(req, 'formData', { value: () => Promise.resolve(formData) })
 
       const res = await POST(req)
       const data = await res.json()
@@ -333,26 +316,26 @@ describe('Gemini Upload API', () => {
       })
       mockSupabase.from
         .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({
+          select: jest.fn(() => ({
+            eq: jest.fn(() => ({
+              single: jest.fn(() => Promise.resolve({
                 data: { client_id: 'client-123' },
                 error: null
-              })
-            })
-          })
+              }))
+            }))
+          }))
         })
         .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              order: () => Promise.resolve({
+          select: jest.fn(() => ({
+            eq: jest.fn(() => ({
+              order: jest.fn(() => Promise.resolve({
                 data: [
                   { id: 'doc-1', filename: 'test.pdf' }
                 ],
                 error: null
-              })
-            })
-          })
+              }))
+            }))
+          }))
         })
 
       const req = new NextRequest('http://localhost/api/gemini/upload', {
@@ -392,13 +375,13 @@ describe('Gemini Upload API', () => {
         error: null
       })
       mockSupabase.from.mockReturnValueOnce({
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              single: () => Promise.resolve({ data: null, error: null })
-            })
-          })
-        })
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            eq: jest.fn(() => ({
+              single: jest.fn(() => Promise.resolve({ data: null, error: null }))
+            }))
+          }))
+        }))
       })
 
       const req = new NextRequest('http://localhost/api/gemini/upload?id=doc-999', {
@@ -424,18 +407,18 @@ describe('Gemini Upload API', () => {
 
       mockSupabase.from
         .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                single: () => Promise.resolve({ data: mockDoc, error: null })
-              })
-            })
-          })
+          select: jest.fn(() => ({
+            eq: jest.fn(() => ({
+              eq: jest.fn(() => ({
+                single: jest.fn(() => Promise.resolve({ data: mockDoc, error: null }))
+              }))
+            }))
+          }))
         })
         .mockReturnValueOnce({
-          delete: () => ({
-            eq: () => Promise.resolve({ error: null })
-          })
+          delete: jest.fn(() => ({
+            eq: jest.fn(() => Promise.resolve({ error: null }))
+          }))
         })
 
       const mockStorageRemove = jest.fn().mockResolvedValueOnce({})
@@ -473,18 +456,18 @@ describe('Gemini Upload API', () => {
 
       mockSupabase.from
         .mockReturnValueOnce({
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                single: () => Promise.resolve({ data: mockDoc, error: null })
-              })
-            })
-          })
+          select: jest.fn(() => ({
+            eq: jest.fn(() => ({
+              eq: jest.fn(() => ({
+                single: jest.fn(() => Promise.resolve({ data: mockDoc, error: null }))
+              }))
+            }))
+          }))
         })
         .mockReturnValueOnce({
-          delete: () => ({
-            eq: () => Promise.resolve({ error: null })
-          })
+          delete: jest.fn(() => ({
+            eq: jest.fn(() => Promise.resolve({ error: null }))
+          }))
         })
 
       mockSupabase.storage.from.mockReturnValueOnce({

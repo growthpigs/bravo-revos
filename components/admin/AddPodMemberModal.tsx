@@ -99,7 +99,7 @@ export function AddPodMemberModal({
         setFormData({
           name: editingMember.name,
           linkedin_url: editingMember.linkedin_url,
-          unipile_account_id: editingMember.unipile_account_id,
+          unipile_account_id: editingMember.unipile_account_id || '',
           client_id: editingMember.client_id,
         })
       } else {

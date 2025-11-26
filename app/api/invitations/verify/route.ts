@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       errorCode: error?.code,
       errorMessage: error?.message,
       errorHint: error?.hint,
-      errorStatus: error?.status,
+      errorStatus: (error as any)?.status,
     });
 
     const invitation = Array.isArray(invitations) && invitations.length > 0
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         code: error.code,
         message: error.message,
         hint: error.hint,
-        status: error.status,
+        status: (error as any).status,
         details: JSON.stringify(error),
       });
     }

@@ -65,7 +65,7 @@ describe('LinkedInConnectionChecker', () => {
   })
 
   afterEach(() => {
-    window.location = originalLocation
+    (window as unknown as { location: Location }).location = originalLocation
   })
 
   describe('No User Logged In', () => {

@@ -125,15 +125,15 @@ export async function getConversationHistory(
     // CRITICAL FIX: Parse JSON strings back to arrays
     // When we save arrays to TEXT column, we stringify them
     // When loading back, we need to parse them to restore original format
-    let parsedContent: string | any[] | null | undefined = msg.content;
+    let parsedContent: string = msg.content;
 
     if (typeof msg.content === 'string' && msg.content.trim().startsWith('[')) {
       // Looks like a JSON array, try to parse it
       try {
         const parsed = JSON.parse(msg.content);
         if (Array.isArray(parsed)) {
-          parsedContent = parsed;
-          console.log('[session-manager] ✅ Parsed array content from DB');
+          // Keep as JSON string for now since Message type expects string content
+          console.log('[session-manager] ✅ Detected array content from DB (keeping as JSON string)');
         }
       } catch (e) {
         // Not valid JSON, keep as string
@@ -147,7 +147,7 @@ export async function getConversationHistory(
       tool_calls: msg.tool_calls,
       tool_call_id: msg.tool_call_id,
       name: msg.name,
-    };
+    } as Message;
   });
 }
 

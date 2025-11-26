@@ -44,17 +44,32 @@ describe('TopBar Component', () => {
     },
   };
 
+  // Helper to create mock health status return value with all required properties
+  const createMockHealthStatus = (overrides?: {
+    data?: typeof mockHealthData | null;
+    isLoading?: boolean;
+    error?: string | null;
+    apiAvailable?: boolean | null;
+    refresh?: jest.Mock;
+  }) => ({
+    data: mockHealthData,
+    isLoading: false,
+    error: null,
+    apiAvailable: true,
+    refresh: jest.fn(),
+    ...overrides,
+  }) as unknown as ReturnType<typeof healthHooks.useHealthStatus>;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('Rendering', () => {
     it('should render without crashing', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: true,
-        refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -67,11 +82,10 @@ describe('TopBar Component', () => {
     });
 
     it('should render logo when showLogo is true', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
-        refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -85,11 +99,10 @@ describe('TopBar Component', () => {
     });
 
     it('should not render logo when showLogo is false', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
-        refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -103,11 +116,10 @@ describe('TopBar Component', () => {
     });
 
     it('should display version and date', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
-        refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -122,11 +134,11 @@ describe('TopBar Component', () => {
 
   describe('Health Status Display', () => {
     it('should display health banner when data is available', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -140,11 +152,11 @@ describe('TopBar Component', () => {
     });
 
     it('should hide health banner when data is null', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -157,11 +169,11 @@ describe('TopBar Component', () => {
     });
 
     it('should display all 12 services', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -184,11 +196,11 @@ describe('TopBar Component', () => {
 
   describe('Status Colors', () => {
     it('should use green color for healthy status', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -208,13 +220,13 @@ describe('TopBar Component', () => {
           ...mockHealthData.checks,
           database: { status: 'degraded' as const, latency: 500 },
         },
-      };
+      } as unknown as typeof mockHealthData;
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: degradedData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -232,15 +244,15 @@ describe('TopBar Component', () => {
         ...mockHealthData,
         checks: {
           ...mockHealthData.checks,
-          database: { status: 'unhealthy' as const },
+          database: { status: 'unhealthy' as const, latency: 0 },
         },
-      };
+      } as unknown as typeof mockHealthData;
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: unhealthyData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -258,15 +270,15 @@ describe('TopBar Component', () => {
         ...mockHealthData,
         checks: {
           ...mockHealthData.checks,
-          database: { status: 'unknown' as const },
+          database: { status: 'unknown' as const, latency: 0 },
         },
-      };
+      } as unknown as typeof mockHealthData;
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: unknownData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -282,11 +294,11 @@ describe('TopBar Component', () => {
 
   describe('Layout Structure', () => {
     it('should display 6 columns', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -300,11 +312,11 @@ describe('TopBar Component', () => {
     });
 
     it('should display 2 items per column', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -321,11 +333,11 @@ describe('TopBar Component', () => {
     });
 
     it('should have dividers between columns', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -341,11 +353,11 @@ describe('TopBar Component', () => {
 
   describe('Fixed Positioning', () => {
     it('should have fixed positioning', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -362,11 +374,11 @@ describe('TopBar Component', () => {
     });
 
     it('should have z-40 z-index', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -384,11 +396,11 @@ describe('TopBar Component', () => {
     it('should update display when data changes', async () => {
       const { rerender } = render(<TopBar />);
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -399,11 +411,11 @@ describe('TopBar Component', () => {
 
       expect(screen.queryByText(/DATABASE/i)).not.toBeInTheDocument();
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       rerender(<TopBar />);
 
@@ -415,11 +427,11 @@ describe('TopBar Component', () => {
 
   describe('Typography and Styling', () => {
     it('should use monospace font for version', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: null,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -433,11 +445,11 @@ describe('TopBar Component', () => {
     });
 
     it('should use monospace font for health status', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -451,11 +463,11 @@ describe('TopBar Component', () => {
     });
 
     it('should use uppercase text for services', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({
         data: mockHealthData,
         isLoading: false,
         refresh: jest.fn(),
-      });
+      }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,

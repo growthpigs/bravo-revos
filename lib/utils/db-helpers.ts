@@ -169,7 +169,7 @@ export async function genericUpsert<T extends { id?: string }>(
 
     return {
       success: true,
-      data: result as T,
+      data: result as unknown as T,
       wasInsert: true, // Can't easily determine for generic case
     };
   } catch (e) {

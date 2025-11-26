@@ -189,7 +189,7 @@ describe('Working Document Display Logic', () => {
     });
 
     it('should NOT open Working Document when document field missing', () => {
-      const response = { response: 'Chat message only', interactive: null };
+      const response: { response: string; interactive: null; document?: unknown } = { response: 'Chat message only', interactive: null };
 
       expect(!!response.document).toBe(false);
     });

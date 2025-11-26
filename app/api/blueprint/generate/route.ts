@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       {
         userId: user.id,
         supabase,
-      }
+      } as any
     );
 
     if (!result.success) {
@@ -72,7 +72,7 @@ export async function GET(req: Request) {
       {
         userId: user.id,
         supabase,
-      }
+      } as any
     );
 
     return NextResponse.json(result);

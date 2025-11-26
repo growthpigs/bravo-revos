@@ -21,35 +21,50 @@ const TEST_SESSION_ID = '550e8400-e29b-41d4-a716-446655440001';
 
 // Helper to create a properly mocked Supabase client
 function createMockSupabase() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const mockChain = jest.fn();
 
-  // Create self-returning chain methods
-  const chainMethods = {
-    select: jest.fn(function () {
+  // Create self-returning chain methods with explicit type
+  type ChainMethods = {
+    select: jest.Mock;
+    insert: jest.Mock;
+    eq: jest.Mock;
+    is: jest.Mock;
+    order: jest.Mock;
+    limit: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    single: jest.Mock;
+    maybeSingle: jest.Mock;
+  };
+
+  const chainMethods: ChainMethods = {
+    select: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
-    insert: jest.fn(function () {
+    insert: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
-    eq: jest.fn(function () {
+    eq: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
-    is: jest.fn(function () {
+    is: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
-    order: jest.fn(function () {
+    order: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
-    limit: jest.fn(function () {
+    limit: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
-    update: jest.fn(function () {
+    update: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
-    delete: jest.fn(function () {
+    delete: jest.fn(function (): ChainMethods {
       return chainMethods;
     }),
     single: jest.fn(),
+    maybeSingle: jest.fn(),
   };
 
   return {
@@ -368,7 +383,7 @@ describe('Session Manager', () => {
       const mockSupabase = createMockSupabase();
       const toolCallData = {
         id: 'call_456',
-        type: 'function',
+        type: 'function' as const,
         function: { name: 'get_analytics', arguments: '{}' },
       };
       const mockMessage: ChatMessage = {

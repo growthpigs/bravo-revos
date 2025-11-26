@@ -1751,7 +1751,7 @@ export default function CartridgesPage() {
         onOpenChange={setDeleteInstructionDialogOpen}
         onConfirm={confirmInstructionDelete}
         title="Delete Instruction?"
-        description={`This will permanently delete "${instructionToDelete?.title || 'this instruction'}" and cannot be undone.`}
+        description={`This will permanently delete "${instructionToDelete?.name || 'this instruction'}" and cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         variant="destructive"

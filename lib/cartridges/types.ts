@@ -6,6 +6,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import type OpenAI from 'openai';
 
 // Local type definition to prevent OpenAI SDK build-time bundling
 // OpenAI SDK uses tiktoken which tries to load encoder.json at build time

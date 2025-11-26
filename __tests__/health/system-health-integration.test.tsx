@@ -50,17 +50,29 @@ describe('ClientSystemHealthPage', () => {
     },
   };
 
+  // Helper to create mock health status return value with all required properties
+  const createMockHealthStatus = (overrides?: {
+    data?: typeof mockHealthData | null;
+    isLoading?: boolean;
+    error?: string | null;
+    apiAvailable?: boolean | null;
+    refresh?: jest.Mock;
+  }) => ({
+    data: mockHealthData,
+    isLoading: false,
+    error: null,
+    apiAvailable: true,
+    refresh: jest.fn(),
+    ...overrides,
+  }) as unknown as ReturnType<typeof healthHooks.useHealthStatus>;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('Rendering', () => {
     it('should render without crashing', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -73,11 +85,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should display header with description', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -92,11 +100,7 @@ describe('ClientSystemHealthPage', () => {
 
   describe('Overall Status Card', () => {
     it('should display overall status', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -109,11 +113,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should display last checked timestamp', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -126,11 +126,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should show UNKNOWN when no data', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: null,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({ data: null }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -145,11 +141,7 @@ describe('ClientSystemHealthPage', () => {
 
   describe('Service Health Grid', () => {
     it('should display all 12 service cards', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -170,11 +162,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should display database latency', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -189,11 +177,7 @@ describe('ClientSystemHealthPage', () => {
 
   describe('Client Metrics', () => {
     it('should display campaign count', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -207,11 +191,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should display leads count', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -225,11 +205,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should display extraction success rate', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -243,11 +219,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should display LinkedIn accounts count', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -263,11 +235,7 @@ describe('ClientSystemHealthPage', () => {
 
   describe('Refresh Button', () => {
     it('should display refresh button', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -282,11 +250,7 @@ describe('ClientSystemHealthPage', () => {
     it('should call refresh when clicked', () => {
       const refreshMock = jest.fn();
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: refreshMock,
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({ refresh: refreshMock }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -302,11 +266,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should disable button when loading', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: true,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({ isLoading: true }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -320,11 +280,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should show spinner when loading', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: true,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({ isLoading: true }));
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -340,11 +296,7 @@ describe('ClientSystemHealthPage', () => {
 
   describe('Banner Visibility Toggle', () => {
     it('should display visibility toggle button', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -357,11 +309,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should show "Hide" when banner is visible', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -374,11 +322,7 @@ describe('ClientSystemHealthPage', () => {
     });
 
     it('should show "Show" when banner is hidden', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: false,
@@ -393,11 +337,7 @@ describe('ClientSystemHealthPage', () => {
     it('should call toggle when clicked', () => {
       const toggleMock = jest.fn();
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       jest.spyOn(healthHooks, 'useHealthBannerVisibility').mockReturnValue({
         isVisible: true,
@@ -444,17 +384,29 @@ describe('SystemHealthClient (Admin)', () => {
     },
   };
 
+  // Helper to create mock health status return value with all required properties
+  const createMockHealthStatus = (overrides?: {
+    data?: typeof mockHealthData | null;
+    isLoading?: boolean;
+    error?: string | null;
+    apiAvailable?: boolean | null;
+    refresh?: jest.Mock;
+  }) => ({
+    data: mockHealthData,
+    isLoading: false,
+    error: null,
+    apiAvailable: true,
+    refresh: jest.fn(),
+    ...overrides,
+  }) as unknown as ReturnType<typeof healthHooks.useHealthStatus>;
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('Rendering', () => {
     it('should render without crashing', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -462,11 +414,7 @@ describe('SystemHealthClient (Admin)', () => {
     });
 
     it('should display all 12 service cards', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -484,11 +432,7 @@ describe('SystemHealthClient (Admin)', () => {
 
   describe('Agency Metrics', () => {
     it('should display total clients', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -497,11 +441,7 @@ describe('SystemHealthClient (Admin)', () => {
     });
 
     it('should display active campaigns', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -510,11 +450,7 @@ describe('SystemHealthClient (Admin)', () => {
     });
 
     it('should display LinkedIn accounts', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -523,11 +459,7 @@ describe('SystemHealthClient (Admin)', () => {
     });
 
     it('should calculate and display pod success rate', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -538,11 +470,7 @@ describe('SystemHealthClient (Admin)', () => {
 
   describe('Real-Time Activity', () => {
     it('should display database latency', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -550,11 +478,7 @@ describe('SystemHealthClient (Admin)', () => {
     });
 
     it('should display pending pods count', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -563,11 +487,7 @@ describe('SystemHealthClient (Admin)', () => {
     });
 
     it('should display failed pods count', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -576,11 +496,7 @@ describe('SystemHealthClient (Admin)', () => {
     });
 
     it('should display total pods count', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -591,11 +507,7 @@ describe('SystemHealthClient (Admin)', () => {
 
   describe('Refresh Functionality', () => {
     it('should have refresh button', () => {
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: jest.fn(),
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus());
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 
@@ -605,11 +517,7 @@ describe('SystemHealthClient (Admin)', () => {
     it('should call refresh when clicked', () => {
       const refreshMock = jest.fn();
 
-      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue({
-        data: mockHealthData,
-        isLoading: false,
-        refresh: refreshMock,
-      });
+      jest.spyOn(healthHooks, 'useHealthStatus').mockReturnValue(createMockHealthStatus({ refresh: refreshMock }));
 
       render(<SystemHealthClient agencyMetrics={mockAgencyMetrics} />);
 

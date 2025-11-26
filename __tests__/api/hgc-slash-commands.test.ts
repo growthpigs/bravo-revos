@@ -301,7 +301,13 @@ describe('HGC API - Slash Command Intent Detection', () => {
       });
 
       it('should handle null/undefined pod_members', () => {
-        const mockPod = {
+        const mockPod: {
+          id: string;
+          name: string;
+          description: string;
+          status: string;
+          pod_members: Array<{ status: string }> | null;
+        } = {
           id: 'pod-null',
           name: 'Null Members Pod',
           description: 'Members undefined',
@@ -315,7 +321,7 @@ describe('HGC API - Slash Command Intent Detection', () => {
           description: mockPod.description,
           member_count: mockPod.pod_members?.length || 0,
           active_members:
-            mockPod.pod_members?.filter((m: any) => m.status === 'active')
+            mockPod.pod_members?.filter((m) => m.status === 'active')
               .length || 0,
         };
 

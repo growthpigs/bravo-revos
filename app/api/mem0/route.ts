@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Build tenant key for isolation (user_id is sufficient for multi-tenant context)
     // Note: For Mem0, we store user-specific memories, not client-wide
-    const tenantKey = buildTenantKey(null, null, user.id);
+    const tenantKey = buildTenantKey(undefined, undefined, user.id);
 
     // Add memory
     const memories = await addMemory(

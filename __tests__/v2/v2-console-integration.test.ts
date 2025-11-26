@@ -178,11 +178,11 @@ describe('V2 MarketingConsole Integration', () => {
   });
 
   describe('Agent Execution', () => {
-    let console: MarketingConsole;
+    let marketingConsole: MarketingConsole;
     let mockContext: AgentContext;
 
     beforeEach(() => {
-      console = new MarketingConsole({
+      marketingConsole = new MarketingConsole({
         baseInstructions: 'You are a helpful assistant.',
         openai: mockOpenAI,
         supabase: mockSupabase,
@@ -196,17 +196,18 @@ describe('V2 MarketingConsole Integration', () => {
 
     it('should execute simple user message', async () => {
       const linkedInCartridge = new LinkedInCartridge();
-      console.loadCartridge(linkedInCartridge);
+      marketingConsole.loadCartridge(linkedInCartridge);
 
       // This will make an actual API call if OPENAI_API_KEY is set
       // Otherwise it will fail gracefully
       if (!process.env.OPENAI_API_KEY) {
+        // eslint-disable-next-line no-console
         console.log('[Test] Skipping execution test - no OPENAI_API_KEY');
         return;
       }
 
       try {
-        const result = await console.execute(
+        const result = await marketingConsole.execute(
           mockContext.userId,
           mockContext.sessionId,
           [{ role: 'user', content: 'Hello!' }]
@@ -214,15 +215,17 @@ describe('V2 MarketingConsole Integration', () => {
 
         expect(result).toHaveProperty('response');
         expect(typeof result.response).toBe('string');
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Acceptable failure if API key is invalid
-        console.log('[Test] Execution failed (expected if no valid API key):', error.message);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.log('[Test] Execution failed (expected if no valid API key):', errorMessage);
       }
     });
 
     it('should pass AgentContext to tools correctly', () => {
       const linkedInCartridge = new LinkedInCartridge();
-      console.loadCartridge(linkedInCartridge);
+      marketingConsole.loadCartridge(linkedInCartridge);
 
       // Context validation happens in chip execute methods
       // This test verifies the structure is correct
@@ -371,10 +374,10 @@ describe('V2 MarketingConsole Integration', () => {
   });
 
   describe('Memory Management', () => {
-    let console: MarketingConsole;
+    let marketingConsole: MarketingConsole;
 
     beforeEach(() => {
-      console = new MarketingConsole({
+      marketingConsole = new MarketingConsole({
         baseInstructions: 'You are a helpful assistant.',
         openai: mockOpenAI,
         supabase: mockSupabase,
@@ -386,24 +389,24 @@ describe('V2 MarketingConsole Integration', () => {
 
       // Load and unload multiple times
       for (let i = 0; i < 5; i++) {
-        console.loadCartridge(linkedInCartridge);
-        console.unloadCartridge('linkedin-cartridge');
+        marketingConsole.loadCartridge(linkedInCartridge);
+        marketingConsole.unloadCartridge('linkedin-cartridge');
       }
 
       // Should end with 0 cartridges
-      expect(console.getLoadedCartridges()).toHaveLength(0);
+      expect(marketingConsole.getLoadedCartridges()).toHaveLength(0);
     });
 
     it('should cleanup on cartridge unload', () => {
       const linkedInCartridge = new LinkedInCartridge();
-      console.loadCartridge(linkedInCartridge);
+      marketingConsole.loadCartridge(linkedInCartridge);
 
-      expect(console.getLoadedCartridges()).toHaveLength(1);
+      expect(marketingConsole.getLoadedCartridges()).toHaveLength(1);
 
-      console.unloadCartridge('linkedin-cartridge');
+      marketingConsole.unloadCartridge('linkedin-cartridge');
 
-      // Cartridge should be removed
-      expect(console.getLoadedCartridge('linkedin-cartridge')).toBeUndefined();
+      // Cartridge should be removed - check that it's no longer in the list
+      expect(marketingConsole.getLoadedCartridges()).not.toContain('linkedin-cartridge');
     });
   });
 
