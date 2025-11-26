@@ -20,6 +20,24 @@ export async function GET(request: NextRequest) {
     // Step 2: Query scrape jobs
     steps.push({ step: '2_query_jobs', status: 'starting' })
     const now = new Date().toISOString()
+
+    // First, get ALL jobs without any filters to debug
+    const { data: allJobs, error: allError } = await supabase
+      .from('scrape_jobs')
+      .select('id, status, next_check')
+
+    steps[steps.length - 1].data = {
+      serverTime: now,
+      allJobsCount: allJobs?.length || 0,
+      allJobs: allJobs?.map(j => ({
+        id: j.id.substring(0, 8),
+        status: j.status,
+        next_check: j.next_check,
+        isReady: new Date(j.next_check) <= new Date(now)
+      })),
+      allError: allError?.message
+    }
+
     const { data: jobs, error: queryError } = await supabase
       .from('scrape_jobs')
       .select(`
