@@ -114,7 +114,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
             body: JSON.stringify({
               text: data.postContent,
               campaignId: campaign.id,  // Link post to campaign
-              triggerWord: data.triggerWords?.[0] || 'guide',  // Use first trigger word
+              triggerWord: data.triggerWords?.[0] || null,  // NO DEFAULT - campaign must define trigger word
             }),
           })
 

@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { tool } from '@openai/agents';
 import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+// Note: Using 'any' type for supabase client since webhook tables aren't in generated types
 import crypto from 'crypto';
 
 interface WebhookDelivery {
@@ -115,7 +114,7 @@ export class WebhookChip extends BaseChip {
     retryOnFailure: boolean,
     webhookSecret?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!webhookUrl) {
       // Try to get default webhook from user settings
@@ -288,7 +287,7 @@ export class WebhookChip extends BaseChip {
     context: AgentContext,
     deliveryId?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!deliveryId) {
       // Get recent deliveries
@@ -304,7 +303,7 @@ export class WebhookChip extends BaseChip {
 
       return this.formatSuccess({
         total_deliveries: recent?.length || 0,
-        deliveries: recent?.map(d => ({
+        deliveries: recent?.map((d: any) => ({
           delivery_id: d.id,
           status: d.status,
           webhook_url: d.webhook_url,
@@ -473,7 +472,7 @@ export class WebhookChip extends BaseChip {
     deliveryId: string,
     attemptNumber: number
   ): Promise<void> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Exponential backoff: 1min, 5min, 15min, 1hr, 6hr
     const delays = [60, 300, 900, 3600, 21600];

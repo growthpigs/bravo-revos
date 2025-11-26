@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { tool } from '@openai/agents';
 import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+// Note: Using 'any' type for supabase client since pod tables aren't in generated types
 import { queueAmplification, queueRepost } from '@/lib/queues/pod-queue';
 
 interface PodSession {
@@ -94,7 +93,7 @@ export class PodChip extends BaseChip {
     customMessage?: string,
     scheduleFor?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Get or create pod session
     const session = await this.createPodSession(context, podId, postUrl);
@@ -116,7 +115,7 @@ export class PodChip extends BaseChip {
     }
 
     // Create alerts for each member
-    const alerts = await Promise.all(members.map(async (member) => {
+    const alerts = await Promise.all(members.map(async (member: any) => {
       const alertData = {
         pod_session_id: session.data.session.id,
         member_id: member.id,
@@ -166,7 +165,7 @@ export class PodChip extends BaseChip {
     podId?: string,
     postUrl?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Build query
     let query = supabase
@@ -200,7 +199,7 @@ export class PodChip extends BaseChip {
     }
 
     const session = sessions[0];
-    const engagedCount = session.pod_alerts?.filter(a => a.engaged_at).length || 0;
+    const engagedCount = session.pod_alerts?.filter((a: any) => a.engaged_at).length || 0;
     const totalAlerts = session.pod_alerts?.length || 0;
 
     return this.formatSuccess({
@@ -219,7 +218,7 @@ export class PodChip extends BaseChip {
     context: AgentContext,
     podId?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Get user's default pod if not specified
     const finalPodId = podId || await this.getUserDefaultPod(context);
@@ -248,7 +247,7 @@ export class PodChip extends BaseChip {
     return this.formatSuccess({
       pod_id: finalPodId,
       total_members: members?.length || 0,
-      members: members?.map(m => ({
+      members: members?.map((m: any) => ({
         id: m.id,
         name: m.users?.full_name || 'Unknown',
         email: m.users?.email,
@@ -268,7 +267,7 @@ export class PodChip extends BaseChip {
     podId?: string,
     postUrl?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Get user's default pod if not specified
     const finalPodId = podId || await this.getUserDefaultPod(context);
@@ -321,7 +320,7 @@ export class PodChip extends BaseChip {
   }
 
   private async getUserDefaultPod(context: AgentContext): Promise<string | null> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
     const userId = context.userId;
 
     if (!userId) return null;
@@ -349,7 +348,7 @@ export class PodChip extends BaseChip {
     podId?: string,
     postUrl?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
     const userId = context.userId;
 
     if (!postUrl) {
@@ -412,7 +411,7 @@ export class PodChip extends BaseChip {
     context: AgentContext,
     podId?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Get user's default pod if not specified
     const finalPodId = podId || await this.getUserDefaultPod(context);
@@ -458,7 +457,7 @@ export class PodChip extends BaseChip {
     context: AgentContext,
     podId?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Get user's default pod if not specified
     const finalPodId = podId || await this.getUserDefaultPod(context);

@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { tool } from '@openai/agents';
 import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+// Note: Using 'any' type for supabase client since dm_queue/dm_sequences tables aren't in generated types
 
 interface DirectMessage {
   id: string;
@@ -107,7 +106,7 @@ export class DMChip extends BaseChip {
     leadMagnetUrl?: string,
     personalizationFields?: Record<string, string>
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!recipientId) {
       return this.formatError('Recipient ID or profile URL is required');
@@ -281,7 +280,7 @@ export class DMChip extends BaseChip {
   }
 
   private async checkReplies(context: AgentContext, campaignId?: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Build query
     let query = supabase
@@ -310,17 +309,17 @@ export class DMChip extends BaseChip {
     }
 
     // Group replies by campaign
-    const byCampaign = replies.reduce((acc, reply) => {
+    const byCampaign = replies.reduce((acc: Record<string, any[]>, reply: any) => {
       const key = reply.campaign_id || 'no-campaign';
       if (!acc[key]) acc[key] = [];
       acc[key].push(reply);
       return acc;
-    }, {} as Record<string, typeof replies>);
+    }, {} as Record<string, any[]>);
 
     return this.formatSuccess({
       total_replies: replies.length,
       campaigns_with_replies: Object.keys(byCampaign).length,
-      replies: replies.map(r => ({
+      replies: replies.map((r: any) => ({
         dm_id: r.id,
         recipient: r.recipient_name || r.recipient_id,
         replied_at: r.reply_received_at,
@@ -337,7 +336,7 @@ export class DMChip extends BaseChip {
     recipientId: string,
     message: string
   ): Promise<void> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Get UniPile account
     const { data: account } = await supabase

@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { tool } from '@openai/agents';
 import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+// Note: Using 'any' type for supabase client since lead_magnets table isn't in generated types
 import { openai } from '@/lib/openai-client';
 import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
@@ -107,7 +106,7 @@ export class LeadMagnetChip extends BaseChip {
     customDescription?: string,
     campaignId?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!prompt.topic) {
       return this.formatError('Topic is required to generate lead magnet');
@@ -190,7 +189,7 @@ export class LeadMagnetChip extends BaseChip {
   }
 
   private async listLeadMagnets(context: AgentContext, campaignId?: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     let query = supabase
       .from('lead_magnets')
@@ -218,7 +217,7 @@ export class LeadMagnetChip extends BaseChip {
 
     return this.formatSuccess({
       total_magnets: magnets.length,
-      magnets: magnets.map(m => ({
+      magnets: magnets.map((m: any) => ({
         id: m.id,
         title: m.title,
         type: m.type,
@@ -231,7 +230,7 @@ export class LeadMagnetChip extends BaseChip {
   }
 
   private async getLeadMagnetStats(context: AgentContext, magnetId?: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!magnetId) {
       // Get overall stats
@@ -247,8 +246,8 @@ export class LeadMagnetChip extends BaseChip {
         });
       }
 
-      const totalDownloads = stats.reduce((sum, m) => sum + m.downloads, 0);
-      const byType = stats.reduce((acc, m) => {
+      const totalDownloads = stats.reduce((sum: number, m: any) => sum + m.downloads, 0);
+      const byType = stats.reduce((acc: Record<string, number>, m: any) => {
         acc[m.type] = (acc[m.type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
@@ -299,7 +298,7 @@ export class LeadMagnetChip extends BaseChip {
     magnetId?: string,
     updates?: { title?: string; description?: string }
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!magnetId) {
       return this.formatError('Lead magnet ID is required for updates');

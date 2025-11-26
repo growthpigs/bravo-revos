@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { tool } from '@openai/agents';
 import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+// Note: Using 'any' type for supabase client since monitoring_jobs/background_jobs tables aren't in generated types
 
 interface MonitoringJob {
   id: string;
@@ -93,7 +92,7 @@ export class MonitorChip extends BaseChip {
     campaignId?: string,
     dmTemplate?: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!postIdentifier) {
       return this.formatError('Post ID or URL is required to start monitoring');
@@ -174,7 +173,7 @@ export class MonitorChip extends BaseChip {
   }
 
   private async stopMonitoring(context: AgentContext, postIdentifier: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!postIdentifier) {
       return this.formatError('Post ID or URL is required');
@@ -222,7 +221,7 @@ export class MonitorChip extends BaseChip {
   }
 
   private async pauseMonitoring(context: AgentContext, postIdentifier: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     const { data: job, error } = await supabase
       .from('monitoring_jobs')
@@ -243,7 +242,7 @@ export class MonitorChip extends BaseChip {
   }
 
   private async resumeMonitoring(context: AgentContext, postIdentifier: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     const { data: job, error } = await supabase
       .from('monitoring_jobs')
@@ -279,7 +278,7 @@ export class MonitorChip extends BaseChip {
   }
 
   private async checkStatus(context: AgentContext, postIdentifier?: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Build query
     let query = supabase
@@ -306,7 +305,7 @@ export class MonitorChip extends BaseChip {
       });
     }
 
-    const formattedJobs = jobs.map(job => ({
+    const formattedJobs = jobs.map((job: any) => ({
       job_id: job.id,
       post_id: job.post_id,
       status: job.status,
@@ -318,7 +317,7 @@ export class MonitorChip extends BaseChip {
       time_remaining: this.calculateTimeRemaining(job.expires_at),
     }));
 
-    const activeCount = jobs.filter(j => j.status === 'active').length;
+    const activeCount = jobs.filter((j: any) => j.status === 'active').length;
 
     return this.formatSuccess({
       total_jobs: jobs.length,

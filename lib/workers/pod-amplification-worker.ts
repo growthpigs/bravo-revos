@@ -15,11 +15,18 @@ import Redis from 'ioredis';
 // Load environment variables
 config({ path: '.env.local' });
 import {
-  podAmplificationQueue,
-  podRepostQueue,
-  PodAmplificationJob,
+  repostQueue,
 } from '../queues/pod-queue';
 import { createClient } from '@supabase/supabase-js';
+
+// Job data interface for pod amplification jobs
+interface PodAmplificationJob {
+  postId: string;
+  postUrl: string;
+  podId: string;
+  authorUserId: string;
+  createdAt: string;
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,11 +104,10 @@ const worker = new Worker<PodAmplificationJob>(
         return {
           name: `repost-${member.id}`,
           data: {
-            podActivityId: activity.id,
-            podMemberId: member.id,
-            postUrl,
-            memberLinkedInUrl: member.linkedin_url,
-            unipileAccountId: member.unipile_account_id,
+            member_id: member.id,
+            post_url: postUrl,
+            unipile_account_id: member.unipile_account_id,
+            pod_id: podId,
           },
           opts: {
             jobId: `repost-${activity.id}-${Date.now()}`,
@@ -110,7 +116,7 @@ const worker = new Worker<PodAmplificationJob>(
         };
       });
 
-      await podRepostQueue.addBulk(repostJobs);
+      await repostQueue.addBulk(repostJobs);
 
       console.log(`[POD_AMPLIFICATION_WORKER] Created ${repostJobs.length} repost jobs`);
 

@@ -151,8 +151,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Create scrape_job for comment monitoring (CRITICAL for DM automation)
-      if (savedPost) {
-        const effectiveTriggerWord = triggerWord || 'guide'; // Default trigger word
+      // ONLY if trigger word is provided - NO DEFAULT (multi-tenant requirement)
+      if (savedPost && triggerWord) {
         const { data: scrapeJob, error: scrapeError } = await supabase
           .from('scrape_jobs')
           .insert({
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
             post_id: savedPost.id,
             unipile_post_id: postResult.id,
             unipile_account_id: unipileAccountId,
-            trigger_word: effectiveTriggerWord,
+            trigger_word: triggerWord,  // NO DEFAULT - must come from campaign
             status: 'scheduled',  // Must be 'scheduled' for comment-monitor to pick it up
           })
           .select()
@@ -170,8 +170,10 @@ export async function POST(request: NextRequest) {
           console.error('[LINKEDIN_POST_API] Failed to create scrape_job:', scrapeError);
         } else {
           console.log('[LINKEDIN_POST_API] ✅ Scrape job created for monitoring:', scrapeJob.id);
-          console.log('[LINKEDIN_POST_API] Monitoring for trigger word:', effectiveTriggerWord);
+          console.log('[LINKEDIN_POST_API] Monitoring for trigger word:', triggerWord);
         }
+      } else if (savedPost && !triggerWord) {
+        console.warn('[LINKEDIN_POST_API] ⚠️ No trigger word provided - DM automation NOT enabled for this post');
       }
     }
 

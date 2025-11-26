@@ -7,35 +7,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getAllPostComments, UnipileComment } from '../unipile-client';
 import { queueDM, DMJobData } from '../queues/dm-queue';
 
-// Trigger words that indicate interest
-const TRIGGER_WORDS = [
-  'interested',
-  'send it',
-  'dm me',
-  'yes please',
-  'i want this',
-  'send me',
-  'im in',
-  "i'm in",
-  'count me in',
-  'info please',
-  'more info',
-  'tell me more',
-  'how do i',
-  'sign me up',
-  'link please',
-  'yes!',
-  'absolutely',
-  'definitely',
-  // Common lead magnet triggers
-  'guide',
-  'checklist',
-  'download',
-  'free',
-  'want it',
-  'need this',
-  'share it',
-];
+// NO HARD-CODED TRIGGER WORDS
+// Multi-tenant requirement: Each campaign defines its own trigger word(s)
+// stored in scrape_jobs.trigger_word from the campaign configuration
 
 // Lazy init
 let _supabase: SupabaseClient | null = null;
@@ -65,16 +39,67 @@ interface ProcessedComment {
 }
 
 /**
- * Check if text contains any trigger words
+ * Check if comment contains the campaign's trigger word
+ * - Uses ONLY the campaign-specific trigger word from database
+ * - Case-insensitive matching
+ * - Supports fuzzy matching for common misspellings (1 char tolerance)
+ * - NO hard-coded generic triggers (multi-tenant requirement)
  */
-function containsTriggerWord(text: string): string | null {
-  const lowerText = text.toLowerCase();
-  for (const trigger of TRIGGER_WORDS) {
-    if (lowerText.includes(trigger)) {
-      return trigger;
+function containsTriggerWord(text: string, triggerWord: string): string | null {
+  if (!triggerWord || !text) return null;
+
+  const lowerText = text.toLowerCase().trim();
+  const lowerTrigger = triggerWord.toLowerCase().trim();
+
+  // Exact match (case-insensitive)
+  if (lowerText.includes(lowerTrigger)) {
+    return triggerWord;
+  }
+
+  // Fuzzy match for common misspellings (edit distance = 1)
+  // Only for triggers 4+ chars to avoid false positives
+  if (lowerTrigger.length >= 4) {
+    const words = lowerText.split(/\s+/);
+    for (const word of words) {
+      if (isCloseMatch(word, lowerTrigger)) {
+        return triggerWord;
+      }
     }
   }
+
   return null;
+}
+
+/**
+ * Check if two strings are within edit distance of 1 (one typo)
+ */
+function isCloseMatch(word: string, target: string): boolean {
+  if (Math.abs(word.length - target.length) > 1) return false;
+
+  if (word.length === target.length) {
+    let diffs = 0;
+    for (let i = 0; i < word.length; i++) {
+      if (word[i] !== target[i]) diffs++;
+      if (diffs > 1) return false;
+    }
+    return diffs === 1;
+  }
+
+  const longer = word.length > target.length ? word : target;
+  const shorter = word.length > target.length ? target : word;
+
+  let i = 0, j = 0, diffs = 0;
+  while (i < longer.length && j < shorter.length) {
+    if (longer[i] !== shorter[j]) {
+      diffs++;
+      if (diffs > 1) return false;
+      i++;
+    } else {
+      i++;
+      j++;
+    }
+  }
+  return true;
 }
 
 /**
@@ -118,16 +143,27 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
     return [];
   }
 
-  // Filter jobs that have valid unipile_account_id and unipile_post_id
+  // Filter jobs that have valid unipile_account_id, unipile_post_id, AND trigger_word
+  // NO DEFAULT FALLBACK - each campaign must define its own trigger word
   return (data || [])
-    .filter((job: any) => job.unipile_account_id && job.unipile_post_id)
+    .filter((job: any) => {
+      if (!job.unipile_account_id || !job.unipile_post_id) {
+        console.warn(`[COMMENT_MONITOR] Skipping job ${job.id} - missing Unipile IDs`);
+        return false;
+      }
+      if (!job.trigger_word) {
+        console.warn(`[COMMENT_MONITOR] Skipping job ${job.id} - no trigger_word configured`);
+        return false;
+      }
+      return true;
+    })
     .map((job: any) => ({
       id: job.id,
       campaign_id: job.campaign_id,
       post_id: job.post_id,
       unipile_post_id: job.unipile_post_id,
       unipile_account_id: job.unipile_account_id,
-      trigger_word: job.trigger_word || 'interested',
+      trigger_word: job.trigger_word, // NO DEFAULT - must be set per campaign
     }));
 }
 
@@ -215,16 +251,9 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
       continue;
     }
 
-    // Check for trigger words (both generic and job-specific)
-    let triggerWord = containsTriggerWord(comment.text);
-
-    // Also check job's specific trigger word
-    if (!triggerWord && job.trigger_word) {
-      const lowerText = comment.text.toLowerCase();
-      if (lowerText.includes(job.trigger_word.toLowerCase())) {
-        triggerWord = job.trigger_word;
-      }
-    }
+    // Check ONLY for the campaign's specific trigger word (multi-tenant)
+    // NO generic triggers - each campaign defines its own
+    const triggerWord = containsTriggerWord(comment.text, job.trigger_word);
 
     if (triggerWord) {
       console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id}`);

@@ -14,31 +14,73 @@ import { getAllPostComments, sendDirectMessage } from '@/lib/unipile-client';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// Trigger words that indicate interest
-const TRIGGER_WORDS = [
-  'interested', 'send it', 'dm me', 'yes please', 'i want this',
-  'send me', 'im in', "i'm in", 'count me in', 'info please',
-  'more info', 'tell me more', 'how do i', 'sign me up',
-  'link please', 'yes!', 'absolutely', 'definitely',
-  'guide', 'checklist', 'download', 'free', 'want it',
-  'need this', 'share it',
-];
+/**
+ * Check if comment contains the campaign's trigger word(s)
+ * - Uses ONLY the campaign-specific trigger word from database
+ * - Case-insensitive matching
+ * - Supports fuzzy matching for common misspellings
+ * - NO hard-coded generic triggers (multi-tenant requirement)
+ */
+function containsTriggerWord(text: string, triggerWord: string): string | null {
+  if (!triggerWord || !text) return null;
 
-function containsTriggerWord(text: string, customTrigger?: string): string | null {
-  const lowerText = text.toLowerCase();
+  const lowerText = text.toLowerCase().trim();
+  const lowerTrigger = triggerWord.toLowerCase().trim();
 
-  // Check custom trigger first
-  if (customTrigger && lowerText.includes(customTrigger.toLowerCase())) {
-    return customTrigger;
+  // Exact match (case-insensitive)
+  if (lowerText.includes(lowerTrigger)) {
+    return triggerWord;
   }
 
-  // Check default triggers
-  for (const trigger of TRIGGER_WORDS) {
-    if (lowerText.includes(trigger)) {
-      return trigger;
+  // Fuzzy match for common misspellings (Levenshtein distance = 1)
+  // Only for triggers 4+ chars to avoid false positives
+  if (lowerTrigger.length >= 4) {
+    const words = lowerText.split(/\s+/);
+    for (const word of words) {
+      if (isCloseMatch(word, lowerTrigger)) {
+        return triggerWord;
+      }
     }
   }
+
   return null;
+}
+
+/**
+ * Check if two strings are within edit distance of 1 (one typo)
+ * Handles: single char substitution, deletion, or insertion
+ */
+function isCloseMatch(word: string, target: string): boolean {
+  // Must be similar length (within 1 char)
+  if (Math.abs(word.length - target.length) > 1) return false;
+
+  // Same length: check for single substitution
+  if (word.length === target.length) {
+    let diffs = 0;
+    for (let i = 0; i < word.length; i++) {
+      if (word[i] !== target[i]) diffs++;
+      if (diffs > 1) return false;
+    }
+    return diffs === 1;
+  }
+
+  // Length diff of 1: check for single insertion/deletion
+  const longer = word.length > target.length ? word : target;
+  const shorter = word.length > target.length ? target : word;
+
+  let i = 0, j = 0, diffs = 0;
+  while (i < longer.length && j < shorter.length) {
+    if (longer[i] !== shorter[j]) {
+      diffs++;
+      if (diffs > 1) return false;
+      i++; // Skip char in longer string
+    } else {
+      i++;
+      j++;
+    }
+  }
+
+  return true;
 }
 
 function buildDMMessage(recipientName: string, triggerWord: string): string {
@@ -109,6 +151,15 @@ export async function POST(request: NextRequest) {
     for (const job of scrapeJobs) {
       console.log(`[TEST_POLL_DM] Processing job ${job.id} for post ${job.unipile_post_id}`);
       results.jobs_processed++;
+
+      // CRITICAL: Must have trigger word from campaign - NO defaults
+      if (!job.trigger_word) {
+        console.warn(`[TEST_POLL_DM] Skipping job ${job.id} - no trigger_word configured`);
+        results.errors.push(`Job ${job.id}: No trigger word configured for this campaign`);
+        continue;
+      }
+
+      console.log(`[TEST_POLL_DM] Looking for trigger word: "${job.trigger_word}"`);
 
       // Update job status
       await serviceSupabase

@@ -27,7 +27,7 @@ import {
   getAutomationQueueStatus,
   getPodAutomationQueue,
   getPodAutomationWorker,
-} from '../lib/queue/pod-automation-queue';
+} from '../lib/queues/pod-automation-queue';
 import { checkRedisHealth } from '../lib/redis';
 import {
   enforceSingleInstance,

@@ -130,16 +130,15 @@ async function recordDMActivity(
   const { error } = await getSupabase()
     .from('pod_activities')
     .insert({
-      campaign_id: jobData.campaign_id,
-      unipile_account_id: jobData.unipile_account_id,
-      linkedin_profile_id: jobData.recipient_linkedin_id,
+      campaign_id: jobData.campaignId,
+      unipile_account_id: jobData.accountId,
+      linkedin_profile_id: jobData.recipientId,
       action: 'dm_sent',
       status,
       metadata: {
-        linkedin_post_id: jobData.post_id,
-        comment_id: jobData.comment_id,
-        recipient_name: jobData.recipient_name,
-        trigger_word: jobData.trigger_word,
+        linkedin_post_id: jobData.postId,
+        comment_id: jobData.commentId,
+        recipient_name: jobData.recipientName,
         message_id: messageId,
         error: errorMessage,
       },
@@ -156,19 +155,18 @@ async function recordDMActivity(
 async function processDMJob(job: Job<DMJobData>): Promise<{ messageId: string }> {
   const data = job.data;
   console.log(`[DM_WORKER] Processing job ${job.id}:`, {
-    campaign: data.campaign_id,
-    recipient: data.recipient_name,
-    trigger: data.trigger_word,
+    campaign: data.campaignId,
+    recipient: data.recipientName,
   });
 
   // Get campaign configuration
-  const config = await getCampaignConfig(data.campaign_id);
+  const config = await getCampaignConfig(data.campaignId);
   if (!config) {
-    throw new Error(`Campaign ${data.campaign_id} not found`);
+    throw new Error(`Campaign ${data.campaignId} not found`);
   }
 
   // Check rate limits
-  const dailyCount = await getDailyDMCount(data.unipile_account_id);
+  const dailyCount = await getDailyDMCount(data.accountId);
   if (dailyCount >= DAILY_DM_LIMIT) {
     const error = `Daily DM limit reached (${dailyCount}/${DAILY_DM_LIMIT})`;
     await recordDMActivity(data, 'failed', undefined, error);
@@ -179,11 +177,11 @@ async function processDMJob(job: Job<DMJobData>): Promise<{ messageId: string }>
   const template = config.dm_template || DEFAULT_DM_TEMPLATE;
   const message = buildDMMessage(
     template,
-    data.recipient_name,
+    data.recipientName,
     config.lead_magnet_name
   );
 
-  console.log(`[DM_WORKER] Sending DM to ${data.recipient_name}:`, {
+  console.log(`[DM_WORKER] Sending DM to ${data.recipientName}:`, {
     messageLength: message.length,
     dailyCount: dailyCount + 1,
   });
@@ -191,8 +189,8 @@ async function processDMJob(job: Job<DMJobData>): Promise<{ messageId: string }>
   try {
     // Send DM via Unipile
     const result = await sendDirectMessage(
-      data.unipile_account_id,
-      data.recipient_linkedin_id,
+      data.accountId,
+      data.recipientId,
       message
     );
 
@@ -201,7 +199,7 @@ async function processDMJob(job: Job<DMJobData>): Promise<{ messageId: string }>
 
     console.log(`[DM_WORKER] DM sent successfully:`, {
       messageId: result.message_id,
-      recipient: data.recipient_name,
+      recipient: data.recipientName,
     });
 
     return { messageId: result.message_id };

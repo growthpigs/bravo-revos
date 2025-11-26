@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { tool } from '@openai/agents';
 import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+// Note: Using 'any' type for supabase client since leads/lead_activities tables aren't in generated types
 
 interface Lead {
   id: string;
@@ -123,7 +122,7 @@ export class LeadChip extends BaseChip {
   }
 
   private async createLead(context: AgentContext, leadData: any): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!leadData || !leadData.email) {
       return this.formatError('Email is required to create a lead');
@@ -187,7 +186,7 @@ export class LeadChip extends BaseChip {
   }
 
   private async updateLead(context: AgentContext, leadId?: string, updates?: any): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!leadId) {
       return this.formatError('Lead ID is required for updates');
@@ -236,7 +235,7 @@ export class LeadChip extends BaseChip {
   }
 
   private async getLead(context: AgentContext, leadId?: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!leadId) {
       return this.formatError('Lead ID is required');
@@ -280,7 +279,7 @@ export class LeadChip extends BaseChip {
   }
 
   private async listLeads(context: AgentContext, filters?: any): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     // Build query
     let query = supabase
@@ -315,7 +314,7 @@ export class LeadChip extends BaseChip {
     }
 
     // Group by status for summary
-    const statusCounts = leads.reduce((acc, lead) => {
+    const statusCounts = leads.reduce((acc: Record<string, number>, lead: any) => {
       acc[lead.status] = (acc[lead.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -324,7 +323,7 @@ export class LeadChip extends BaseChip {
       total_leads: leads.length,
       status_breakdown: statusCounts,
       filters_applied: filters ? Object.keys(filters) : [],
-      leads: leads.map(l => ({
+      leads: leads.map((l: any) => ({
         id: l.id,
         email: l.email,
         name: this.getFullName(l),
@@ -339,7 +338,7 @@ export class LeadChip extends BaseChip {
   }
 
   private async searchLeads(context: AgentContext, searchQuery?: string): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!searchQuery || searchQuery.trim().length < 2) {
       return this.formatError('Search query must be at least 2 characters');
@@ -368,14 +367,14 @@ export class LeadChip extends BaseChip {
     return this.formatSuccess({
       total_results: leads.length,
       query: searchQuery,
-      leads: leads.map(l => ({
+      leads: leads.map((l: any) => ({
         id: l.id,
         email: l.email,
         name: this.getFullName(l),
         company: l.company,
         status: l.status,
         relevance: this.calculateRelevance(l, searchQuery),
-      })).sort((a, b) => b.relevance - a.relevance),
+      })).sort((a: any, b: any) => b.relevance - a.relevance),
       message: `🔍 ${leads.length} leads found matching "${searchQuery}"`
     });
   }
@@ -386,7 +385,7 @@ export class LeadChip extends BaseChip {
     tagsToAdd?: string[],
     tagsToRemove?: string[]
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!leadId) {
       return this.formatError('Lead ID is required for tag management');
@@ -413,7 +412,7 @@ export class LeadChip extends BaseChip {
 
     // Remove tags
     if (tagsToRemove && tagsToRemove.length > 0) {
-      updatedTags = updatedTags.filter(t => !tagsToRemove.includes(t));
+      updatedTags = updatedTags.filter((t: string) => !tagsToRemove.includes(t));
     }
 
     // Update lead
@@ -443,7 +442,7 @@ export class LeadChip extends BaseChip {
     leadId?: string,
     adjustment?: number
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     if (!leadId) {
       return this.formatError('Lead ID is required for score adjustment');
@@ -502,7 +501,7 @@ export class LeadChip extends BaseChip {
     activityType: string,
     description: string
   ): Promise<any> {
-    const supabase = context.supabase as SupabaseClient<Database>;
+    const supabase = context.supabase as any;
 
     const activityData: Partial<LeadActivity> = {
       lead_id: leadId,

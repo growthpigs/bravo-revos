@@ -175,16 +175,29 @@ async function handleCommentReceived(data: any) {
 
   const { comment_text, post_id, commenter_profile } = data.payload;
 
-  console.log('Comment received:', { post_id, comment_text });
+  console.log('[WEBHOOK_COMMENT] Comment received:', { post_id, comment_text });
 
-  // Check if comment contains trigger keyword
-  const triggerWords = ['guide', 'interested', 'more info', 'download', 'send me'];
-  const containsTrigger = triggerWords.some(word =>
-    comment_text.toLowerCase().includes(word)
-  );
+  // Look up the campaign's trigger word from scrape_jobs table
+  // NO HARD-CODED TRIGGERS - multi-tenant requirement
+  const { data: scrapeJob, error: jobError } = await supabase
+    .from('scrape_jobs')
+    .select('trigger_word, campaign_id')
+    .eq('unipile_post_id', post_id)
+    .single();
+
+  if (jobError || !scrapeJob?.trigger_word) {
+    console.log('[WEBHOOK_COMMENT] No scrape job or trigger word found for post:', post_id);
+    return NextResponse.json({ received: true, trigger_detected: false, reason: 'no_scrape_job' });
+  }
+
+  // Check if comment contains the campaign's specific trigger word
+  const lowerComment = comment_text.toLowerCase().trim();
+  const lowerTrigger = scrapeJob.trigger_word.toLowerCase().trim();
+  const containsTrigger = lowerComment.includes(lowerTrigger) ||
+    (lowerTrigger.length >= 4 && hasFuzzyMatch(lowerComment, lowerTrigger));
 
   if (containsTrigger) {
-    console.log('Trigger keyword detected:', comment_text);
+    console.log(`[WEBHOOK_COMMENT] Trigger "${scrapeJob.trigger_word}" detected in:`, comment_text);
 
     // Log the triggered comment for later processing
     await supabase
@@ -194,6 +207,8 @@ async function handleCommentReceived(data: any) {
         comment_text,
         commenter_profile,
         trigger_detected: true,
+        trigger_word: scrapeJob.trigger_word,
+        campaign_id: scrapeJob.campaign_id,
         processed: false
       });
 
@@ -202,6 +217,42 @@ async function handleCommentReceived(data: any) {
   }
 
   return NextResponse.json({ received: true, trigger_detected: containsTrigger });
+}
+
+/**
+ * Check for fuzzy match (edit distance = 1) for typo tolerance
+ */
+function hasFuzzyMatch(text: string, target: string): boolean {
+  const words = text.split(/\s+/);
+  for (const word of words) {
+    if (Math.abs(word.length - target.length) <= 1) {
+      let diffs = 0;
+      const longer = word.length >= target.length ? word : target;
+      const shorter = word.length < target.length ? word : target;
+
+      if (longer.length === shorter.length) {
+        for (let i = 0; i < longer.length; i++) {
+          if (longer[i] !== shorter[i]) diffs++;
+          if (diffs > 1) break;
+        }
+        if (diffs === 1) return true;
+      } else {
+        let i = 0, j = 0;
+        while (i < longer.length && j < shorter.length) {
+          if (longer[i] !== shorter[j]) {
+            diffs++;
+            if (diffs > 1) break;
+            i++;
+          } else {
+            i++;
+            j++;
+          }
+        }
+        if (diffs <= 1) return true;
+      }
+    }
+  }
+  return false;
 }
 
 async function handlePostFailed(data: any) {

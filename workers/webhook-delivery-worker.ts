@@ -18,7 +18,7 @@
 import dotenv from 'dotenv';
 dotenv.config(); // Loads .env from cwd, or uses system env vars on Render
 
-import { createWebhookQueue, createWebhookWorker } from '../lib/queue/webhook-delivery-queue';
+import { createWebhookQueue, createWebhookWorker } from '../lib/queues/webhook-delivery-queue';
 import { checkRedisHealth } from '../lib/redis';
 import {
   enforceSingleInstance,
