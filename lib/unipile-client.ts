@@ -438,10 +438,10 @@ export async function getAllPostComments(
 
     console.log('[UNIPILE_COMMENTS] Step 2: Fetching comments with social_id:', socialId);
 
-    // CRITICAL FIX: Do NOT URL-encode the social_id
-    // The colons in "urn:li:activity:XXX" should NOT be encoded as %3A
-    // Unipile expects the raw URN format in the path
-    const url = `${credentials.dsn}/api/v1/posts/${socialId}/comments?account_id=${accountId}`;
+    // URL-encode the social_id for the path
+    // The colons in "urn:li:activity:XXX" MUST be encoded as %3A for the URL path
+    const encodedSocialId = encodeURIComponent(socialId);
+    const url = `${credentials.dsn}/api/v1/posts/${encodedSocialId}/comments?account_id=${accountId}`;
     console.log('[UNIPILE_COMMENTS] Request URL:', url);
 
     const response = await fetch(url, {
