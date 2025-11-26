@@ -251,21 +251,31 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
       continue;
     }
 
+    // CRITICAL: Skip comments without valid author data (prevents TypeError crashes)
+    if (!comment.author || !comment.author.id) {
+      console.warn(`[COMMENT_MONITOR] Skipping comment ${comment.id} - missing author data`);
+      continue;
+    }
+
     // Check ONLY for the campaign's specific trigger word (multi-tenant)
     // NO generic triggers - each campaign defines its own
     const triggerWord = containsTriggerWord(comment.text, job.trigger_word);
+
+    // Extract author info safely
+    const authorId = comment.author.id;
+    const authorName = comment.author.name || 'Unknown User';
 
     if (triggerWord) {
       console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id}`);
 
       // Build DM message for the lead (customize based on trigger)
-      const dmMessage = buildDMMessage(comment.author.name, triggerWord);
+      const dmMessage = buildDMMessage(authorName, triggerWord);
 
       // Queue DM job (matching DMJobData interface from dm-queue.ts)
       const jobData: DMJobData = {
         accountId: job.unipile_account_id,
-        recipientId: comment.author.id,
-        recipientName: comment.author.name,
+        recipientId: authorId,
+        recipientName: authorName,
         message: dmMessage,
         campaignId: job.campaign_id,
         userId: job.unipile_account_id, // Use account as user context
@@ -281,7 +291,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
         job.campaign_id,
         comment.id,
         job.post_id,
-        comment.author.id,
+        authorId,
         true,
         triggerWord
       );
@@ -291,7 +301,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
         job.campaign_id,
         comment.id,
         job.post_id,
-        comment.author.id,
+        authorId,
         false,
         null
       );
@@ -338,10 +348,18 @@ export async function pollAllCampaigns(): Promise<{
       console.error(`[COMMENT_MONITOR] Error:`, errorMsg);
       errors.push(errorMsg);
 
-      // Update job with error
+      // Update job with error - increment error_count properly
       const supabase = getSupabase();
+
+      // First get current error_count to increment it
+      const { data: currentJob } = await supabase
+        .from('scrape_jobs')
+        .select('error_count')
+        .eq('id', job.id)
+        .single();
+
       await supabase.from('scrape_jobs').update({
-        error_count: job.id, // Will be incremented properly in a real impl
+        error_count: (currentJob?.error_count || 0) + 1,
         last_error: error.message,
         last_error_at: new Date().toISOString()
       }).eq('id', job.id);
