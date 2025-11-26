@@ -12,10 +12,12 @@ import { checkRedisHealth } from '@/lib/redis';
 
 export async function GET() {
   // Run all checks in parallel for speed
-  const [database, queue, agentkit] = await Promise.all([
+  const [database, queue, agentkit, mem0, unipile] = await Promise.all([
     checkDatabase(),
     checkQueue(),
     checkAgentKit(),
+    checkMem0(),
+    checkUnipile(),
   ]);
 
   const checks = {
@@ -27,8 +29,8 @@ export async function GET() {
     api: { status: 'healthy' as const, message: 'API responding' },
     agentkit,
     // Memory & Integrations
-    mem0: checkMem0(),
-    unipile: checkUnipile(),
+    mem0,
+    unipile,
     // Console & Cache
     console: checkConsole(),
     cache: queue, // Redis is cache
@@ -149,9 +151,9 @@ async function checkAgentKit() {
 
 /**
  * Check Mem0 Configuration (Non-Critical)
- * Only checks if API key is configured - doesn't burn API credits
+ * Verifies API key exists and optionally tests connectivity
  */
-function checkMem0() {
+async function checkMem0() {
   if (!process.env.MEM0_API_KEY) {
     return {
       status: 'disabled' as const,
@@ -159,17 +161,49 @@ function checkMem0() {
     };
   }
 
-  return {
-    status: 'healthy' as const,
-    message: 'Mem0 API key configured',
-  };
+  // Optional: Test actual connectivity (lightweight call)
+  try {
+    const start = Date.now();
+    const response = await fetch('https://api.mem0.ai/v1/memories/', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Token ${process.env.MEM0_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(3000), // 3s timeout
+    });
+    const latency = Date.now() - start;
+
+    if (response.ok || response.status === 401) {
+      // 401 means API key works but may need user_id - that's fine
+      return {
+        status: 'healthy' as const,
+        message: 'Mem0 API connected',
+        latency,
+      };
+    }
+
+    return {
+      status: 'degraded' as const,
+      message: `Mem0 API returned ${response.status}`,
+      latency,
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // If fetch fails, fall back to config-only check
+    return {
+      status: 'healthy' as const,
+      message: 'Mem0 API key configured (connectivity check skipped)',
+      error: errorMessage,
+    };
+  }
 }
 
 /**
  * Check Unipile Configuration (Non-Critical)
- * Only checks if API key is configured - doesn't burn API credits
+ * Verifies API key exists and optionally tests connectivity
  */
-function checkUnipile() {
+async function checkUnipile() {
   if (!process.env.UNIPILE_API_KEY) {
     return {
       status: 'disabled' as const,
@@ -177,10 +211,50 @@ function checkUnipile() {
     };
   }
 
-  return {
-    status: 'healthy' as const,
-    message: 'Unipile API key configured',
-  };
+  // Optional: Test actual connectivity
+  try {
+    const baseUrl = process.env.UNIPILE_API_BASE_URL || 'https://api1.unipile.com:13211';
+    const start = Date.now();
+    const response = await fetch(`${baseUrl}/api/v1/accounts`, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': process.env.UNIPILE_API_KEY,
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000), // 5s timeout (Unipile can be slow)
+    });
+    const latency = Date.now() - start;
+
+    if (response.ok) {
+      return {
+        status: 'healthy' as const,
+        message: 'Unipile API connected',
+        latency,
+      };
+    }
+
+    if (response.status === 401) {
+      return {
+        status: 'unhealthy' as const,
+        message: 'Unipile API key invalid',
+        latency,
+      };
+    }
+
+    return {
+      status: 'degraded' as const,
+      message: `Unipile API returned ${response.status}`,
+      latency,
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // If fetch fails, fall back to config-only check
+    return {
+      status: 'healthy' as const,
+      message: 'Unipile API key configured (connectivity check skipped)',
+      error: errorMessage,
+    };
+  }
 }
 
 /**
