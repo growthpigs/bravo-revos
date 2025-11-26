@@ -363,7 +363,6 @@ export class PodChip extends BaseChip {
     }
 
     // Get pod members (excluding the author)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: members, error: membersError } = await (supabase as any)
       .from('pod_members')
       .select('id, user_id, unipile_account_id')
@@ -422,7 +421,6 @@ export class PodChip extends BaseChip {
     }
 
     // Get recent pod activities
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: activities, error } = await (supabase as any)
       .from('pod_activities')
       .select('*')
@@ -469,7 +467,6 @@ export class PodChip extends BaseChip {
     }
 
     // Cancel pending activities
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: cancelled, error } = await (supabase as any)
       .from('pod_activities')
       .update({ status: 'failed', error_message: 'Cancelled by user' })
