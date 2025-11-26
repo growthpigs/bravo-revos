@@ -4,8 +4,9 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getAllPostComments, UnipileComment, extractCommentAuthor } from '../unipile-client';
-import { queueDM, DMJobData } from '../queues/dm-queue';
+import { getAllPostComments, UnipileComment, extractCommentAuthor, sendDirectMessage } from '../unipile-client';
+// TEMPORARILY DISABLED: Redis is down, sending DMs directly instead of queueing
+// import { queueDM, DMJobData } from '../queues/dm-queue';
 
 // NO HARD-CODED TRIGGER WORDS
 // Multi-tenant requirement: Each campaign defines its own trigger word(s)
@@ -270,30 +271,54 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
       // Build DM message for the lead (customize based on trigger)
       const dmMessage = buildDMMessage(authorName, triggerWord);
 
-      // Queue DM job (matching DMJobData interface from dm-queue.ts)
-      const jobData: DMJobData = {
-        accountId: job.unipile_account_id,
-        recipientId: authorId,
-        recipientName: authorName,
-        message: dmMessage,
-        campaignId: job.campaign_id,
-        userId: job.unipile_account_id, // Use account as user context
-        commentId: comment.id,
-        postId: job.post_id,
-      };
+      // TEMPORARILY: Send DM directly instead of queueing (Redis is down)
+      // TODO: Re-enable queueDM once Redis is restored
+      try {
+        console.log(`[COMMENT_MONITOR] Sending DM directly to ${authorName} (${authorId})...`);
+        const dmResult = await sendDirectMessage(
+          job.unipile_account_id,
+          authorId,
+          dmMessage
+        );
+        console.log(`[COMMENT_MONITOR] ✅ DM sent successfully:`, dmResult);
+        queuedCount++;
 
-      await queueDM(jobData);
-      queuedCount++;
+        // Mark as processed with trigger
+        await markCommentProcessed(
+          job.campaign_id,
+          comment.id,
+          job.post_id,
+          authorId,
+          true,
+          triggerWord
+        );
 
-      // Mark as processed with trigger
-      await markCommentProcessed(
-        job.campaign_id,
-        comment.id,
-        job.post_id,
-        authorId,
-        true,
-        triggerWord
-      );
+        // Create lead record
+        const nameParts = authorName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        await supabase.from('leads').upsert({
+          campaign_id: job.campaign_id,
+          linkedin_id: authorId,
+          first_name: firstName,
+          last_name: lastName,
+          source: 'comment_trigger',
+          status: 'dm_sent',
+        }, { onConflict: 'linkedin_id' });
+
+      } catch (dmError: any) {
+        console.error(`[COMMENT_MONITOR] ❌ DM failed for ${authorName}:`, dmError.message);
+        // Still mark as processed to avoid retrying
+        await markCommentProcessed(
+          job.campaign_id,
+          comment.id,
+          job.post_id,
+          authorId,
+          false, // DM not sent
+          triggerWord
+        );
+      }
     } else {
       // Mark as processed without trigger
       await markCommentProcessed(
@@ -316,7 +341,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
     next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString()
   }).eq('id', job.id);
 
-  console.log(`[COMMENT_MONITOR] Job ${job.id}: ${queuedCount} DMs queued from ${comments.length} comments`);
+  console.log(`[COMMENT_MONITOR] Job ${job.id}: ${queuedCount} DMs sent from ${comments.length} comments`);
   return queuedCount;
 }
 
