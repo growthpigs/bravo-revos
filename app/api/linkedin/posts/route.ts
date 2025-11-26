@@ -89,6 +89,9 @@ export async function POST(request: NextRequest) {
       console.warn('[LINKEDIN_POST_API] Could not fetch profile_url:', error);
     }
 
+    // Get campaign_id and trigger_word from request if provided
+    const { campaignId, triggerWord } = body;
+
     // Create the post via Unipile
     console.log('[LINKEDIN_POST_API] Calling createLinkedInPost...');
     const postResult = await createLinkedInPost(unipileAccountId, text);
@@ -99,9 +102,83 @@ export async function POST(request: NextRequest) {
       profileUrl,
     });
 
+    // Get user's client_id for RLS
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', user.id)
+      .single();
+
+    // Save post to posts table
+    let savedPost = null;
+    if (userData?.client_id) {
+      const { data: postData, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          campaign_id: campaignId || null,
+          content: text,
+          status: 'published',
+          unipile_post_id: postResult.id,
+          post_url: postResult.url,
+          published_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (postError) {
+        console.error('[LINKEDIN_POST_API] Failed to save post to DB:', postError);
+      } else {
+        savedPost = postData;
+        console.log('[LINKEDIN_POST_API] Post saved to DB:', savedPost.id);
+      }
+
+      // Update campaign with last_post_url if campaign_id provided
+      if (campaignId) {
+        const { error: campaignError } = await supabase
+          .from('campaigns')
+          .update({
+            last_post_url: postResult.url,
+            last_post_at: new Date().toISOString(),
+          })
+          .eq('id', campaignId);
+
+        if (campaignError) {
+          console.error('[LINKEDIN_POST_API] Failed to update campaign:', campaignError);
+        } else {
+          console.log('[LINKEDIN_POST_API] Campaign updated with post URL');
+        }
+      }
+
+      // Create scrape_job for comment monitoring (CRITICAL for DM automation)
+      if (savedPost) {
+        const effectiveTriggerWord = triggerWord || 'guide'; // Default trigger word
+        const { data: scrapeJob, error: scrapeError } = await supabase
+          .from('scrape_jobs')
+          .insert({
+            campaign_id: campaignId || null,
+            post_id: savedPost.id,
+            unipile_post_id: postResult.id,
+            unipile_account_id: unipileAccountId,
+            trigger_word: effectiveTriggerWord,
+            status: 'active',
+          })
+          .select()
+          .single();
+
+        if (scrapeError) {
+          console.error('[LINKEDIN_POST_API] Failed to create scrape_job:', scrapeError);
+        } else {
+          console.log('[LINKEDIN_POST_API] ✅ Scrape job created for monitoring:', scrapeJob.id);
+          console.log('[LINKEDIN_POST_API] Monitoring for trigger word:', effectiveTriggerWord);
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       post: postResult,
+      savedPost,
       profileUrl,
       message: 'LinkedIn post created successfully',
     });
