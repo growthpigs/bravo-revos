@@ -11,6 +11,8 @@ import {
   getDashboardMetrics,
   getHistoricalMetrics,
 } from '@/lib/monitoring/metrics';
+import { safeParseQueryParam } from '@/lib/utils/safe-parse';
+import { QUERY_PARAM_DEFAULTS } from '@/lib/config';
 
 /**
  * GET /api/monitoring/metrics
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') || 'current';
-    const hours = parseInt(searchParams.get('hours') || '24');
+    const hours = safeParseQueryParam(searchParams, 'hours', QUERY_PARAM_DEFAULTS.DEFAULT_HOURS, { min: 1, max: 168 });
 
     if (action === 'historical') {
       const data = await getHistoricalMetrics(hours);

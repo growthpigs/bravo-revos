@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyCronAuth } from '@/lib/cron-auth'
 import { getAllPostComments, sendDirectMessage } from '@/lib/unipile-client'
+import { upsertLead } from '@/lib/utils/db-helpers'
 
 /**
  * POST /api/cron/dm-scraper
@@ -165,43 +166,35 @@ export async function POST(request: NextRequest) {
 
         for (const comment of triggeredComments) {
           try {
-            // Check if we already DM'd this commenter
-            const { data: existingLead } = await supabase
-              .from('leads')
-              .select('id')
-              .eq('campaign_id', job.campaign_id)
-              .eq('linkedin_profile_url', comment.author.profile_url)
-              .maybeSingle()
+            // Use atomic upsert to prevent race condition (duplicate leads)
+            // This replaces the unsafe check-then-insert pattern
+            const upsertResult = await upsertLead(supabase, {
+              campaign_id: job.campaign_id,
+              linkedin_profile_url: comment.author.profile_url,
+              name: comment.author.name,
+              status: 'dm_pending',
+              source: 'comment_trigger',
+              metadata: {
+                comment_id: comment.id,
+                comment_text: comment.text,
+                trigger_word: job.trigger_word,
+                post_id: job.unipile_post_id,
+                author_id: comment.author.id
+              }
+            })
 
-            if (existingLead) {
+            if (!upsertResult.success) {
+              console.error(`[DM_SCRAPER] Failed to upsert lead:`, upsertResult.error)
+              continue
+            }
+
+            // If lead already existed (not a new insert), skip DM
+            if (!upsertResult.wasInsert) {
               console.log(`[DM_SCRAPER] Already sent DM to ${comment.author.name}, skipping`)
               continue
             }
 
-            // Create lead record first
-            const { data: newLead, error: leadError } = await supabase
-              .from('leads')
-              .insert({
-                campaign_id: job.campaign_id,
-                linkedin_profile_url: comment.author.profile_url,
-                name: comment.author.name,
-                status: 'dm_pending',
-                source: 'comment_trigger',
-                metadata: {
-                  comment_id: comment.id,
-                  comment_text: comment.text,
-                  trigger_word: job.trigger_word,
-                  post_id: job.unipile_post_id,
-                  author_id: comment.author.id
-                }
-              })
-              .select()
-              .single()
-
-            if (leadError || !newLead) {
-              console.error(`[DM_SCRAPER] Failed to create lead:`, leadError)
-              continue
-            }
+            const newLead = upsertResult.data!
 
             if (dmSequence) {
               // Use DM sequence - create delivery record

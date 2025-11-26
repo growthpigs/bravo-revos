@@ -1,12 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { embedDocument } from '@/lib/embeddings/generate';
 import { NextResponse } from 'next/server';
+import { safeParseQueryParam } from '@/lib/utils/safe-parse';
+import { QUERY_PARAM_DEFAULTS } from '@/lib/config';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const limit = safeParseQueryParam(searchParams, 'limit', QUERY_PARAM_DEFAULTS.KNOWLEDGE_BASE_LIMIT, { min: 1, max: QUERY_PARAM_DEFAULTS.MAX_LIMIT });
+    const offset = safeParseQueryParam(searchParams, 'offset', QUERY_PARAM_DEFAULTS.DEFAULT_OFFSET, { min: 0 });
     const fileType = searchParams.get('file_type');
     const search = searchParams.get('search');
     const campaignId = searchParams.get('campaign_id');

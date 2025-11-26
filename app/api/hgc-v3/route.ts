@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { safeJsonParseArray } from '@/lib/utils/safe-json';
 // REMOVED: import OpenAI from 'openai'; - moved to dynamic import to prevent build-time tiktoken execution
 
 export async function POST(req: Request) {
@@ -207,7 +208,7 @@ Now generate 4 DISTINCTLY DIFFERENT headlines for THIS brand:`;
 
         // Strip markdown code blocks if present
         const cleanResponse = topicResponse.replace(/```json\n?|\n?```/g, '').trim();
-        topicLabels = JSON.parse(cleanResponse);
+        topicLabels = safeJsonParseArray<string>(cleanResponse);
 
         console.log('[HGC_V3] Generated topics:', topicLabels);
 

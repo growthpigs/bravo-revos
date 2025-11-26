@@ -16,6 +16,8 @@ import {
   deleteMemory,
 } from '@/lib/mem0/memory';
 import { buildTenantKey, verifyTenantKey } from '@/lib/mem0/client';
+import { safeParseQueryParam } from '@/lib/utils/safe-parse';
+import { QUERY_PARAM_DEFAULTS } from '@/lib/config';
 
 /**
  * POST /api/mem0
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') || 'list';
     const query = searchParams.get('query');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = safeParseQueryParam(searchParams, 'limit', QUERY_PARAM_DEFAULTS.SEARCH_LIMIT, { min: 1, max: QUERY_PARAM_DEFAULTS.MAX_LIMIT });
 
     // Get user's agency and client
     const { data: userData, error: userError } = await supabase

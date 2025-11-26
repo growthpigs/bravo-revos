@@ -221,6 +221,59 @@ export const LOGGING_CONFIG = {
 };
 
 /**
+ * Conversation History Configuration
+ * Used by HGC routes and marketing console
+ */
+export const CONVERSATION_CONFIG = {
+  // Maximum messages to include in conversation history
+  MAX_HISTORY_MESSAGES: 20,
+
+  // Recent messages to include for context
+  RECENT_MESSAGES_CONTEXT: 3,
+
+  // Messages for AI context window
+  AI_CONTEXT_MESSAGES: 5,
+};
+
+/**
+ * API Query Parameter Defaults
+ * Used by API routes for pagination and filtering
+ */
+export const QUERY_PARAM_DEFAULTS = {
+  DEFAULT_LIMIT: 20,
+  DEFAULT_OFFSET: 0,
+  MAX_LIMIT: 100,
+  DEFAULT_HOURS: 24,
+  DEFAULT_DAYS: 7,
+  SEARCH_LIMIT: 10,
+  KNOWLEDGE_BASE_LIMIT: 20,
+  LEAD_MAGNET_LIMIT: 100,
+  PENDING_LEADS_LIMIT: 100,
+};
+
+/**
+ * Time Duration Constants (in milliseconds)
+ * Centralized time values to avoid magic numbers
+ */
+export const TIME_DURATIONS = {
+  ONE_MINUTE_MS: 60 * 1000,
+  FIVE_MINUTES_MS: 5 * 60 * 1000,
+  ONE_HOUR_MS: 60 * 60 * 1000,
+  ONE_DAY_MS: 24 * 60 * 60 * 1000,
+  ONE_WEEK_MS: 7 * 24 * 60 * 60 * 1000,
+};
+
+/**
+ * Parse Utility Defaults
+ * Used by safe-parse utilities
+ */
+export const PARSE_DEFAULTS = {
+  TIME_RANGE_DAYS: 7,
+  PAGINATION_LIMIT: 20,
+  PAGINATION_OFFSET: 0,
+};
+
+/**
  * Feature Flags
  */
 export const FEATURE_FLAGS = {

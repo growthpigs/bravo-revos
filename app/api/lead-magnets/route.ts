@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { safeParseQueryParam } from '@/lib/utils/safe-parse'
+import { QUERY_PARAM_DEFAULTS } from '@/lib/config'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +15,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const search = searchParams.get('search')?.toLowerCase() || ''
     const category = searchParams.get('category')
-    const limit = parseInt(searchParams.get('limit') || '100')
+    const limit = safeParseQueryParam(searchParams, 'limit', QUERY_PARAM_DEFAULTS.LEAD_MAGNET_LIMIT, { min: 1, max: QUERY_PARAM_DEFAULTS.MAX_LIMIT })
 
     // Build query - get all active magnets (using service role to bypass RLS)
     let query = supabase

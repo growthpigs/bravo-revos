@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { BaseChip } from './base-chip';
 import { AgentContext } from '@/lib/cartridges/types';
 import { OPENAI_MODELS } from '@/lib/config/openai-models';
+import { safeJsonParseArray } from '@/lib/utils/safe-json';
 
 const WriteInputSchema = z.object({
   action: z.enum(['select_topic', 'generate_post', 'finalize_post']),
@@ -59,7 +60,7 @@ export class WriteChip extends BaseChip {
 
           if (brandData?.industry) {
             // Personalized topics based on brand
-            const values = brandData.core_values ? JSON.parse(brandData.core_values) : [];
+            const values = safeJsonParseArray<string>(brandData.core_values);
 
             topicSuggestions = [
               {

@@ -6,6 +6,7 @@
 
 import OpenAI from 'openai';
 import { OPENAI_MODELS } from '@/lib/config/openai-models';
+import { safeJsonParseWithDefault } from '@/lib/utils/safe-json';
 
 // Lazy-initialize OpenAI client to avoid build-time execution
 let openaiClient: OpenAI | null = null;
@@ -110,7 +111,17 @@ What's the optimal engagement strategy?`,
       response_format: { type: 'json_object' },
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const defaultResult = {
+      shouldSchedule: false,
+      timing: 'delayed' as const,
+      engagementStrategy: {
+        likeWindow: [5, 30] as [number, number],
+        commentWindow: [30, 180] as [number, number],
+        memberSelection: 'all' as const,
+      },
+      reasoning: 'Failed to parse AI response, using safe defaults',
+    };
+    const result = safeJsonParseWithDefault(response.choices[0].message.content, defaultResult);
     return result;
   }
 
@@ -161,7 +172,13 @@ Provide optimized version with A/B variants.`,
       response_format: { type: 'json_object' },
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const defaultOptimizeResult = {
+      optimizedMessage: params.originalMessage,
+      confidence: 0.5,
+      variants: [],
+      reasoning: 'Failed to parse AI response, returning original message',
+    };
+    const result = safeJsonParseWithDefault(response.choices[0].message.content, defaultOptimizeResult);
     return result;
   }
 
@@ -240,7 +257,13 @@ Provide analysis and recommendations.`,
       response_format: { type: 'json_object' },
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const defaultAnalysisResult = {
+      overallScore: 50,
+      insights: ['Unable to analyze due to parsing error'],
+      recommendations: ['Please try again'],
+      nextActions: [],
+    };
+    const result = safeJsonParseWithDefault(response.choices[0].message.content, defaultAnalysisResult);
     return result;
   }
 
@@ -300,7 +323,14 @@ Create engaging post that drives comments with "${params.triggerWord}".`,
       response_format: { type: 'json_object' },
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const defaultPostResult = {
+      postText: `Check out this post about ${params.topic}! Comment "${params.triggerWord}" to get the ${params.leadMagnetName}.`,
+      hashtags: ['LinkedIn', 'Professional'],
+      bestPostingTime: 'Tuesday 9am',
+      expectedEngagement: 'medium' as const,
+      reasoning: 'Failed to parse AI response, using template fallback',
+    };
+    const result = safeJsonParseWithDefault(response.choices[0].message.content, defaultPostResult);
     return result;
   }
 }
