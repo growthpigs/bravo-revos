@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Step 2: Query scrape jobs
     steps.push({ step: '2_query_jobs', status: 'starting' })
+    const now = new Date().toISOString()
     const { data: jobs, error: queryError } = await supabase
       .from('scrape_jobs')
       .select(`
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
         error_count
       `)
       .in('status', ['scheduled', 'running'])
+      .lte('next_check', now)
       .order('next_check', { ascending: true })
       .limit(1)
 
