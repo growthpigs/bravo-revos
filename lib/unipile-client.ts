@@ -400,13 +400,48 @@ export async function getAllPostComments(
 
     const credentials = getUnipileCredentials();
 
-    // Unipile needs the social_id format: urn:li:activity:XXXXX
-    // If postId is just the number, convert it
-    const socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+    // STEP 1: First retrieve the post to get the correct social_id
+    // Unipile docs: "You need to retrieve id part in URL... use retrieve post route with this id and take in result social_id"
+    // This handles both activity posts and ugcPost formats correctly
+    console.log('[UNIPILE_COMMENTS] Step 1: Retrieving post to get social_id:', { accountId, postId });
 
-    console.log('[UNIPILE_COMMENTS] Fetching comments:', { accountId, postId, socialId });
+    let socialId: string;
 
-    const url = `${credentials.dsn}/api/v1/posts/${encodeURIComponent(socialId)}/comments?account_id=${accountId}`;
+    try {
+      // Try to get the post first to get the correct social_id format
+      const postUrl = `${credentials.dsn}/api/v1/posts/${postId}?account_id=${accountId}`;
+      console.log('[UNIPILE_COMMENTS] Fetching post from:', postUrl);
+
+      const postResponse = await fetch(postUrl, {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': credentials.apiKey,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (postResponse.ok) {
+        const postData = await postResponse.json();
+        // Use the social_id from the API response - this is the correct format
+        socialId = postData.social_id || postData.id || postId;
+        console.log('[UNIPILE_COMMENTS] Got social_id from API:', socialId);
+      } else {
+        // Fallback: construct the URN ourselves (may not work for all post types)
+        console.warn('[UNIPILE_COMMENTS] Could not fetch post, using fallback URN format');
+        socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+      }
+    } catch (postError) {
+      // Fallback if post retrieval fails
+      console.warn('[UNIPILE_COMMENTS] Post retrieval failed, using fallback:', postError);
+      socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+    }
+
+    console.log('[UNIPILE_COMMENTS] Step 2: Fetching comments with social_id:', socialId);
+
+    // CRITICAL FIX: Do NOT URL-encode the social_id
+    // The colons in "urn:li:activity:XXX" should NOT be encoded as %3A
+    // Unipile expects the raw URN format in the path
+    const url = `${credentials.dsn}/api/v1/posts/${socialId}/comments?account_id=${accountId}`;
     console.log('[UNIPILE_COMMENTS] Request URL:', url);
 
     const response = await fetch(url, {
