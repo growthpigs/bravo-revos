@@ -80,6 +80,23 @@ export async function POST(request: NextRequest) {
 
     console.log('[CAMPAIGNS_API] Creating campaign for user:', user.id)
 
+    // Get user's client_id (REQUIRED for RLS)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userError || !userData?.client_id) {
+      console.error('[CAMPAIGNS_API] User client_id not found:', userError)
+      return NextResponse.json(
+        { error: 'User profile incomplete - missing client assignment' },
+        { status: 400 }
+      )
+    }
+
+    console.log('[CAMPAIGNS_API] User client_id:', userData.client_id)
+
     // Get user's default pod (first active pod membership)
     let defaultPodId: string | null = null
     const { data: podMemberships } = await supabase
@@ -104,8 +121,9 @@ export async function POST(request: NextRequest) {
       leadMagnetSource = 'custom'
     }
 
-    // Prepare campaign data - both created_by and user_id set from authenticated user
+    // Prepare campaign data - client_id is REQUIRED for RLS
     const campaignData = {
+      client_id: userData.client_id,  // REQUIRED: RLS checks this field
       created_by: user.id,
       user_id: user.id,
       name: validatedData.name,
@@ -156,7 +174,7 @@ export async function POST(request: NextRequest) {
       const { data: webhookConfig, error: webhookError } = await supabase
         .from('webhook_configs')
         .insert({
-          client_id: user.id,
+          client_id: userData.client_id,  // FIX: Use client_id not user.id
           name: `${validatedData.name} - Webhook`,
           url: validatedData.webhookUrl,
           esp_type: validatedData.webhookType || 'custom',
