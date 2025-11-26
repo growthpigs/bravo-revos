@@ -908,11 +908,12 @@ export async function createLinkedInPost(
     // Fallback to Unipile's post_id (may not work for comments API)
     const postId = linkedinActivityId || data.post_id || data.id;
 
-    // CRITICAL FIX: Construct share_url from activity ID if not provided
+    // CRITICAL FIX: Construct share_url from postId if not provided
+    // postId already contains the activity ID (line above), so use it for URL construction
     // This ensures we always have a valid LinkedIn post URL for campaign tracking
-    if (!shareUrl && linkedinActivityId) {
-      shareUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${linkedinActivityId}`;
-      console.log('[UNIPILE_POST] Constructed share_url from activity ID:', shareUrl);
+    if (!shareUrl && postId) {
+      shareUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
+      console.log('[UNIPILE_POST] Constructed share_url from postId:', shareUrl);
     }
 
     console.log('[UNIPILE_POST] Post created successfully:', {
