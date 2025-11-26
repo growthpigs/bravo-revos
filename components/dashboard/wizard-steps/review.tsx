@@ -203,13 +203,21 @@ export default function ReviewStep({ data, onBack }: StepProps) {
         toast.success('Campaign Live + Pod Activated!', {
           id: 'launch-progress',
           description: 'Post is live and your pod is boosting it!',
-          duration: 5000,
+          duration: 8000,
+          action: {
+            label: '👉 View Post',
+            onClick: () => window.open(postUrl, '_blank'),
+          },
         })
       } else if (postUrl) {
         toast.success('Campaign Live on LinkedIn!', {
           id: 'launch-progress',
           description: 'DM automation is monitoring for comments.',
-          duration: 5000,
+          duration: 8000,
+          action: {
+            label: '👉 View Post',
+            onClick: () => window.open(postUrl, '_blank'),
+          },
         })
       } else {
         toast.success('Campaign Saved (Draft)', {
