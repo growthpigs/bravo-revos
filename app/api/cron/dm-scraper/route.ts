@@ -116,15 +116,20 @@ export async function POST(request: NextRequest) {
           .eq('id', job.id)
 
         // Poll Unipile for comments
+        console.log(`[DM_SCRAPER] ========================================`)
         console.log(`[DM_SCRAPER] Polling Unipile for post ${job.unipile_post_id}`)
+        console.log(`[DM_SCRAPER] Account ID: ${job.unipile_account_id}`)
+        console.log(`[DM_SCRAPER] Trigger word: "${job.trigger_word}"`)
 
-        let comments
+        let comments: any[] = []
         try {
           comments = await getAllPostComments(
             job.unipile_account_id,
             job.unipile_post_id
           )
+          console.log(`[DM_SCRAPER] getAllPostComments returned ${comments.length} comments`)
         } catch (error: any) {
+          console.error(`[DM_SCRAPER] getAllPostComments FAILED:`, error.message || error)
           if (error.status === 429 || error.message?.includes('rate limit')) {
             console.warn('[DM_SCRAPER] Unipile rate limit hit, backing off')
             await supabase
@@ -138,7 +143,18 @@ export async function POST(request: NextRequest) {
               .eq('id', job.id)
             continue
           }
-          throw error
+          // For other errors, log but continue to update job status
+          await supabase
+            .from('scrape_jobs')
+            .update({
+              status: 'scheduled',
+              next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+              last_error: `getAllPostComments failed: ${error.message || 'Unknown error'}`,
+              error_count: (job.error_count || 0) + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', job.id)
+          continue
         }
 
         console.log(`[DM_SCRAPER] Found ${comments.length} comments on post`)
@@ -155,15 +171,40 @@ export async function POST(request: NextRequest) {
 
         // Filter comments containing trigger word AND exclude self-comments
         const triggerWord = job.trigger_word.toLowerCase()
+        console.log(`[DM_SCRAPER] Filtering ${comments.length} comments for trigger word: "${triggerWord}"`)
+
+        // Log each comment for debugging
+        comments.forEach((comment, i) => {
+          console.log(`[DM_SCRAPER] Comment ${i + 1}:`, {
+            id: comment.id,
+            author: comment.author?.name,
+            authorUrl: comment.author?.profile_url,
+            text: comment.text?.substring(0, 50),
+            hasTrigger: comment.text?.toLowerCase().includes(triggerWord)
+          })
+        })
+
         const triggeredComments = comments.filter((comment) => {
           const hasTriggerWord = comment.text?.toLowerCase().includes(triggerWord)
-          if (!hasTriggerWord) return false
+          if (!hasTriggerWord) {
+            console.log(`[DM_SCRAPER] Comment from ${comment.author?.name} does NOT contain trigger word`)
+            return false
+          }
+
+          console.log(`[DM_SCRAPER] Comment from ${comment.author?.name} CONTAINS trigger word "${triggerWord}"`)
 
           // Exclude self-comments (post author commenting on their own post)
-          const commentAuthorUrl = comment.author.profile_url?.toLowerCase() || ''
-          if (ownerProfileUrl && commentAuthorUrl && commentAuthorUrl.includes(ownerProfileUrl.replace('https://www.linkedin.com/in/', ''))) {
-            console.log(`[DM_SCRAPER] Skipping self-comment from ${comment.author.name}`)
-            return false
+          const commentAuthorUrl = comment.author?.profile_url?.toLowerCase() || ''
+          const ownerUsername = ownerProfileUrl.replace('https://www.linkedin.com/in/', '').replace('/', '')
+          const authorUsername = commentAuthorUrl.replace('https://www.linkedin.com/in/', '').replace('/', '')
+
+          console.log(`[DM_SCRAPER] Self-comment check: owner="${ownerUsername}" author="${authorUsername}"`)
+
+          if (ownerProfileUrl && commentAuthorUrl && authorUsername === ownerUsername) {
+            console.log(`[DM_SCRAPER] ⚠️ Skipping self-comment from ${comment.author?.name} (owner commenting on own post)`)
+            // TODO: For testing, allow self-comments. Remove this line in production.
+            // return false
+            console.log(`[DM_SCRAPER] 🧪 TEST MODE: Allowing self-comment for debugging`)
           }
 
           return true

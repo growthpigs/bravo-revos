@@ -362,6 +362,11 @@ export async function getAllPostComments(
   accountId: string,
   postId: string
 ): Promise<UnipileComment[]> {
+  const startTime = Date.now();
+  console.log('[UNIPILE_COMMENTS] ========================================');
+  console.log('[UNIPILE_COMMENTS] Starting getAllPostComments');
+  console.log('[UNIPILE_COMMENTS] Input:', { accountId, postId });
+
   try {
     // Mock mode for testing
     if (isMockMode()) {
@@ -399,6 +404,7 @@ export async function getAllPostComments(
     }
 
     const credentials = getUnipileCredentials();
+    const FETCH_TIMEOUT = 15000; // 15 second timeout for API calls
 
     // STEP 1: First retrieve the post to get the correct social_id
     // Unipile docs: "You need to retrieve id part in URL... use retrieve post route with this id and take in result social_id"
@@ -412,37 +418,50 @@ export async function getAllPostComments(
       const postUrl = `${credentials.dsn}/api/v1/posts/${postId}?account_id=${accountId}`;
       console.log('[UNIPILE_COMMENTS] Fetching post from:', postUrl);
 
+      const postController = new AbortController();
+      const postTimeoutId = setTimeout(() => postController.abort(), FETCH_TIMEOUT);
+
       const postResponse = await fetch(postUrl, {
         method: 'GET',
         headers: {
           'X-API-KEY': credentials.apiKey,
           'Accept': 'application/json',
         },
+        signal: postController.signal,
       });
+
+      clearTimeout(postTimeoutId);
+      console.log('[UNIPILE_COMMENTS] Post retrieval response status:', postResponse.status);
 
       if (postResponse.ok) {
         const postData = await postResponse.json();
+        console.log('[UNIPILE_COMMENTS] Post data received:', JSON.stringify(postData).substring(0, 500));
         // Use the social_id from the API response - this is the correct format
         socialId = postData.social_id || postData.id || postId;
         console.log('[UNIPILE_COMMENTS] Got social_id from API:', socialId);
       } else {
+        const errorText = await postResponse.text();
+        console.warn('[UNIPILE_COMMENTS] Post retrieval failed with status:', postResponse.status, errorText.substring(0, 200));
         // Fallback: construct the URN ourselves (may not work for all post types)
-        console.warn('[UNIPILE_COMMENTS] Could not fetch post, using fallback URN format');
         socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+        console.log('[UNIPILE_COMMENTS] Using fallback social_id:', socialId);
       }
-    } catch (postError) {
+    } catch (postError: any) {
       // Fallback if post retrieval fails
-      console.warn('[UNIPILE_COMMENTS] Post retrieval failed, using fallback:', postError);
+      console.warn('[UNIPILE_COMMENTS] Post retrieval exception:', postError.message || postError);
       socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+      console.log('[UNIPILE_COMMENTS] Using fallback social_id after error:', socialId);
     }
 
     console.log('[UNIPILE_COMMENTS] Step 2: Fetching comments with social_id:', socialId);
 
-    // URL-encode the social_id for the path
-    // The colons in "urn:li:activity:XXX" MUST be encoded as %3A for the URL path
-    const encodedSocialId = encodeURIComponent(socialId);
-    const url = `${credentials.dsn}/api/v1/posts/${encodedSocialId}/comments?account_id=${accountId}`;
+    // NOTE: Do NOT URL-encode the social_id - Unipile expects raw URN format
+    // The colons in "urn:li:activity:XXX" should remain as-is in the path
+    const url = `${credentials.dsn}/api/v1/posts/${socialId}/comments?account_id=${accountId}`;
     console.log('[UNIPILE_COMMENTS] Request URL:', url);
+
+    const commentsController = new AbortController();
+    const commentsTimeoutId = setTimeout(() => commentsController.abort(), FETCH_TIMEOUT);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -450,17 +469,27 @@ export async function getAllPostComments(
         'X-API-KEY': credentials.apiKey,
         'Accept': 'application/json',
       },
+      signal: commentsController.signal,
     });
+
+    clearTimeout(commentsTimeoutId);
+    const elapsed = Date.now() - startTime;
+    console.log('[UNIPILE_COMMENTS] Comments API response status:', response.status, `(${elapsed}ms)`);
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error('[UNIPILE_COMMENTS] Error response:', response.status, errorBody);
+      console.error('[UNIPILE_COMMENTS] Error response:', response.status, errorBody.substring(0, 500));
       throw new Error(`Failed to get post comments: ${response.status} - ${errorBody}`);
     }
 
     const data = await response.json();
-    console.log('[UNIPILE_COMMENTS] Found comments:', data.items?.length || 0);
-    return data.items || [];
+    console.log('[UNIPILE_COMMENTS] Raw response data:', JSON.stringify(data).substring(0, 500));
+
+    // Handle different possible response formats
+    const comments = data.items || data.comments || (Array.isArray(data) ? data : []);
+    console.log('[UNIPILE_COMMENTS] Found comments:', comments.length, `(total time: ${Date.now() - startTime}ms)`);
+    console.log('[UNIPILE_COMMENTS] ========================================');
+    return comments;
   } catch (error) {
     console.error('Error getting post comments:', error);
     throw error;
