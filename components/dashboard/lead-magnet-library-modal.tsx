@@ -1,13 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Search, X } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 interface LeadMagnet {
   id: string
@@ -23,19 +23,6 @@ interface LeadMagnetLibraryModalProps {
   onClose: () => void
   onSelect: (magnet: LeadMagnet) => void
 }
-
-const CATEGORIES = [
-  'All',
-  'LinkedIn & Growth',
-  'AI & Automation',
-  'Sales & Outreach',
-  'Content Creation',
-  'Email & Nurturing',
-  'Offer & Positioning',
-  'B2B Strategy',
-  'Tools & Systems',
-  'General',
-]
 
 const CATEGORY_COLORS: Record<string, string> = {
   'LinkedIn & Growth': 'bg-blue-100 text-blue-800',
@@ -88,6 +75,19 @@ export default function LeadMagnetLibraryModal({
     }
   }, [fetchMagnets, isOpen, magnets.length])
 
+  // Compute categories that have data (only show non-empty categories)
+  const availableCategories = useMemo(() => {
+    const categoryCounts = magnets.reduce((acc, m) => {
+      acc[m.category] = (acc[m.category] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    // Always include 'All', then only categories with items
+    return ['All', ...Object.keys(categoryCounts).sort((a, b) =>
+      (categoryCounts[b] || 0) - (categoryCounts[a] || 0)
+    )]
+  }, [magnets])
+
   // Filter magnets when search or category changes
   useEffect(() => {
     let filtered = magnets
@@ -115,14 +115,14 @@ export default function LeadMagnetLibraryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Browse Lead Magnet Library</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 flex flex-col">
+        <div className="flex flex-col flex-1 min-h-0 space-y-4">
           {/* Search Bar */}
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search by title or description..."
@@ -132,9 +132,9 @@ export default function LeadMagnetLibraryModal({
             />
           </div>
 
-          {/* Category Filter */}
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((category) => (
+          {/* Category Filter - Only show categories with data */}
+          <div className="flex flex-wrap gap-2 flex-shrink-0">
+            {availableCategories.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
@@ -150,92 +150,94 @@ export default function LeadMagnetLibraryModal({
           </div>
 
           {/* Results count */}
-          <div className="text-sm text-slate-600">
+          <div className="text-sm text-slate-600 flex-shrink-0">
             {loading ? 'Loading...' : `${filteredMagnets.length} result${filteredMagnets.length !== 1 ? 's' : ''}`}
           </div>
 
-          {/* Magnets Grid */}
-          {error ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <p className="text-red-600 font-semibold mb-2">Error loading library</p>
-                <p className="text-sm text-slate-600 mb-4">{error}</p>
-                <Button onClick={fetchMagnets} variant="outline" size="sm">
-                  Try Again
-                </Button>
+          {/* Magnets Grid - Scrollable area */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {error ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <p className="text-red-600 font-semibold mb-2">Error loading library</p>
+                  <p className="text-sm text-slate-600 mb-4">{error}</p>
+                  <Button onClick={fetchMagnets} variant="outline" size="sm">
+                    Try Again
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : loading ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-slate-600">Loading magnets...</p>
-            </div>
-          ) : filteredMagnets.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <p className="text-slate-600 font-semibold mb-2">No magnets found</p>
-                <p className="text-sm text-slate-500">
-                  Try adjusting your search or filter
-                </p>
+            ) : loading ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-slate-600">Loading magnets...</p>
               </div>
-            </div>
-          ) : (
-            <ScrollArea className="flex-1 border rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-4">
-                {filteredMagnets.map((magnet) => (
-                  <Card
-                    key={magnet.id}
-                    className="p-4 cursor-pointer hover:shadow-md transition-all hover:border-blue-300 group"
-                    onClick={() => handleSelect(magnet)}
-                  >
-                    <div className="space-y-2">
-                      {/* Category Badge */}
-                      <div className="flex items-start justify-between gap-2">
-                        <Badge className={CATEGORY_COLORS[magnet.category] || CATEGORY_COLORS['General']}>
-                          {magnet.category}
-                        </Badge>
+            ) : filteredMagnets.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <p className="text-slate-600 font-semibold mb-2">No magnets found</p>
+                  <p className="text-sm text-slate-500">
+                    Try adjusting your search or filter
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ScrollArea className="h-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-1 pr-4">
+                  {filteredMagnets.map((magnet) => (
+                    <Card
+                      key={magnet.id}
+                      className="p-4 cursor-pointer hover:shadow-md transition-all hover:border-blue-300 group"
+                      onClick={() => handleSelect(magnet)}
+                    >
+                      <div className="space-y-2">
+                        {/* Category Badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <Badge className={CATEGORY_COLORS[magnet.category] || CATEGORY_COLORS['General']}>
+                            {magnet.category}
+                          </Badge>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="font-semibold text-sm text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+                          {magnet.title}
+                        </h3>
+
+                        {/* Description */}
+                        {magnet.description && (
+                          <p className="text-xs text-slate-600 line-clamp-2">
+                            {magnet.description}
+                          </p>
+                        )}
+
+                        {/* URL Preview */}
+                        {magnet.url && (
+                          <p className="text-xs text-slate-500 truncate hover:text-slate-700">
+                            {magnet.url}
+                          </p>
+                        )}
+
+                        {/* Select Button */}
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSelect(magnet)
+                          }}
+                          size="sm"
+                          className="w-full mt-2"
+                          variant="outline"
+                        >
+                          Select
+                        </Button>
                       </div>
-
-                      {/* Title */}
-                      <h3 className="font-semibold text-sm text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-                        {magnet.title}
-                      </h3>
-
-                      {/* Description */}
-                      {magnet.description && (
-                        <p className="text-xs text-slate-600 line-clamp-2">
-                          {magnet.description}
-                        </p>
-                      )}
-
-                      {/* URL Preview */}
-                      {magnet.url && (
-                        <p className="text-xs text-slate-500 truncate hover:text-slate-700">
-                          {magnet.url}
-                        </p>
-                      )}
-
-                      {/* Select Button */}
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleSelect(magnet)
-                        }}
-                        size="sm"
-                        className="w-full mt-2"
-                        variant="outline"
-                      >
-                        Select
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
+                    </Card>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
         </div>
 
         {/* Close Button */}
-        <div className="flex justify-between pt-4 border-t">
+        <div className="flex justify-between pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
