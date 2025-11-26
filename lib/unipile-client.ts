@@ -809,7 +809,7 @@ export async function createLinkedInPost(
     // Unipile's post_id is their internal ID, but we need the LinkedIn activity ID
     // Format: https://www.linkedin.com/feed/update/urn:li:activity:7399434743425105920
     // We need: 7399434743425105920 (the activity number)
-    const shareUrl = data.share_url || data.url || '';
+    let shareUrl = data.share_url || data.url || '';
     let linkedinActivityId: string | null = null;
 
     // Try to extract from share_url
@@ -825,6 +825,83 @@ export async function createLinkedInPost(
       if (socialIdMatch) {
         linkedinActivityId = socialIdMatch[1];
         console.log('[UNIPILE_POST] Extracted LinkedIn activity ID from social_id:', linkedinActivityId);
+      }
+    }
+
+    // If we still don't have the LinkedIn activity ID, fetch user's recent posts to find it
+    // This is needed because Unipile POST /posts doesn't always return share_url or social_id
+    if (!linkedinActivityId) {
+      console.log('[UNIPILE_POST] share_url/social_id not in response, fetching recent posts to find activity ID...');
+      try {
+        // Get user profile to get their user ID
+        const profileResponse = await fetch(
+          `${credentials.dsn}/api/v1/users/me?account_id=${accountId}`,
+          {
+            method: 'GET',
+            headers: {
+              'X-API-KEY': credentials.apiKey,
+              'Accept': 'application/json',
+            },
+          }
+        );
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          const userId = profileData.id || profileData.provider_id;
+
+          if (userId) {
+            // Fetch recent posts (limit 5 to find the one we just created)
+            const postsResponse = await fetch(
+              `${credentials.dsn}/api/v1/users/${userId}/posts?account_id=${accountId}&limit=5`,
+              {
+                method: 'GET',
+                headers: {
+                  'X-API-KEY': credentials.apiKey,
+                  'Accept': 'application/json',
+                },
+              }
+            );
+
+            if (postsResponse.ok) {
+              const postsData = await postsResponse.json();
+              const recentPosts = postsData.items || [];
+
+              // Match by content (first 100 chars)
+              const contentToMatch = text.substring(0, 100).toLowerCase().trim();
+              const matchedPost = recentPosts.find((p: { text?: string }) => {
+                const postContent = (p.text || '').substring(0, 100).toLowerCase().trim();
+                return postContent === contentToMatch;
+              });
+
+              if (matchedPost) {
+                // Extract from social_id or share_url
+                const matchedSocialId = matchedPost.social_id;
+                const matchedShareUrl = matchedPost.share_url || matchedPost.url;
+
+                if (matchedSocialId) {
+                  const socialMatch = matchedSocialId.match(/urn:li:(?:activity|ugcPost):(\d+)/);
+                  if (socialMatch) {
+                    linkedinActivityId = socialMatch[1];
+                    shareUrl = matchedShareUrl || shareUrl;
+                    console.log('[UNIPILE_POST] Found activity ID from recent posts:', linkedinActivityId);
+                  }
+                } else if (matchedShareUrl) {
+                  const urlMatch = matchedShareUrl.match(/urn:li:(?:activity|ugcPost):(\d+)/);
+                  if (urlMatch) {
+                    linkedinActivityId = urlMatch[1];
+                    shareUrl = matchedShareUrl;
+                    console.log('[UNIPILE_POST] Found activity ID from recent posts URL:', linkedinActivityId);
+                  }
+                }
+              } else {
+                console.warn('[UNIPILE_POST] Could not find matching post in recent posts');
+              }
+            }
+          }
+        }
+      } catch (fetchError) {
+        console.warn('[UNIPILE_POST] Error fetching recent posts for activity ID:', fetchError);
+        // Continue with fallback - don't fail the whole post creation
       }
     }
 

@@ -115,7 +115,9 @@ export async function GET(request: NextRequest) {
     }> = [];
 
     for (const job of scrapeJobs || []) {
-      const postRecord = job.posts as { id: string; content: string; post_url: string | null } | null;
+      // Supabase returns joined data - can be array or single object depending on relationship
+      const postsData = job.posts;
+      const postRecord = (Array.isArray(postsData) ? postsData[0] : postsData) as { id: string; content: string; post_url: string | null } | null;
 
       if (!postRecord?.content) {
         console.log('[BACKFILL] Skipping job', job.id, '- no post content');
