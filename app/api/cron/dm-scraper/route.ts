@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient()
+    // Use service role for cron jobs (no user context, bypasses RLS)
+    const supabase = await createClient({ isServiceRole: true })
 
     // Query scrape jobs ready for processing
     const now = new Date().toISOString()

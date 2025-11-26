@@ -12,9 +12,9 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    // Step 1: Create Supabase client
+    // Step 1: Create Supabase client (service role for cron-like behavior)
     steps.push({ step: '1_create_client', status: 'starting' })
-    const supabase = await createClient()
+    const supabase = await createClient({ isServiceRole: true })
     steps[steps.length - 1].status = 'success'
 
     // Step 2: Query scrape jobs
