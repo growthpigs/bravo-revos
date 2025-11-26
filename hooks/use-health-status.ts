@@ -12,11 +12,25 @@ interface HealthCheck {
 interface HealthData {
   status: string;
   checks: {
+    // Critical
     database: HealthCheck;
-    queue: HealthCheck;
+    supabase: HealthCheck;
+    // API & AI
+    api: HealthCheck;
     agentkit: HealthCheck;
+    // Memory & Integrations
     mem0: HealthCheck;
     unipile: HealthCheck;
+    // Console & Cache
+    console: HealthCheck;
+    cache: HealthCheck;
+    // Queue & Cron
+    queue: HealthCheck;
+    cron: HealthCheck;
+    // External
+    webhooks: HealthCheck;
+    email: HealthCheck;
+    // Meta
     timestamp: string;
   };
 }
@@ -26,10 +40,17 @@ const DEFAULT_HEALTH_DATA: HealthData = {
   status: 'unknown',
   checks: {
     database: { status: 'unknown' },
-    queue: { status: 'unknown' },
+    supabase: { status: 'unknown' },
+    api: { status: 'unknown' },
     agentkit: { status: 'unknown' },
     mem0: { status: 'unknown' },
     unipile: { status: 'unknown' },
+    console: { status: 'unknown' },
+    cache: { status: 'unknown' },
+    queue: { status: 'unknown' },
+    cron: { status: 'unknown' },
+    webhooks: { status: 'unknown' },
+    email: { status: 'unknown' },
     timestamp: new Date().toISOString(),
   },
 };
