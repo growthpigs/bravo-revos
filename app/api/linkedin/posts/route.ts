@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
             unipile_post_id: postResult.id,
             unipile_account_id: unipileAccountId,
             trigger_word: effectiveTriggerWord,
-            status: 'active',
+            status: 'scheduled',  // Must be 'scheduled' for comment-monitor to pick it up
           })
           .select()
           .single();

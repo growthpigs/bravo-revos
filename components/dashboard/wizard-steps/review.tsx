@@ -124,6 +124,12 @@ export default function ReviewStep({ data, onBack }: StepProps) {
             const publishResult = await publishResponse.json()
             postUrl = publishResult.post?.url || null
             console.log('[CAMPAIGN_LAUNCH] ✅ Post published:', postUrl)
+            console.log('[CAMPAIGN_LAUNCH] Full API response:', publishResult)
+
+            // Show intermediate success
+            if (postUrl) {
+              toast.success('Post published to LinkedIn!', { id: 'launch-progress' })
+            }
           } else {
             const publishErrorText = await publishResponse.text()
             console.warn('[CAMPAIGN_LAUNCH] ⚠️ LinkedIn publish failed:', publishErrorText)
@@ -133,6 +139,9 @@ export default function ReviewStep({ data, onBack }: StepProps) {
           console.warn('[CAMPAIGN_LAUNCH] ⚠️ LinkedIn API error:', err)
           publishError = 'LinkedIn API unavailable - post manually'
         }
+      } else {
+        console.log('[CAMPAIGN_LAUNCH] ℹ️ No post content provided - skipping LinkedIn publish')
+        publishError = 'No post content - add content to publish'
       }
 
       // ========================================
@@ -191,23 +200,23 @@ export default function ReviewStep({ data, onBack }: StepProps) {
         podTriggered,
       })
 
-      // Build success message
-      if (podTriggered) {
-        toast.success('🚀 Campaign Created & Pod Activated!', {
+      // Build success message based on what happened
+      if (podTriggered && postUrl) {
+        toast.success('Campaign Live + Pod Activated!', {
           id: 'launch-progress',
-          description: 'Your post is live and your pod has been notified!',
+          description: 'Post is live and your pod is boosting it!',
           duration: 5000,
         })
       } else if (postUrl) {
-        toast.success('✅ Campaign Created & Post Published!', {
+        toast.success('Campaign Live on LinkedIn!', {
           id: 'launch-progress',
-          description: podError ? `Note: ${podError}` : 'Redirecting to campaigns...',
+          description: 'DM automation is monitoring for comments.',
           duration: 5000,
         })
       } else {
-        toast.success('✅ Campaign Created!', {
+        toast.success('Campaign Saved (Draft)', {
           id: 'launch-progress',
-          description: publishError || 'You can publish your post later.',
+          description: publishError || 'Post not published - you can edit and publish later.',
           duration: 5000,
         })
       }
