@@ -185,23 +185,29 @@ export async function POST(request: NextRequest) {
         })
 
         const triggeredComments = comments.filter((comment) => {
-          const hasTriggerWord = comment.text?.toLowerCase().includes(triggerWord)
-          if (!hasTriggerWord) {
-            console.log(`[DM_SCRAPER] Comment from ${comment.author?.name} does NOT contain trigger word`)
+          // CRITICAL: Skip comments without valid author data (prevents TypeError crashes)
+          if (!comment.author || !comment.author.id) {
+            console.log(`[DM_SCRAPER] ⚠️ Skipping comment ${comment.id} - missing author data`)
             return false
           }
 
-          console.log(`[DM_SCRAPER] Comment from ${comment.author?.name} CONTAINS trigger word "${triggerWord}"`)
+          const hasTriggerWord = comment.text?.toLowerCase().includes(triggerWord)
+          if (!hasTriggerWord) {
+            console.log(`[DM_SCRAPER] Comment from ${comment.author.name || 'Unknown'} does NOT contain trigger word`)
+            return false
+          }
+
+          console.log(`[DM_SCRAPER] Comment from ${comment.author.name || 'Unknown'} CONTAINS trigger word "${triggerWord}"`)
 
           // Exclude self-comments (post author commenting on their own post)
-          const commentAuthorUrl = comment.author?.profile_url?.toLowerCase() || ''
+          const commentAuthorUrl = comment.author.profile_url?.toLowerCase() || ''
           const ownerUsername = ownerProfileUrl.replace('https://www.linkedin.com/in/', '').replace('/', '')
           const authorUsername = commentAuthorUrl.replace('https://www.linkedin.com/in/', '').replace('/', '')
 
           console.log(`[DM_SCRAPER] Self-comment check: owner="${ownerUsername}" author="${authorUsername}"`)
 
           if (ownerProfileUrl && commentAuthorUrl && authorUsername === ownerUsername) {
-            console.log(`[DM_SCRAPER] ⚠️ Skipping self-comment from ${comment.author?.name} (owner commenting on own post)`)
+            console.log(`[DM_SCRAPER] ⚠️ Skipping self-comment from ${comment.author.name || 'Unknown'} (owner commenting on own post)`)
             // TODO: For testing, allow self-comments. Remove this line in production.
             // return false
             console.log(`[DM_SCRAPER] 🧪 TEST MODE: Allowing self-comment for debugging`)
@@ -227,12 +233,22 @@ export async function POST(request: NextRequest) {
 
         for (const comment of triggeredComments) {
           try {
+            // Extract author info safely (should already be validated by filter, but defensive coding)
+            const authorName = comment.author?.name || 'Unknown User'
+            const authorId = comment.author?.id
+            const authorProfileUrl = comment.author?.profile_url || ''
+
+            if (!authorId) {
+              console.warn(`[DM_SCRAPER] ⚠️ Skipping comment with no author ID: ${comment.id}`)
+              continue
+            }
+
             // Use atomic upsert to prevent race condition (duplicate leads)
             // This replaces the unsafe check-then-insert pattern
             const upsertResult = await upsertLead(supabase, {
               campaign_id: job.campaign_id,
-              linkedin_profile_url: comment.author.profile_url || '',
-              name: comment.author.name,
+              linkedin_profile_url: authorProfileUrl,
+              name: authorName,
               status: 'dm_pending',
               source: 'comment_trigger',
               metadata: {
@@ -240,7 +256,7 @@ export async function POST(request: NextRequest) {
                 comment_text: comment.text,
                 trigger_word: job.trigger_word,
                 post_id: job.unipile_post_id,
-                author_id: comment.author.id
+                author_id: authorId
               }
             })
 
@@ -251,7 +267,7 @@ export async function POST(request: NextRequest) {
 
             // If lead already existed (not a new insert), skip DM
             if (!upsertResult.wasInsert) {
-              console.log(`[DM_SCRAPER] Already sent DM to ${comment.author.name}, skipping`)
+              console.log(`[DM_SCRAPER] Already sent DM to ${authorName}, skipping`)
               continue
             }
 
@@ -259,12 +275,15 @@ export async function POST(request: NextRequest) {
 
             if (dmSequence) {
               // Use DM sequence - create delivery record
-              console.log(`[DM_SCRAPER] Creating DM delivery for ${comment.author.name} using sequence`)
+              console.log(`[DM_SCRAPER] Creating DM delivery for ${authorName} using sequence`)
 
               const delay = Math.floor(
                 Math.random() * (dmSequence.step1_delay_max - dmSequence.step1_delay_min) +
                 dmSequence.step1_delay_min
               )
+
+              const firstName = authorName.split(' ')[0] || authorName
+              const lastName = authorName.split(' ').slice(1).join(' ') || ''
 
               await supabase.from('dm_deliveries').insert({
                 sequence_id: dmSequence.id,
@@ -272,8 +291,8 @@ export async function POST(request: NextRequest) {
                 step_number: 1,
                 status: 'pending',
                 message_content: dmSequence.step1_template
-                  .replace(/\{\{first_name\}\}/g, comment.author.name.split(' ')[0] || comment.author.name)
-                  .replace(/\{\{last_name\}\}/g, comment.author.name.split(' ').slice(1).join(' ') || '')
+                  .replace(/\{\{first_name\}\}/g, firstName)
+                  .replace(/\{\{last_name\}\}/g, lastName)
                   .replace(/\{\{company\}\}/g, ''),
                 sent_at: new Date(Date.now() + delay * 60 * 1000).toISOString()
               })
@@ -281,13 +300,13 @@ export async function POST(request: NextRequest) {
               dmsSent++
             } else {
               // Fallback: Direct DM (legacy behavior)
-              console.log(`[DM_SCRAPER] Sending direct DM to ${comment.author.name} (no sequence)`)
+              console.log(`[DM_SCRAPER] Sending direct DM to ${authorName} (no sequence)`)
 
-              const dmMessage = `Hey ${comment.author.name}! Thanks for your interest. To get the ${job.trigger_word}, could you reply with your best email address? I'll send it right over.`
+              const dmMessage = `Hey ${authorName}! Thanks for your interest. To get the ${job.trigger_word}, could you reply with your best email address? I'll send it right over.`
 
               await sendDirectMessage(
                 job.unipile_account_id,
-                comment.author.id,
+                authorId,
                 dmMessage
               )
 
@@ -296,7 +315,7 @@ export async function POST(request: NextRequest) {
                 .update({ status: 'dm_sent' })
                 .eq('id', newLead.id)
 
-              console.log(`[DM_SCRAPER] Sent direct DM to ${comment.author.name}`)
+              console.log(`[DM_SCRAPER] Sent direct DM to ${authorName}`)
 
               dmsSent++
               rateLimit.dmsSent++
@@ -305,7 +324,7 @@ export async function POST(request: NextRequest) {
             // Rate limit: 100ms delay between operations
             await new Promise((resolve) => setTimeout(resolve, 100))
           } catch (error) {
-            console.error(`[DM_SCRAPER] Failed to process ${comment.author.name}:`, error)
+            console.error(`[DM_SCRAPER] Failed to process ${comment.author?.name || comment.id}:`, error)
           }
         }
 
