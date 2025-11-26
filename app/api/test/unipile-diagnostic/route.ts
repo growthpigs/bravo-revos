@@ -101,6 +101,87 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Test 1.5: Fetch user's recent posts to find correct IDs
+  if (accountId) {
+    const startTime = Date.now();
+    try {
+      // Get the user's profile ID first
+      const profileUrl = `${dsn}/api/v1/users/me?account_id=${accountId}`;
+      console.log('[UNIPILE_DIAGNOSTIC] Fetching user profile:', profileUrl);
+
+      const profileResponse = await fetch(profileUrl, {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': apiKey,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        const userId = profileData.id || profileData.provider_id;
+
+        // Now fetch recent posts from this user
+        if (userId) {
+          const postsUrl = `${dsn}/api/v1/users/${userId}/posts?account_id=${accountId}&limit=5`;
+          console.log('[UNIPILE_DIAGNOSTIC] Fetching user posts:', postsUrl);
+
+          const postsResponse = await fetch(postsUrl, {
+            method: 'GET',
+            headers: {
+              'X-API-KEY': apiKey,
+              'Accept': 'application/json',
+            },
+          });
+
+          if (postsResponse.ok) {
+            const postsData = await postsResponse.json();
+            results.push({
+              step: 'user_posts',
+              status: 'success',
+              url: postsUrl,
+              duration_ms: Date.now() - startTime,
+              data: {
+                user_id: userId,
+                total_posts: postsData.items?.length || 0,
+                posts: (postsData.items || []).slice(0, 5).map((p: any) => ({
+                  id: p.id,
+                  social_id: p.social_id,
+                  share_url: p.share_url || p.url,
+                  text_preview: p.text?.substring(0, 60),
+                  created_at: p.created_at,
+                })),
+              },
+            });
+          } else {
+            const postsError = await postsResponse.text();
+            results.push({
+              step: 'user_posts',
+              status: 'error',
+              url: postsUrl,
+              duration_ms: Date.now() - startTime,
+              error: `${postsResponse.status}: ${postsError}`,
+            });
+          }
+        }
+      } else {
+        results.push({
+          step: 'user_posts',
+          status: 'error',
+          duration_ms: Date.now() - startTime,
+          error: `Could not fetch user profile: ${profileResponse.status}`,
+        });
+      }
+    } catch (error: any) {
+      results.push({
+        step: 'user_posts',
+        status: 'error',
+        duration_ms: Date.now() - startTime,
+        error: error.message,
+      });
+    }
+  }
+
   // Test 2: Post Retrieval
   let socialId: string | null = null;
   if (accountId && postId) {
