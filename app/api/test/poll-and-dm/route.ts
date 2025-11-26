@@ -181,18 +181,25 @@ export async function POST(request: NextRequest) {
                 processed_at: new Date().toISOString(),
               });
 
-              // Create lead record
-              await serviceSupabase.from('leads').insert({
+              // Create lead record (schema: first_name, last_name, linkedin_url, title, status)
+              const nameParts = comment.author.name.split(' ');
+              const firstName = nameParts[0] || '';
+              const lastName = nameParts.slice(1).join(' ') || '';
+
+              const { error: leadError } = await serviceSupabase.from('leads').upsert({
                 campaign_id: job.campaign_id,
                 linkedin_id: comment.author.id,
-                name: comment.author.name,
-                headline: comment.author.headline || null,
-                profile_url: comment.author.profile_url || null,
-                trigger_word: triggerWord,
-                comment_text: comment.text,
+                first_name: firstName,
+                last_name: lastName,
+                title: comment.author.headline || null,
+                linkedin_url: comment.author.profile_url || null,
+                source: 'comment_trigger',
                 status: 'dm_sent',
-                dm_sent_at: new Date().toISOString(),
-              }).onConflict('campaign_id,linkedin_id');
+              }, { onConflict: 'linkedin_id' });
+
+              if (leadError) {
+                console.warn('[TEST_POLL_DM] Lead insert warning:', leadError.message);
+              }
 
             } catch (dmError: any) {
               console.error('[TEST_POLL_DM] DM FAILED:', dmError);
