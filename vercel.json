@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/dm-scraper",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/check-connections",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

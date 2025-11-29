@@ -806,6 +806,254 @@ export async function getDirectMessages(
   }
 }
 
+/**
+ * Reply to a comment on a LinkedIn post
+ * Note: LinkedIn doesn't support threaded comment replies via API.
+ * This posts a new comment on the post mentioning the user.
+ * @param accountId - Unipile account ID
+ * @param postId - LinkedIn post ID (activity ID)
+ * @param text - Comment text to post
+ * @returns Response with comment status
+ */
+export async function replyToComment(
+  accountId: string,
+  postId: string,
+  text: string
+): Promise<{ status: string; comment_id?: string }> {
+  try {
+    // Mock mode for testing
+    if (isMockMode()) {
+      console.log('[MOCK] Replying to comment on post:', {
+        accountId,
+        postId,
+        textLength: text.length,
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      return {
+        status: 'sent',
+        comment_id: `mock_comment_${crypto.randomBytes(9).toString('base64url')}`,
+      };
+    }
+
+    const credentials = getUnipileCredentials();
+
+    console.log('[UNIPILE_COMMENT] Posting comment reply:', { accountId, postId, textLength: text.length });
+
+    // Unipile API: POST /api/v1/posts/{postId}/comments
+    const response = await fetch(
+      `${credentials.dsn}/api/v1/posts/${postId}/comments`,
+      {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': credentials.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          account_id: accountId,
+          text,
+        }),
+      }
+    );
+
+    console.log('[UNIPILE_COMMENT] Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[UNIPILE_COMMENT] Error response:', response.status, errorText);
+      throw new Error(`Failed to post comment: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('[UNIPILE_COMMENT] Success:', data);
+
+    return {
+      status: 'sent',
+      comment_id: data.comment_id || data.id,
+    };
+  } catch (error) {
+    console.error('[UNIPILE_COMMENT] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send a LinkedIn connection request to a user
+ * @param accountId - Unipile account ID
+ * @param targetUserId - LinkedIn provider ID of the user to connect with
+ * @param message - Optional personalized message (max 300 chars)
+ * @returns Response with invitation status and ID
+ */
+export async function sendConnectionRequest(
+  accountId: string,
+  targetUserId: string,
+  message?: string
+): Promise<{ status: string; invitation_id?: string }> {
+  try {
+    // Mock mode for testing
+    if (isMockMode()) {
+      console.log('[MOCK] Sending connection request:', {
+        accountId,
+        targetUserId,
+        hasMessage: !!message,
+      });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      return {
+        status: 'sent',
+        invitation_id: `mock_invite_${crypto.randomBytes(9).toString('base64url')}`,
+      };
+    }
+
+    const credentials = getUnipileCredentials();
+
+    console.log('[UNIPILE_INVITE] Sending connection request:', { accountId, targetUserId, hasMessage: !!message });
+
+    // Unipile API: POST /api/v1/users/invite
+    const body: { account_id: string; provider_id: string; message?: string } = {
+      account_id: accountId,
+      provider_id: targetUserId,
+    };
+
+    if (message) {
+      // LinkedIn limits connection request messages to 300 characters
+      body.message = message.substring(0, 300);
+    }
+
+    const response = await fetch(
+      `${credentials.dsn}/api/v1/users/invite`,
+      {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': credentials.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    console.log('[UNIPILE_INVITE] Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[UNIPILE_INVITE] Error response:', response.status, errorText);
+
+      // Handle specific error cases
+      if (response.status === 400 && errorText.includes('already connected')) {
+        return { status: 'already_connected' };
+      }
+      if (response.status === 400 && errorText.includes('pending')) {
+        return { status: 'pending_invitation' };
+      }
+
+      throw new Error(`Failed to send connection request: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('[UNIPILE_INVITE] Success:', data);
+
+    return {
+      status: 'sent',
+      invitation_id: data.invitation_id,
+    };
+  } catch (error) {
+    console.error('[UNIPILE_INVITE] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check connection status with a LinkedIn user
+ * Returns network_distance: FIRST_DEGREE (connected), SECOND_DEGREE, THIRD_DEGREE, OUT_OF_NETWORK
+ * @param accountId - Unipile account ID
+ * @param targetUserId - LinkedIn provider ID of the user to check
+ * @returns Connection status with network distance
+ */
+export async function checkConnectionStatus(
+  accountId: string,
+  targetUserId: string
+): Promise<{
+  isConnected: boolean;
+  networkDistance?: 'FIRST_DEGREE' | 'SECOND_DEGREE' | 'THIRD_DEGREE' | 'OUT_OF_NETWORK';
+  hasPendingInvitation?: boolean;
+  invitationType?: 'SENT' | 'RECEIVED';
+}> {
+  try {
+    // Mock mode for testing
+    if (isMockMode()) {
+      console.log('[MOCK] Checking connection status:', { accountId, targetUserId });
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Simulate random connection status for testing
+      const isConnected = Math.random() < 0.5;
+      return {
+        isConnected,
+        networkDistance: isConnected ? 'FIRST_DEGREE' : 'SECOND_DEGREE',
+      };
+    }
+
+    const credentials = getUnipileCredentials();
+
+    console.log('[UNIPILE_CONNECTION] Checking status:', { accountId, targetUserId });
+
+    // Unipile API: GET /api/v1/users/{identifier}?account_id=...
+    const response = await fetch(
+      `${credentials.dsn}/api/v1/users/${targetUserId}?account_id=${accountId}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': credentials.apiKey,
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    console.log('[UNIPILE_CONNECTION] Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[UNIPILE_CONNECTION] Error response:', response.status, errorText);
+
+      // If user not found, they're definitely not connected
+      if (response.status === 404) {
+        return { isConnected: false, networkDistance: 'OUT_OF_NETWORK' };
+      }
+
+      throw new Error(`Failed to check connection status: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('[UNIPILE_CONNECTION] Profile data:', {
+      network_distance: data.network_distance,
+      invitation: data.invitation,
+    });
+
+    const networkDistance = data.network_distance as 'FIRST_DEGREE' | 'SECOND_DEGREE' | 'THIRD_DEGREE' | 'OUT_OF_NETWORK';
+    const isConnected = networkDistance === 'FIRST_DEGREE';
+
+    // Check for pending invitation
+    let hasPendingInvitation = false;
+    let invitationType: 'SENT' | 'RECEIVED' | undefined;
+
+    if (data.invitation && data.invitation.status === 'PENDING') {
+      hasPendingInvitation = true;
+      invitationType = data.invitation.type;
+    }
+
+    return {
+      isConnected,
+      networkDistance,
+      hasPendingInvitation,
+      invitationType,
+    };
+  } catch (error) {
+    console.error('[UNIPILE_CONNECTION] Error:', error);
+    throw error;
+  }
+}
+
 export async function createLinkedInPost(
   accountId: string,
   text: string,

@@ -4,7 +4,16 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getAllPostComments, UnipileComment, extractCommentAuthor, sendDirectMessage } from '../unipile-client';
+import {
+  getAllPostComments,
+  UnipileComment,
+  extractCommentAuthor,
+  sendDirectMessage,
+  replyToComment,
+  sendConnectionRequest,
+  checkConnectionStatus
+} from '../unipile-client';
+import { extractEmail } from '../email-extraction';
 // TEMPORARILY DISABLED: Redis is down, sending DMs directly instead of queueing
 // import { queueDM, DMJobData } from '../queues/dm-queue';
 
@@ -213,7 +222,71 @@ async function markCommentProcessed(
 }
 
 /**
- * Process a single scrape job - fetch comments and queue DMs for triggers
+ * Create a pending connection record for tracking follow-up DMs
+ */
+async function createPendingConnection(
+  supabase: SupabaseClient,
+  params: {
+    campaignId: string;
+    leadId?: string;
+    commenterLinkedinId: string;
+    commenterName: string;
+    commenterProfileUrl?: string;
+    commentId: string;
+    commentText: string;
+    postId: string;
+    invitationId?: string;
+    userId?: string;
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('pending_connections')
+    .insert({
+      campaign_id: params.campaignId,
+      lead_id: params.leadId,
+      commenter_linkedin_id: params.commenterLinkedinId,
+      commenter_name: params.commenterName,
+      commenter_profile_url: params.commenterProfileUrl,
+      comment_id: params.commentId,
+      comment_text: params.commentText,
+      post_id: params.postId,
+      invitation_id: params.invitationId,
+      connection_request_sent_at: new Date().toISOString(),
+      status: 'pending',
+      user_id: params.userId
+    });
+
+  if (error) {
+    console.error('[COMMENT_MONITOR] Failed to create pending_connection:', error);
+  }
+}
+
+/**
+ * Build comment reply message for non-connections
+ * TODO: In production, pull from campaign/brand cartridge templates
+ */
+function buildCommentReplyMessage(recipientName: string): string {
+  const firstName = recipientName.split(' ')[0];
+  return `Thanks ${firstName}! Let's connect and I'll send it right over 🙌`;
+}
+
+/**
+ * Build connection request message
+ * TODO: In production, pull from campaign/brand cartridge templates
+ */
+function buildConnectionMessage(recipientName: string): string {
+  const firstName = recipientName.split(' ')[0];
+  return `Hey ${firstName}! Wanted to connect so I can send you the guide you requested. Looking forward to it!`;
+}
+
+/**
+ * Process a single scrape job - fetch comments and handle lead capture flow
+ *
+ * COMPLETE FLOW:
+ * 1. Check if comment contains email → Capture immediately + Reply "check inbox"
+ * 2. If no email, check connection status
+ *    - Connected: Send DM asking for email
+ *    - Not connected: Reply to comment + Send connection request + Track for follow-up
  */
 async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   const supabase = getSupabase();
@@ -244,7 +317,10 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   // Get already processed comments
   const processed = await getProcessedComments(job.campaign_id);
 
-  let queuedCount = 0;
+  let processedCount = 0;
+  let emailsCaptured = 0;
+  let dmsSent = 0;
+  let connectionRequestsSent = 0;
 
   for (const comment of comments) {
     // Skip if already processed
@@ -260,30 +336,65 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
     }
     const authorId = authorInfo.id;
     const authorName = authorInfo.name;
+    const authorProfileUrl = authorInfo.profile_url;
 
     // Check ONLY for the campaign's specific trigger word (multi-tenant)
-    // NO generic triggers - each campaign defines its own
     const triggerWord = containsTriggerWord(comment.text, job.trigger_word);
 
     if (triggerWord) {
-      console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id}`);
+      console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id} from ${authorName}`);
+      processedCount++;
 
-      // Build DM message for the lead (customize based on trigger)
-      const dmMessage = buildDMMessage(authorName, triggerWord);
+      // Create lead record first (will update with email if found)
+      const nameParts = authorName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
 
-      // TEMPORARILY: Send DM directly instead of queueing (Redis is down)
-      // TODO: Re-enable queueDM once Redis is restored
-      try {
-        console.log(`[COMMENT_MONITOR] Sending DM directly to ${authorName} (${authorId})...`);
-        const dmResult = await sendDirectMessage(
-          job.unipile_account_id,
-          authorId,
-          dmMessage
-        );
-        console.log(`[COMMENT_MONITOR] ✅ DM sent successfully:`, dmResult);
-        queuedCount++;
+      const { data: leadData } = await supabase.from('leads').upsert({
+        campaign_id: job.campaign_id,
+        linkedin_id: authorId,
+        linkedin_url: authorProfileUrl,
+        first_name: firstName,
+        last_name: lastName,
+        source: 'comment_trigger',
+        status: 'new',
+      }, { onConflict: 'linkedin_id' }).select('id').single();
 
-        // Mark as processed with trigger
+      const leadId = leadData?.id;
+
+      // ============================================
+      // PATH A: Check if comment contains an email
+      // ============================================
+      const emailResult = await extractEmail(comment.text);
+
+      if (emailResult.email && emailResult.confidence !== 'low') {
+        console.log(`[COMMENT_MONITOR] 📧 Email found in comment: ${emailResult.email} (confidence: ${emailResult.confidence})`);
+        emailsCaptured++;
+
+        // Update lead with captured email
+        if (leadId) {
+          await supabase.from('leads').update({
+            email: emailResult.email,
+            status: 'email_captured',
+          }).eq('id', leadId);
+        }
+
+        // Reply to comment: "Check your inbox!"
+        try {
+          await replyToComment(
+            job.unipile_account_id,
+            job.unipile_post_id,
+            `Thanks ${firstName}! Check your inbox 📬`
+          );
+          console.log(`[COMMENT_MONITOR] ✅ Comment reply sent for email capture`);
+        } catch (replyError: any) {
+          console.error(`[COMMENT_MONITOR] ❌ Comment reply failed:`, replyError.message);
+        }
+
+        // TODO: Trigger email sending to the captured email address
+        // This would integrate with ESP (ConvertKit, etc.)
+
+        // Mark as processed
         await markCommentProcessed(
           job.campaign_id,
           comment.id,
@@ -292,35 +403,147 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           true,
           triggerWord
         );
+        continue;
+      }
 
-        // Create lead record
-        const nameParts = authorName.split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+      // ============================================
+      // PATH B: No email in comment - check connection
+      // ============================================
+      console.log(`[COMMENT_MONITOR] No email in comment, checking connection status...`);
 
-        await supabase.from('leads').upsert({
-          campaign_id: job.campaign_id,
-          linkedin_id: authorId,
-          first_name: firstName,
-          last_name: lastName,
-          source: 'comment_trigger',
-          status: 'dm_sent',
-        }, { onConflict: 'linkedin_id' });
+      let connectionStatus;
+      try {
+        connectionStatus = await checkConnectionStatus(job.unipile_account_id, authorId);
+        console.log(`[COMMENT_MONITOR] Connection status:`, connectionStatus);
+      } catch (connError: any) {
+        console.error(`[COMMENT_MONITOR] Failed to check connection:`, connError.message);
+        // Assume not connected if check fails
+        connectionStatus = { isConnected: false };
+      }
 
-      } catch (dmError: any) {
-        console.error(`[COMMENT_MONITOR] ❌ DM failed for ${authorName}:`, dmError.message);
-        // Still mark as processed to avoid retrying
+      if (connectionStatus.isConnected) {
+        // ============================================
+        // PATH B1: Connected - Send DM asking for email
+        // ============================================
+        console.log(`[COMMENT_MONITOR] ✅ ${authorName} is connected, sending DM...`);
+
+        const dmMessage = buildDMMessage(authorName, triggerWord);
+
+        try {
+          const dmResult = await sendDirectMessage(
+            job.unipile_account_id,
+            authorId,
+            dmMessage
+          );
+          console.log(`[COMMENT_MONITOR] ✅ DM sent successfully:`, dmResult);
+          dmsSent++;
+
+          // Update lead status
+          if (leadId) {
+            await supabase.from('leads').update({
+              status: 'dm_sent',
+            }).eq('id', leadId);
+          }
+
+          await markCommentProcessed(
+            job.campaign_id,
+            comment.id,
+            job.post_id,
+            authorId,
+            true,
+            triggerWord
+          );
+        } catch (dmError: any) {
+          console.error(`[COMMENT_MONITOR] ❌ DM failed for ${authorName}:`, dmError.message);
+          await markCommentProcessed(
+            job.campaign_id,
+            comment.id,
+            job.post_id,
+            authorId,
+            false,
+            triggerWord
+          );
+        }
+      } else {
+        // ============================================
+        // PATH B2: Not connected - Reply + Connection Request
+        // ============================================
+        console.log(`[COMMENT_MONITOR] ❌ ${authorName} is NOT connected, sending reply + connection request...`);
+
+        // Skip if already have a pending invitation
+        if (connectionStatus.hasPendingInvitation) {
+          console.log(`[COMMENT_MONITOR] Already have pending invitation to ${authorName}, skipping...`);
+          await markCommentProcessed(
+            job.campaign_id,
+            comment.id,
+            job.post_id,
+            authorId,
+            false,
+            triggerWord
+          );
+          continue;
+        }
+
+        // Step 1: Reply to their comment publicly
+        try {
+          const replyMessage = buildCommentReplyMessage(authorName);
+          await replyToComment(
+            job.unipile_account_id,
+            job.unipile_post_id,
+            replyMessage
+          );
+          console.log(`[COMMENT_MONITOR] ✅ Comment reply sent to ${authorName}`);
+        } catch (replyError: any) {
+          console.error(`[COMMENT_MONITOR] ❌ Comment reply failed:`, replyError.message);
+        }
+
+        // Step 2: Send connection request
+        let invitationId: string | undefined;
+        try {
+          const connectionMessage = buildConnectionMessage(authorName);
+          const inviteResult = await sendConnectionRequest(
+            job.unipile_account_id,
+            authorId,
+            connectionMessage
+          );
+          console.log(`[COMMENT_MONITOR] ✅ Connection request sent:`, inviteResult);
+          invitationId = inviteResult.invitation_id;
+          connectionRequestsSent++;
+        } catch (inviteError: any) {
+          console.error(`[COMMENT_MONITOR] ❌ Connection request failed:`, inviteError.message);
+        }
+
+        // Step 3: Track in pending_connections for follow-up
+        await createPendingConnection(supabase, {
+          campaignId: job.campaign_id,
+          leadId,
+          commenterLinkedinId: authorId,
+          commenterName: authorName,
+          commenterProfileUrl: authorProfileUrl,
+          commentId: comment.id,
+          commentText: comment.text,
+          postId: job.post_id,
+          invitationId,
+        });
+
+        // Update lead status
+        if (leadId) {
+          await supabase.from('leads').update({
+            status: 'connection_pending',
+          }).eq('id', leadId);
+        }
+
         await markCommentProcessed(
           job.campaign_id,
           comment.id,
           job.post_id,
           authorId,
-          false, // DM not sent
+          false, // DM not sent (connection pending)
           triggerWord
         );
       }
     } else {
-      // Mark as processed without trigger
+      // No trigger word - mark as processed without action
       await markCommentProcessed(
         job.campaign_id,
         comment.id,
@@ -336,13 +559,13 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   await supabase.from('scrape_jobs').update({
     status: 'scheduled',
     comments_scanned: comments.length,
-    trigger_words_found: queuedCount,
-    dms_sent: queuedCount, // Will be updated by DM worker on actual send
+    trigger_words_found: processedCount,
+    dms_sent: dmsSent,
     next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString()
   }).eq('id', job.id);
 
-  console.log(`[COMMENT_MONITOR] Job ${job.id}: ${queuedCount} DMs sent from ${comments.length} comments`);
-  return queuedCount;
+  console.log(`[COMMENT_MONITOR] Job ${job.id} complete: ${processedCount} triggers, ${emailsCaptured} emails, ${dmsSent} DMs, ${connectionRequestsSent} connection requests`);
+  return processedCount;
 }
 
 /**
