@@ -52,6 +52,7 @@ interface PendingConnection {
   invitation_email: string | null; // Email captured from connection note
   created_at: string;
   retry_count: number;
+  user_id: string; // CRITICAL: Required for multi-tenant isolation
 }
 
 /**
@@ -97,10 +98,12 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get all pending connections (limit to prevent timeout)
+    // CRITICAL: Only process records with user_id for multi-tenant isolation
     const { data: pendingConnections, error: fetchError } = await supabase
       .from('pending_connections')
       .select('*')
       .eq('status', 'pending')
+      .not('user_id', 'is', null) // CRITICAL: Only process tenant-scoped records
       .order('created_at', { ascending: true })
       .limit(50); // Process max 50 at a time
 

@@ -53,6 +53,7 @@ interface ActiveScrapeJob {
   unipile_post_id: string;
   unipile_account_id: string;
   trigger_word: string;
+  user_id: string; // CRITICAL: Required for multi-tenant isolation
 }
 
 interface ProcessedComment {
@@ -141,6 +142,7 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
   const supabase = getSupabase();
 
   // Query scrape_jobs for scheduled/running jobs that are due for checking
+  // CRITICAL: Join campaigns to get user_id for multi-tenant isolation
   const { data, error } = await supabase
     .from('scrape_jobs')
     .select(`
@@ -149,7 +151,8 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
       post_id,
       unipile_post_id,
       unipile_account_id,
-      trigger_word
+      trigger_word,
+      campaigns!inner(user_id)
     `)
     .in('status', ['scheduled', 'running'])
     .or(`next_check.is.null,next_check.lte.${new Date().toISOString()}`);
@@ -159,8 +162,9 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
     return [];
   }
 
-  // Filter jobs that have valid unipile_account_id, unipile_post_id, AND trigger_word
+  // Filter jobs that have valid unipile_account_id, unipile_post_id, trigger_word AND user_id
   // NO DEFAULT FALLBACK - each campaign must define its own trigger word
+  // CRITICAL: user_id required for multi-tenant isolation
   return (data || [])
     .filter((job: any) => {
       if (!job.unipile_account_id || !job.unipile_post_id) {
@@ -169,6 +173,12 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
       }
       if (!job.trigger_word) {
         console.warn(`[COMMENT_MONITOR] Skipping job ${job.id} - no trigger_word configured`);
+        return false;
+      }
+      // CRITICAL: Require user_id for tenant isolation
+      const userId = job.campaigns?.user_id;
+      if (!userId) {
+        console.warn(`[COMMENT_MONITOR] Skipping job ${job.id} - no user_id (tenant isolation required)`);
         return false;
       }
       return true;
@@ -180,6 +190,7 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
       unipile_post_id: job.unipile_post_id,
       unipile_account_id: job.unipile_account_id,
       trigger_word: job.trigger_word, // NO DEFAULT - must be set per campaign
+      user_id: job.campaigns.user_id, // CRITICAL: For multi-tenant isolation
     }));
 }
 
@@ -551,6 +562,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
         }
 
         // Step 3: Track in pending_connections for follow-up
+        // CRITICAL: Include user_id for multi-tenant isolation
         await createPendingConnection(supabase, {
           campaignId: job.campaign_id,
           leadId,
@@ -561,6 +573,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           commentText: comment.text,
           postId: job.post_id,
           invitationId,
+          userId: job.user_id, // CRITICAL: Multi-tenant isolation
         });
 
         // Update lead status

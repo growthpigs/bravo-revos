@@ -130,16 +130,18 @@ export async function GET(request: NextRequest) {
 
         for (const invitation of invitationsToProcess) {
           // Check if this sender has a pending connection from our flow
+          // CRITICAL: Filter by user_id for multi-tenant isolation
           const { data: pendingConnections } = await supabase
             .from('pending_connections')
-            .select('id, campaign_id, lead_id, commenter_linkedin_id, commenter_name, status')
+            .select('id, campaign_id, lead_id, commenter_linkedin_id, commenter_name, status, user_id')
             .eq('commenter_linkedin_id', invitation.sender_id)
             .eq('status', 'pending')
+            .eq('user_id', account.user_id) // CRITICAL: Multi-tenant isolation
             .limit(1);
 
           if (!pendingConnections || pendingConnections.length === 0) {
-            // This invitation isn't from our lead capture flow
-            console.log(`[POLL_INVITATIONS] No pending connection for sender ${invitation.sender_name}`);
+            // This invitation isn't from our lead capture flow (for this tenant)
+            console.log(`[POLL_INVITATIONS] No pending connection for sender ${invitation.sender_name} (user: ${account.user_id})`);
             continue;
           }
 
