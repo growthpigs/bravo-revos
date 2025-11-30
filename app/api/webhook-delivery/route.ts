@@ -278,6 +278,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET - Get webhook delivery status
+ * SECURITY: Requires authentication and scopes to user's data via leads → campaigns
  */
 export async function GET(request: NextRequest) {
   try {
@@ -286,12 +287,48 @@ export async function GET(request: NextRequest) {
     const leadId = searchParams.get('leadId');
     const status = searchParams.get('status');
 
+    // Use server client for auth check
+    const { createClient: createServerClient } = await import('@/lib/supabase/server');
+    const authSupabase = await createServerClient();
+
+    // CRITICAL: Verify authentication
+    const { data: { user }, error: authError } = await authSupabase.auth.getUser();
+    if (authError || !user) {
+      console.warn('[WEBHOOK_API] Unauthorized access attempt');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's client_id for tenant scoping
+    const { data: userData, error: userError } = await authSupabase
+      .from('users')
+      .select('client_id')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || !userData?.client_id) {
+      console.warn('[WEBHOOK_API] User has no client association:', user.id);
+      return NextResponse.json({ error: 'User not associated with a client' }, { status: 403 });
+    }
+
+    const userClientId = userData.client_id;
+
+    // Use service role for the actual query (RLS bypass needed for join)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    let query = supabase.from('webhook_deliveries').select('*');
+    // CRITICAL: Join through leads → campaigns to filter by client_id
+    let query = supabase
+      .from('webhook_deliveries')
+      .select(`
+        *,
+        leads!inner(
+          campaign_id,
+          campaigns!inner(client_id)
+        )
+      `)
+      .eq('leads.campaigns.client_id', userClientId); // CRITICAL: Tenant filter
 
     if (deliveryId) {
       query = query.eq('id', deliveryId);

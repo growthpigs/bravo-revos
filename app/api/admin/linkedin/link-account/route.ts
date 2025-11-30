@@ -4,11 +4,14 @@
  *
  * This is called by admins during onboarding calls to pre-connect LinkedIn accounts.
  * Users never see the auth form - accounts are managed by support team.
+ *
+ * SECURITY: Requires admin privileges (checked via admin_users table, not users.role)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAccountStatus } from '@/lib/unipile-client';
+import { isUserAdmin } from '@/lib/auth/admin-check';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,14 +27,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
-    const { data: userData } = await supabaseAdmin
-      .from('users')
-      .select('role')
-      .eq('email', user.email)
-      .single();
-
-    if (userData?.role !== 'admin') {
+    // CRITICAL: Check if user is admin via admin_users table (not users.role)
+    // Per CLAUDE.md: "admin_users table only, never JWT claims"
+    const isAdmin = await isUserAdmin(user.id, supabase);
+    if (!isAdmin) {
+      console.warn('[ADMIN_LINK] Non-admin user attempted to link account:', user.id);
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

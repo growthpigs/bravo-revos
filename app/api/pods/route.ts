@@ -4,14 +4,42 @@ import { createClient } from '@/lib/supabase/server';
 /**
  * GET /api/pods
  * List all pods for the authenticated user's clients
+ * SECURITY: Requires authentication and scopes to user's client
  */
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
+
+    // CRITICAL: Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.warn('[PODS_API] Unauthorized access attempt');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's client_id for tenant scoping
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || !userData?.client_id) {
+      console.warn('[PODS_API] User has no client association:', user.id);
+      return NextResponse.json({ error: 'User not associated with a client' }, { status: 403 });
+    }
+
+    const userClientId = userData.client_id;
     const { searchParams } = new URL(request.url);
 
     const clientId = searchParams.get('clientId');
     const status = searchParams.get('status');
+
+    // SECURITY: If clientId provided, verify user has access to that client
+    if (clientId && clientId !== userClientId) {
+      console.warn('[PODS_API] User attempting cross-tenant access:', { userId: user.id, requestedClientId: clientId, userClientId });
+      return NextResponse.json({ error: 'Forbidden - Access to this client not allowed' }, { status: 403 });
+    }
 
     let query = supabase
       .from('pods')
@@ -36,11 +64,8 @@ export async function GET(request: NextRequest) {
           participation_score
         )
       `)
+      .eq('client_id', userClientId) // CRITICAL: Always scope to user's client
       .order('created_at', { ascending: false });
-
-    if (clientId) {
-      query = query.eq('client_id', clientId);
-    }
 
     if (status) {
       query = query.eq('status', status);
@@ -81,10 +106,32 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/pods
  * Create a new engagement pod
+ * SECURITY: Requires authentication and validates client ownership
  */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+
+    // CRITICAL: Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.warn('[PODS_API] Unauthorized create attempt');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's client_id for tenant scoping
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || !userData?.client_id) {
+      console.warn('[PODS_API] User has no client association:', user.id);
+      return NextResponse.json({ error: 'User not associated with a client' }, { status: 403 });
+    }
+
+    const userClientId = userData.client_id;
     const body = await request.json();
 
     const {
@@ -97,10 +144,19 @@ export async function POST(request: NextRequest) {
       suspensionThreshold = 0.50,
     } = body;
 
+    // SECURITY: Use user's client_id, not request body (prevent cross-tenant creation)
+    const effectiveClientId = userClientId;
+
+    // If clientId was explicitly provided, verify it matches user's client
+    if (clientId && clientId !== userClientId) {
+      console.warn('[PODS_API] User attempting cross-tenant pod creation:', { userId: user.id, requestedClientId: clientId, userClientId });
+      return NextResponse.json({ error: 'Forbidden - Cannot create pods for other clients' }, { status: 403 });
+    }
+
     // Validate required fields
-    if (!clientId || !name) {
+    if (!name) {
       return NextResponse.json(
-        { error: 'Missing required fields: clientId, name' },
+        { error: 'Missing required field: name' },
         { status: 400 }
       );
     }
@@ -127,11 +183,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create pod
+    // Create pod - SECURITY: Use effectiveClientId (verified user's client)
     const { data: pod, error: podError } = await supabase
       .from('pods')
       .insert({
-        client_id: clientId,
+        client_id: effectiveClientId, // CRITICAL: Use verified client_id, not from request
         name,
         description,
         min_members: minMembers,

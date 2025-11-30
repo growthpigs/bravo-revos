@@ -1,11 +1,12 @@
 /**
  * POST /api/admin/invite-user
  * Create invitation for new user
- * Requires authenticated user (page-level auth guard provides admin protection)
+ * SECURITY: Requires admin privileges (checked via admin_users table)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isUserAdmin } from '@/lib/auth/admin-check';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +28,13 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // CRITICAL: Verify admin privileges using admin_users table
+    const isAdmin = await isUserAdmin(user.id, supabase);
+    if (!isAdmin) {
+      console.warn('[INVITE_API] Non-admin user attempted to invite:', user.id);
+      return NextResponse.json({ error: 'Forbidden - Admin privileges required' }, { status: 403 });
     }
 
     // Parse request body
