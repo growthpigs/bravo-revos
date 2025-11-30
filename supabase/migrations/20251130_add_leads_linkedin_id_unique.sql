@@ -13,7 +13,6 @@ WHERE a.linkedin_id = b.linkedin_id
 ALTER TABLE leads ADD CONSTRAINT leads_linkedin_id_unique UNIQUE (linkedin_id);
 
 -- Add status values needed for lead capture flow
--- (These may already exist, so use a safe approach)
 ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_status_check;
 ALTER TABLE leads ADD CONSTRAINT leads_status_check CHECK (status IN (
   'comment_detected',
@@ -25,4 +24,15 @@ ALTER TABLE leads ADD CONSTRAINT leads_status_check CHECK (status IN (
   'new',
   'connection_pending',
   'connection_expired'
+));
+
+-- Update source check constraint to allow new source types
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_source_check;
+ALTER TABLE leads ADD CONSTRAINT leads_source_check CHECK (source IN (
+  'comment',
+  'comment_trigger',
+  'dm',
+  'dm_reply',
+  'manual',
+  'connection_accepted'
 ));
