@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { IOSToggle } from '@/components/ui/ios-toggle'
-import { ChevronRight, ChevronLeft, Copy, Check } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Copy, Check, AlertTriangle, ExternalLink } from 'lucide-react'
 
 interface StepProps {
   data: any
@@ -72,6 +72,34 @@ export default function DMSequenceStep({ data, onNext, onBack }: StepProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Auto-Accept Reminder - CRITICAL */}
+      <Card className="p-4 bg-amber-50 border-amber-400 border-2">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-2">
+            <h3 className="font-bold text-amber-900">Enable Auto-Accept in LinkedIn</h3>
+            <p className="text-sm text-amber-800">
+              For the lead capture flow to work, you must enable auto-accept for connection requests in your LinkedIn settings.
+              This allows us to instantly send the lead magnet when someone connects with you.
+            </p>
+            <div className="pt-2">
+              <a
+                href="https://www.linkedin.com/mypreferences/d/settings/invitations"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800"
+              >
+                Open LinkedIn Settings
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </div>
+            <p className="text-xs text-amber-700 italic">
+              Go to: Settings → Visibility → Invitations → Change &quot;Who can send you invitations&quot; to allow everyone
+            </p>
+          </div>
+        </div>
+      </Card>
+
       <div className="space-y-6">
         {/* DM 1: Email Request - REQUIRED */}
         <div className="space-y-4">

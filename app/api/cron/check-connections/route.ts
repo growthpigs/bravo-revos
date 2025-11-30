@@ -9,6 +9,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { checkConnectionStatus, sendDirectMessage } from '@/lib/unipile-client';
+import {
+  buildDMConnectionWithEmail,
+  buildDMConnectionNoEmail,
+} from '@/lib/message-templates';
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: NextRequest): boolean {
@@ -45,23 +49,38 @@ interface PendingConnection {
   comment_text: string;
   post_id: string;
   invitation_id: string | null;
+  invitation_email: string | null; // Email captured from connection note
   created_at: string;
   retry_count: number;
 }
 
 /**
  * Build follow-up DM message for newly connected users
- * TODO: In production, pull from campaign/brand cartridge templates
+ * Uses message templates - different message based on whether we have their email
  */
-function buildFollowUpDMMessage(recipientName: string): string {
+function buildFollowUpDMMessage(
+  recipientName: string,
+  email?: string | null,
+  leadMagnetName?: string,
+  leadMagnetLink?: string
+): string {
   const firstName = recipientName.split(' ')[0];
-  return `Hey ${firstName}! 🎉
 
-Thanks for connecting! As promised, here's the guide you requested.
+  if (email && leadMagnetLink) {
+    // We have their email from the connection note - send guide immediately
+    return buildDMConnectionWithEmail({
+      firstName,
+      leadMagnetName,
+      email,
+      link: leadMagnetLink,
+    });
+  }
 
-Just in case it got stuck in your junk mail, I wanted to make sure you got it.
-
-What's the best email to send it to?`;
+  // No email - ask for it
+  return buildDMConnectionNoEmail({
+    firstName,
+    leadMagnetName,
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -155,8 +174,18 @@ export async function GET(request: NextRequest) {
           }).eq('id', pending.id);
 
           // Send follow-up DM
+          // Use email from connection note if available
           try {
-            const dmMessage = buildFollowUpDMMessage(pending.commenter_name);
+            // TODO: Get lead magnet link from campaign config
+            const leadMagnetLink = pending.invitation_email ? 'https://example.com/guide' : undefined;
+
+            const dmMessage = buildFollowUpDMMessage(
+              pending.commenter_name,
+              pending.invitation_email,
+              undefined, // leadMagnetName - TODO: get from campaign
+              leadMagnetLink
+            );
+
             const dmResult = await sendDirectMessage(
               accountId,
               pending.commenter_linkedin_id,
@@ -164,11 +193,15 @@ export async function GET(request: NextRequest) {
             );
 
             console.log(`[CHECK_CONNECTIONS] ✅ Follow-up DM sent to ${pending.commenter_name}:`, dmResult);
+            if (pending.invitation_email) {
+              console.log(`[CHECK_CONNECTIONS] 📧 Using email from connection note: ${pending.invitation_email}`);
+            }
             dmsSentCount++;
 
-            // Update status to dm_sent
+            // Update status - use email_captured if we have email, otherwise dm_sent
+            const newStatus = pending.invitation_email ? 'email_captured' : 'dm_sent';
             await supabase.from('pending_connections').update({
-              status: 'dm_sent',
+              status: newStatus,
               followup_dm_sent_at: new Date().toISOString(),
               followup_dm_message: dmMessage
             }).eq('id', pending.id);
@@ -176,7 +209,7 @@ export async function GET(request: NextRequest) {
             // Update lead status
             if (pending.lead_id) {
               await supabase.from('leads').update({
-                status: 'dm_sent'
+                status: newStatus
               }).eq('id', pending.lead_id);
             }
 

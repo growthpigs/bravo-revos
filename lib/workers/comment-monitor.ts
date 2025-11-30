@@ -14,8 +14,20 @@ import {
   checkConnectionStatus
 } from '../unipile-client';
 import { extractEmail } from '../email-extraction';
+import {
+  getRandomNotConnectedReply,
+  getRandomConnectedReply,
+  getRandomEmailCapturedReply,
+  buildDMConnectedAskEmail,
+  buildConnectionRequestMessage,
+} from '../message-templates';
 // TEMPORARILY DISABLED: Redis is down, sending DMs directly instead of queueing
 // import { queueDM, DMJobData } from '../queues/dm-queue';
+
+// RATE LIMITING: Prevent LinkedIn from flagging account as spam/automation
+const MAX_CONNECTION_REQUESTS_PER_RUN = 10;
+const MAX_DMS_PER_RUN = 20;
+const MAX_COMMENT_REPLIES_PER_RUN = 15;
 
 // NO HARD-CODED TRIGGER WORDS
 // Multi-tenant requirement: Each campaign defines its own trigger word(s)
@@ -114,17 +126,11 @@ function isCloseMatch(word: string, target: string): boolean {
 
 /**
  * Build DM message based on trigger word and recipient name
- * TODO: In production, this should pull from campaign/client templates
+ * Uses message templates for human-like, varied messaging
  */
-function buildDMMessage(recipientName: string, triggerWord: string): string {
+function buildDMMessage(recipientName: string, _triggerWord: string, leadMagnetName?: string): string {
   const firstName = recipientName.split(' ')[0];
-
-  // Default message template - should be loaded from campaign/brand cartridge
-  return `Hey ${firstName}! 👋
-
-Thanks for your interest! I saw you commented "${triggerWord}" on my post.
-
-I'd love to share more details with you. What's the best email to send it to?`;
+  return buildDMConnectedAskEmail({ firstName, leadMagnetName });
 }
 
 /**
@@ -263,20 +269,20 @@ async function createPendingConnection(
 
 /**
  * Build comment reply message for non-connections
- * TODO: In production, pull from campaign/brand cartridge templates
+ * Uses VARIED templates to look human (public comments visible to all)
  */
 function buildCommentReplyMessage(recipientName: string): string {
   const firstName = recipientName.split(' ')[0];
-  return `Thanks ${firstName}! Let's connect and I'll send it right over 🙌`;
+  return getRandomNotConnectedReply(firstName);
 }
 
 /**
  * Build connection request message
- * TODO: In production, pull from campaign/brand cartridge templates
+ * Uses message template with lead magnet name
  */
-function buildConnectionMessage(recipientName: string): string {
+function buildConnectionMessage(recipientName: string, leadMagnetName?: string): string {
   const firstName = recipientName.split(' ')[0];
-  return `Hey ${firstName}! Wanted to connect so I can send you the guide you requested. Looking forward to it!`;
+  return buildConnectionRequestMessage({ firstName, leadMagnetName });
 }
 
 /**
@@ -321,8 +327,22 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   let emailsCaptured = 0;
   let dmsSent = 0;
   let connectionRequestsSent = 0;
+  let commentRepliesSent = 0;
 
   for (const comment of comments) {
+    // RATE LIMIT CHECK: Stop if we've hit any limit
+    if (connectionRequestsSent >= MAX_CONNECTION_REQUESTS_PER_RUN) {
+      console.log(`[COMMENT_MONITOR] Rate limit reached: ${MAX_CONNECTION_REQUESTS_PER_RUN} connection requests. Stopping.`);
+      break;
+    }
+    if (dmsSent >= MAX_DMS_PER_RUN) {
+      console.log(`[COMMENT_MONITOR] Rate limit reached: ${MAX_DMS_PER_RUN} DMs. Stopping.`);
+      break;
+    }
+    if (commentRepliesSent >= MAX_COMMENT_REPLIES_PER_RUN) {
+      console.log(`[COMMENT_MONITOR] Rate limit reached: ${MAX_COMMENT_REPLIES_PER_RUN} comment replies. Stopping.`);
+      break;
+    }
     // Skip if already processed
     if (processed.has(comment.id)) {
       continue;
@@ -379,14 +399,16 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           }).eq('id', leadId);
         }
 
-        // Reply to comment: "Check your inbox!"
+        // Reply to comment with varied message (public, must look human)
         try {
+          const replyMessage = getRandomEmailCapturedReply(firstName);
           await replyToComment(
             job.unipile_account_id,
             job.unipile_post_id,
-            `Thanks ${firstName}! Check your inbox 📬`
+            replyMessage
           );
-          console.log(`[COMMENT_MONITOR] ✅ Comment reply sent for email capture`);
+          commentRepliesSent++;
+          console.log(`[COMMENT_MONITOR] ✅ Comment reply sent for email capture: "${replyMessage}"`);
         } catch (replyError: any) {
           console.error(`[COMMENT_MONITOR] ❌ Comment reply failed:`, replyError.message);
         }
@@ -423,7 +445,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
       if (connectionStatus.isConnected) {
         // ============================================
-        // PATH B1: Connected - Send DM asking for email
+        // PATH B1: Connected - Send DM + Reply "check DMs"
         // ============================================
         console.log(`[COMMENT_MONITOR] ✅ ${authorName} is connected, sending DM...`);
 
@@ -437,6 +459,20 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           );
           console.log(`[COMMENT_MONITOR] ✅ DM sent successfully:`, dmResult);
           dmsSent++;
+
+          // Also reply to comment with varied "check your DMs" message
+          try {
+            const commentReply = getRandomConnectedReply(firstName);
+            await replyToComment(
+              job.unipile_account_id,
+              job.unipile_post_id,
+              commentReply
+            );
+            commentRepliesSent++;
+            console.log(`[COMMENT_MONITOR] ✅ Comment reply sent: "${commentReply}"`);
+          } catch (replyError: any) {
+            console.error(`[COMMENT_MONITOR] ❌ Comment reply failed (DM was sent):`, replyError.message);
+          }
 
           // Update lead status
           if (leadId) {
@@ -484,7 +520,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           continue;
         }
 
-        // Step 1: Reply to their comment publicly
+        // Step 1: Reply to their comment publicly (VARIED to look human)
         try {
           const replyMessage = buildCommentReplyMessage(authorName);
           await replyToComment(
@@ -492,7 +528,8 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
             job.unipile_post_id,
             replyMessage
           );
-          console.log(`[COMMENT_MONITOR] ✅ Comment reply sent to ${authorName}`);
+          commentRepliesSent++;
+          console.log(`[COMMENT_MONITOR] ✅ Comment reply sent to ${authorName}: "${replyMessage}"`);
         } catch (replyError: any) {
           console.error(`[COMMENT_MONITOR] ❌ Comment reply failed:`, replyError.message);
         }

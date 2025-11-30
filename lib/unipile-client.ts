@@ -1054,6 +1054,140 @@ export async function checkConnectionStatus(
   }
 }
 
+/**
+ * Get received connection invitations (pending incoming requests)
+ * Used to extract email from connection note before auto-accept
+ * @param accountId - Unipile account ID
+ * @returns Array of received invitations with sender info and note
+ */
+export interface ReceivedInvitation {
+  id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_profile_url?: string;
+  sender_headline?: string;
+  message?: string; // Connection note with potential email
+  received_at: string;
+}
+
+export async function getReceivedInvitations(
+  accountId: string
+): Promise<ReceivedInvitation[]> {
+  try {
+    // Mock mode for testing
+    if (isMockMode()) {
+      console.log('[MOCK] Fetching received invitations for account:', accountId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      return [
+        {
+          id: `mock_invite_${crypto.randomBytes(9).toString('base64url')}`,
+          sender_id: 'mock_sender_123',
+          sender_name: 'John Doe',
+          sender_profile_url: 'https://linkedin.com/in/johndoe',
+          sender_headline: 'CEO at Startup',
+          message: 'Hey! Would love to connect. My email is john@startup.com',
+          received_at: new Date().toISOString(),
+        },
+      ];
+    }
+
+    const credentials = getUnipileCredentials();
+
+    console.log('[UNIPILE_INVITES] Fetching received invitations:', { accountId });
+
+    // Unipile API: GET /api/v1/users/invite/received
+    const response = await fetch(
+      `${credentials.dsn}/api/v1/users/invite/received?account_id=${accountId}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-API-KEY': credentials.apiKey,
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    console.log('[UNIPILE_INVITES] Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[UNIPILE_INVITES] Error response:', response.status, errorText);
+      throw new Error(`Failed to get received invitations: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const invitations = data.items || data.invitations || [];
+
+    console.log('[UNIPILE_INVITES] Found invitations:', invitations.length);
+
+    // Map to our interface
+    return invitations.map((inv: any) => ({
+      id: inv.id || inv.invitation_id,
+      sender_id: inv.sender?.id || inv.from?.id || inv.provider_id,
+      sender_name: inv.sender?.name || inv.from?.name || 'Unknown',
+      sender_profile_url: inv.sender?.profile_url || inv.from?.profile_url,
+      sender_headline: inv.sender?.headline || inv.from?.headline,
+      message: inv.message || inv.note || inv.custom_message,
+      received_at: inv.received_at || inv.created_at || new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.error('[UNIPILE_INVITES] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Accept a received connection invitation
+ * @param accountId - Unipile account ID
+ * @param invitationId - The invitation ID to accept
+ * @returns Success status
+ */
+export async function acceptInvitation(
+  accountId: string,
+  invitationId: string
+): Promise<{ status: string }> {
+  try {
+    // Mock mode for testing
+    if (isMockMode()) {
+      console.log('[MOCK] Accepting invitation:', { accountId, invitationId });
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return { status: 'accepted' };
+    }
+
+    const credentials = getUnipileCredentials();
+
+    console.log('[UNIPILE_ACCEPT] Accepting invitation:', { accountId, invitationId });
+
+    // Unipile API: POST /api/v1/users/invite/{invitation_id}/accept
+    const response = await fetch(
+      `${credentials.dsn}/api/v1/users/invite/${invitationId}/accept`,
+      {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': credentials.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ account_id: accountId }),
+      }
+    );
+
+    console.log('[UNIPILE_ACCEPT] Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[UNIPILE_ACCEPT] Error response:', response.status, errorText);
+      throw new Error(`Failed to accept invitation: ${response.status} - ${errorText}`);
+    }
+
+    return { status: 'accepted' };
+  } catch (error) {
+    console.error('[UNIPILE_ACCEPT] Error:', error);
+    throw error;
+  }
+}
+
 export async function createLinkedInPost(
   accountId: string,
   text: string,
