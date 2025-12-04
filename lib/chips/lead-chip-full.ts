@@ -128,19 +128,33 @@ export class LeadChip extends BaseChip {
       return this.formatError('Email is required to create a lead');
     }
 
-    // Check for duplicate
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    const clientId = userData.client_id;
+
+    // Check for duplicate WITHIN SAME CLIENT ONLY (tenant-scoped)
     const { data: existing } = await supabase
       .from('leads')
       .select('id, email')
       .eq('email', leadData.email.toLowerCase())
+      .eq('client_id', clientId) // TENANT ISOLATION - only check within same client
       .single();
 
     if (existing) {
       return this.formatError(`Lead with email ${leadData.email} already exists (ID: ${existing.id})`);
     }
 
-    // Create lead record
-    const newLead: Partial<Lead> = {
+    // Create lead record with client_id for tenant isolation
+    const newLead: Partial<Lead> & { client_id: string } = {
       email: leadData.email.toLowerCase(),
       first_name: leadData.first_name,
       last_name: leadData.last_name,
@@ -155,6 +169,7 @@ export class LeadChip extends BaseChip {
       tags: leadData.tags || [],
       custom_fields: leadData.custom_fields || {},
       engagement_score: 0,
+      client_id: clientId, // TENANT ISOLATION - always set client_id
     };
 
     const { data: lead, error: leadError } = await supabase

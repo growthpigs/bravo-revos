@@ -66,6 +66,7 @@ export class AnalyticsChip extends BaseChip {
 
   /**
    * Get metrics for specific campaign
+   * SECURITY: Validates campaign belongs to user's client before returning metrics
    */
   private async getCampaignMetrics(
     campaign_id: string,
@@ -75,15 +76,27 @@ export class AnalyticsChip extends BaseChip {
     // Calculate date filter
     const since = this.getDateFromTimeRange(time_range);
 
-    // Get campaign data
+    // SECURITY: First get user's client_id for tenant isolation
+    const { data: userData } = await context.supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    // Get campaign data WITH tenant filter
     const { data: campaign } = await context.supabase
       .from('campaigns')
       .select('*')
       .eq('id', campaign_id)
+      .eq('client_id', userData.client_id) // TENANT ISOLATION
       .single();
 
     if (!campaign) {
-      return this.formatError('Campaign not found');
+      return this.formatError('Campaign not found or access denied');
     }
 
     // Get posts count
@@ -125,27 +138,44 @@ export class AnalyticsChip extends BaseChip {
 
   /**
    * Get overview metrics across all campaigns
+   * SECURITY: Only returns metrics for user's client
    */
   private async getOverviewMetrics(time_range: string, context: AgentContext) {
     const since = this.getDateFromTimeRange(time_range);
 
-    // Get campaigns count
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await context.supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    const clientId = userData.client_id;
+
+    // Get campaigns count - TENANT FILTERED
     const { count: campaignsCount } = await context.supabase
       .from('campaigns')
       .select('*', { count: 'exact', head: true })
+      .eq('client_id', clientId) // TENANT ISOLATION
       .gte('created_at', since);
 
-    // Get total posts
+    // Get total posts - TENANT FILTERED via campaign
     const { count: postsCount } = await context.supabase
       .from('posts')
-      .select('*', { count: 'exact', head: true })
+      .select('*, campaigns!inner(client_id)', { count: 'exact', head: true })
+      .eq('campaigns.client_id', clientId) // TENANT ISOLATION via join
       .eq('status', 'published')
       .gte('created_at', since);
 
-    // Get total leads
+    // Get total leads - TENANT FILTERED
     const { count: leadsCount } = await context.supabase
       .from('leads')
       .select('*', { count: 'exact', head: true })
+      .eq('client_id', clientId) // TENANT ISOLATION
       .gte('created_at', since);
 
     return this.formatSuccess({

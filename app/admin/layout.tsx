@@ -2,6 +2,7 @@ import AdminSidebar from '@/components/admin/admin-sidebar'
 import AdminLayoutWrapper from '@/components/admin/admin-layout-wrapper'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { isUserAdmin } from '@/lib/auth/admin-check'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,13 @@ export default async function AdminLayout({
 
   if (!user) {
     redirect('/auth/login')
+  }
+
+  // SECURITY: Verify user is in admin_users table
+  const isAdmin = await isUserAdmin(user.id, supabase)
+  if (!isAdmin) {
+    console.warn('[ADMIN_LAYOUT] Non-admin user attempted admin access:', user.id, user.email)
+    redirect('/dashboard') // Redirect non-admins to regular dashboard
   }
 
   // Get user's agency info

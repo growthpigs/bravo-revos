@@ -1636,7 +1636,7 @@ export default function CartridgesPage() {
             <CardContent className="p-8">
               <div className="space-y-6">
                 <Textarea
-                  placeholder="Paste your complete core messaging here...&#10;&#10;Example:&#10;**AI Big Pivot Core Messaging Sheet**&#10;&#10;**Project Name:** AI Big Pivot&#10;**URL:** www.aibigpivot.com&#10;**Niche:** AI-Enhanced Design Tools&#10;**Key Thematics:** Ease of Use, Cost Efficiency, Learning and Support&#10;**Core Keywords:** AI Graphic Design, Simple Design Tools&#10;**Mission:** To empower non-designer entrepreneurs...&#10;&#10;(Continue with your full messaging)"
+                  placeholder="Paste your complete core messaging here...&#10;&#10;Example format:&#10;**[Your Company] Core Messaging Sheet**&#10;&#10;**Project Name:** [Your Project Name]&#10;**URL:** [Your Website]&#10;**Niche:** [Your Industry/Niche]&#10;**Key Thematics:** [Your Key Themes]&#10;**Core Keywords:** [Your Target Keywords]&#10;**Mission:** [Your Mission Statement]&#10;&#10;(Continue with your full messaging including target audience, values, avatar stories, and marketing frameworks)"
                   value={brandFormData.core_messaging !== undefined ? brandFormData.core_messaging : (brandCartridge?.core_messaging || '')}
                   onChange={(e) => setBrandFormData(prev => ({ ...prev, core_messaging: e.target.value }))}
                   className="min-h-[400px] font-mono text-sm p-6"
