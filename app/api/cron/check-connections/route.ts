@@ -129,17 +129,29 @@ export async function GET(request: NextRequest) {
     // For now, we'll get the account from the campaign's scrape_job
     const campaignIds = [...new Set(pendingConnections.map(pc => pc.campaign_id))];
 
+    // CRITICAL: Also get user_ids to validate tenant ownership
+    const userIds = [...new Set(pendingConnections.map(pc => pc.user_id))];
+
     // Get scrape jobs to find Unipile account IDs
+    // SECURITY FIX: Join with campaigns to verify tenant ownership
     const { data: scrapeJobs } = await supabase
       .from('scrape_jobs')
-      .select('campaign_id, unipile_account_id')
+      .select(`
+        campaign_id,
+        unipile_account_id,
+        campaigns!inner(user_id)
+      `)
       .in('campaign_id', campaignIds);
 
-    const campaignToAccountMap = new Map<string, string>();
+    // Build map with tenant validation
+    const campaignToAccountMap = new Map<string, { accountId: string; userId: string }>();
     if (scrapeJobs) {
-      for (const job of scrapeJobs) {
-        if (job.unipile_account_id) {
-          campaignToAccountMap.set(job.campaign_id, job.unipile_account_id);
+      for (const job of scrapeJobs as any[]) {
+        if (job.unipile_account_id && job.campaigns?.user_id) {
+          campaignToAccountMap.set(job.campaign_id, {
+            accountId: job.unipile_account_id,
+            userId: job.campaigns.user_id
+          });
         }
       }
     }
@@ -150,13 +162,20 @@ export async function GET(request: NextRequest) {
     const errors: string[] = [];
 
     for (const pending of pendingConnections as PendingConnection[]) {
-      const accountId = campaignToAccountMap.get(pending.campaign_id);
+      const campaignData = campaignToAccountMap.get(pending.campaign_id);
 
-      if (!accountId) {
+      if (!campaignData) {
         console.warn(`[CHECK_CONNECTIONS] No account ID for campaign ${pending.campaign_id}`);
         continue;
       }
 
+      // SECURITY: Verify tenant ownership - pending_connection.user_id must match campaign owner
+      if (campaignData.userId !== pending.user_id) {
+        console.error(`[CHECK_CONNECTIONS] ❌ TENANT MISMATCH: pending_connection user_id ${pending.user_id} != campaign owner ${campaignData.userId}`);
+        continue; // Skip to prevent cross-tenant processing
+      }
+
+      const accountId = campaignData.accountId;
       checkedCount++;
 
       try {

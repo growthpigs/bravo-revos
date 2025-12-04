@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
     // Query scrape jobs ready for processing
     const now = new Date().toISOString()
 
+    // SECURITY: Join with campaigns to get user_id for tenant validation
+    // This ensures we can verify ownership before processing any job
     const { data: jobs, error: queryError } = await supabase
       .from('scrape_jobs')
       .select(`
@@ -42,7 +44,8 @@ export async function POST(request: NextRequest) {
         trigger_words_found,
         dms_sent,
         emails_captured,
-        error_count
+        error_count,
+        campaigns!inner(user_id, client_id)
       `)
       .in('status', ['scheduled', 'running'])
       .lte('next_check', now)
@@ -77,8 +80,24 @@ export async function POST(request: NextRequest) {
     let processedCount = 0
     const results = []
 
-    for (const job of jobs) {
+    for (const job of jobs as any[]) {
       try {
+        // SECURITY: Verify tenant context exists (from campaigns!inner JOIN)
+        const jobUserId = job.campaigns?.user_id;
+        const jobClientId = job.campaigns?.client_id;
+
+        if (!jobUserId || !jobClientId) {
+          console.error(`[DM_SCRAPER] ❌ SKIPPING job ${job.id} - missing tenant context (user_id: ${jobUserId}, client_id: ${jobClientId})`);
+          results.push({
+            job_id: job.id,
+            status: 'skipped',
+            message: 'Missing tenant context - possible orphaned job'
+          });
+          continue;
+        }
+
+        console.log(`[DM_SCRAPER] Processing job ${job.id} for tenant user_id=${jobUserId}, client_id=${jobClientId}`);
+
         // Check rate limits
         const accountKey = job.unipile_account_id
         const nowDate = new Date()
