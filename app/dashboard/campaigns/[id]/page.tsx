@@ -24,6 +24,7 @@ import CampaignActions from '@/components/dashboard/campaign-actions'
 import { CampaignPostsSection } from '@/components/dashboard/CampaignPostsSection'
 import { CampaignDocumentsSection } from '@/components/dashboard/CampaignDocumentsSection'
 import { TriggerPodButton } from '@/components/dashboard/trigger-pod-button'
+import { RepostButton } from '@/components/dashboard/repost-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -136,6 +137,12 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             <Badge className={statusColors[campaign.status]} variant="secondary">
               {campaign.status}
             </Badge>
+            <RepostButton
+              campaignId={campaign.id}
+              campaignName={campaign.name}
+              postTemplate={campaign.post_template}
+              triggerWord={campaign.trigger_word}
+            />
             <TriggerPodButton
               campaignId={campaign.id}
               campaignName={campaign.name}
