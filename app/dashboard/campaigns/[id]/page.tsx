@@ -25,6 +25,7 @@ import { CampaignPostsSection } from '@/components/dashboard/CampaignPostsSectio
 import { CampaignDocumentsSection } from '@/components/dashboard/CampaignDocumentsSection'
 import { TriggerPodButton } from '@/components/dashboard/trigger-pod-button'
 import { RepostButton } from '@/components/dashboard/repost-button'
+import { PollCommentsButton } from '@/components/dashboard/poll-comments-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -142,6 +143,10 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
               campaignName={campaign.name}
               postTemplate={campaign.post_template}
               triggerWord={campaign.trigger_word}
+            />
+            <PollCommentsButton
+              campaignId={campaign.id}
+              campaignName={campaign.name}
             />
             <TriggerPodButton
               campaignId={campaign.id}
