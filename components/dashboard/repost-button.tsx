@@ -2,8 +2,20 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface RepostButtonProps {
   campaignId: string;
@@ -19,34 +31,25 @@ export function RepostButton({
   triggerWord,
 }: RepostButtonProps) {
   const [isPosting, setIsPosting] = useState(false);
-  const [result, setResult] = useState<{
-    success: boolean;
-    message: string;
-    url?: string;
-  } | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
+
+  const effectiveTriggerWord = triggerWord || 'guide';
 
   const handleRepost = async () => {
     if (!postTemplate) {
-      setResult({
-        success: false,
-        message: 'This campaign has no post content. Add content first.',
+      toast.error('No post content', {
+        description: 'This campaign has no post content. Add content first.',
       });
       return;
     }
 
-    const effectiveTriggerWord = triggerWord || 'guide';
-    const confirmed = confirm(
-      `Post "${campaignName}" to LinkedIn now?\n\nThis will publish the campaign content and start monitoring for "${effectiveTriggerWord}" comments.`
-    );
-
-    if (!confirmed) return;
-
+    setDialogOpen(false);
     setIsPosting(true);
-    setResult(null);
+
+    toast.info('Publishing to LinkedIn...', { id: 'repost-progress' });
 
     try {
-      // Use existing /api/linkedin/posts endpoint
       const response = await fetch('/api/linkedin/posts', {
         method: 'POST',
         headers: {
@@ -59,25 +62,41 @@ export function RepostButton({
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to post to LinkedIn');
+      // Handle empty or non-JSON responses
+      const responseText = await response.text();
+      let data;
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        console.error('[RepostButton] Failed to parse response:', responseText);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
 
-      setResult({
-        success: true,
-        message: `Post published! Monitoring for "${effectiveTriggerWord}" comments.`,
-        url: data.post?.url,
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to post (${response.status})`);
+      }
+
+      const postUrl = data.post?.url;
+
+      toast.success('Post published to LinkedIn!', {
+        id: 'repost-progress',
+        description: `Monitoring for "${effectiveTriggerWord}" comments.`,
+        duration: 8000,
+        action: postUrl
+          ? {
+              label: 'View Post',
+              onClick: () => window.open(postUrl, '_blank'),
+            }
+          : undefined,
       });
 
-      // Refresh the page to show updated data
       router.refresh();
     } catch (error: any) {
       console.error('[RepostButton] Error:', error);
-      setResult({
-        success: false,
-        message: error.message || 'Failed to post to LinkedIn',
+      toast.error('Failed to post to LinkedIn', {
+        id: 'repost-progress',
+        description: error.message || 'Unknown error',
+        duration: 5000,
       });
     } finally {
       setIsPosting(false);
@@ -85,54 +104,41 @@ export function RepostButton({
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <Button
-        onClick={handleRepost}
-        variant="default"
-        className="gap-2 bg-blue-600 hover:bg-blue-700"
-        disabled={isPosting || !postTemplate}
-      >
-        {isPosting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Posting...
-          </>
-        ) : (
-          <>
-            <Send className="h-4 w-4" />
-            Post to LinkedIn
-          </>
-        )}
-      </Button>
-
-      {result && (
-        <div
-          className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
-            result.success
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          }`}
+    <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="default"
+          className="gap-2 bg-blue-600 hover:bg-blue-700"
+          disabled={isPosting || !postTemplate}
         >
-          {result.success ? (
-            <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          {isPosting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Posting...
+            </>
           ) : (
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <>
+              <Send className="h-4 w-4" />
+              Post to LinkedIn
+            </>
           )}
-          <div>
-            <p>{result.message}</p>
-            {result.url && (
-              <a
-                href={result.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline mt-1 inline-block"
-              >
-                View on LinkedIn
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Post to LinkedIn?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will publish &quot;{campaignName}&quot; to LinkedIn and start monitoring
+            for &quot;{effectiveTriggerWord}&quot; comments.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleRepost}>
+            Post Now
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
