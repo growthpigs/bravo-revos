@@ -271,7 +271,7 @@ Queue: BullMQ + Upstash Redis
 AI: OpenAI AgentKit (`@openai/agents`), GPT-4o
 Memory: Mem0 Cloud + PGVector
 LinkedIn: Unipile API ($5.50/account/mo), NO comment webhooks (poll every 5min)
-Deploy: Netlify (frontend), Render (backend + workers)
+Deploy: Vercel (frontend), Render (backend + workers)
 
 ## Project Info
 
@@ -363,12 +363,41 @@ git push origin staging
 # 🔒 production branch is LOCKED - direct pushes will fail
 ```
 
+### Post-Deploy Verification Checklist
+
+**MANDATORY after every production deploy:**
+
+```bash
+# 1. Hard refresh the production URL (Cmd+Shift+R or Ctrl+Shift+R)
+open https://bravo-revos.vercel.app
+
+# 2. Check build info next to logo (top-left of TopBar)
+#    Expected: commit hash matches your push, timestamp within 5 minutes
+
+# 3. Verify in browser DevTools Network tab:
+#    - Fetch /build-info.json
+#    - Confirm "environment": "production"
+#    - Confirm "commit": "<your-commit-hash>"
+
+# 4. Test critical path (if applicable):
+#    - Login works
+#    - Dashboard loads
+#    - Chat responds
+```
+
+**If build info is stale:**
+1. Check Vercel dashboard for deployment status
+2. Verify `prebuild` script ran (check build logs for `[BUILD_INFO]`)
+3. Clear browser cache and CDN cache if needed
+4. If still stale, trigger manual redeploy in Vercel
+
 ### Important Notes
 
 - **No localhost** - Can't test OAuth, webhooks, or LinkedIn integration
 - **main + staging** - Active development and review environments
 - **production** - 🔒 LOCKED via GitHub branch protection (PR-only)
 - **Test on deployed environments** - Full environment with all integrations working
+- **Always verify build info** - Check commit hash and timestamp after every deploy
 
 ### Emergency Rollback
 
@@ -483,7 +512,7 @@ Security: never trust client, validate everything, sanitize UGC
 
 Verify: `claude mcp list`
 
-MUST HAVE: Sentry, Supabase, Playwright, Netlify
+MUST HAVE: Sentry, Supabase, Playwright
 Optional: Context7, Archon
 
 ## Session Start Checklist

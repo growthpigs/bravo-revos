@@ -46,6 +46,19 @@ const nextConfig = {
       },
     ]
   },
+  async headers() {
+    return [
+      {
+        // Prevent caching of build-info.json so users always see current build
+        source: '/build-info.json',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' },
+        ],
+      },
+    ]
+  },
   // Enable Next.js instrumentation hook for Sentry
   experimental: {
     instrumentationHook: true,

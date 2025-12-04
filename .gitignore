@@ -50,6 +50,9 @@ lerna-debug.log*
 .next/
 out/
 
+# Build-time generated files (regenerated on each deploy)
+public/build-info.json
+
 # Python
 .pytest_cache/
 __pycache__/
