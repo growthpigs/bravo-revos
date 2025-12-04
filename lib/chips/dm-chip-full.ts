@@ -108,6 +108,17 @@ export class DMChip extends BaseChip {
   ): Promise<any> {
     const supabase = context.supabase as any;
 
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
     if (!recipientId) {
       return this.formatError('Recipient ID or profile URL is required');
     }
@@ -123,11 +134,12 @@ export class DMChip extends BaseChip {
       leadMagnetUrl
     );
 
-    // Check for recent DMs to avoid spam
+    // Check for recent DMs to avoid spam - TENANT FILTERED
     const { data: recentDMs } = await supabase
       .from('linkedin_dms')
       .select('*')
       .eq('recipient_id', recipientId)
+      .eq('user_id', context.userId) // TENANT ISOLATION - only check user's own DMs
       .gte('sent_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
       .eq('status', 'sent');
 
@@ -135,8 +147,8 @@ export class DMChip extends BaseChip {
       return this.formatError(`Already sent DM to this recipient in the last 24 hours (${recentDMs.length} messages)`);
     }
 
-    // Create DM record
-    const dmData: Partial<DirectMessage> = {
+    // Create DM record - include user_id for tenant isolation
+    const dmData: Partial<DirectMessage> & { user_id: string } = {
       recipient_id: recipientId,
       recipient_profile_url: recipientId.includes('linkedin.com') ? recipientId : `https://www.linkedin.com/in/${recipientId}`,
       recipient_name: personalizationFields?.firstName || personalizationFields?.name,
@@ -146,6 +158,7 @@ export class DMChip extends BaseChip {
       status: delayMinutes > 0 ? 'pending' : 'sent',
       is_followup: isFollowup,
       delay_minutes: delayMinutes,
+      user_id: context.userId, // TENANT ISOLATION
     };
 
     const { data: dm, error: dmError } = await supabase
@@ -282,10 +295,22 @@ export class DMChip extends BaseChip {
   private async checkReplies(context: AgentContext, campaignId?: string): Promise<any> {
     const supabase = context.supabase as any;
 
-    // Build query
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    // Build query - TENANT FILTERED
     let query = supabase
       .from('linkedin_dms')
       .select('*')
+      .eq('user_id', context.userId) // TENANT ISOLATION
       .eq('status', 'replied')
       .order('reply_received_at', { ascending: false })
       .limit(50);

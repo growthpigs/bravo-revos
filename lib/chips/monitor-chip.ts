@@ -98,11 +98,25 @@ export class MonitorChip extends BaseChip {
       return this.formatError('Post ID or URL is required to start monitoring');
     }
 
-    // Check for existing active monitoring on this post
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    const clientId = userData.client_id;
+
+    // Check for existing active monitoring on this post - TENANT FILTERED
     const { data: existing } = await supabase
       .from('monitoring_jobs')
       .select('*')
       .or(`post_id.eq.${postIdentifier},post_url.eq.${postIdentifier}`)
+      .eq('user_id', context.userId) // TENANT ISOLATION
       .eq('status', 'active')
       .single();
 
@@ -179,11 +193,23 @@ export class MonitorChip extends BaseChip {
       return this.formatError('Post ID or URL is required');
     }
 
-    // Find active job
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    // Find active job - TENANT FILTERED
     const { data: job, error: findError } = await supabase
       .from('monitoring_jobs')
       .select('*')
       .or(`post_id.eq.${postIdentifier},post_url.eq.${postIdentifier}`)
+      .eq('user_id', context.userId) // TENANT ISOLATION
       .in('status', ['active', 'paused'])
       .single();
 
@@ -198,7 +224,8 @@ export class MonitorChip extends BaseChip {
         status: 'completed',
         updated_at: new Date().toISOString()
       })
-      .eq('id', job.id);
+      .eq('id', job.id)
+      .eq('user_id', context.userId); // TENANT ISOLATION on update
 
     if (updateError) {
       return this.formatError(updateError.message);
@@ -223,10 +250,22 @@ export class MonitorChip extends BaseChip {
   private async pauseMonitoring(context: AgentContext, postIdentifier: string): Promise<any> {
     const supabase = context.supabase as any;
 
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
     const { data: job, error } = await supabase
       .from('monitoring_jobs')
       .update({ status: 'paused' })
       .or(`post_id.eq.${postIdentifier},post_url.eq.${postIdentifier}`)
+      .eq('user_id', context.userId) // TENANT ISOLATION
       .eq('status', 'active')
       .select()
       .single();
@@ -244,10 +283,22 @@ export class MonitorChip extends BaseChip {
   private async resumeMonitoring(context: AgentContext, postIdentifier: string): Promise<any> {
     const supabase = context.supabase as any;
 
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
     const { data: job, error } = await supabase
       .from('monitoring_jobs')
       .update({ status: 'active' })
       .or(`post_id.eq.${postIdentifier},post_url.eq.${postIdentifier}`)
+      .eq('user_id', context.userId) // TENANT ISOLATION
       .eq('status', 'paused')
       .select()
       .single();
@@ -280,10 +331,22 @@ export class MonitorChip extends BaseChip {
   private async checkStatus(context: AgentContext, postIdentifier?: string): Promise<any> {
     const supabase = context.supabase as any;
 
-    // Build query
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    // Build query - TENANT FILTERED
     let query = supabase
       .from('monitoring_jobs')
       .select('*')
+      .eq('user_id', context.userId) // TENANT ISOLATION
       .order('created_at', { ascending: false });
 
     if (postIdentifier) {
