@@ -66,11 +66,24 @@ export class CampaignChip extends BaseChip {
 
   /**
    * Get all campaigns for authenticated user
+   * SECURITY: Only returns campaigns for user's client
    */
   private async handleGetAllCampaigns(context: AgentContext) {
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await context.supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
     const { data, error } = await context.supabase
       .from('campaigns')
       .select('id, name, status, created_at, lead_magnet_source')
+      .eq('client_id', userData.client_id) // TENANT ISOLATION
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -85,25 +98,38 @@ export class CampaignChip extends BaseChip {
 
   /**
    * Get specific campaign by ID
+   * SECURITY: Validates campaign belongs to user's client
    */
   private async handleGetCampaignById(campaign_id: string, context: AgentContext) {
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await context.supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
     const { data, error } = await context.supabase
       .from('campaigns')
       .select('*')
       .eq('id', campaign_id)
+      .eq('client_id', userData.client_id) // TENANT ISOLATION
       .single();
 
-    if (error) {
-      return this.formatError(error.message);
+    if (error || !data) {
+      return this.formatError('Campaign not found or access denied');
     }
 
-    // Get lead count
+    // Get lead count (campaign already validated above)
     const { count: leadsCount } = await context.supabase
       .from('leads')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaign_id);
 
-    // Get posts count
+    // Get posts count (campaign already validated above)
     const { count: postsCount } = await context.supabase
       .from('posts')
       .select('*', { count: 'exact', head: true })

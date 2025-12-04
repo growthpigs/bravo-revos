@@ -116,6 +116,19 @@ export class LeadMagnetChip extends BaseChip {
       return this.formatError('Lead magnet type is required');
     }
 
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    const clientId = userData.client_id;
+
     // Generate content using AI
     const systemPrompt = this.buildSystemPrompt(prompt.type);
     const userPrompt = this.buildUserPrompt(prompt);
@@ -141,8 +154,8 @@ export class LeadMagnetChip extends BaseChip {
     const finalTitle = customTitle || extractedTitle;
     const finalDescription = customDescription || extractedDescription;
 
-    // Create lead magnet record
-    const magnetData: Partial<LeadMagnet> = {
+    // Create lead magnet record with client_id for tenant isolation
+    const magnetData: Partial<LeadMagnet> & { client_id: string } = {
       title: finalTitle,
       description: finalDescription,
       type: prompt.type,
@@ -156,6 +169,7 @@ export class LeadMagnetChip extends BaseChip {
       download_url: '', // Will be generated after storage
       downloads: 0,
       campaign_id: campaignId,
+      client_id: clientId, // TENANT ISOLATION
     };
 
     const { data: magnet, error: magnetError } = await supabase
@@ -191,9 +205,21 @@ export class LeadMagnetChip extends BaseChip {
   private async listLeadMagnets(context: AgentContext, campaignId?: string): Promise<any> {
     const supabase = context.supabase as any;
 
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
     let query = supabase
       .from('lead_magnets')
       .select('*')
+      .eq('client_id', userData.client_id) // TENANT ISOLATION
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -232,11 +258,25 @@ export class LeadMagnetChip extends BaseChip {
   private async getLeadMagnetStats(context: AgentContext, magnetId?: string): Promise<any> {
     const supabase = context.supabase as any;
 
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
+    const clientId = userData.client_id;
+
     if (!magnetId) {
-      // Get overall stats
+      // Get overall stats - TENANT FILTERED
       const { data: stats } = await supabase
         .from('lead_magnets')
         .select('type, downloads')
+        .eq('client_id', clientId) // TENANT ISOLATION
         .order('downloads', { ascending: false });
 
       if (!stats) {
@@ -262,15 +302,16 @@ export class LeadMagnetChip extends BaseChip {
       });
     }
 
-    // Get specific magnet stats
+    // Get specific magnet stats - TENANT FILTERED
     const { data: magnet, error } = await supabase
       .from('lead_magnets')
       .select('*')
       .eq('id', magnetId)
+      .eq('client_id', clientId) // TENANT ISOLATION
       .single();
 
     if (error || !magnet) {
-      return this.formatError(`Lead magnet ${magnetId} not found`);
+      return this.formatError('Lead magnet not found or access denied');
     }
 
     // Get download history
@@ -308,6 +349,17 @@ export class LeadMagnetChip extends BaseChip {
       return this.formatError('No updates provided');
     }
 
+    // SECURITY: Get user's client_id for tenant isolation
+    const { data: userData } = await supabase
+      .from('users')
+      .select('client_id')
+      .eq('id', context.userId)
+      .single();
+
+    if (!userData?.client_id) {
+      return this.formatError('User has no client association');
+    }
+
     const { data: updated, error } = await supabase
       .from('lead_magnets')
       .update({
@@ -315,6 +367,7 @@ export class LeadMagnetChip extends BaseChip {
         updated_at: new Date().toISOString()
       })
       .eq('id', magnetId)
+      .eq('client_id', userData.client_id) // TENANT ISOLATION
       .select()
       .single();
 
