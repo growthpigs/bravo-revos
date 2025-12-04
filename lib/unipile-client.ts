@@ -464,9 +464,15 @@ export async function getAllPostComments(
 
     let socialId: string;
 
+    // CRITICAL FIX: The postId stored in scrape_jobs is the raw activity number (e.g., "7402329422785269760")
+    // But Unipile's GET /posts/{id} endpoint requires the FULL URN format
+    // We need to construct the URN before making the API call
+    const postIdForApi = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+    console.log('[UNIPILE_COMMENTS] Converted postId to URN format:', postIdForApi);
+
     try {
       // Try to get the post first to get the correct social_id format
-      const postUrl = `${credentials.dsn}/api/v1/posts/${postId}?account_id=${accountId}`;
+      const postUrl = `${credentials.dsn}/api/v1/posts/${postIdForApi}?account_id=${accountId}`;
       console.log('[UNIPILE_COMMENTS] Fetching post from:', postUrl);
 
       const postController = new AbortController();
