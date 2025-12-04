@@ -34,7 +34,9 @@ export function RepostButton({
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
 
-  const effectiveTriggerWord = triggerWord || 'guide';
+  // NO HARDCODED DEFAULT - multi-tenant requirement
+  // Each campaign defines its own trigger word(s)
+  const effectiveTriggerWord = triggerWord || null;
 
   const handleRepost = async () => {
     if (!postTemplate) {
@@ -42,6 +44,14 @@ export function RepostButton({
         description: 'This campaign has no post content. Add content first.',
       });
       return;
+    }
+
+    // Warn if no trigger word - DM automation won't work
+    if (!effectiveTriggerWord) {
+      toast.warning('No trigger word configured', {
+        description: 'DM automation will not be enabled. Add a trigger word to this campaign.',
+        duration: 5000,
+      });
     }
 
     setDialogOpen(false);
@@ -80,7 +90,9 @@ export function RepostButton({
 
       toast.success('Post published to LinkedIn!', {
         id: 'repost-progress',
-        description: `Monitoring for "${effectiveTriggerWord}" comments.`,
+        description: effectiveTriggerWord
+          ? `Monitoring for "${effectiveTriggerWord}" comments.`
+          : 'Post published (no DM automation - no trigger word configured).',
         duration: 8000,
         action: postUrl
           ? {
@@ -128,8 +140,20 @@ export function RepostButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Post to LinkedIn?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will publish &quot;{campaignName}&quot; to LinkedIn and start monitoring
-            for &quot;{effectiveTriggerWord}&quot; comments.
+            {effectiveTriggerWord ? (
+              <>
+                This will publish &quot;{campaignName}&quot; to LinkedIn and start monitoring
+                for &quot;{effectiveTriggerWord}&quot; comments.
+              </>
+            ) : (
+              <>
+                This will publish &quot;{campaignName}&quot; to LinkedIn.
+                <br />
+                <span className="text-amber-600 font-medium">
+                  Note: No trigger word configured - DM automation will not be enabled.
+                </span>
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
