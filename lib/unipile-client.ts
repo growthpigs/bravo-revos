@@ -1436,15 +1436,17 @@ export async function createLinkedInPost(
     }
 
     // CRITICAL: Must use linkedinActivityId for comments API to work
-    // If we couldn't extract it, log full response for debugging
+    // If we couldn't extract it from share_url/social_id, use data.post_id as fallback
+    // Unipile's post_id IS the LinkedIn activity ID when other fields are missing
     if (!linkedinActivityId) {
-      console.error('[UNIPILE_POST] CRITICAL: Could not extract LinkedIn activity ID!');
-      console.error('[UNIPILE_POST] Full response data:', JSON.stringify(data, null, 2));
-      console.warn('[UNIPILE_POST] Falling back to data.id, but comments API may fail with 404');
+      console.warn('[UNIPILE_POST] Could not extract from share_url/social_id, using data.post_id as activity ID');
+      // data.post_id from Unipile POST /posts response IS the LinkedIn activity number
+      linkedinActivityId = data.post_id || data.id;
+      console.log('[UNIPILE_POST] Using data.post_id as activity ID:', linkedinActivityId);
     }
 
-    // Use linkedinActivityId if we have it, otherwise use data fields (may cause 404 on comments)
-    const postId = linkedinActivityId || data.id || data.post_id;
+    // Now we should always have linkedinActivityId
+    const postId = linkedinActivityId;
 
     // CRITICAL FIX: Construct share_url from postId if not provided
     // postId should contain the activity ID, so use it for URL construction
