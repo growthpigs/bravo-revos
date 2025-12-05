@@ -199,7 +199,13 @@ export default function ReviewStep({ data, onBack }: StepProps) {
       })
 
       // Build success message based on what happened
-      if (podTriggered && postUrl) {
+      // VALIDATE: Only show View Post button if URL is a proper LinkedIn post URL
+      const isValidPostUrl = postUrl && (
+        postUrl.includes('/posts/') ||
+        postUrl.includes('activity-')
+      );
+
+      if (podTriggered && isValidPostUrl) {
         toast.success('Campaign Live + Pod Activated!', {
           id: 'launch-progress',
           description: 'Post is live and your pod is boosting it!',
@@ -209,7 +215,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
             onClick: () => window.open(postUrl, '_blank'),
           },
         })
-      } else if (postUrl) {
+      } else if (isValidPostUrl) {
         toast.success('Campaign Live on LinkedIn!', {
           id: 'launch-progress',
           description: 'DM automation is monitoring for comments.',
@@ -218,6 +224,14 @@ export default function ReviewStep({ data, onBack }: StepProps) {
             label: '👉 View Post',
             onClick: () => window.open(postUrl, '_blank'),
           },
+        })
+      } else if (postUrl && !isValidPostUrl) {
+        // Post created but URL is invalid/wrong format
+        console.warn('[CAMPAIGN_LAUNCH] ⚠️ Invalid post URL format:', postUrl);
+        toast.success('Campaign Live on LinkedIn!', {
+          id: 'launch-progress',
+          description: 'DM automation is monitoring for comments. (Post URL could not be validated)',
+          duration: 8000,
         })
       } else {
         toast.success('Campaign Saved (Draft)', {
