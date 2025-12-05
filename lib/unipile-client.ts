@@ -1260,7 +1260,8 @@ export async function createLinkedInPost(
   accountId: string,
   text: string,
   clientCredentials?: UnipileCredentials | null,
-  timeoutMs: number = 25000 // Default 25s timeout (safe for 30s/60s serverless limits)
+  timeoutMs: number = 25000, // Default 25s timeout (safe for 30s/60s serverless limits)
+  profileUrl?: string | null // Optional: user's LinkedIn profile URL for constructing post URLs
 ): Promise<CreatePostResponse> {
   // Setup AbortController for timeout
   const controller = new AbortController();
@@ -1484,12 +1485,37 @@ export async function createLinkedInPost(
     // Now we should always have linkedinActivityId
     const postId = linkedinActivityId;
 
-    // CRITICAL FIX: Construct share_url from postId if not provided
-    // postId should contain the activity ID, so use it for URL construction
-    // This ensures we always have a valid LinkedIn post URL for campaign tracking
+    // CRITICAL FIX: Construct proper LinkedIn post URL from postId if not provided
+    // LinkedIn post URLs work in format: /posts/{username}_{content}-activity-{ACTIVITY_ID}
     if (!shareUrl && postId) {
-      shareUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
-      console.log('[UNIPILE_POST] Constructed share_url from postId:', shareUrl);
+      let constructedUrl = '';
+
+      // First check if we already have a good share_url (shouldn't happen but check anyway)
+      if (data.share_url && !data.share_url.includes('urn:li')) {
+        constructedUrl = data.share_url;
+      } else if (profileUrl) {
+        // Extract username from profile URL
+        // Format: https://www.linkedin.com/in/{username}/ or /in/{username}
+        const usernameMatch = profileUrl.match(/\/in\/([^\/]+)/);
+        if (usernameMatch) {
+          const username = usernameMatch[1];
+          // Construct a working post URL using username and activity ID
+          // Format: /posts/{username}_post-activity-{ACTIVITY_ID}
+          constructedUrl = `https://www.linkedin.com/posts/${username}_post-activity-${postId}`;
+          console.log('[UNIPILE_POST] Constructed post URL using username:', constructedUrl);
+        } else {
+          // Fallback if username extraction fails
+          constructedUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
+          console.log('[UNIPILE_POST] Could not extract username, using activity URN format');
+        }
+      } else {
+        // No profile URL provided - use activity URN format
+        constructedUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
+        console.log('[UNIPILE_POST] No profile URL provided, using activity URN format');
+      }
+
+      shareUrl = constructedUrl;
+      console.log('[UNIPILE_POST] Final constructed URL:', shareUrl);
     }
 
     console.log('[UNIPILE_POST] Post created successfully:', {
