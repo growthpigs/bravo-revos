@@ -1,12 +1,14 @@
 {
   "mcpServers": {
-    "mcp-router": {
+    "supabase": {
       "command": "npx",
-      "args": ["-y", "mcp-proxy", "https://mcp-router.roderic-andrews.workers.dev"],
+      "args": ["-y", "supabase-mcp@latest", "supabase-mcp-claude"],
       "env": {
-        "MCP_PROFILE": "ios-app"
+        "SUPABASE_URL": "https://trdoainmejxanrownbuz.supabase.co",
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW1lanhheW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIyNTQ5NTYsImV4cCI6MjA0NzgxNDk1Nn0.4ZjDkJvFkrSKHWitgnTTc_58HqiH37BLPdB0u8-aGfI",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW1lanhheW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMjI1NDk1NiwiaXNzIjoyMDQ3ODE0OTU2fQ.-_DnyCiOn_UDEuNwGddPL_LFKDYTocICU4L6Tx-G3Do"
       },
-      "description": "MCP Router on Cloudflare - provides Sentry, Exa, Semgrep, Mem0, Supabase"
+      "description": "Supabase MCP - Database CRUD operations for trdoainmejxanrownbuz project"
     }
   },
   "autoStart": true,
