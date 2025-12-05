@@ -101,8 +101,8 @@
       "args": ["-y", "supabase-mcp@latest", "supabase-mcp-claude"],
       "env": {
         "SUPABASE_URL": "https://trdoainmejxanrownbuz.supabase.co",
-        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODA0MTI3MDIsImV4cCI6MTk5NjA3NDcwMn0.cGFLJ77B4EBGr7OQTNbW8M_fMhXgFYvhcMeT5y1l0PE",
-        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}"
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW1lanhheW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQxMzkzMzAsImV4cCI6MjA0OTcxNTMzMH0.c3Mi0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0i0",
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW1lanhheW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDEzOTMzMCwiZXhwIjoyMDQ5NzE1MzMwfQ.l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l1l"
       },
       "description": "Supabase MCP - Database CRUD operations for trdoainmejxanrownbuz project"
     },
