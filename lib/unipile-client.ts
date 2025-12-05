@@ -1399,14 +1399,20 @@ export async function createLinkedInPost(
               const postsData = await postsResponse.json();
               const recentPosts = postsData.items || [];
 
+              console.log('[UNIPILE_POST] Recent posts fetched:', {
+                count: recentPosts.length,
+                firstPostKeys: recentPosts[0] ? Object.keys(recentPosts[0]) : 'N/A',
+              });
+
               // Match by content (first 100 chars)
               const contentToMatch = text.substring(0, 100).toLowerCase().trim();
-              const matchedPost = recentPosts.find((p: { text?: string }) => {
+              const matchedPost = recentPosts.find((p: any) => {
                 const postContent = (p.text || '').substring(0, 100).toLowerCase().trim();
                 return postContent === contentToMatch;
               });
 
               if (matchedPost) {
+                console.log('[UNIPILE_POST] Found matching post, extracting activity ID...');
                 // Extract from social_id or share_url
                 const matchedSocialId = matchedPost.social_id;
                 const matchedShareUrl = matchedPost.share_url || matchedPost.url;
@@ -1416,7 +1422,7 @@ export async function createLinkedInPost(
                   if (socialMatch) {
                     linkedinActivityId = socialMatch[1];
                     shareUrl = matchedShareUrl || shareUrl;
-                    console.log('[UNIPILE_POST] Found activity ID from recent posts:', linkedinActivityId);
+                    console.log('[UNIPILE_POST] Found activity ID from recent posts social_id:', linkedinActivityId);
                   }
                 } else if (matchedShareUrl) {
                   const urlMatch = matchedShareUrl.match(/urn:li:(?:activity|ugcPost):(\d+)/);
@@ -1427,7 +1433,32 @@ export async function createLinkedInPost(
                   }
                 }
               } else {
-                console.warn('[UNIPILE_POST] Could not find matching post in recent posts');
+                console.warn('[UNIPILE_POST] Could not find matching post in recent posts by content');
+                // Try matching by post_id instead
+                if (data.post_id && recentPosts.length > 0) {
+                  console.log('[UNIPILE_POST] Trying to match by post_id:', data.post_id);
+                  const postIdMatch = recentPosts.find((p: any) => p.id === data.post_id || p.post_id === data.post_id);
+                  if (postIdMatch) {
+                    console.log('[UNIPILE_POST] Found post by ID, extracting activity ID...');
+                    const matchedSocialId = postIdMatch.social_id;
+                    const matchedShareUrl = postIdMatch.share_url || postIdMatch.url;
+                    if (matchedSocialId) {
+                      const socialMatch = matchedSocialId.match(/urn:li:(?:activity|ugcPost):(\d+)/);
+                      if (socialMatch) {
+                        linkedinActivityId = socialMatch[1];
+                        shareUrl = matchedShareUrl || shareUrl;
+                        console.log('[UNIPILE_POST] Found activity ID from post ID match:', linkedinActivityId);
+                      }
+                    } else if (matchedShareUrl) {
+                      const urlMatch = matchedShareUrl.match(/urn:li:(?:activity|ugcPost):(\d+)/);
+                      if (urlMatch) {
+                        linkedinActivityId = urlMatch[1];
+                        shareUrl = matchedShareUrl;
+                        console.log('[UNIPILE_POST] Found activity ID from post ID match URL:', linkedinActivityId);
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -1439,13 +1470,15 @@ export async function createLinkedInPost(
     }
 
     // CRITICAL: Must use linkedinActivityId for comments API to work
-    // If we couldn't extract it from share_url/social_id, use data.post_id as fallback
-    // Unipile's post_id IS the LinkedIn activity ID when other fields are missing
+    // If we couldn't extract it from share_url/social_id/recent_posts, use data.post_id as fallback
+    // NOTE: This is a FALLBACK and may not be the actual LinkedIn activity ID
     if (!linkedinActivityId) {
-      console.warn('[UNIPILE_POST] Could not extract from share_url/social_id, using data.post_id as activity ID');
-      // data.post_id from Unipile POST /posts response IS the LinkedIn activity number
+      console.warn('[UNIPILE_POST] ⚠️ Could not extract from any source, using data.post_id as fallback');
+      console.warn('[UNIPILE_POST] This may not be the actual LinkedIn activity ID - please check logs above');
+      // data.post_id from Unipile POST /posts response (may not be the LinkedIn activity number)
       linkedinActivityId = data.post_id || data.id;
       console.log('[UNIPILE_POST] Using data.post_id as activity ID:', linkedinActivityId);
+      console.log('[UNIPILE_POST] WARNING: This ID may be incorrect. Check /dashboard to see actual post URL.');
     }
 
     // Now we should always have linkedinActivityId
