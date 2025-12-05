@@ -1,0 +1,13 @@
+{
+  "name": "marketing-console",
+  "description": "Marketing console development with Supabase (RevOS)",
+  "mcps": ["sentry", "exa", "semgrep", "mem0", "supabase"],
+  "tokenEstimate": 12000,
+  "mcpDetails": [
+    {"name": "sentry", "type": "remote", "description": "Error monitoring and issue tracking", "tokenEstimate": 1500},
+    {"name": "exa", "type": "remote", "description": "Web search and code context retrieval", "tokenEstimate": 1000},
+    {"name": "semgrep", "type": "binary", "description": "Security scanning and code analysis", "tokenEstimate": 800},
+    {"name": "mem0", "type": "remote", "description": "Cross-session memory persistence", "tokenEstimate": 700},
+    {"name": "supabase", "type": "remote", "description": "Supabase database, auth, and storage (remote: https://mcp.supabase.com/mcp)", "tokenEstimate": 8000}
+  ]
+}

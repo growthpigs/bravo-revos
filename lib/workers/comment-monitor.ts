@@ -466,7 +466,8 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           await replyToComment(
             job.unipile_account_id,
             job.unipile_post_id,
-            replyMessage
+            replyMessage,
+            comment.id // CRITICAL: Reply to the specific comment, not top-level
           );
           commentRepliesSent++;
           console.log(`[COMMENT_MONITOR] ✅ Comment reply sent for email capture: "${replyMessage}"`);
@@ -527,7 +528,8 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
             await replyToComment(
               job.unipile_account_id,
               job.unipile_post_id,
-              commentReply
+              commentReply,
+              comment.id // CRITICAL: Reply to the specific comment, not top-level
             );
             commentRepliesSent++;
             console.log(`[COMMENT_MONITOR] ✅ Comment reply sent: "${commentReply}"`);
@@ -587,7 +589,8 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           await replyToComment(
             job.unipile_account_id,
             job.unipile_post_id,
-            replyMessage
+            replyMessage,
+            comment.id // CRITICAL: Reply to the specific comment, not top-level
           );
           commentRepliesSent++;
           console.log(`[COMMENT_MONITOR] ✅ Comment reply sent to ${authorName}: "${replyMessage}"`);

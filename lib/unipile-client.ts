@@ -814,17 +814,19 @@ export async function getDirectMessages(
 
 /**
  * Reply to a comment on a LinkedIn post
- * Note: LinkedIn doesn't support threaded comment replies via API.
- * This posts a new comment on the post mentioning the user.
+ * Supports both top-level comments and nested replies to specific comments
  * @param accountId - Unipile account ID
  * @param postId - LinkedIn post ID (activity ID)
  * @param text - Comment text to post
+ * @param commentId - Optional: specific comment ID to reply to (creates nested reply)
+ *                    If omitted, posts a top-level comment on the post
  * @returns Response with comment status
  */
 export async function replyToComment(
   accountId: string,
   postId: string,
-  text: string
+  text: string,
+  commentId?: string
 ): Promise<{ status: string; comment_id?: string }> {
   try {
     // Mock mode for testing
@@ -833,6 +835,7 @@ export async function replyToComment(
         accountId,
         postId,
         textLength: text.length,
+        replyingToCommentId: commentId || 'top-level',
       });
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -896,9 +899,20 @@ export async function replyToComment(
 
     // STEP 2: Post the comment using the social_id
     console.log('[UNIPILE_COMMENT] Step 2: Posting comment with social_id:', socialId);
+    console.log('[UNIPILE_COMMENT] Comment type:', commentId ? `nested reply to comment ${commentId}` : 'top-level comment');
 
     const url = `${credentials.dsn}/api/v1/posts/${socialId}/comments`;
     console.log('[UNIPILE_COMMENT] Request URL:', url);
+
+    // Build request body - include comment_id for nested replies
+    const requestBody: any = {
+      account_id: accountId,
+      text,
+    };
+
+    if (commentId) {
+      requestBody.comment_id = commentId;
+    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -907,10 +921,7 @@ export async function replyToComment(
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({
-        account_id: accountId,
-        text,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     console.log('[UNIPILE_COMMENT] Response status:', response.status);
