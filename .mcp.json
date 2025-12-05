@@ -97,10 +97,12 @@
       "description": "Trello MCP - Board, list, and card management"
     },
     "supabase": {
-      "command": "supabase-mcp",
+      "command": "npx",
+      "args": ["-y", "supabase-mcp@latest", "supabase-mcp-claude"],
       "env": {
         "SUPABASE_URL": "https://trdoainmejxanrownbuz.supabase.co",
-        "SUPABASE_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODA0MTI3MDIsImV4cCI6MTk5NjA3NDcwMn0.cGFLJ77B4EBGr7OQTNbW8M_fMhXgFYvhcMeT5y1l0PE"
+        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODA0MTI3MDIsImV4cCI6MTk5NjA3NDcwMn0.cGFLJ77B4EBGr7OQTNbW8M_fMhXgFYvhcMeT5y1l0PE",
+        "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}"
       },
       "description": "Supabase MCP - Database CRUD operations for trdoainmejxanrownbuz project"
     },
