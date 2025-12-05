@@ -852,8 +852,13 @@ export async function replyToComment(
     // Unipile requires the URN format like "urn:li:activity:XXX" for the API path
     let socialId: string;
 
+    // CRITICAL FIX: Convert postId to URN format before API call
+    // The postId passed in is the raw activity number, but Unipile's API requires URN format
+    const postIdForApi = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+    console.log('[UNIPILE_COMMENT] Converted postId to URN format:', postIdForApi);
+
     try {
-      const postUrl = `${credentials.dsn}/api/v1/posts/${postId}?account_id=${accountId}`;
+      const postUrl = `${credentials.dsn}/api/v1/posts/${postIdForApi}?account_id=${accountId}`;
       console.log('[UNIPILE_COMMENT] Step 1: Retrieving post to get social_id:', postUrl);
 
       const postController = new AbortController();
