@@ -1485,37 +1485,24 @@ export async function createLinkedInPost(
     // Now we should always have linkedinActivityId
     const postId = linkedinActivityId;
 
-    // CRITICAL FIX: Construct proper LinkedIn post URL from postId if not provided
-    // LinkedIn post URLs work in format: /posts/{username}_{content}-activity-{ACTIVITY_ID}
-    if (!shareUrl && postId) {
-      let constructedUrl = '';
-
-      // First check if we already have a good share_url (shouldn't happen but check anyway)
-      if (data.share_url && !data.share_url.includes('urn:li')) {
-        constructedUrl = data.share_url;
-      } else if (profileUrl) {
-        // Extract username from profile URL
-        // Format: https://www.linkedin.com/in/{username}/ or /in/{username}
-        const usernameMatch = profileUrl.match(/\/in\/([^\/]+)/);
-        if (usernameMatch) {
-          const username = usernameMatch[1];
-          // Construct a working post URL using username and activity ID
-          // Format: /posts/{username}_post-activity-{ACTIVITY_ID}
-          constructedUrl = `https://www.linkedin.com/posts/${username}_post-activity-${postId}`;
-          console.log('[UNIPILE_POST] Constructed post URL using username:', constructedUrl);
-        } else {
-          // Fallback if username extraction fails
-          constructedUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
-          console.log('[UNIPILE_POST] Could not extract username, using activity URN format');
-        }
+    // CRITICAL FIX: Construct proper LinkedIn post URL using profile username
+    // Always override Unipile's shareUrl because it uses the URN format which is not ideal for sharing
+    if (postId && profileUrl) {
+      // Extract username from profile URL
+      // Format: https://www.linkedin.com/in/{username}/ or /in/{username}
+      const usernameMatch = profileUrl.match(/\/in\/([^\/]+)/);
+      if (usernameMatch) {
+        const username = usernameMatch[1];
+        // Construct a working post URL using username and activity ID
+        // Format: /posts/{username}_post-activity-{ACTIVITY_ID}
+        const constructedUrl = `https://www.linkedin.com/posts/${username}_post-activity-${postId}`;
+        shareUrl = constructedUrl;
+        console.log('[UNIPILE_POST] Constructed proper post URL:', constructedUrl);
       } else {
-        // No profile URL provided - use activity URN format
-        constructedUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
-        console.log('[UNIPILE_POST] No profile URL provided, using activity URN format');
+        console.warn('[UNIPILE_POST] Could not extract username from profile URL, keeping Unipile URL');
       }
-
-      shareUrl = constructedUrl;
-      console.log('[UNIPILE_POST] Final constructed URL:', shareUrl);
+    } else if (postId && !profileUrl) {
+      console.warn('[UNIPILE_POST] No profile URL provided, cannot construct proper post URL');
     }
 
     console.log('[UNIPILE_POST] Post created successfully:', {
