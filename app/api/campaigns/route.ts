@@ -140,7 +140,8 @@ export async function POST(request: NextRequest) {
 
       // Content
       post_template: validatedData.postContent,
-      trigger_word: validatedData.triggerWords.join(', '), // Store comma-separated for now
+      trigger_word: validatedData.triggerWords.join(', '), // Keep for backward compatibility
+      trigger_words: validatedData.triggerWords.map((word: string) => JSON.stringify(word)), // Store as JSONB array
 
       // DM Sequence
       dm_template_step1: validatedData.dm1,

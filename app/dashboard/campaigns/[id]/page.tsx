@@ -98,12 +98,29 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
     archived: 'bg-gray-100 text-gray-500',
   }
 
-  // Parse trigger words if stored as comma-separated string
-  const triggerWords = typeof campaign.trigger_word === 'string'
-    ? campaign.trigger_word.split(',').map((w: string) => w.trim()).filter(Boolean)
-    : Array.isArray(campaign.trigger_word)
-    ? campaign.trigger_word
-    : []
+  // Parse trigger words - supports new JSONB array and legacy comma-separated string
+  const triggerWords = (() => {
+    // Try new JSONB array format first
+    if (campaign.trigger_words && Array.isArray(campaign.trigger_words)) {
+      return campaign.trigger_words
+        .map((item: any) => {
+          // Handle JSONB stringified values (e.g., '"GUIDE"')
+          const str = typeof item === 'string' ? item : JSON.stringify(item);
+          return str.replace(/^["']|["']$/g, '').trim();
+        })
+        .filter((word: string) => word.length > 0);
+    }
+
+    // Fall back to legacy TEXT comma-separated format
+    if (campaign.trigger_word && typeof campaign.trigger_word === 'string') {
+      return campaign.trigger_word
+        .split(',')
+        .map((w: string) => w.trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  })()
 
   return (
     <div className="p-8">

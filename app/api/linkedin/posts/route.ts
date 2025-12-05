@@ -10,6 +10,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createLinkedInPost } from '@/lib/unipile-client';
 
+/**
+ * Normalize trigger words from various formats to string array
+ * Handles: array, string (comma-separated), JSONB array, null
+ */
+function normalizeTriggerWords(input: any): string[] {
+  if (!input) return [];
+
+  // Already an array
+  if (Array.isArray(input)) {
+    return input
+      .map((item: any) => {
+        // Handle JSONB stringified values
+        const str = typeof item === 'string' ? item : JSON.stringify(item);
+        return str.replace(/^["']|["']$/g, '').trim();
+      })
+      .filter((word: string) => word.length > 0);
+  }
+
+  // Comma-separated string
+  if (typeof input === 'string') {
+    return input
+      .split(',')
+      .map((word: string) => word.trim())
+      .filter((word: string) => word.length > 0);
+  }
+
+  return [];
+}
+
 export async function POST(request: NextRequest) {
   console.log('[LINKEDIN_POST_API] ========================================');
   console.log('[LINKEDIN_POST_API] POST REQUEST RECEIVED');
@@ -90,13 +119,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Get campaign_id and trigger words from request if provided
-    // triggerWords can be either a string (legacy) or array (new format)
+    // Handles: array, comma-separated string, JSONB array, null
     const { campaignId, triggerWord, triggerWords: triggerWordsArray } = body;
-    const triggerWords = triggerWordsArray || (triggerWord ? [triggerWord] : []);
-    console.log('[LINKEDIN_POST_API] Trigger words received:', {
-      triggerWordsArray,
-      triggerWord,
-      finalTriggerWords: triggerWords,
+    const triggerWords = normalizeTriggerWords(triggerWordsArray || triggerWord);
+    console.log('[LINKEDIN_POST_API] Trigger words normalized:', {
+      input: {
+        triggerWordsArray,
+        triggerWord,
+      },
+      normalized: triggerWords,
       count: triggerWords.length
     });
 
