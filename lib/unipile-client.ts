@@ -1335,6 +1335,9 @@ export async function createLinkedInPost(
 
     const data = await response.json();
 
+    // DEBUG: Log the full response to identify correct activity ID field
+    console.log('[UNIPILE_POST] Full response data:', JSON.stringify(data, null, 2));
+
     // CRITICAL: Extract the LinkedIn activity ID from share_url for comment retrieval
     // Unipile's post_id is their internal ID, but we need the LinkedIn activity ID
     // Format: https://www.linkedin.com/feed/update/urn:li:activity:7399434743425105920
