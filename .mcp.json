@@ -6,7 +6,8 @@
       "env": {
         "SUPABASE_URL": "https://trdoainmejxanrownbuz.supabase.co",
         "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW1lanhheW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIyNTQ5NTYsImV4cCI6MjA0NzgxNDk1Nn0.4ZjDkJvFkrSKHWitgnTTc_58HqiH37BLPdB0u8-aGfI",
-        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW1lanhheW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMjI1NDk1NiwiaXNzIjoyMDQ3ODE0OTU2fQ.-_DnyCiOn_UDEuNwGddPL_LFKDYTocICU4L6Tx-G3Do"
+        "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW1lanhheW5yb3duYnV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMjI1NDk1NiwiaXNzIjoyMDQ3ODE0OTU2fQ.-_DnyCiOn_UDEuNwGddPL_LFKDYTocICU4L6Tx-G3Do",
+        "MCP_API_KEY": "0b06230ae3469739284c57269a5c360e6966d6d045c57d29a7bf4ad01e3ebce6"
       },
       "description": "Supabase MCP - Database CRUD operations for trdoainmejxanrownbuz project"
     }
