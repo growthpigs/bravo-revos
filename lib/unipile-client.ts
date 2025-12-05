@@ -1435,11 +1435,19 @@ export async function createLinkedInPost(
       }
     }
 
-    // Fallback to Unipile's post_id (may not work for comments API)
-    const postId = linkedinActivityId || data.post_id || data.id;
+    // CRITICAL: Must use linkedinActivityId for comments API to work
+    // If we couldn't extract it, log full response for debugging
+    if (!linkedinActivityId) {
+      console.error('[UNIPILE_POST] CRITICAL: Could not extract LinkedIn activity ID!');
+      console.error('[UNIPILE_POST] Full response data:', JSON.stringify(data, null, 2));
+      console.warn('[UNIPILE_POST] Falling back to data.id, but comments API may fail with 404');
+    }
+
+    // Use linkedinActivityId if we have it, otherwise use data fields (may cause 404 on comments)
+    const postId = linkedinActivityId || data.id || data.post_id;
 
     // CRITICAL FIX: Construct share_url from postId if not provided
-    // postId already contains the activity ID (line above), so use it for URL construction
+    // postId should contain the activity ID, so use it for URL construction
     // This ensures we always have a valid LinkedIn post URL for campaign tracking
     if (!shareUrl && postId) {
       shareUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
@@ -1452,6 +1460,7 @@ export async function createLinkedInPost(
       final_id: postId,
       url: shareUrl,
       social_id: data.social_id,
+      has_activity_id: !!linkedinActivityId,
     });
 
     return {
