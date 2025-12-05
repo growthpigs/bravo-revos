@@ -161,6 +161,14 @@ export async function POST(request: NextRequest) {
       // Create scrape_job for comment monitoring (CRITICAL for DM automation)
       // Create ONE scrape_job per trigger word - NO DEFAULT (multi-tenant requirement)
       // NOTE: Create scrape_jobs even if post save failed, using postResult.id directly
+      console.log('[LINKEDIN_POST_API] About to create scrape_jobs:', {
+        triggerWordsCount: triggerWords.length,
+        triggerWords: triggerWords,
+        campaignId,
+        unipilePostId: postResult.id,
+        unipileAccountId
+      });
+
       if (triggerWords.length > 0) {
         // Use savedPost.id if available, otherwise create temp record with unipile_post_id
         let postIdForJob = savedPost?.id;
@@ -193,7 +201,12 @@ export async function POST(request: NextRequest) {
           console.log('[LINKEDIN_POST_API] Monitoring for trigger words:', triggerWords);
         }
       } else {
-        console.warn('[LINKEDIN_POST_API] ⚠️ No trigger words provided - DM automation NOT enabled for this post');
+        console.warn('[LINKEDIN_POST_API] ⚠️ No trigger words provided - DM automation NOT enabled for this post', {
+          triggerWordsArray,
+          triggerWord,
+          finalTriggerWords: triggerWords,
+          isEmpty: triggerWords.length === 0
+        });
       }
     }
 
