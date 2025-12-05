@@ -89,8 +89,10 @@ export async function POST(request: NextRequest) {
       console.warn('[LINKEDIN_POST_API] Could not fetch profile_url:', error);
     }
 
-    // Get campaign_id and trigger_word from request if provided
-    const { campaignId, triggerWord } = body;
+    // Get campaign_id and trigger words from request if provided
+    // triggerWords can be either a string (legacy) or array (new format)
+    const { campaignId, triggerWord, triggerWords: triggerWordsArray } = body;
+    const triggerWords = triggerWordsArray || (triggerWord ? [triggerWord] : []);
 
     // Create the post via Unipile
     console.log('[LINKEDIN_POST_API] Calling createLinkedInPost...');
@@ -151,39 +153,41 @@ export async function POST(request: NextRequest) {
       }
 
       // Create scrape_job for comment monitoring (CRITICAL for DM automation)
-      // ONLY if trigger word is provided - NO DEFAULT (multi-tenant requirement)
-      // NOTE: Create scrape_job even if post save failed, using postResult.id directly
-      if (triggerWord) {
+      // Create ONE scrape_job per trigger word - NO DEFAULT (multi-tenant requirement)
+      // NOTE: Create scrape_jobs even if post save failed, using postResult.id directly
+      if (triggerWords.length > 0) {
         // Use savedPost.id if available, otherwise create temp record with unipile_post_id
         let postIdForJob = savedPost?.id;
 
         if (!postIdForJob) {
           // Post save failed but we can still monitor using just unipile_post_id
-          console.warn('[LINKEDIN_POST_API] Post save failed, creating scrape_job without post record');
+          console.warn('[LINKEDIN_POST_API] Post save failed, creating scrape_jobs without post record');
         }
 
-        const { data: scrapeJob, error: scrapeError } = await supabase
+        // Create a scrape_job for EACH trigger word (so all words are monitored)
+        const scrapeJobsData = triggerWords.map((word: string) => ({
+          campaign_id: campaignId || null,
+          post_id: postIdForJob || null,  // May be null if post save failed
+          unipile_post_id: postResult.id,
+          unipile_account_id: unipileAccountId,
+          trigger_word: word,  // NO DEFAULT - must come from campaign
+          status: 'scheduled',  // Must be 'scheduled' for comment-monitor to pick it up
+          next_check: new Date().toISOString(),  // CRITICAL: Set next_check for cron pickup
+        }));
+
+        const { data: scrapeJobs, error: scrapeError } = await supabase
           .from('scrape_jobs')
-          .insert({
-            campaign_id: campaignId || null,
-            post_id: postIdForJob || null,  // May be null if post save failed
-            unipile_post_id: postResult.id,
-            unipile_account_id: unipileAccountId,
-            trigger_word: triggerWord,  // NO DEFAULT - must come from campaign
-            status: 'scheduled',  // Must be 'scheduled' for comment-monitor to pick it up
-            next_check: new Date().toISOString(),  // CRITICAL: Set next_check for cron pickup
-          })
-          .select()
-          .single();
+          .insert(scrapeJobsData)
+          .select();
 
         if (scrapeError) {
-          console.error('[LINKEDIN_POST_API] Failed to create scrape_job:', scrapeError);
+          console.error('[LINKEDIN_POST_API] Failed to create scrape_jobs:', scrapeError);
         } else {
-          console.log('[LINKEDIN_POST_API] ✅ Scrape job created for monitoring:', scrapeJob.id);
-          console.log('[LINKEDIN_POST_API] Monitoring for trigger word:', triggerWord);
+          console.log('[LINKEDIN_POST_API] ✅ Created', scrapeJobs?.length || 0, 'scrape jobs for monitoring');
+          console.log('[LINKEDIN_POST_API] Monitoring for trigger words:', triggerWords);
         }
       } else {
-        console.warn('[LINKEDIN_POST_API] ⚠️ No trigger word provided - DM automation NOT enabled for this post');
+        console.warn('[LINKEDIN_POST_API] ⚠️ No trigger words provided - DM automation NOT enabled for this post');
       }
     }
 
