@@ -106,6 +106,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
 
       if (data.postContent) {
         try {
+          console.log('[CAMPAIGN_LAUNCH] Step 2: Publishing to LinkedIn with trigger words:', data.triggerWords)
           const publishResponse = await fetch('/api/linkedin/posts', {
             method: 'POST',
             headers: {

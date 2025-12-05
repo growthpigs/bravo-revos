@@ -93,6 +93,12 @@ export async function POST(request: NextRequest) {
     // triggerWords can be either a string (legacy) or array (new format)
     const { campaignId, triggerWord, triggerWords: triggerWordsArray } = body;
     const triggerWords = triggerWordsArray || (triggerWord ? [triggerWord] : []);
+    console.log('[LINKEDIN_POST_API] Trigger words received:', {
+      triggerWordsArray,
+      triggerWord,
+      finalTriggerWords: triggerWords,
+      count: triggerWords.length
+    });
 
     // Create the post via Unipile
     console.log('[LINKEDIN_POST_API] Calling createLinkedInPost...');
