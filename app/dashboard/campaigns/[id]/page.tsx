@@ -16,7 +16,8 @@ import {
   Edit,
   Trash2,
   Pause,
-  Play
+  Play,
+  Link as LinkIcon
 } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -138,6 +139,18 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             <Badge className={statusColors[campaign.status]} variant="secondary">
               {campaign.status}
             </Badge>
+            {campaign.last_post_url && (
+              <a
+                href={campaign.last_post_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm">
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  View Post
+                </Button>
+              </a>
+            )}
             <RepostButton
               campaignId={campaign.id}
               campaignName={campaign.name}
@@ -284,6 +297,20 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
             <CardDescription>LinkedIn post template</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {campaign.last_post_url && (
+              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                <p className="text-sm font-medium text-emerald-900 mb-2">Published Post</p>
+                <a
+                  href={campaign.last_post_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-emerald-600 hover:underline flex items-center gap-1 break-all"
+                >
+                  View on LinkedIn
+                  <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                </a>
+              </div>
+            )}
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">Post Template</p>
               <div className="bg-gray-50 p-4 rounded-lg text-sm whitespace-pre-wrap">
