@@ -32,22 +32,25 @@ WHERE trigger_word IS NULL OR trigger_word = '';
 
 -- Handle non-empty comma-separated strings
 -- Split by comma, trim whitespace, remove empty strings, convert to JSONB array
-UPDATE campaigns
-SET trigger_words = array_agg(
-  to_jsonb(TRIM(word))
-  ORDER BY TRIM(word)
-)
+UPDATE campaigns c
+SET trigger_words = subquery.words_array
 FROM (
   SELECT
-    campaigns.id,
-    TRIM(unnest(string_to_array(trigger_word, ','))) as word
-  FROM campaigns
-  WHERE trigger_word IS NOT NULL
-    AND trigger_word != ''
-    AND LENGTH(TRIM(trigger_word)) > 0
-) AS words
-WHERE campaigns.id = words.id
-GROUP BY campaigns.id;
+    id,
+    array_agg(to_jsonb(word) ORDER BY word) as words_array
+  FROM (
+    SELECT
+      id,
+      TRIM(unnest(string_to_array(trigger_word, ','))) as word
+    FROM campaigns
+    WHERE trigger_word IS NOT NULL
+      AND trigger_word != ''
+      AND LENGTH(TRIM(trigger_word)) > 0
+  ) AS split_words
+  WHERE word != ''
+  GROUP BY id
+) AS subquery
+WHERE c.id = subquery.id;
 
 -- ============================================================================
 -- STEP 4: Create GIN index for efficient querying
