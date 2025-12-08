@@ -10,6 +10,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { NextRequest } from 'next/server';
 
 // Mock Supabase client
 jest.mock('@/lib/supabase/server', () => ({
@@ -114,7 +115,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
         .mockReturnValueOnce(documentsQuery); // documents query
 
       const { GET } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base?limit=20&offset=0');
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base?limit=20&offset=0');
       const response = await GET(request);
       const data = await response.json();
 
@@ -143,7 +144,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
       mockSupabase.from.mockReturnValue(mockQuery);
 
       const { GET } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base?file_type=markdown');
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base?file_type=markdown');
       await GET(request);
 
       // Verify file_type filter was applied
@@ -171,7 +172,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
       mockSupabase.from.mockReturnValue(mockQuery);
 
       const { GET } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base?search=test');
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base?search=test');
       await GET(request);
 
       // Verify search filter was applied
@@ -185,7 +186,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
       });
 
       const { GET } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base');
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base');
       const response = await GET(request);
 
       expect(response.status).toBe(401);
@@ -216,7 +217,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
       mockSupabase.from.mockReturnValue(mockQuery);
 
       const { POST } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base', {
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base', {
         method: 'POST',
         body: JSON.stringify({
           title: 'New Document',
@@ -235,7 +236,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
 
     it('should return 400 if title or content is missing', async () => {
       const { POST } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base', {
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base', {
         method: 'POST',
         body: JSON.stringify({
           title: 'Test',
@@ -272,7 +273,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
       mockSupabase.from.mockReturnValue(mockQuery);
 
       const { GET } = await import('@/app/api/knowledge-base/search/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base/search?q=test');
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base/search?q=test');
       const response = await GET(request);
       const data = await response.json();
 
@@ -302,7 +303,7 @@ describe('Knowledge Base Dashboard - Phase 1: KB Dashboard', () => {
       });
 
       const { POST } = await import('@/app/api/knowledge-base/search/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base/search', {
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base/search', {
         method: 'POST',
         body: JSON.stringify({
           query: 'test query',
@@ -382,7 +383,7 @@ describe('Knowledge Base Dashboard - Phase 2: Campaign Integration', () => {
         .mockReturnValueOnce(mockDocsQuery); // knowledge_base_documents query
 
       const { GET } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base?campaign_id=campaign-1');
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base?campaign_id=campaign-1');
       const response = await GET(request);
       const data = await response.json();
 
@@ -431,7 +432,7 @@ describe('Knowledge Base Dashboard - Phase 2: Campaign Integration', () => {
         .mockReturnValueOnce(mockDocsQuery); // knowledge_base_documents query (shouldn't be called but needed for safety)
 
       const { GET } = await import('@/app/api/knowledge-base/route');
-      const request = new Request('http://localhost:3000/api/knowledge-base?campaign_id=empty-campaign');
+      const request = new NextRequest('http://localhost:3000/api/knowledge-base?campaign_id=empty-campaign');
       const response = await GET(request);
       const data = await response.json();
 
