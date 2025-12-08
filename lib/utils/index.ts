@@ -64,3 +64,31 @@ export {
 
 // Re-export existing utilities
 export { deepMerge } from './deep-merge';
+
+// Cryptographic utilities
+export {
+  generateSecureToken,
+  generateVerificationCode,
+} from './crypto';
+
+// Single instance enforcement (for workers)
+export {
+  enforceSingleInstance,
+  type ReleaseSingleInstance,
+  type SingleInstanceOptions,
+} from './single-instance';
+
+// Lead magnet template mapping
+export {
+  mapTemplateToAnswers,
+  answersToOffering,
+  type LeadMagnetTemplate,
+  type SmartBuilderAnswers,
+  type OfferingData,
+} from './template-mapper';
+
+// Trigger word parsing utilities
+export {
+  parseTriggerWords,
+  normalizeTriggerWords,
+} from './trigger-words';

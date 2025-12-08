@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, CheckCircle, RefreshCw, Save, ChevronDown, Info, Plus, Edit2, Trash2 } from 'lucide-react';
 import { deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
-import { ConsoleConfig, safeParseConsoleConfig, validateCartridgeSize } from '@/lib/validation/console-validation';
+import { ConsoleConfig, safeParseConsoleConfig, validateCartridgeSize } from '@/lib/validations/console';
 import { ConsoleMetadataModal, ConsoleMetadataInput } from './components/ConsoleMetadataModal';
 import {
   AlertDialog,

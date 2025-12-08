@@ -25,7 +25,7 @@ import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
 // Type-only import - should be stripped at compile time
 import type { Message } from '@/lib/cartridges/types';
-import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
+import { safeParseLegacyV1Request } from '@/lib/validations/chat';
 import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
 import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/session-manager';
 import { OrchestrationResponseBuilder } from '@/lib/orchestration/response-builder';

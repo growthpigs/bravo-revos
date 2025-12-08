@@ -4,7 +4,7 @@
  * Ensures all incoming requests are validated before processing
  */
 
-import { validateChatRequest, safeParseChatRequest } from '@/lib/validation/chat-validation';
+import { validateChatRequest, safeParseChatRequest } from '@/lib/validations/chat';
 
 describe('Chat Request Validation', () => {
   describe('validateChatRequest', () => {

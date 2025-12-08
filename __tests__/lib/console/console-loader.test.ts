@@ -5,7 +5,7 @@
  */
 
 import { loadConsolePrompt, loadAllConsoles, assembleSystemPrompt } from '@/lib/console/console-loader';
-import { ConsoleConfig } from '@/lib/validation/console-validation';
+import { ConsoleConfig } from '@/lib/validations/console';
 
 // Mock factory for creating Supabase-like objects
 function createMockSupabase() {

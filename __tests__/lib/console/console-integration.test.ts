@@ -5,7 +5,7 @@
  */
 
 import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
-import { safeParseConsoleConfig } from '@/lib/validation/console-validation';
+import { safeParseConsoleConfig } from '@/lib/validations/console';
 
 // Mock Supabase factory
 function createMockSupabase(mockData: any) {

@@ -23,7 +23,7 @@ import {
   type CartridgeMemories,
 } from '@/lib/cartridges/retrieval';
 import { assembleSystemPrompt } from '@/lib/console/console-loader';
-import type { ConsoleConfig } from '@/lib/validation/console-validation';
+import type { ConsoleConfig } from '@/lib/validations/console';
 
 // Test user ID
 const TEST_USER_ID = 'test-user-cartridge-e2e';

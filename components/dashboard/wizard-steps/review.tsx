@@ -206,7 +206,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
         postUrl.includes('activity-')
       );
 
-      if (podTriggered && isValidPostUrl) {
+      if (podTriggered && isValidPostUrl && postUrl) {
         toast.success('Campaign Live + Pod Activated!', {
           id: 'launch-progress',
           description: 'Post is live and your pod is boosting it!',
@@ -216,7 +216,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
             onClick: () => window.open(postUrl, '_blank'),
           },
         })
-      } else if (isValidPostUrl) {
+      } else if (isValidPostUrl && postUrl) {
         toast.success('Campaign Live on LinkedIn!', {
           id: 'launch-progress',
           description: 'DM automation is monitoring for comments.',

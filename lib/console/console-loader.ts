@@ -16,7 +16,7 @@ import {
   ConsoleConfig,
   safeParseConsoleConfig,
   validateCartridgeSize,
-} from '@/lib/validation/console-validation';
+} from '@/lib/validations/console';
 import {
   CartridgeMemories,
   formatStyleForPrompt,

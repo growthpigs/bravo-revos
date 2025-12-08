@@ -17,7 +17,7 @@ import { MarketingConsole } from '@/lib/console/marketing-console';
 import { LinkedInCartridge } from '@/lib/cartridges/linkedin-cartridge';
 import { VoiceCartridge } from '@/lib/cartridges/voice-cartridge';
 import type { Message } from '@/lib/cartridges/types';
-import { safeParseLegacyV1Request } from '@/lib/validation/chat-validation';
+import { safeParseLegacyV1Request } from '@/lib/validations/chat';
 import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
 import { getOrCreateSession, getConversationHistory, saveMessages } from '@/lib/session-manager';
 import { OrchestrationResponseBuilder } from '@/lib/orchestration/response-builder';

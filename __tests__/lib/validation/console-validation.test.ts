@@ -16,7 +16,7 @@ import {
   UICartridgeSchema,
   validateCartridgeSize,
   safeParseConsoleConfig,
-} from '@/lib/validation/console-validation';
+} from '@/lib/validations/console';
 
 describe('Console Validation', () => {
   describe('OperationsCartridgeSchema', () => {

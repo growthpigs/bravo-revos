@@ -1482,8 +1482,12 @@ export async function createLinkedInPost(
       console.log('[UNIPILE_POST] WARNING: This ID may be incorrect. Check /dashboard to see actual post URL.');
     }
 
-    // Now we should always have linkedinActivityId
-    const postId = linkedinActivityId;
+    // Validate we have a post ID - throw if not (should never happen with valid Unipile response)
+    if (!linkedinActivityId) {
+      console.error('[UNIPILE_POST] CRITICAL: No post ID available from any source');
+      throw new Error('Failed to get LinkedIn post ID from Unipile response');
+    }
+    const postId: string = linkedinActivityId;
 
     // CRITICAL FIX: Construct proper LinkedIn post URL using profile username
     // Always override Unipile's shareUrl because it uses the URN format which is not ideal for sharing
@@ -1516,7 +1520,7 @@ export async function createLinkedInPost(
 
     return {
       id: postId,
-      url: shareUrl || null,  // Return null instead of empty string
+      url: shareUrl || undefined,  // Return undefined for optional field (matches interface)
       text: data.text || text,
       created_at: data.created_at || data.parsed_datetime || new Date().toISOString(),
       status: data.status || 'published',

@@ -22,7 +22,7 @@ import {
   KnowledgeCartridgeSchema,
   MemoryCartridgeSchema,
   UICartridgeSchema,
-} from '@/lib/validation/console-validation';
+} from '@/lib/validations/console';
 import { deepMerge, deepEqual, setNestedValue } from '@/lib/utils/deep-merge';
 import { loadConsolePrompt, assembleSystemPrompt } from '@/lib/console/console-loader';
 

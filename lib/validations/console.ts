@@ -122,7 +122,7 @@ export type UICartridge = z.infer<typeof UICartridgeSchema>;
 /**
  * Validate cartridge size (max 50KB JSON)
  */
-export function validateCartridgeSize(cartridge: any, name: string): void {
+export function validateCartridgeSize(cartridge: unknown, name: string): void {
   const size = JSON.stringify(cartridge).length;
   if (size > MAX_CARTRIDGE_SIZE) {
     throw new Error(`${name} too large: ${size} chars (max ${MAX_CARTRIDGE_SIZE})`);
