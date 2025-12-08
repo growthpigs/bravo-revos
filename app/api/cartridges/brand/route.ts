@@ -1,271 +1,208 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server'
+import {
+  ok,
+  okMessage,
+  notFound,
+  serverError,
+  requireAuth,
+  parseJsonBody,
+} from '@/lib/api'
 
-export async function GET(request: NextRequest) {
-  try {
-    console.log('[TRACE_API] 9. API: Brand GET started');
-    console.log('[TRACE_API] 10. API: Headers:', Object.fromEntries(request.headers.entries()));
-    console.log('[TRACE_API] 11. API: Cookies:', request.cookies.getAll());
+export async function GET() {
+  const auth = await requireAuth()
+  if (auth instanceof NextResponse) return auth
+  const { user, supabase } = auth
 
-    const supabase = await createClient();
-    console.log('[TRACE_API] 12. API: Supabase client created:', !!supabase);
+  // Fetch user's brand cartridge (should only have one)
+  const { data, error } = await supabase
+    .from('brand_cartridges')
+    .select('*')
+    .eq('user_id', user.id)
+    .single()
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('[TRACE_API] 13. API: Auth result:', { user: !!user, error: authError?.message });
-
-    if (authError || !user) {
-      console.error('[TRACE_API] 14. API: Auth failed:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    console.log('[TRACE_API] 15. API: User authenticated:', user.id);
-
-    // Fetch user's brand cartridge (should only have one)
-    console.log('[TRACE_API] 16. API: Querying brand_cartridges for user:', user.id);
-
-    const { data, error } = await supabase
-      .from('brand_cartridges')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    console.log('[TRACE_API] 17. API: Query result:', {
-      data: !!data,
-      error: error?.code,
-      errorMessage: error?.message
-    });
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('[TRACE_API] 18. API: Database error:', error);
-      console.error('Error fetching brand:', error);
-      return NextResponse.json({ error: 'Failed to fetch brand' }, { status: 500 });
-    }
-
-    // If no brand exists, create default one
-    if (!data) {
-      const { data: newBrand, error: createError } = await supabase
-        .from('brand_cartridges')
-        .insert({
-          user_id: user.id,
-          name: 'My Brand',
-          core_values: [],
-          brand_personality: [],
-          brand_colors: {
-            primary: '#000000',
-            secondary: '#FFFFFF',
-            accent: '#0066CC'
-          },
-          social_links: {}
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('Error creating default brand:', createError);
-        return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 });
-      }
-
-      return NextResponse.json({ brand: newBrand });
-    }
-
-    return NextResponse.json({ brand: data });
-  } catch (error) {
-    console.error('Error in GET /api/cartridges/brand:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  if (error && error.code !== 'PGRST116') {
+    // PGRST116 = no rows returned
+    console.error('Error fetching brand:', error)
+    return serverError('Failed to fetch brand')
   }
+
+  // If no brand exists, create default one
+  if (!data) {
+    const { data: newBrand, error: createError } = await supabase
+      .from('brand_cartridges')
+      .insert({
+        user_id: user.id,
+        name: 'My Brand',
+        core_values: [],
+        brand_personality: [],
+        brand_colors: {
+          primary: '#000000',
+          secondary: '#FFFFFF',
+          accent: '#0066CC',
+        },
+        social_links: {},
+      })
+      .select()
+      .single()
+
+    if (createError) {
+      console.error('Error creating default brand:', createError)
+      return serverError('Failed to create brand')
+    }
+
+    return ok({ brand: newBrand })
+  }
+
+  return ok({ brand: data })
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createClient();
+  const auth = await requireAuth()
+  if (auth instanceof NextResponse) return auth
+  const { user, supabase } = auth
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const body = await parseJsonBody(request)
+  if (body instanceof NextResponse) return body
+  const brandData = body as Record<string, unknown>
 
-    const body = await request.json();
+  // Check if user already has a brand
+  const { data: existing, error: checkError } = await supabase
+    .from('brand_cartridges')
+    .select('id')
+    .eq('user_id', user.id)
+    .single()
 
-    // Check if user already has a brand
-    const { data: existing, error: checkError } = await supabase
-      .from('brand_cartridges')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking brand:', checkError);
-      return NextResponse.json({ error: 'Failed to check brand' }, { status: 500 });
-    }
-
-    let result;
-
-    if (existing) {
-      // Update existing brand
-      const { data, error } = await supabase
-        .from('brand_cartridges')
-        .update({
-          ...body,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existing.id)
-        .eq('user_id', user.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating brand:', error);
-        return NextResponse.json({ error: 'Failed to update brand' }, { status: 500 });
-      }
-
-      result = data;
-    } else {
-      // Create new brand
-      const { data, error } = await supabase
-        .from('brand_cartridges')
-        .insert({
-          user_id: user.id,
-          name: body.name || 'My Brand',
-          company_name: body.company_name,
-          company_description: body.company_description,
-          company_tagline: body.company_tagline,
-          industry: body.industry,
-          target_audience: body.target_audience,
-          core_values: body.core_values || [],
-          brand_voice: body.brand_voice,
-          brand_personality: body.brand_personality || [],
-          logo_url: body.logo_url,
-          brand_colors: body.brand_colors || {
-            primary: '#000000',
-            secondary: '#FFFFFF',
-            accent: '#0066CC'
-          },
-          social_links: body.social_links || {},
-          core_messaging: body.core_messaging
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating brand:', error);
-        return NextResponse.json({ error: 'Failed to create brand' }, { status: 500 });
-      }
-
-      result = data;
-    }
-
-    return NextResponse.json({ brand: result });
-  } catch (error) {
-    console.error('Error in POST /api/cartridges/brand:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  if (checkError && checkError.code !== 'PGRST116') {
+    console.error('Error checking brand:', checkError)
+    return serverError('Failed to check brand')
   }
-}
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const supabase = await createClient();
+  let result
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-
-    // DEBUG: Log what we received
-    console.log('[BRAND_PATCH] Received data:', {
-      company_description: body.company_description?.substring(0, 50),
-      industry: body.industry,
-      target_audience: body.target_audience,
-      has_core_messaging: !!body.core_messaging,
-      all_keys: Object.keys(body)
-    });
-
-    // Update brand (user can only have one)
+  if (existing) {
+    // Update existing brand
     const { data, error } = await supabase
       .from('brand_cartridges')
       .update({
-        ...body,
-        updated_at: new Date().toISOString()
+        ...brandData,
+        updated_at: new Date().toISOString(),
       })
+      .eq('id', existing.id)
       .eq('user_id', user.id)
       .select()
-      .single();
+      .single()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
-      }
-
-      // If schema cache issue (PGRST204), wait and retry once
-      if (error.code === 'PGRST204') {
-        console.log('[BRAND_PATCH] Schema cache issue detected - column not recognized yet');
-        console.log('[BRAND_PATCH] Try refreshing the page in 30 seconds or click Save Brand Info (without core messaging) first');
-      }
-
-      console.error('[BRAND_PATCH] Error updating brand:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        full: JSON.stringify(error)
-      });
-      return NextResponse.json({
-        error: 'Failed to update brand',
-        details: error.message
-      }, { status: 500 });
+      console.error('Error updating brand:', error)
+      return serverError('Failed to update brand')
     }
 
-    return NextResponse.json({ brand: data });
-  } catch (error) {
-    console.error('Error in PATCH /api/cartridges/brand:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    result = data
+  } else {
+    // Create new brand
+    const { data, error } = await supabase
+      .from('brand_cartridges')
+      .insert({
+        user_id: user.id,
+        name: brandData.name || 'My Brand',
+        company_name: brandData.company_name,
+        company_description: brandData.company_description,
+        company_tagline: brandData.company_tagline,
+        industry: brandData.industry,
+        target_audience: brandData.target_audience,
+        core_values: brandData.core_values || [],
+        brand_voice: brandData.brand_voice,
+        brand_personality: brandData.brand_personality || [],
+        logo_url: brandData.logo_url,
+        brand_colors: brandData.brand_colors || {
+          primary: '#000000',
+          secondary: '#FFFFFF',
+          accent: '#0066CC',
+        },
+        social_links: brandData.social_links || {},
+        core_messaging: brandData.core_messaging,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating brand:', error)
+      return serverError('Failed to create brand')
+    }
+
+    result = data
   }
+
+  return ok({ brand: result })
 }
 
-export async function DELETE(request: NextRequest) {
-  try {
-    const supabase = await createClient();
+export async function PATCH(request: NextRequest) {
+  const auth = await requireAuth()
+  if (auth instanceof NextResponse) return auth
+  const { user, supabase } = auth
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const body = await parseJsonBody(request)
+  if (body instanceof NextResponse) return body
+  const brandData = body as Record<string, unknown>
+
+  // Update brand (user can only have one)
+  const { data, error } = await supabase
+    .from('brand_cartridges')
+    .update({
+      ...brandData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', user.id)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return notFound('Brand not found')
     }
 
-    // Get brand to find logo
-    const { data: brand, error: fetchError } = await supabase
-      .from('brand_cartridges')
-      .select('logo_url')
-      .eq('user_id', user.id)
-      .single();
-
-    if (fetchError || !brand) {
-      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
-    }
-
-    // Delete logo from storage if exists
-    if (brand.logo_url) {
-      await supabase.storage.from('brand-assets').remove([brand.logo_url]);
-    }
-
-    // Delete brand record
-    const { error } = await supabase
-      .from('brand_cartridges')
-      .delete()
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error deleting brand:', error);
-      return NextResponse.json({ error: 'Failed to delete brand' }, { status: 500 });
-    }
-
-    return NextResponse.json({ message: 'Brand deleted successfully' });
-  } catch (error) {
-    console.error('Error in DELETE /api/cartridges/brand:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[BRAND_PATCH] Error updating brand:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+    })
+    return serverError(`Failed to update brand: ${error.message}`)
   }
+
+  return ok({ brand: data })
+}
+
+export async function DELETE() {
+  const auth = await requireAuth()
+  if (auth instanceof NextResponse) return auth
+  const { user, supabase } = auth
+
+  // Get brand to find logo
+  const { data: brand, error: fetchError } = await supabase
+    .from('brand_cartridges')
+    .select('logo_url')
+    .eq('user_id', user.id)
+    .single()
+
+  if (fetchError || !brand) {
+    return notFound('Brand not found')
+  }
+
+  // Delete logo from storage if exists
+  if (brand.logo_url) {
+    await supabase.storage.from('brand-assets').remove([brand.logo_url])
+  }
+
+  // Delete brand record
+  const { error } = await supabase
+    .from('brand_cartridges')
+    .delete()
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Error deleting brand:', error)
+    return serverError('Failed to delete brand')
+  }
+
+  return okMessage('Brand deleted successfully')
 }
