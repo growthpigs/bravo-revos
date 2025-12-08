@@ -9,35 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createLinkedInPost } from '@/lib/unipile-client';
-
-/**
- * Normalize trigger words from various formats to string array
- * Handles: array, string (comma-separated), JSONB array, null
- */
-function normalizeTriggerWords(input: any): string[] {
-  if (!input) return [];
-
-  // Already an array
-  if (Array.isArray(input)) {
-    return input
-      .map((item: any) => {
-        // Handle JSONB stringified values
-        const str = typeof item === 'string' ? item : JSON.stringify(item);
-        return str.replace(/^["']|["']$/g, '').trim();
-      })
-      .filter((word: string) => word.length > 0);
-  }
-
-  // Comma-separated string
-  if (typeof input === 'string') {
-    return input
-      .split(',')
-      .map((word: string) => word.trim())
-      .filter((word: string) => word.length > 0);
-  }
-
-  return [];
-}
+import { normalizeTriggerWords } from '@/lib/utils/trigger-words';
 
 export async function POST(request: NextRequest) {
   console.log('[LINKEDIN_POST_API] ========================================');
@@ -79,11 +51,36 @@ export async function POST(request: NextRequest) {
 
     console.log('[LINKEDIN_POST_API] Creating post for user:', user.email);
 
-    // If accountId provided, use it; otherwise get user's first active LinkedIn account
-    let unipileAccountId = accountId;
+    // Get user's LinkedIn account - ALWAYS verify ownership
+    // If accountId provided, verify it belongs to the authenticated user
+    // If not provided, get user's first active LinkedIn account
+    let unipileAccountId: string;
 
-    if (!unipileAccountId) {
-      // Fetch user's LinkedIn accounts
+    if (accountId) {
+      // SECURITY: Verify the provided accountId belongs to the authenticated user
+      const { data: verifiedAccount, error: verifyError } = await supabase
+        .from('linkedin_accounts')
+        .select('unipile_account_id')
+        .eq('unipile_account_id', accountId)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (verifyError || !verifiedAccount) {
+        console.warn('[LINKEDIN_POST_API] Account ownership verification failed:', {
+          providedAccountId: accountId,
+          userId: user.id,
+          error: verifyError?.message
+        });
+        return NextResponse.json(
+          { error: 'Invalid or unauthorized LinkedIn account' },
+          { status: 403 }
+        );
+      }
+
+      unipileAccountId = verifiedAccount.unipile_account_id;
+    } else {
+      // No accountId provided - fetch user's first active LinkedIn account
       const { data: linkedinAccounts, error: accountsError } = await supabase
         .from('linkedin_accounts')
         .select('unipile_account_id, status')

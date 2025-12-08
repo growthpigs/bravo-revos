@@ -39,9 +39,18 @@ export const campaignCreateSchema = z.object({
     .max(3000, 'Post content must be less than 3000 characters'),
 
   // Step 4: Trigger Words
-  triggerWords: z.array(z.string())
+  // Each word is trimmed, validated for length/characters, and uppercased for consistency
+  triggerWords: z.array(
+    z.string()
+      .trim()
+      .min(1, 'Trigger word cannot be empty')
+      .max(50, 'Trigger word must be 50 characters or less')
+      .regex(/^[a-zA-Z0-9_\-\s]+$/, 'Trigger words can only contain letters, numbers, spaces, hyphens, and underscores')
+      .transform(s => s.toUpperCase())
+  )
     .min(1, 'At least one trigger word is required')
-    .max(10, 'Maximum 10 trigger words allowed'),
+    .max(10, 'Maximum 10 trigger words allowed')
+    .transform(words => [...new Set(words)]), // Deduplicate after uppercasing
 
   // Step 5: DM Sequence
   dm1: z.string()

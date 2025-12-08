@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { parseTriggerWords } from '@/lib/utils/trigger-words'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -99,28 +100,7 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
   }
 
   // Parse trigger words - supports new JSONB array and legacy comma-separated string
-  const triggerWords = (() => {
-    // Try new JSONB array format first
-    if (campaign.trigger_words && Array.isArray(campaign.trigger_words)) {
-      return campaign.trigger_words
-        .map((item: any) => {
-          // Handle JSONB stringified values (e.g., '"GUIDE"')
-          const str = typeof item === 'string' ? item : JSON.stringify(item);
-          return str.replace(/^["']|["']$/g, '').trim();
-        })
-        .filter((word: string) => word.length > 0);
-    }
-
-    // Fall back to legacy TEXT comma-separated format
-    if (campaign.trigger_word && typeof campaign.trigger_word === 'string') {
-      return campaign.trigger_word
-        .split(',')
-        .map((w: string) => w.trim())
-        .filter(Boolean);
-    }
-
-    return [];
-  })()
+  const triggerWords = parseTriggerWords(campaign)
 
   return (
     <div className="p-8">
