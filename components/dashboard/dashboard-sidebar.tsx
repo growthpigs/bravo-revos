@@ -54,6 +54,12 @@ interface MenuSection {
 
 const menuSections: MenuSection[] = [
   {
+    title: "OVERVIEW",
+    items: [
+      { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+    ]
+  },
+  {
     title: "OUTREACH",
     items: [
       { icon: FileText, label: "Posts", href: "/dashboard/posts" },
@@ -78,6 +84,13 @@ const menuSections: MenuSection[] = [
       { icon: Search, label: "Lead Finder", href: "/dashboard/leads/finder", badge: "Soon" },
       { icon: Users2, label: "Leads", href: "/dashboard/leads" },
       { icon: BarChart, label: "Analytics", href: "/dashboard/analytics", badge: "Soon" }
+    ]
+  },
+  {
+    title: "INTEGRATIONS",
+    items: [
+      { icon: Linkedin, label: "LinkedIn Account", href: "/dashboard/linkedin" },
+      { icon: Settings, label: "Settings", href: "/dashboard/settings" }
     ]
   },
   {

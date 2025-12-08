@@ -1,5 +1,5 @@
--- Supabase Project: kvjcidxbyimoswntpjcp
--- Click to open in SQL editor: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/new
+-- Supabase Project: trdoainmejxanrownbuz
+-- Click to open in SQL editor: https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/new
 --
 -- Admin Users Table
 -- Simple dedicated table to track which users have admin privileges
@@ -17,7 +17,7 @@ CREATE TABLE admin_users (
 INSERT INTO admin_users (user_id, notes)
 SELECT id, 'Bootstrap admin seeded during migration 035'
 FROM auth.users
-WHERE email = 'rodericandrews@icloud.com'
+WHERE email = 'rodericandrews@gmail.com'
 ON CONFLICT (user_id) DO NOTHING;
 
 -- CRITICAL: Verify admin was created
@@ -28,7 +28,7 @@ BEGIN
   SELECT COUNT(*) INTO admin_count FROM admin_users;
 
   IF admin_count = 0 THEN
-    RAISE EXCEPTION 'FATAL: Bootstrap admin not created. User rodericandrews@icloud.com must exist in auth.users before running this migration.';
+    RAISE EXCEPTION 'FATAL: Bootstrap admin not created. User rodericandrews@gmail.com must exist in auth.users before running this migration.';
   END IF;
 
   RAISE NOTICE 'Bootstrap admin verified: % admin(s) exist', admin_count;

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Megaphone, Users2, TrendingUp, Zap, Plus } from 'lucide-react'
+import { Megaphone, Users2, TrendingUp, Zap, Plus, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { RateLimitStatus } from '@/components/rate-limit-status'
 import { PodStatusBanner } from '@/components/pod-status-banner'
@@ -37,9 +37,17 @@ export default async function DashboardPage() {
     .eq('campaigns.client_id', userData?.client_id || '')
     .eq('status', 'webhook_sent')
 
-  const conversionRate = leadsCount && conversionsCount 
+  const conversionRate = leadsCount && conversionsCount
     ? Math.round((conversionsCount / leadsCount) * 100)
     : 0
+
+  // Get recent leads for the card
+  const { data: recentLeads } = await supabase
+    .from('leads')
+    .select('id, first_name, last_name, email, status, created_at, campaigns!inner(name, client_id)')
+    .eq('campaigns.client_id', userData?.client_id || '')
+    .order('created_at', { ascending: false })
+    .limit(5)
 
   const stats = [
     {
@@ -133,21 +141,21 @@ export default async function DashboardPage() {
             <CardDescription>Get started with common tasks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-6">
-            <Link href="/workflows">
+            <Link href="/dashboard/campaigns">
               <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
                 <Megaphone className="h-4 w-4 mr-2" />
-                Browse Workflows
+                View Campaigns
               </Button>
             </Link>
             <Link href="/dashboard/campaigns/new">
               <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
-                <Megaphone className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2" />
                 Create Campaign
               </Button>
             </Link>
             <Link href="/dashboard/lead-magnets">
               <Button variant="outline" className="w-full justify-start hover:bg-gray-50">
-                <Plus className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4 mr-2" />
                 Upload Lead Magnet
               </Button>
             </Link>
@@ -166,7 +174,29 @@ export default async function DashboardPage() {
             <CardDescription>Latest lead activity</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-500">No leads yet</p>
+            {recentLeads && recentLeads.length > 0 ? (
+              <div className="space-y-3">
+                {recentLeads.map((lead: any) => (
+                  <div key={lead.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {lead.first_name} {lead.last_name}
+                      </p>
+                      <p className="text-xs text-gray-500">{lead.email || 'No email yet'}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      lead.status === 'webhook_sent' ? 'bg-green-100 text-green-700' :
+                      lead.status === 'dm_sent' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {lead.status?.replace('_', ' ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No leads yet. Create a campaign to start capturing leads!</p>
+            )}
           </CardContent>
         </Card>
       </div>
