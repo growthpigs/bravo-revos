@@ -2,12 +2,27 @@
 
 # Apply RLS Migration 009 to Supabase
 # This script executes raw SQL via Supabase REST API
+#
+# SECURITY: Load credentials from environment, NEVER hardcode
 
 echo "🔒 Applying RLS Policies Migration (009)..."
 echo ""
 
-SUPABASE_URL="https://cdoikmuoiccqllqdpoew.supabase.co"
-SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkb2lrbXVvaWNjcWxscWRwb2V3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjI0NDg4NSwiZXhwIjoyMDc3ODIwODg1fQ.JjIU0K5ScKyGqBQWZuiG7cobA_SYSFHqBqR-IGUe-bI"
+# Load from .env if present
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+fi
+
+SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-}"
+SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"
+
+if [ -z "$SUPABASE_URL" ] || [ -z "$SERVICE_ROLE_KEY" ]; then
+  echo "❌ Missing environment variables:"
+  echo "   NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required"
+  echo ""
+  echo "Set them in .env or export them before running this script"
+  exit 1
+fi
 MIGRATION_FILE="supabase/migrations/009_add_rls_policies_all_tables.sql"
 
 # Check if migration file exists
@@ -59,13 +74,13 @@ for i, stmt in enumerate(statements):
         print(f"Error: {e}")
 
 print(f"\nNote: For full execution, use the Supabase SQL Editor directly:")
-print(f"→ https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/editor")
+print(f"→ https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/editor")
 PYTHON_SCRIPT
 
 echo ""
 echo "✅ Migration file prepared. Please apply via Supabase SQL Editor:"
 echo ""
-echo "1. Go to: https://supabase.com/dashboard/project/kvjcidxbyimoswntpjcp/sql/editor"
+echo "1. Go to: https://supabase.com/dashboard/project/trdoainmejxanrownbuz/sql/editor"
 echo "2. Create new query"
 echo "3. Copy entire contents of: $MIGRATION_FILE"
 echo "4. Paste and execute (takes ~5 seconds)"

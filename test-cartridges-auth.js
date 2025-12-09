@@ -1,8 +1,14 @@
 // Test script to verify cartridge authentication and database access
+require('dotenv').config()
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kvjcidxbyimoswntpjcp.supabase.co';
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2amNpZHhieWltb3N3bnRwamNwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjEyMzc0MywiZXhwIjoyMDc2Njk5NzQzfQ.42jDkJvFkrSkHWitgnTTc_58Hq1H378LPdB0u8-aGfI';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !serviceKey) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment');
+  process.exit(1);
+}
 
 async function testCartridgeTables() {
   console.log('\n========== CARTRIDGE TABLE VERIFICATION ==========\n');
@@ -66,7 +72,11 @@ async function testCartridgeTables() {
   console.log('\n========== RLS POLICY CHECK ==========\n');
 
   // Test with anon key to check RLS
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2amNpZHhieWltb3N3bnRwamNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxMjM3NDMsImV4cCI6MjA3NjY5OTc0M30.42jDkJvFkrSkHWitgnTTc_58Hq1H378LPdB0u8-aGfI';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!anonKey) {
+    console.warn('⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set, skipping RLS checks');
+    return;
+  }
   const anonSupabase = createClient(supabaseUrl, anonKey);
 
   for (const table of tables) {

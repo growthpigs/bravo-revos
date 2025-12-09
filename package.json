@@ -73,7 +73,7 @@
     "lucide-react": "^0.454.0",
     "mammoth": "^1.11.0",
     "mem0ai": "^2.1.38",
-    "next": "14.2.18",
+    "next": "^14.2.33",
     "next-themes": "^0.3.0",
     "openai": "^6.8.1",
     "pdf-parse": "^2.4.5",

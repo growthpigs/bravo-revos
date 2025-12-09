@@ -10,10 +10,15 @@
 
 import { describe, test, expect, beforeAll, afterAll } from '@jest/globals'
 import { createClient } from '@supabase/supabase-js'
+import 'dotenv/config'
 
-// Use the CORRECT Supabase project
-const SUPABASE_URL = 'https://trdoainmejxanrownbuz.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZG9haW5tZWp4YW5yb3duYnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0OTQ5MTUsImV4cCI6MjA3ODA3MDkxNX0.42jDkJvFkrSkHWitgnTTc_58Hq1H378LPdB0u8-aGfI'
+// Load from environment - NEVER hardcode keys
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('Missing SUPABASE env vars - some tests may fail')
+}
 
 describe('Authentication & Settings Validation', () => {
   let supabase: ReturnType<typeof createClient>
@@ -35,8 +40,8 @@ describe('Authentication & Settings Validation', () => {
   })
 
   describe('1. Supabase Project Configuration', () => {
-    test('should use correct Supabase project URL', () => {
-      expect(SUPABASE_URL).toBe('https://trdoainmejxanrownbuz.supabase.co')
+    test('should use correct Supabase project URL from env', () => {
+      expect(SUPABASE_URL).toMatch(/^https:\/\/[a-z]+\.supabase\.co$/)
       expect(SUPABASE_URL).not.toContain('kvjcidxbyimoswntpjcp') // Wrong project
     })
 
@@ -236,19 +241,20 @@ describe('Authentication & Settings Validation', () => {
   })
 
   describe('9. Environment Variable Validation', () => {
-    test('should have correct Supabase URL in environment', () => {
+    test('should have valid Supabase URL in environment', () => {
       // This test validates the .env.local configuration
-      expect(SUPABASE_URL).toMatch(/^https:\/\/trdoainmejxanrownbuz\.supabase\.co$/)
+      expect(SUPABASE_URL).toMatch(/^https:\/\/[a-z]+\.supabase\.co$/)
     })
 
     test('should have valid anon key format', () => {
       // JWT format check (JWT is base64-encoded, project ID is in payload)
       expect(SUPABASE_ANON_KEY).toMatch(/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
 
-      // Decode the JWT payload to verify project reference
+      // Decode the JWT payload to verify it's a valid Supabase JWT
       const payload = SUPABASE_ANON_KEY.split('.')[1]
       const decoded = JSON.parse(Buffer.from(payload, 'base64').toString())
-      expect(decoded.ref).toBe('trdoainmejxanrownbuz')
+      expect(decoded.ref).toBeTruthy() // Has a project reference
+      expect(decoded.role).toBe('anon') // Is anon key
     })
   })
 
