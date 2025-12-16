@@ -186,8 +186,31 @@ As of 2025-12-16:
 
 ### Auto-Fail Stale Jobs
 Jobs with 3+ consecutive 404 errors are automatically marked as `failed`.
-- Location: `lib/workers/comment-monitor.ts` line 676
+- Location: `lib/workers/comment-monitor.ts` - `increment_scrape_job_error` RPC
 - Prevents stale jobs from blocking the queue
+
+### Error Count Reset on Success
+When a job succeeds, `error_count` resets to 0.
+- Prevents accumulated transient errors from causing permanent failure
+- Two locations: main success path (line 631) and no-comments path (line 359)
+
+### Stale Job Recovery
+Jobs stuck in `running` status for >10 minutes are reset to `scheduled`.
+- Location: `lib/workers/comment-monitor.ts` line 148 (`getActiveScrapeJobs`)
+- Handles crashed workers that left jobs locked
+
+### Optimistic Locking (Race Condition Prevention)
+Before processing, jobs are atomically claimed with a status check.
+- Location: `lib/workers/comment-monitor.ts` line 332 (`processScrapeJob`)
+- Prevents duplicate processing when cron jobs overlap
+- `.eq('status', 'scheduled')` ensures only one worker processes each job
+
+### Atomic Error Increment (RPC)
+Error counting uses an atomic PostgreSQL RPC function.
+- Migration: `supabase/migrations/20251216_atomic_scrape_job_errors.sql`
+- Prevents race conditions on `error_count` when concurrent workers fail
+- Returns `new_error_count`, `new_status`, `should_send_sentry` for caller logic
+- Falls back to non-atomic update if RPC unavailable
 
 ### Health Check
 `GET /api/health` includes `commentReply` status:
@@ -233,6 +256,18 @@ Mock mode doesn't catch API format issues. Always test with a real LinkedIn post
 ---
 
 ## Changelog
+
+**2025-12-16 (Late):** Critical bug fixes from validator stress test.
+- **Bug 1 Fixed:** `error_count` now resets to 0 on success (was accumulating forever)
+- **Bug 2 Fixed:** Added optimistic locking to prevent duplicate processing
+- **Bug 2 Fixed:** Added stale job recovery (>10min running → reset to scheduled)
+- **Bug 2 Fixed:** Query now only selects `scheduled` jobs (not `running`)
+- **Bug 3 Fixed:** Atomic RPC for error increment (prevents race conditions)
+- Migration: `supabase/migrations/20251216_atomic_scrape_job_errors.sql`
+- All changes have rollback capability:
+  - Phase 1: Remove `error_count: 0` lines
+  - Phase 2: Revert query, remove lock check, remove stale cleanup
+  - Phase 3: Restore old increment logic, drop RPC function
 
 **2025-12-16 (14:07 UTC):** Full end-to-end verification passed.
 - Created test post `7406695953682038785` via Unipile API

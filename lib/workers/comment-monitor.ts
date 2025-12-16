@@ -142,7 +142,24 @@ function buildDMMessage(recipientName: string, _triggerWord: string, leadMagnetN
 async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
   const supabase = getSupabase();
 
-  // Query scrape_jobs for scheduled/running jobs that are due for checking
+  // Step 1: Clean up stale 'running' jobs (crashed workers)
+  // Jobs running for > 10 minutes are assumed crashed and reset to 'scheduled'
+  const STALE_THRESHOLD_MINUTES = 10;
+  const staleTime = new Date(Date.now() - STALE_THRESHOLD_MINUTES * 60 * 1000).toISOString();
+
+  const { data: staleJobs } = await supabase
+    .from('scrape_jobs')
+    .update({ status: 'scheduled' })
+    .eq('status', 'running')
+    .lt('last_checked', staleTime)
+    .select('id');
+
+  if (staleJobs && staleJobs.length > 0) {
+    console.log(`[COMMENT_MONITOR] ⚠️ Recovered ${staleJobs.length} stale jobs:`, staleJobs.map(j => j.id));
+  }
+
+  // Step 2: Query scrape_jobs for scheduled jobs that are due for checking
+  // Only query 'scheduled' - 'running' jobs are locked by another worker
   // CRITICAL: Join campaigns to get user_id for multi-tenant isolation
   const { data, error } = await supabase
     .from('scrape_jobs')
@@ -155,7 +172,7 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
       trigger_word,
       campaigns!inner(user_id)
     `)
-    .in('status', ['scheduled', 'running'])
+    .eq('status', 'scheduled')
     .or(`next_check.is.null,next_check.lte.${new Date().toISOString()}`);
 
   if (error) {
@@ -310,11 +327,23 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   const supabase = getSupabase();
   console.log(`[COMMENT_MONITOR] Processing scrape job ${job.id} for post ${job.post_id}`);
 
-  // Update job status to 'running'
-  await supabase.from('scrape_jobs').update({
-    status: 'running',
-    last_checked: new Date().toISOString()
-  }).eq('id', job.id);
+  // Optimistic lock - only process if still scheduled (prevents duplicate processing)
+  // If another worker already claimed this job, the .eq('status', 'scheduled') fails
+  const { data: locked, error: lockError } = await supabase
+    .from('scrape_jobs')
+    .update({
+      status: 'running',
+      last_checked: new Date().toISOString()
+    })
+    .eq('id', job.id)
+    .eq('status', 'scheduled')  // Critical: Only update if still scheduled
+    .select('id')
+    .single();
+
+  if (lockError || !locked) {
+    console.log(`[COMMENT_MONITOR] Job ${job.id} already locked by another worker, skipping`);
+    return 0;
+  }
 
   // Get all comments for this post using the Unipile post ID
   console.log(`[COMMENT_MONITOR_DEBUG] Fetching comments for:`, {
@@ -335,9 +364,10 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
   if (comments.length === 0) {
     console.log(`[COMMENT_MONITOR] No comments for job ${job.id}`);
-    // Update next_check for polling
+    // Update next_check for polling - reset error_count on successful poll
     await supabase.from('scrape_jobs').update({
       status: 'scheduled',
+      error_count: 0, // Reset on success to prevent accumulated errors from causing auto-fail
       next_check: new Date(Date.now() + 5 * 60 * 1000).toISOString() // Check again in 5 minutes
     }).eq('id', job.id);
     return 0;
@@ -619,9 +649,10 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
     }
   }
 
-  // Update job metrics and schedule next check
+  // Update job metrics and schedule next check - reset error_count on success
   await supabase.from('scrape_jobs').update({
     status: 'scheduled',
+    error_count: 0, // Reset on success to prevent accumulated errors from causing auto-fail
     comments_scanned: comments.length,
     trigger_words_found: processedCount,
     dms_sent: dmsSent,
@@ -659,18 +690,6 @@ export async function pollAllCampaigns(): Promise<{
       console.error(`[COMMENT_MONITOR] Error:`, errorMsg);
       errors.push(errorMsg);
 
-      // Update job with error - increment error_count properly
-      const supabase = getSupabase();
-
-      // First get current error_count to increment it
-      const { data: currentJob } = await supabase
-        .from('scrape_jobs')
-        .select('error_count')
-        .eq('id', job.id)
-        .single();
-
-      const newErrorCount = (currentJob?.error_count || 0) + 1;
-
       // Robust 404 detection - check status codes AND message patterns
       const is404Error =
         error.status === 404 ||
@@ -679,14 +698,34 @@ export async function pollAllCampaigns(): Promise<{
         error.message?.toLowerCase().includes('not found') ||
         error.message?.toLowerCase().includes('resource_not_found');
 
-      const MAX_CONSECUTIVE_ERRORS = 3;
+      // Use atomic RPC to increment error count (prevents race conditions)
+      const supabase = getSupabase();
+      type ErrorRpcResult = { new_error_count: number; new_status: string; should_send_sentry: boolean };
+      const { data: result, error: rpcError } = await supabase
+        .rpc('increment_scrape_job_error', {
+          p_job_id: job.id,
+          p_error_message: error.message,
+          p_is_404_error: is404Error
+        })
+        .single<ErrorRpcResult>();
 
-      // Auto-fail jobs that have repeated errors (especially 404s - post doesn't exist)
-      const shouldAutoFail = newErrorCount >= MAX_CONSECUTIVE_ERRORS && is404Error;
+      if (rpcError || !result) {
+        // RPC failed - fallback to non-atomic update (better than nothing)
+        console.error('[COMMENT_MONITOR] RPC failed, using fallback:', rpcError);
+        await supabase.from('scrape_jobs').update({
+          status: 'scheduled',
+          error_count: (error.error_count || 0) + 1,
+          last_error: error.message,
+          last_error_at: new Date().toISOString()
+        }).eq('id', job.id);
+        continue;
+      }
 
-      if (shouldAutoFail) {
-        console.log(`[COMMENT_MONITOR] Auto-failing job ${job.id} after ${newErrorCount} consecutive 404 errors`);
-        // Alert Sentry when job auto-fails
+      const { new_error_count, new_status, should_send_sentry } = result;
+
+      // Sentry alerting based on RPC response
+      if (new_status === 'failed') {
+        console.log(`[COMMENT_MONITOR] Auto-failing job ${job.id} after ${new_error_count} consecutive 404 errors`);
         Sentry.captureMessage(`Comment Reply Job Auto-Failed: ${job.id}`, {
           level: 'warning',
           tags: {
@@ -695,33 +734,26 @@ export async function pollAllCampaigns(): Promise<{
             campaign_id: job.campaign_id,
           },
           extra: {
-            error_count: newErrorCount,
+            error_count: new_error_count,
             last_error: error.message,
             post_id: job.unipile_post_id,
             account_id: job.unipile_account_id,
           },
         });
-      } else if (newErrorCount >= 2) {
-        // Capture exception for jobs with multiple errors (before auto-fail threshold)
+      } else if (should_send_sentry) {
+        // Alert for jobs with 2+ errors (but not yet auto-failed)
         Sentry.captureException(error, {
           tags: {
             feature: 'comment-reply',
             job_id: job.id,
           },
           extra: {
-            error_count: newErrorCount,
+            error_count: new_error_count,
             post_id: job.unipile_post_id,
             account_id: job.unipile_account_id,
           },
         });
       }
-
-      await supabase.from('scrape_jobs').update({
-        status: shouldAutoFail ? 'failed' : 'scheduled',
-        error_count: newErrorCount,
-        last_error: error.message,
-        last_error_at: new Date().toISOString()
-      }).eq('id', job.id);
     }
   }
 
