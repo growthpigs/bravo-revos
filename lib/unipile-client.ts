@@ -487,15 +487,23 @@ export async function getAllPostComments(
       if (postResponse.ok) {
         const postData = await postResponse.json();
         console.log('[UNIPILE_COMMENTS] Post data received:', JSON.stringify(postData).substring(0, 500));
-        // Use the social_id from the API response - this is the correct format
-        socialId = postData.social_id || postData.id || postId;
-        console.log('[UNIPILE_COMMENTS] Got social_id from API:', socialId);
+        // Use social_id ONLY if it's in URN format, otherwise construct URN from our activity ID
+        // CRITICAL: postData.id is Unipile internal ID (NOT LinkedIn URN) - don't use it
+        // Comments API requires URN format: urn:li:activity:XXXXX
+        if (postData.social_id && postData.social_id.startsWith('urn:')) {
+          socialId = postData.social_id;
+          console.log('[UNIPILE_COMMENTS] Using social_id from API:', socialId);
+        } else {
+          // Construct URN from our activity ID (what we stored in scrape_jobs.unipile_post_id)
+          socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
+          console.log('[UNIPILE_COMMENTS] Constructed URN from activity ID:', socialId);
+        }
       } else {
         const errorText = await postResponse.text();
         console.warn('[UNIPILE_COMMENTS] Post retrieval failed with status:', postResponse.status, errorText.substring(0, 200));
-        // Fallback: construct the URN ourselves (may not work for all post types)
+        // Fallback: construct the URN ourselves
         socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
-        console.log('[UNIPILE_COMMENTS] Using fallback social_id:', socialId);
+        console.log('[UNIPILE_COMMENTS] Using fallback URN:', socialId);
       }
     } catch (postError: any) {
       // Fallback if post retrieval fails
