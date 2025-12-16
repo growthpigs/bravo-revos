@@ -670,7 +670,15 @@ export async function pollAllCampaigns(): Promise<{
         .single();
 
       const newErrorCount = (currentJob?.error_count || 0) + 1;
-      const is404Error = error.message?.includes('404');
+
+      // Robust 404 detection - check status codes AND message patterns
+      const is404Error =
+        error.status === 404 ||
+        error.statusCode === 404 ||
+        error.message?.includes('404') ||
+        error.message?.toLowerCase().includes('not found') ||
+        error.message?.toLowerCase().includes('resource_not_found');
+
       const MAX_CONSECUTIVE_ERRORS = 3;
 
       // Auto-fail jobs that have repeated errors (especially 404s - post doesn't exist)
