@@ -141,30 +141,6 @@ function buildDMMessage(recipientName: string, _triggerWord: string, leadMagnetN
 async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
   const supabase = getSupabase();
 
-  console.log('[COMMENT_MONITOR] ===== DIAGNOSTIC: getActiveScrapeJobs START =====');
-
-  // DIAGNOSTIC: First, let's see ALL scrape_jobs regardless of status
-  const { data: allJobs, error: allError } = await supabase
-    .from('scrape_jobs')
-    .select(`
-      id,
-      campaign_id,
-      post_id,
-      unipile_post_id,
-      unipile_account_id,
-      trigger_word,
-      status,
-      next_check,
-      campaigns(user_id)
-    `)
-    .order('created_at', { ascending: false })
-    .limit(10);
-
-  console.log('[COMMENT_MONITOR] DIAGNOSTIC: ALL recent scrape_jobs:', JSON.stringify(allJobs, null, 2));
-  if (allError) {
-    console.error('[COMMENT_MONITOR] DIAGNOSTIC: Error fetching all jobs:', allError);
-  }
-
   // Query scrape_jobs for scheduled/running jobs that are due for checking
   // CRITICAL: Join campaigns to get user_id for multi-tenant isolation
   const { data, error } = await supabase
@@ -180,8 +156,6 @@ async function getActiveScrapeJobs(): Promise<ActiveScrapeJob[]> {
     `)
     .in('status', ['scheduled', 'running'])
     .or(`next_check.is.null,next_check.lte.${new Date().toISOString()}`);
-
-  console.log('[COMMENT_MONITOR] DIAGNOSTIC: Filtered scrape_jobs (scheduled/running):', JSON.stringify(data, null, 2));
 
   if (error) {
     console.error('[COMMENT_MONITOR] Failed to fetch scrape jobs:', error);
@@ -333,9 +307,7 @@ function buildConnectionMessage(recipientName: string, leadMagnetName?: string):
  */
 async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   const supabase = getSupabase();
-  console.log('[COMMENT_MONITOR] ===== DIAGNOSTIC: processScrapeJob START =====');
   console.log(`[COMMENT_MONITOR] Processing scrape job ${job.id} for post ${job.post_id}`);
-  console.log('[COMMENT_MONITOR] DIAGNOSTIC: Job details:', JSON.stringify(job, null, 2));
 
   // Update job status to 'running'
   await supabase.from('scrape_jobs').update({
@@ -344,18 +316,10 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   }).eq('id', job.id);
 
   // Get all comments for this post using the Unipile post ID
-  console.log('[COMMENT_MONITOR] DIAGNOSTIC: Fetching comments for unipile_post_id:', job.unipile_post_id);
   const comments = await getAllPostComments(
     job.unipile_account_id,
     job.unipile_post_id
   );
-
-  console.log('[COMMENT_MONITOR] DIAGNOSTIC: Comments fetched:', comments.length);
-  console.log('[COMMENT_MONITOR] DIAGNOSTIC: Comment data:', JSON.stringify(comments.map(c => ({
-    id: c.id,
-    text: c.text?.substring(0, 50),
-    author: typeof c.author === 'object' ? c.author?.name : c.author || 'Unknown'
-  })), null, 2));
 
   if (comments.length === 0) {
     console.log(`[COMMENT_MONITOR] No comments for job ${job.id}`);
@@ -369,7 +333,6 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
   // Get already processed comments
   const processed = await getProcessedComments(job.campaign_id);
-  console.log('[COMMENT_MONITOR] DIAGNOSTIC: Already processed comment IDs:', Array.from(processed));
 
   let processedCount = 0;
   let emailsCaptured = 0;
@@ -393,19 +356,11 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
     }
     // Skip if already processed
     if (processed.has(comment.id)) {
-      console.log(`[COMMENT_MONITOR] DIAGNOSTIC: Skipping already processed comment: ${comment.id}`);
       continue;
     }
 
     // Extract author info safely using helper (handles both real API and mock formats)
     const authorInfo = extractCommentAuthor(comment);
-    console.log(`[COMMENT_MONITOR] DIAGNOSTIC: Checking comment ${comment.id}:`, {
-      authorId: authorInfo.id,
-      authorName: authorInfo.name,
-      commentText: comment.text?.substring(0, 100),
-      triggerWordToMatch: job.trigger_word
-    });
-
     if (!authorInfo.id) {
       console.warn(`[COMMENT_MONITOR] Skipping comment ${comment.id} - no author ID found`);
       continue;
@@ -416,11 +371,6 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
     // Check ONLY for the campaign's specific trigger word (multi-tenant)
     const triggerWord = containsTriggerWord(comment.text, job.trigger_word);
-    console.log(`[COMMENT_MONITOR] DIAGNOSTIC: Trigger word check result:`, {
-      commentText: comment.text,
-      triggerToMatch: job.trigger_word,
-      triggerFound: triggerWord
-    });
 
     if (triggerWord) {
       console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id} from ${authorName}`);
@@ -467,7 +417,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
             job.unipile_account_id,
             job.unipile_post_id,
             replyMessage,
-            comment.id // CRITICAL: Reply to the specific comment, not top-level
+            comment.id  // Thread under original comment
           );
           commentRepliesSent++;
           console.log(`[COMMENT_MONITOR] ✅ Comment reply sent for email capture: "${replyMessage}"`);
@@ -529,7 +479,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
               job.unipile_account_id,
               job.unipile_post_id,
               commentReply,
-              comment.id // CRITICAL: Reply to the specific comment, not top-level
+              comment.id  // Thread under original comment
             );
             commentRepliesSent++;
             console.log(`[COMMENT_MONITOR] ✅ Comment reply sent: "${commentReply}"`);
@@ -590,7 +540,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
             job.unipile_account_id,
             job.unipile_post_id,
             replyMessage,
-            comment.id // CRITICAL: Reply to the specific comment, not top-level
+            comment.id  // Thread under original comment
           );
           commentRepliesSent++;
           console.log(`[COMMENT_MONITOR] ✅ Comment reply sent to ${authorName}: "${replyMessage}"`);

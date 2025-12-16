@@ -464,15 +464,9 @@ export async function getAllPostComments(
 
     let socialId: string;
 
-    // CRITICAL FIX: The postId stored in scrape_jobs is the raw activity number (e.g., "7402329422785269760")
-    // But Unipile's GET /posts/{id} endpoint requires the FULL URN format
-    // We need to construct the URN before making the API call
-    const postIdForApi = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
-    console.log('[UNIPILE_COMMENTS] Converted postId to URN format:', postIdForApi);
-
     try {
       // Try to get the post first to get the correct social_id format
-      const postUrl = `${credentials.dsn}/api/v1/posts/${postIdForApi}?account_id=${accountId}`;
+      const postUrl = `${credentials.dsn}/api/v1/posts/${postId}?account_id=${accountId}`;
       console.log('[UNIPILE_COMMENTS] Fetching post from:', postUrl);
 
       const postController = new AbortController();
@@ -814,12 +808,11 @@ export async function getDirectMessages(
 
 /**
  * Reply to a comment on a LinkedIn post
- * Supports both top-level comments and nested replies to specific comments
+ * Supports threaded replies when commentId is provided.
  * @param accountId - Unipile account ID
  * @param postId - LinkedIn post ID (activity ID)
  * @param text - Comment text to post
- * @param commentId - Optional: specific comment ID to reply to (creates nested reply)
- *                    If omitted, posts a top-level comment on the post
+ * @param commentId - Optional parent comment ID for threaded replies
  * @returns Response with comment status
  */
 export async function replyToComment(
@@ -835,7 +828,7 @@ export async function replyToComment(
         accountId,
         postId,
         textLength: text.length,
-        replyingToCommentId: commentId || 'top-level',
+        commentId: commentId || 'none (top-level)',
       });
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -846,83 +839,26 @@ export async function replyToComment(
     }
 
     const credentials = getUnipileCredentials();
-    const FETCH_TIMEOUT = 15000; // 15 second timeout
 
-    console.log('[UNIPILE_COMMENT] ========================================');
     console.log('[UNIPILE_COMMENT] Posting comment reply:', { accountId, postId, textLength: text.length });
 
-    // STEP 1: Resolve the correct social_id format (same as getAllPostComments)
-    // Unipile requires the URN format like "urn:li:activity:XXX" for the API path
-    let socialId: string;
-
-    // CRITICAL FIX: Convert postId to URN format before API call
-    // The postId passed in is the raw activity number, but Unipile's API requires URN format
-    const postIdForApi = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
-    console.log('[UNIPILE_COMMENT] Converted postId to URN format:', postIdForApi);
-
-    try {
-      const postUrl = `${credentials.dsn}/api/v1/posts/${postIdForApi}?account_id=${accountId}`;
-      console.log('[UNIPILE_COMMENT] Step 1: Retrieving post to get social_id:', postUrl);
-
-      const postController = new AbortController();
-      const postTimeoutId = setTimeout(() => postController.abort(), FETCH_TIMEOUT);
-
-      const postResponse = await fetch(postUrl, {
-        method: 'GET',
+    // Unipile API: POST /api/v1/posts/{postId}/comments
+    const response = await fetch(
+      `${credentials.dsn}/api/v1/posts/${postId}/comments`,
+      {
+        method: 'POST',
         headers: {
           'X-API-KEY': credentials.apiKey,
+          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        signal: postController.signal,
-      });
-
-      clearTimeout(postTimeoutId);
-      console.log('[UNIPILE_COMMENT] Post retrieval response status:', postResponse.status);
-
-      if (postResponse.ok) {
-        const postData = await postResponse.json();
-        console.log('[UNIPILE_COMMENT] Post data received:', JSON.stringify(postData).substring(0, 300));
-        socialId = postData.social_id || postData.id || postId;
-        console.log('[UNIPILE_COMMENT] Got social_id from API:', socialId);
-      } else {
-        const errorText = await postResponse.text();
-        console.warn('[UNIPILE_COMMENT] Post retrieval failed:', postResponse.status, errorText.substring(0, 200));
-        // Fallback: construct URN format
-        socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
-        console.log('[UNIPILE_COMMENT] Using fallback social_id:', socialId);
+        body: JSON.stringify({
+          account_id: accountId,
+          text,
+          ...(commentId && { comment_id: commentId }),
+        }),
       }
-    } catch (postError: any) {
-      console.warn('[UNIPILE_COMMENT] Post retrieval exception:', postError.message || postError);
-      socialId = postId.startsWith('urn:') ? postId : `urn:li:activity:${postId}`;
-      console.log('[UNIPILE_COMMENT] Using fallback social_id after error:', socialId);
-    }
-
-    // STEP 2: Post the comment using the social_id
-    console.log('[UNIPILE_COMMENT] Step 2: Posting comment with social_id:', socialId);
-    console.log('[UNIPILE_COMMENT] Comment type:', commentId ? `nested reply to comment ${commentId}` : 'top-level comment');
-
-    const url = `${credentials.dsn}/api/v1/posts/${socialId}/comments`;
-    console.log('[UNIPILE_COMMENT] Request URL:', url);
-
-    // Build request body - include comment_id for nested replies
-    const requestBody: any = {
-      account_id: accountId,
-      text,
-    };
-
-    if (commentId) {
-      requestBody.comment_id = commentId;
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': credentials.apiKey,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
+    );
 
     console.log('[UNIPILE_COMMENT] Response status:', response.status);
 
@@ -934,7 +870,6 @@ export async function replyToComment(
 
     const data = await response.json();
     console.log('[UNIPILE_COMMENT] Success:', data);
-    console.log('[UNIPILE_COMMENT] ========================================');
 
     return {
       status: 'sent',
@@ -1260,8 +1195,7 @@ export async function createLinkedInPost(
   accountId: string,
   text: string,
   clientCredentials?: UnipileCredentials | null,
-  timeoutMs: number = 25000, // Default 25s timeout (safe for 30s/60s serverless limits)
-  profileUrl?: string | null // Optional: user's LinkedIn profile URL for constructing post URLs
+  timeoutMs: number = 25000 // Default 25s timeout (safe for 30s/60s serverless limits)
 ): Promise<CreatePostResponse> {
   // Setup AbortController for timeout
   const controller = new AbortController();
@@ -1336,9 +1270,6 @@ export async function createLinkedInPost(
 
     const data = await response.json();
 
-    // DEBUG: Log the full response to identify correct activity ID field
-    console.log('[UNIPILE_POST] Full response data:', JSON.stringify(data, null, 2));
-
     // CRITICAL: Extract the LinkedIn activity ID from share_url for comment retrieval
     // Unipile's post_id is their internal ID, but we need the LinkedIn activity ID
     // Format: https://www.linkedin.com/feed/update/urn:li:activity:7399434743425105920
@@ -1400,20 +1331,14 @@ export async function createLinkedInPost(
               const postsData = await postsResponse.json();
               const recentPosts = postsData.items || [];
 
-              console.log('[UNIPILE_POST] Recent posts fetched:', {
-                count: recentPosts.length,
-                firstPostKeys: recentPosts[0] ? Object.keys(recentPosts[0]) : 'N/A',
-              });
-
               // Match by content (first 100 chars)
               const contentToMatch = text.substring(0, 100).toLowerCase().trim();
-              const matchedPost = recentPosts.find((p: any) => {
+              const matchedPost = recentPosts.find((p: { text?: string }) => {
                 const postContent = (p.text || '').substring(0, 100).toLowerCase().trim();
                 return postContent === contentToMatch;
               });
 
               if (matchedPost) {
-                console.log('[UNIPILE_POST] Found matching post, extracting activity ID...');
                 // Extract from social_id or share_url
                 const matchedSocialId = matchedPost.social_id;
                 const matchedShareUrl = matchedPost.share_url || matchedPost.url;
@@ -1423,7 +1348,7 @@ export async function createLinkedInPost(
                   if (socialMatch) {
                     linkedinActivityId = socialMatch[1];
                     shareUrl = matchedShareUrl || shareUrl;
-                    console.log('[UNIPILE_POST] Found activity ID from recent posts social_id:', linkedinActivityId);
+                    console.log('[UNIPILE_POST] Found activity ID from recent posts:', linkedinActivityId);
                   }
                 } else if (matchedShareUrl) {
                   const urlMatch = matchedShareUrl.match(/urn:li:(?:activity|ugcPost):(\d+)/);
@@ -1434,32 +1359,7 @@ export async function createLinkedInPost(
                   }
                 }
               } else {
-                console.warn('[UNIPILE_POST] Could not find matching post in recent posts by content');
-                // Try matching by post_id instead
-                if (data.post_id && recentPosts.length > 0) {
-                  console.log('[UNIPILE_POST] Trying to match by post_id:', data.post_id);
-                  const postIdMatch = recentPosts.find((p: any) => p.id === data.post_id || p.post_id === data.post_id);
-                  if (postIdMatch) {
-                    console.log('[UNIPILE_POST] Found post by ID, extracting activity ID...');
-                    const matchedSocialId = postIdMatch.social_id;
-                    const matchedShareUrl = postIdMatch.share_url || postIdMatch.url;
-                    if (matchedSocialId) {
-                      const socialMatch = matchedSocialId.match(/urn:li:(?:activity|ugcPost):(\d+)/);
-                      if (socialMatch) {
-                        linkedinActivityId = socialMatch[1];
-                        shareUrl = matchedShareUrl || shareUrl;
-                        console.log('[UNIPILE_POST] Found activity ID from post ID match:', linkedinActivityId);
-                      }
-                    } else if (matchedShareUrl) {
-                      const urlMatch = matchedShareUrl.match(/urn:li:(?:activity|ugcPost):(\d+)/);
-                      if (urlMatch) {
-                        linkedinActivityId = urlMatch[1];
-                        shareUrl = matchedShareUrl;
-                        console.log('[UNIPILE_POST] Found activity ID from post ID match URL:', linkedinActivityId);
-                      }
-                    }
-                  }
-                }
+                console.warn('[UNIPILE_POST] Could not find matching post in recent posts');
               }
             }
           }
@@ -1470,39 +1370,15 @@ export async function createLinkedInPost(
       }
     }
 
-    // CRITICAL: Must use linkedinActivityId for comments API to work
-    // If we couldn't extract it from share_url/social_id/recent_posts, use data.post_id as fallback
-    // NOTE: This is a FALLBACK and may not be the actual LinkedIn activity ID
-    if (!linkedinActivityId) {
-      console.warn('[UNIPILE_POST] ⚠️ Could not extract from any source, using data.post_id as fallback');
-      console.warn('[UNIPILE_POST] This may not be the actual LinkedIn activity ID - please check logs above');
-      // data.post_id from Unipile POST /posts response (may not be the LinkedIn activity number)
-      linkedinActivityId = data.post_id || data.id;
-      console.log('[UNIPILE_POST] Using data.post_id as activity ID:', linkedinActivityId);
-      console.log('[UNIPILE_POST] WARNING: This ID may be incorrect. Check /dashboard to see actual post URL.');
-    }
+    // Fallback to Unipile's post_id (may not work for comments API)
+    const postId = linkedinActivityId || data.post_id || data.id;
 
-    // Now we should always have linkedinActivityId
-    const postId = linkedinActivityId;
-
-    // CRITICAL FIX: Construct proper LinkedIn post URL using profile username
-    // Always override Unipile's shareUrl because it uses the URN format which is not ideal for sharing
-    if (postId && profileUrl) {
-      // Extract username from profile URL
-      // Format: https://www.linkedin.com/in/{username}/ or /in/{username}
-      const usernameMatch = profileUrl.match(/\/in\/([^\/]+)/);
-      if (usernameMatch) {
-        const username = usernameMatch[1];
-        // Construct a working post URL using username and activity ID
-        // Format: /posts/{username}_post-activity-{ACTIVITY_ID}
-        const constructedUrl = `https://www.linkedin.com/posts/${username}_post-activity-${postId}`;
-        shareUrl = constructedUrl;
-        console.log('[UNIPILE_POST] Constructed proper post URL:', constructedUrl);
-      } else {
-        console.warn('[UNIPILE_POST] Could not extract username from profile URL, keeping Unipile URL');
-      }
-    } else if (postId && !profileUrl) {
-      console.warn('[UNIPILE_POST] No profile URL provided, cannot construct proper post URL');
+    // CRITICAL FIX: Construct share_url from postId if not provided
+    // postId already contains the activity ID (line above), so use it for URL construction
+    // This ensures we always have a valid LinkedIn post URL for campaign tracking
+    if (!shareUrl && postId) {
+      shareUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}`;
+      console.log('[UNIPILE_POST] Constructed share_url from postId:', shareUrl);
     }
 
     console.log('[UNIPILE_POST] Post created successfully:', {
@@ -1511,7 +1387,6 @@ export async function createLinkedInPost(
       final_id: postId,
       url: shareUrl,
       social_id: data.social_id,
-      has_activity_id: !!linkedinActivityId,
     });
 
     return {
