@@ -316,10 +316,21 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
   }).eq('id', job.id);
 
   // Get all comments for this post using the Unipile post ID
+  console.log(`[COMMENT_MONITOR_DEBUG] Fetching comments for:`, {
+    account_id: job.unipile_account_id,
+    post_id: job.unipile_post_id,
+    trigger_word: job.trigger_word
+  });
+
   const comments = await getAllPostComments(
     job.unipile_account_id,
     job.unipile_post_id
   );
+
+  console.log(`[COMMENT_MONITOR_DEBUG] Comments fetched:`, {
+    count: comments.length,
+    comments: comments.map((c: any) => ({ id: c.id, text: c.text?.substring(0, 50), author: c.author }))
+  });
 
   if (comments.length === 0) {
     console.log(`[COMMENT_MONITOR] No comments for job ${job.id}`);
@@ -333,6 +344,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
   // Get already processed comments
   const processed = await getProcessedComments(job.campaign_id);
+  console.log(`[COMMENT_MONITOR_DEBUG] Already processed:`, Array.from(processed));
 
   let processedCount = 0;
   let emailsCaptured = 0;
@@ -356,6 +368,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
     }
     // Skip if already processed
     if (processed.has(comment.id)) {
+      console.log(`[COMMENT_MONITOR_DEBUG] Skipping ${comment.id} - already processed`);
       continue;
     }
 
@@ -370,7 +383,13 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
     const authorProfileUrl = authorInfo.profile_url;
 
     // Check ONLY for the campaign's specific trigger word (multi-tenant)
+    console.log(`[COMMENT_MONITOR_DEBUG] Checking comment ${comment.id}:`, {
+      text: comment.text,
+      trigger_word: job.trigger_word,
+      author: authorName
+    });
     const triggerWord = containsTriggerWord(comment.text, job.trigger_word);
+    console.log(`[COMMENT_MONITOR_DEBUG] Trigger match result:`, triggerWord);
 
     if (triggerWord) {
       console.log(`[COMMENT_MONITOR] Trigger found: "${triggerWord}" in comment ${comment.id} from ${authorName}`);
