@@ -78,6 +78,9 @@ interface Message {
   interactive?: InteractiveData;
   actions?: ActionButton[];
   createdAt: Date;
+  // Document card properties - for displaying generated content as clickable cards
+  isDocumentCard?: boolean;
+  documentTitle?: string;
 }
 
 interface Conversation {
@@ -859,23 +862,57 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           documentData: data.document
         });
 
-        if (data.document) {
-          console.log('[FCB] 📄 Document field detected - sending to working document area');
-          console.log('[FCB] Document content:', data.document.content ? data.document.content.substring(0, 100) : '(empty)');
+        // Handle document content - create document card for chat AND send to working document
+        if (data.document && data.document.content) {
+          console.log('[FCB] 📄 Document field detected - creating document card AND sending to working document');
+          console.log('[FCB] Document content:', data.document.content.substring(0, 100));
+
+          // Create document card message for chat history
+          const documentCardMessage: Message = {
+            id: generateUniqueId(),
+            role: 'assistant',
+            content: data.document.content,
+            isDocumentCard: true,
+            documentTitle: data.document.title || 'LinkedIn Post',
+            interactive: data.interactive, // Attach any follow-up interactive elements
+            createdAt: new Date(),
+          };
+
+          setMessages(prev => [...prev, documentCardMessage]);
+          console.log('[FCB] ✅ Document card added to chat');
+
+          // Also send to working document panel
           console.log('[FCB] 🎬 Setting fullscreen = true (was:', isFullscreen, ')');
           setIsFullscreen(true);
-          setDocumentContent(data.document.content || '');
+          setDocumentContent(data.document.content);
           setDocumentTitle(data.document.title || 'Working Document');
+          setDocumentSourceMessageId(documentCardMessage.id);
           console.log('[FCB] ✅ Document state updated, will render on next cycle');
         }
 
-        // Only add chat message if response is not empty
-        if (data.response) {
+        // Only add chat message if response is not empty AND we didn't already add a document card
+        if (data.response && !(data.document && data.document.content)) {
           const assistantContent = data.response;
+
+          // DEBUG: Log what we're getting from API
+          console.log('[DEBUG_CHAT] 📥 Raw response from API:', {
+            length: assistantContent.length,
+            preview: assistantContent.slice(0, 150),
+            endsAt: assistantContent.slice(-50),
+          });
+
           const cleanContent = deduplicateLines(
             stripIntroText(assistantContent)
               .replace(/<!--[\s\S]*?-->/g, '') // Strip HTML comments (safety net for backend leakage)
           );
+
+          // DEBUG: Log what remains after cleaning
+          console.log('[DEBUG_CHAT] 🧹 After cleaning:', {
+            originalLength: assistantContent.length,
+            cleanedLength: cleanContent.length,
+            strippedChars: assistantContent.length - cleanContent.length,
+            cleanPreview: cleanContent.slice(0, 150),
+          });
 
           // Create assistant message with cleaned content (intro text removed)
           const assistantMessage: Message = {
@@ -890,12 +927,19 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
           setMessages(prev => {
             const exists = prev.some(m => m.id === assistantMessage.id);
             if (exists) {
-              console.log('[HGC_STREAM] ⚠️  Message with ID', assistantMessage.id, 'already exists, skipping duplicate');
+              console.log('[DEBUG_CHAT] ⚠️ Message with ID', assistantMessage.id, 'already exists, skipping duplicate');
               return prev;
             }
+            console.log('[DEBUG_CHAT] ✅ Adding message to chat:', {
+              id: assistantMessage.id,
+              contentLength: assistantMessage.content.length,
+              hasInteractive: !!assistantMessage.interactive,
+              prevCount: prev.length,
+              newCount: prev.length + 1,
+            });
             return [...prev, assistantMessage];
           });
-          console.log('[HGC_STREAM] JSON response added to messages. Length:', cleanContent.length);
+          console.log('[DEBUG_CHAT] JSON response added to messages. Length:', cleanContent.length);
 
           if (data.interactive) {
             console.log('[HGC_STREAM] 🎯 INTERACTIVE response detected:', data.interactive.type);
@@ -1427,21 +1471,53 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
     }
 
     // ✅ WORKFLOW-AWARE: For workflow decisions, extract label from decision value
-    // Decision format: "topic:0:headline_text" or legacy "create_new"/"select_existing"
+    // Decision formats:
+    // - "topic:0:headline_text" (topic selection)
+    // - "confirm:skip:topic:0:headline_text" (generate without story - v2)
+    // - "confirm:add_story:topic:0:headline_text" (add story - v2)
+    // - "add_story" (add story - v3)
+    // - Raw slug like "imagine_a_fully_equipped_clinic..." (generate without story - v3)
+    // - "create_new"/"select_existing" (legacy)
     let userMessageContent = decision;
 
-    // Check if this is a workflow topic decision (format: "topic:X:text")
-    if (decision.startsWith('topic:')) {
+    // Check if this is a confirmation decision (v2 format: confirm:skip:topic:X:text)
+    if (decision.startsWith('confirm:')) {
+      const confirmMatch = decision.match(/^confirm:(add_story|skip):(.+)$/);
+      if (confirmMatch) {
+        const [, action, rest] = confirmMatch;
+        if (action === 'add_story') {
+          userMessageContent = 'Add personal story';
+        } else {
+          // Skip = generate without story, extract topic name
+          const topicMatch = rest.match(/^topic:\d+:(.+)$/);
+          if (topicMatch) {
+            const headline = topicMatch[1].replace(/_/g, ' ');
+            userMessageContent = `Generate: ${headline.charAt(0).toUpperCase() + headline.slice(1)}`;
+          } else {
+            userMessageContent = 'Generate without story';
+          }
+        }
+      }
+    } else if (decision.startsWith('topic:')) {
+      // Topic selection (format: "topic:X:text")
       const parts = decision.split(':');
       if (parts.length >= 3) {
         // Extract and format the headline (convert underscores to spaces, capitalize)
         const headline = parts.slice(2).join(':').replace(/_/g, ' ');
         userMessageContent = headline.charAt(0).toUpperCase() + headline.slice(1);
       }
+    } else if (decision === 'add_story') {
+      // v3 format: add personal story
+      userMessageContent = 'Add personal story';
     } else if (decision === 'create_new') {
       userMessageContent = 'Create a new campaign';
     } else if (decision === 'select_existing') {
       userMessageContent = 'Select from existing campaigns';
+    } else if (decision.match(/^[a-z0-9_]+$/i) && decision.length > 10) {
+      // v3 format: raw topic slug (like "imagine_a_fully_equipped_clinic_ready_for_any_em...")
+      // Convert underscores to spaces and capitalize for display
+      const headline = decision.replace(/_/g, ' ');
+      userMessageContent = `Generate: ${headline.charAt(0).toUpperCase() + headline.slice(1).substring(0, 50)}...`;
     }
     // For any other decision type, use the value as-is
 
@@ -1484,23 +1560,39 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
         hasInteractive: !!data.interactive,
       });
 
-      // Add assistant response (may contain next step of workflow)
-      const assistantMessage: Message = {
-        id: generateUniqueId(),
-        role: 'assistant',
-        content: data.response || 'Got it!',
-        interactive: data.interactive, // Next step (e.g., campaign selector)
-        createdAt: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-
       // Check for document content (e.g., generated LinkedIn post)
+      // If document exists, create a document card message to show in chat
       if (data.document && data.document.content) {
-        console.log('[INLINE_FORM] 📄 Document received - sending to working document');
+        console.log('[INLINE_FORM] 📄 Document received - creating document card for chat');
+
+        // Create document card message for chat history
+        const documentCardMessage: Message = {
+          id: generateUniqueId(),
+          role: 'assistant',
+          content: data.document.content,
+          isDocumentCard: true,
+          documentTitle: data.document.title || 'LinkedIn Post',
+          interactive: data.interactive, // Attach any follow-up interactive elements
+          createdAt: new Date(),
+        };
+        setMessages(prev => [...prev, documentCardMessage]);
+
+        // Also open in working document
+        console.log('[INLINE_FORM] 📄 Also sending to working document panel');
         setIsFullscreen(true);
         setDocumentContent(data.document.content);
         setDocumentTitle(data.document.title || 'Working Document');
-        setDocumentSourceMessageId(assistantMessage.id);
+        setDocumentSourceMessageId(documentCardMessage.id);
+      } else {
+        // No document - add regular assistant response
+        const assistantMessage: Message = {
+          id: generateUniqueId(),
+          role: 'assistant',
+          content: data.response || 'Got it!',
+          interactive: data.interactive, // Next step (e.g., campaign selector)
+          createdAt: new Date(),
+        };
+        setMessages(prev => [...prev, assistantMessage]);
       }
 
       if (data.interactive) {
@@ -1617,10 +1709,101 @@ export function FloatingChatBar({ className }: FloatingChatBarProps) {
   // MESSAGE RENDERING WITH INLINE COMPONENTS
   // ========================================
 
+  // Helper: Open document card content in working document panel
+  const handleOpenDocumentCard = (message: Message) => {
+    console.log('[FloatingChatBar] Opening document card in working document:', message.documentTitle);
+    setIsFullscreen(true);
+    setDocumentContent(message.content);
+    setDocumentTitle(message.documentTitle || 'Working Document');
+    setDocumentSourceMessageId(message.id);
+  };
+
   const renderMessage = (message: Message, index: number) => {
     // Validate message has ID (should always have one with our safeguards)
     if (process.env.NODE_ENV === 'development' && !message.id) {
       console.error('[FloatingChatBar] CRITICAL: Message missing ID at index', index);
+    }
+
+    // ✨ DOCUMENT CARD: Render as clickable card with dashed border
+    if (message.isDocumentCard && message.role === 'assistant') {
+      return (
+        <div key={message.id} className="space-y-3">
+          {/* Document Card - Dashed border, clickable to open in Working Document */}
+          <div
+            onClick={() => handleOpenDocumentCard(message)}
+            className="border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer
+                       hover:border-purple-400 hover:bg-purple-50/30 transition-all duration-200
+                       bg-white shadow-sm"
+          >
+            {/* Header with icon and title */}
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="font-medium text-gray-800">{message.documentTitle || 'LinkedIn Post'}</span>
+              {documentSourceMessageId === message.id && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full ml-auto">
+                  Active
+                </span>
+              )}
+            </div>
+
+            {/* Content preview - truncated */}
+            <p className="text-gray-600 text-sm line-clamp-4 whitespace-pre-wrap">
+              {message.content.slice(0, 300)}{message.content.length > 300 ? '...' : ''}
+            </p>
+
+            {/* Footer with click hint */}
+            <div className="flex items-center gap-1 mt-3 text-purple-600 text-sm font-medium">
+              <span>View in Working Document</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Interactive elements (e.g., campaign selector after post generation) */}
+          {message.interactive && (
+            <>
+              {message.interactive.type === 'decision' && message.interactive.decision_options && (
+                <InlineDecisionButtons
+                  options={message.interactive.decision_options}
+                  workflowId={message.interactive.workflow_id}
+                  onSelect={handleDecisionSelect}
+                />
+              )}
+              {message.interactive.type === 'campaign_select' && message.interactive.campaigns && (
+                <InlineCampaignSelector
+                  campaigns={message.interactive.campaigns}
+                  workflowId={message.interactive.workflow_id}
+                  onSelect={handleCampaignSelect}
+                />
+              )}
+            </>
+          )}
+
+          {/* Content-specific buttons - only show if this message is synced to document */}
+          {isFullscreen && documentSourceMessageId === message.id && (
+            <div className="mt-2.5">
+              <div className="h-[2px] bg-gray-300 mb-2.5 w-full" />
+              <div className="flex flex-wrap gap-[7px]">
+                {getContentButtons().map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action.action, message.id)}
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wide transition-colors px-3 py-1 rounded-full whitespace-nowrap",
+                      getButtonColor(action.primary)
+                    )}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
     }
 
     // Check if this message has interactive elements

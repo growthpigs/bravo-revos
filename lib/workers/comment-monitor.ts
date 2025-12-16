@@ -519,21 +519,8 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
         // ============================================
         console.log(`[COMMENT_MONITOR] ❌ ${authorName} is NOT connected, sending reply + connection request...`);
 
-        // Skip if already have a pending invitation
-        if (connectionStatus.hasPendingInvitation) {
-          console.log(`[COMMENT_MONITOR] Already have pending invitation to ${authorName}, skipping...`);
-          await markCommentProcessed(
-            job.campaign_id,
-            comment.id,
-            job.post_id,
-            authorId,
-            false,
-            triggerWord
-          );
-          continue;
-        }
-
         // Step 1: Reply to their comment publicly (VARIED to look human)
+        // This ALWAYS happens regardless of connection/invitation status
         try {
           const replyMessage = buildCommentReplyMessage(authorName);
           await replyToComment(
@@ -548,20 +535,24 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
           console.error(`[COMMENT_MONITOR] ❌ Comment reply failed:`, replyError.message);
         }
 
-        // Step 2: Send connection request
+        // Step 2: Send connection request (skip if already have pending invitation)
         let invitationId: string | undefined;
-        try {
-          const connectionMessage = buildConnectionMessage(authorName);
-          const inviteResult = await sendConnectionRequest(
-            job.unipile_account_id,
-            authorId,
-            connectionMessage
-          );
-          console.log(`[COMMENT_MONITOR] ✅ Connection request sent:`, inviteResult);
-          invitationId = inviteResult.invitation_id;
-          connectionRequestsSent++;
-        } catch (inviteError: any) {
-          console.error(`[COMMENT_MONITOR] ❌ Connection request failed:`, inviteError.message);
+        if (connectionStatus.hasPendingInvitation) {
+          console.log(`[COMMENT_MONITOR] ⏭️ Already have pending invitation to ${authorName}, skipping connection request (reply was still sent)`);
+        } else {
+          try {
+            const connectionMessage = buildConnectionMessage(authorName);
+            const inviteResult = await sendConnectionRequest(
+              job.unipile_account_id,
+              authorId,
+              connectionMessage
+            );
+            console.log(`[COMMENT_MONITOR] ✅ Connection request sent:`, inviteResult);
+            invitationId = inviteResult.invitation_id;
+            connectionRequestsSent++;
+          } catch (inviteError: any) {
+            console.error(`[COMMENT_MONITOR] ❌ Connection request failed:`, inviteError.message);
+          }
         }
 
         // Step 3: Track in pending_connections for follow-up

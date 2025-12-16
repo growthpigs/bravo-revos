@@ -1,5 +1,61 @@
 # Bravo revOS - Project Instructions
 
+## MANDATORY SESSION START PROTOCOL
+
+**YOU MUST DO THIS BEFORE ANYTHING ELSE:**
+
+1. **Read these files (actually use Read tool):**
+   - `~/.claude/CLAUDE.md` (PAI system rules)
+   - `~/.claude/context/tools/CLAUDE.md` (MCP tools)
+   - `~/.claude/context/projects/revos/CLAUDE.md` (project context)
+   - `~/.claude/context/systems/error-patterns.md` (mistakes to avoid)
+
+2. **Run health checks:**
+   ```bash
+   git branch --show-current
+   git log -1 --format='%h %s'
+   ```
+
+3. **Output this EXACT compliance proof:**
+   ```
+   ## PAI System Loaded
+
+   **Identity:** Chi - Personal AI Infrastructure
+   **Project:** RevOS (bravo-revos)
+
+   ### Files Read (with Read tool):
+   **Global:**
+   - [] ~/.claude/CLAUDE.md
+   - [] ~/.claude/context/tools/CLAUDE.md
+   - [] ~/.claude/context/systems/error-patterns.md
+
+   **Project:**
+   - [] ~/.claude/context/projects/revos/CLAUDE.md
+   - [] This file (bravo-revos/CLAUDE.md)
+
+   ### Environment:
+   - Branch: [from git]
+   - Last commit: [from git]
+
+   ---
+   **Ready to work.** What would you like to do?
+   ```
+
+**FAILURE TO OUTPUT COMPLIANCE PROOF = PROTOCOL VIOLATION**
+
+---
+
+## 🚨 LOAD PAI SYSTEM FIRST 🚨
+
+**Key files to read:**
+- `~/.claude/CLAUDE.md` (PAI system)
+- `~/.claude/context/projects/revos/CLAUDE.md` (project context)
+- `~/.claude/context/systems/error-patterns.md` (error patterns)
+
+This loads the PAI system + RevOS context.
+
+---
+
 ## 🚨 CRITICAL DIRECTIVE - STOP V3 WORK IMMEDIATELY 🚨
 
 **New Directive Acknowledged ✅**
