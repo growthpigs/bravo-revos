@@ -12,12 +12,13 @@ import { checkRedisHealth } from '@/lib/redis';
 
 export async function GET() {
   // Run all checks in parallel for speed
-  const [database, queue, agentkit, mem0, unipile] = await Promise.all([
+  const [database, queue, agentkit, mem0, unipile, commentReply] = await Promise.all([
     checkDatabase(),
     checkQueue(),
     checkAgentKit(),
     checkMem0(),
     checkUnipile(),
+    checkCommentReply(),
   ]);
 
   const checks = {
@@ -37,6 +38,8 @@ export async function GET() {
     // Queue & Cron
     queue,
     cron: checkCron(),
+    // Comment Reply System
+    commentReply,
     // External
     webhooks: checkWebhooks(),
     email: checkEmail(),
@@ -323,4 +326,54 @@ function checkEmail() {
     status: 'healthy' as const,
     message: `Email: ${hasResend ? 'Resend' : hasSendgrid ? 'SendGrid' : 'ConvertKit'}`,
   };
+}
+
+/**
+ * Check Comment Reply System Health
+ * Verifies scrape_jobs are processing correctly
+ */
+async function checkCommentReply() {
+  try {
+    const supabase = await createClient();
+
+    // Get scrape job statistics
+    const { data: jobs, error } = await supabase
+      .from('scrape_jobs')
+      .select('status, error_count')
+      .in('status', ['scheduled', 'running', 'failed']);
+
+    if (error) {
+      return {
+        status: 'unhealthy' as const,
+        error: error.message,
+      };
+    }
+
+    const active = jobs?.filter(j => j.status === 'scheduled' || j.status === 'running') || [];
+    const failed = jobs?.filter(j => j.status === 'failed') || [];
+    const highErrorCount = jobs?.filter(j => (j.error_count || 0) >= 2) || [];
+
+    // Warn if many jobs are failing
+    if (highErrorCount.length > active.length && active.length > 0) {
+      return {
+        status: 'degraded' as const,
+        message: `${highErrorCount.length} jobs with errors, ${active.length} active`,
+        activeJobs: active.length,
+        failedJobs: failed.length,
+        jobsWithErrors: highErrorCount.length,
+      };
+    }
+
+    return {
+      status: 'healthy' as const,
+      message: `${active.length} active jobs, ${failed.length} failed`,
+      activeJobs: active.length,
+      failedJobs: failed.length,
+    };
+  } catch (error: any) {
+    return {
+      status: 'unhealthy' as const,
+      error: error.message || 'Failed to check comment reply system',
+    };
+  }
 }

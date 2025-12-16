@@ -93,16 +93,24 @@ describe('Unipile Client', () => {
       });
 
       it('should call Unipile API with correct parameters', async () => {
-        const mockResponse = {
+        const mockPostResponse = {
+          ok: false,
+          status: 404,
+          text: jest.fn().mockResolvedValue('Not found'),
+        };
+        const mockCommentsResponse = {
           ok: true,
           json: jest.fn().mockResolvedValue({ items: [] }),
         };
-        (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+        (global.fetch as jest.Mock)
+          .mockResolvedValueOnce(mockPostResponse)
+          .mockResolvedValueOnce(mockCommentsResponse);
 
         await getAllPostComments('acc123', 'post456');
 
+        // Comments endpoint should use URN format
         expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/v1/posts/post456/comments'),
+          expect.stringContaining('/api/v1/posts/urn:li:activity:post456/comments'),
           expect.objectContaining({
             method: 'GET',
             headers: expect.objectContaining({
@@ -179,12 +187,20 @@ describe('Unipile Client', () => {
       });
 
       it('should throw error on API failure', async () => {
-        const mockResponse = {
+        const mockPostResponse = {
+          ok: false,
+          status: 404,
+          text: jest.fn().mockResolvedValue('Not found'),
+        };
+        const mockCommentsResponse = {
           ok: false,
           status: 401,
           statusText: 'Unauthorized',
+          text: jest.fn().mockResolvedValue('Unauthorized'),
         };
-        (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+        (global.fetch as jest.Mock)
+          .mockResolvedValueOnce(mockPostResponse)
+          .mockResolvedValueOnce(mockCommentsResponse);
 
         await expect(getAllPostComments('acc123', 'post456')).rejects.toThrow(
           'Failed to get post comments: 401'
@@ -212,6 +228,122 @@ describe('Unipile Client', () => {
           expect.stringContaining('https://api1.unipile.com:13211'),
           expect.any(Object)
         );
+      });
+    });
+
+    describe('URN Format Construction', () => {
+      beforeEach(() => {
+        process.env.UNIPILE_MOCK_MODE = 'false';
+        process.env.UNIPILE_API_KEY = 'test_api_key';
+        process.env.UNIPILE_DSN = 'https://api.unipile.test';
+      });
+
+      afterEach(() => {
+        process.env.UNIPILE_MOCK_MODE = 'true';
+      });
+
+      it('should construct URN format from numeric post ID', async () => {
+        // Mock the post retrieval first (returns 404)
+        const mockPostResponse = {
+          ok: false,
+          status: 404,
+          text: jest.fn().mockResolvedValue('Not found'),
+        };
+        // Mock the comments response
+        const mockCommentsResponse = {
+          ok: true,
+          json: jest.fn().mockResolvedValue({ items: [] }),
+        };
+
+        (global.fetch as jest.Mock)
+          .mockResolvedValueOnce(mockPostResponse)  // Post retrieval fails
+          .mockResolvedValueOnce(mockCommentsResponse);  // Comments call
+
+        await getAllPostComments('acc123', '7406677961430548480');
+
+        // Second call should be to comments endpoint with URN format
+        const calls = (global.fetch as jest.Mock).mock.calls;
+        const commentsCall = calls.find((c: any[]) => c[0].includes('/comments'));
+
+        expect(commentsCall[0]).toContain('urn:li:activity:7406677961430548480');
+      });
+
+      it('should preserve URN format if already provided', async () => {
+        const mockPostResponse = {
+          ok: false,
+          status: 404,
+          text: jest.fn().mockResolvedValue('Not found'),
+        };
+        const mockCommentsResponse = {
+          ok: true,
+          json: jest.fn().mockResolvedValue({ items: [] }),
+        };
+
+        (global.fetch as jest.Mock)
+          .mockResolvedValueOnce(mockPostResponse)
+          .mockResolvedValueOnce(mockCommentsResponse);
+
+        await getAllPostComments('acc123', 'urn:li:activity:7406677961430548480');
+
+        const calls = (global.fetch as jest.Mock).mock.calls;
+        const commentsCall = calls.find((c: any[]) => c[0].includes('/comments'));
+
+        // Should NOT double-wrap the URN
+        expect(commentsCall[0]).toContain('urn:li:activity:7406677961430548480');
+        expect(commentsCall[0]).not.toContain('urn:li:activity:urn:li:activity:');
+      });
+
+      it('should use social_id from API if available and in URN format', async () => {
+        const mockPostResponse = {
+          ok: true,
+          json: jest.fn().mockResolvedValue({
+            social_id: 'urn:li:activity:9999999999999999999',
+            id: 'internal-unipile-id'
+          }),
+        };
+        const mockCommentsResponse = {
+          ok: true,
+          json: jest.fn().mockResolvedValue({ items: [] }),
+        };
+
+        (global.fetch as jest.Mock)
+          .mockResolvedValueOnce(mockPostResponse)
+          .mockResolvedValueOnce(mockCommentsResponse);
+
+        await getAllPostComments('acc123', '7406677961430548480');
+
+        const calls = (global.fetch as jest.Mock).mock.calls;
+        const commentsCall = calls.find((c: any[]) => c[0].includes('/comments'));
+
+        // Should use social_id from API, not construct from input
+        expect(commentsCall[0]).toContain('urn:li:activity:9999999999999999999');
+      });
+
+      it('should NOT use postData.id (Unipile internal ID)', async () => {
+        const mockPostResponse = {
+          ok: true,
+          json: jest.fn().mockResolvedValue({
+            id: 'internal-unipile-id',  // Wrong! This is not LinkedIn URN
+            // social_id missing
+          }),
+        };
+        const mockCommentsResponse = {
+          ok: true,
+          json: jest.fn().mockResolvedValue({ items: [] }),
+        };
+
+        (global.fetch as jest.Mock)
+          .mockResolvedValueOnce(mockPostResponse)
+          .mockResolvedValueOnce(mockCommentsResponse);
+
+        await getAllPostComments('acc123', '7406677961430548480');
+
+        const calls = (global.fetch as jest.Mock).mock.calls;
+        const commentsCall = calls.find((c: any[]) => c[0].includes('/comments'));
+
+        // Should construct URN from input, NOT use internal-unipile-id
+        expect(commentsCall[0]).toContain('urn:li:activity:7406677961430548480');
+        expect(commentsCall[0]).not.toContain('internal-unipile-id');
       });
     });
 

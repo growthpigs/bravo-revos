@@ -14,6 +14,7 @@ import {
   checkConnectionStatus
 } from '../unipile-client';
 import { extractEmail } from '../email-extraction';
+import * as Sentry from '@sentry/nextjs';
 import {
   getRandomNotConnectedReply,
   getRandomConnectedReply,
@@ -668,8 +669,48 @@ export async function pollAllCampaigns(): Promise<{
         .eq('id', job.id)
         .single();
 
+      const newErrorCount = (currentJob?.error_count || 0) + 1;
+      const is404Error = error.message?.includes('404');
+      const MAX_CONSECUTIVE_ERRORS = 3;
+
+      // Auto-fail jobs that have repeated errors (especially 404s - post doesn't exist)
+      const shouldAutoFail = newErrorCount >= MAX_CONSECUTIVE_ERRORS && is404Error;
+
+      if (shouldAutoFail) {
+        console.log(`[COMMENT_MONITOR] Auto-failing job ${job.id} after ${newErrorCount} consecutive 404 errors`);
+        // Alert Sentry when job auto-fails
+        Sentry.captureMessage(`Comment Reply Job Auto-Failed: ${job.id}`, {
+          level: 'warning',
+          tags: {
+            feature: 'comment-reply',
+            job_id: job.id,
+            campaign_id: job.campaign_id,
+          },
+          extra: {
+            error_count: newErrorCount,
+            last_error: error.message,
+            post_id: job.unipile_post_id,
+            account_id: job.unipile_account_id,
+          },
+        });
+      } else if (newErrorCount >= 2) {
+        // Capture exception for jobs with multiple errors (before auto-fail threshold)
+        Sentry.captureException(error, {
+          tags: {
+            feature: 'comment-reply',
+            job_id: job.id,
+          },
+          extra: {
+            error_count: newErrorCount,
+            post_id: job.unipile_post_id,
+            account_id: job.unipile_account_id,
+          },
+        });
+      }
+
       await supabase.from('scrape_jobs').update({
-        error_count: (currentJob?.error_count || 0) + 1,
+        status: shouldAutoFail ? 'failed' : 'scheduled',
+        error_count: newErrorCount,
         last_error: error.message,
         last_error_at: new Date().toISOString()
       }).eq('id', job.id);
