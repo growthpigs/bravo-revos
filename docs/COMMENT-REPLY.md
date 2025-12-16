@@ -122,6 +122,33 @@ As of 2025-12-16:
 
 ---
 
+## Hardening Measures
+
+### Auto-Fail Stale Jobs
+Jobs with 3+ consecutive 404 errors are automatically marked as `failed`.
+- Location: `lib/workers/comment-monitor.ts` line 676
+- Prevents stale jobs from blocking the queue
+
+### Health Check
+`GET /api/health` includes `commentReply` status:
+- `activeJobs`: Number of scheduled/running jobs
+- `failedJobs`: Number of failed jobs
+- Status degrades if error rate is high
+
+### Unit Tests
+4 tests verify URN format construction:
+- `__tests__/unipile-client.test.ts` - "URN Format Construction" describe block
+- Tests: numeric→URN, preserve existing URN, use social_id, ignore internal ID
+
+### Sentry Alerts
+- Jobs with 2+ errors: `captureException` with tags
+- Auto-failed jobs: `captureMessage` with warning level
+- Tags: `feature: comment-reply`, `job_id`, `campaign_id`
+
+---
+
 ## Changelog
+
+**2025-12-16:** Hardened system with auto-fail, health checks, tests, and Sentry alerting. Commit: `29020c9`
 
 **2025-12-16:** Fixed URN format issue. Comments API requires `urn:li:activity:XXX` format, not numeric IDs. Commits: `772e6e2`, `6bd38f7`, `48bdf22`
