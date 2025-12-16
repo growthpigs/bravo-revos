@@ -149,6 +149,13 @@ Jobs with 3+ consecutive 404 errors are automatically marked as `failed`.
 
 ## Changelog
 
+**2025-12-16 (14:07 UTC):** Full end-to-end verification passed.
+- Created test post `7406695953682038785` via Unipile API
+- Jonathan commented "TESTFLOW" → System detected trigger and sent threaded replies
+- `processed_comments` table correctly tracked both comments
+- `scrape_jobs` metrics updated: 2 comments scanned, 1 trigger found
+- Auto-fail logic confirmed working on old deleted posts (marked as `failed` after 3+ 404s)
+
 **2025-12-16:** Hardened system with auto-fail, health checks, tests, and Sentry alerting. Commit: `29020c9`
 
 **2025-12-16:** Fixed URN format issue. Comments API requires `urn:li:activity:XXX` format, not numeric IDs. Commits: `772e6e2`, `6bd38f7`, `48bdf22`
