@@ -132,8 +132,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Create the post via Unipile
-    console.log('[LINKEDIN_POST_API] Calling createLinkedInPost...');
-    const postResult = await createLinkedInPost(unipileAccountId, text, null, 25000, profileUrl);
+    console.log('[LINKEDIN_POST_API] Calling createLinkedInPost...', { profileUrl });
+    const postResult = await createLinkedInPost(unipileAccountId, text, null, 25000);
 
     console.log('[LINKEDIN_POST_API] ✅ Post created successfully:', {
       postId: postResult.id,

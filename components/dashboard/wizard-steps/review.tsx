@@ -213,7 +213,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
           duration: 8000,
           action: {
             label: '👉 View Post',
-            onClick: () => window.open(postUrl, '_blank'),
+            onClick: () => window.open(postUrl || undefined, '_blank'),
           },
         })
       } else if (isValidPostUrl) {
@@ -223,7 +223,7 @@ export default function ReviewStep({ data, onBack }: StepProps) {
           duration: 8000,
           action: {
             label: '👉 View Post',
-            onClick: () => window.open(postUrl, '_blank'),
+            onClick: () => window.open(postUrl || undefined, '_blank'),
           },
         })
       } else if (postUrl && !isValidPostUrl) {
