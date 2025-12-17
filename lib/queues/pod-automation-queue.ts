@@ -14,6 +14,11 @@ import {
 } from '../pods/engagement-scheduler';
 import { getRedisConnectionSync } from '../redis';
 import { POD_AUTOMATION_CONFIG, LOGGING_CONFIG } from '../config';
+import {
+  addEngagementJob,
+  resolveUnipileAccountId,
+} from './pod-engagement-worker';
+import { createClient } from '../supabase/server';
 
 const QUEUE_NAME = 'pod-automation';
 const LOG_PREFIX = LOGGING_CONFIG.PREFIX_POD_AUTOMATION;
@@ -198,6 +203,41 @@ export async function executeEngagementActivity(
 }
 
 /**
+ * Fetch activity details for E-05 execution
+ * Returns activity with all fields needed for engagement execution
+ */
+async function fetchActivityForExecution(activityId: string): Promise<{
+  id: string;
+  pod_id: string;
+  post_id: string;
+  member_id: string;
+  engagement_type: 'like' | 'comment';
+  comment_text?: string;
+  scheduled_for: string;
+  unipile_account_id?: string;
+} | null> {
+  const supabase = await createClient();
+
+  // DB column is 'activity_type', code interface uses 'engagement_type'
+  const { data, error } = await supabase
+    .from('pod_activities')
+    .select('id, pod_id, post_id, member_id, activity_type, comment_text, scheduled_for, unipile_account_id')
+    .eq('id', activityId)
+    .single();
+
+  if (error) {
+    console.error(`${LOG_PREFIX} Failed to fetch activity ${activityId}:`, error.message);
+    return null;
+  }
+
+  // Map activity_type → engagement_type
+  return {
+    ...data,
+    engagement_type: data.activity_type as 'like' | 'comment',
+  };
+}
+
+/**
  * Process pod automation job
  */
 async function processPodAutomationJob(
@@ -220,10 +260,40 @@ async function processPodAutomationJob(
       case 'execute-engagement':
         if (activityId) {
           console.log(`${LOG_PREFIX} Processing: Execute engagement for activity ${activityId}`);
-          // FUTURE: E-05 will implement actual engagement execution
-          // For now, mark as executed
-          await markActivityExecuted(activityId, true);
-          console.log(`${LOG_PREFIX} ✅ Marked activity ${activityId} as executed`);
+
+          // 1. Fetch activity details
+          const activity = await fetchActivityForExecution(activityId);
+          if (!activity) {
+            console.error(`${LOG_PREFIX} Activity ${activityId} not found, skipping`);
+            break;
+          }
+
+          // 2. Resolve Unipile account ID (member_id → unipile_account_id)
+          let profileId: string;
+          try {
+            profileId = await resolveUnipileAccountId(
+              activity.member_id,
+              activity.unipile_account_id ?? undefined
+            );
+          } catch (resolveError) {
+            console.error(`${LOG_PREFIX} Failed to resolve profile ID for activity ${activityId}:`, resolveError);
+            // Mark as failed since we can't execute without profile ID
+            await markActivityExecuted(activityId, false);
+            break;
+          }
+
+          // 3. Push to E-05 execution queue
+          await addEngagementJob({
+            podId: activity.pod_id,
+            activityId: activity.id,
+            engagementType: activity.engagement_type,
+            postId: activity.post_id,
+            profileId: profileId,
+            commentText: activity.comment_text,
+            scheduledFor: activity.scheduled_for,
+          });
+
+          console.log(`${LOG_PREFIX} ✅ Queued activity ${activityId} for E-05 execution (profileId: ${profileId})`);
         }
         break;
 

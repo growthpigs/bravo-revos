@@ -41,10 +41,11 @@ export async function getPendingActivities(
   try {
     const now = new Date().toISOString();
 
+    // Note: DB column is 'activity_type', code interface uses 'engagement_type'
     const { data, error } = await supabase
       .from('pod_activities')
       .select(
-        'id, pod_id, post_id, member_id, engagement_type, status, scheduled_for, executed_at'
+        'id, pod_id, post_id, member_id, activity_type, status, scheduled_for, executed_at'
       )
       .eq('pod_id', podId)
       .eq('status', 'pending')
@@ -63,7 +64,11 @@ export async function getPendingActivities(
     console.log(
       `${LOG_PREFIX} Found ${data?.length || 0} pending activities for pod ${podId}`
     );
-    return data || [];
+    // Map DB column 'activity_type' to interface field 'engagement_type'
+    return (data || []).map((row) => ({
+      ...row,
+      engagement_type: row.activity_type as 'like' | 'comment' | 'repost',
+    }));
   } catch (error) {
     console.error(`${LOG_PREFIX} Error fetching pending activities:`, error);
     return [];

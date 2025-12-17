@@ -16,6 +16,7 @@
     "clean": "rm -rf .next",
     "worker:webhook": "tsx workers/webhook-delivery-worker.ts",
     "worker:pod-automation": "tsx workers/pod-automation-worker.ts",
+    "worker:pod-engagement": "tsx workers/pod-engagement-worker.ts",
     "workers": "tsx scripts/start-workers.ts"
   },
   "dependencies": {

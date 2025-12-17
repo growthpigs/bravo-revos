@@ -18,13 +18,16 @@ const WORKER_CONCURRENCY = 5; // Process 5 jobs simultaneously
 
 /**
  * Engagement activity from database
+ * Note: Uses actual database column names (member_id, unipile_account_id)
+ * The worker resolves member_id → unipile_account_id for Unipile API calls
  */
 export interface EngagementActivity {
   id: string;
   pod_id: string;
   engagement_type: 'like' | 'comment';
   post_id: string;
-  profile_id: string;
+  member_id: string; // Pod member ID (FK to pod_members)
+  unipile_account_id?: string; // Unipile account ID (may be on activity or needs resolution)
   comment_text?: string;
   scheduled_for: string; // ISO timestamp
   status: string;
@@ -190,6 +193,13 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
       throw new Error(`Activity not ready for execution yet (scheduled for ${activity.scheduled_for})`);
     }
 
+    // Step 3.5: Resolve Unipile account ID
+    // Prefer job data profileId, fallback to activity data, then resolve from member
+    const resolvedProfileId = profileId || await resolveUnipileAccountId(
+      activity.member_id,
+      activity.unipile_account_id
+    );
+
     // Step 4: Execute the engagement
     let executionResult: ExecutionResult;
 
@@ -199,7 +209,7 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
           podId,
           activityId,
           postId,
-          profileId,
+          profileId: resolvedProfileId,
         });
         break;
 
@@ -208,7 +218,7 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
           podId,
           activityId,
           postId,
-          profileId,
+          profileId: resolvedProfileId,
           commentText: commentText || '',
         });
         break;
@@ -281,12 +291,14 @@ async function fetchActivityFromDatabase(activityId: string): Promise<Engagement
       return null;
     }
 
+    // DB column is 'activity_type', code interface uses 'engagement_type'
     return {
       id: data.id,
       pod_id: data.pod_id,
-      engagement_type: data.engagement_type,
+      engagement_type: data.activity_type, // Map activity_type → engagement_type
       post_id: data.post_id,
-      profile_id: data.profile_id,
+      member_id: data.member_id, // Actual DB column name
+      unipile_account_id: data.unipile_account_id, // May be null, needs resolution
       comment_text: data.comment_text,
       scheduled_for: data.scheduled_for,
       status: data.status,
@@ -296,6 +308,62 @@ async function fetchActivityFromDatabase(activityId: string): Promise<Engagement
     console.error(`${LOG_PREFIX} Error fetching activity:`, error);
     throw error;
   }
+}
+
+/**
+ * Resolve Unipile account ID from member ID
+ * Fast path: Use unipile_account_id if already on activity
+ * Slow path: Lookup from pod_members.unipile_account_id directly
+ *
+ * Note: pod_members has unipile_account_id directly, not through linkedin_accounts
+ *
+ * Exported for use by E-04 (pod-automation-queue) when bridging to E-05
+ */
+export async function resolveUnipileAccountId(
+  memberId: string,
+  activityUnipileId?: string
+): Promise<string> {
+  // Fast path: activity already has unipile_account_id
+  if (activityUnipileId) {
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Using activity's unipile_account_id: ${activityUnipileId}`);
+    }
+    return activityUnipileId;
+  }
+
+  // Slow path: lookup from pod_members directly
+  if (FEATURE_FLAGS.ENABLE_LOGGING) {
+    console.log(`${LOG_PREFIX} Resolving unipile_account_id for member ${memberId}`);
+  }
+
+  const supabase = await createClient();
+
+  // pod_members has unipile_account_id directly
+  const { data: member, error: memberError } = await supabase
+    .from('pod_members')
+    .select('unipile_account_id')
+    .eq('id', memberId)
+    .single();
+
+  if (memberError) {
+    throw new EngagementJobError(
+      `Failed to fetch pod member ${memberId}: ${memberError.message}`,
+      'unknown_error'
+    );
+  }
+
+  if (!member?.unipile_account_id) {
+    throw new EngagementJobError(
+      `Pod member ${memberId} has no Unipile account ID`,
+      'validation_error'
+    );
+  }
+
+  if (FEATURE_FLAGS.ENABLE_LOGGING) {
+    console.log(`${LOG_PREFIX} Resolved unipile_account_id: ${member.unipile_account_id}`);
+  }
+
+  return member.unipile_account_id;
 }
 
 /**
@@ -680,7 +748,7 @@ async function updateActivityInDatabase(
       .from('pod_activities')
       .update(updateData)
       .eq('id', activityId)
-      .eq('status', 'pending') // Atomic: only update if still pending
+      .eq('status', 'scheduled') // Atomic: only update if still scheduled (E-04 sets this)
       .select();
 
     if (updateError) {

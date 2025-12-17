@@ -25,12 +25,13 @@
 |----------|-----|--------|-------|
 | PROD | 0.0 | $0 | Product/Strategy |
 | VIZ | 0.0 | $0 | Visual/UX Design |
-| DEV | 0.0 | $0 | Development |
-| QA | 0.0 | $0 | Testing/QA |
+| DEV | 3.0 | $300 | Development |
+| ARCH | 1.0 | $150 | Architecture |
+| QA | 1.0 | $100 | Testing/QA |
 | ACCT | 0.0 | $0 | Account Mgmt |
 | MKT | 0.0 | $0 | Marketing |
 | DOC | 0.0 | $0 | Documentation |
-| **TOTAL** | **0.0** | **$0** | **NEEDS RETROSPECTIVE** |
+| **TOTAL** | **5.0** | **$550** | **+ retrospective needed** |
 
 ⚠️ **REQUIRES RETROSPECTIVE ASSESSMENT**
 Initial budget was $2,500 - actual work delivered far exceeds this.
@@ -46,7 +47,9 @@ Need to:
 
 | Date | Task | Cat | Mode | Est DU | Act DU | Notes |
 |------|------|-----|------|--------|--------|-------|
-| | | | | | | |
+| 2025-12-16 | Comment-reply hardening (3 critical bugs from validator) | DEV | AI-ACC | 3.0 | 3.0 | error_count reset, optimistic locking, stale cleanup |
+| 2025-12-16 | Atomic RPC design for race conditions | ARCH | AI-ACC | 1.0 | 1.0 | PostgreSQL RPC function |
+| 2025-12-16 | Testing, verification, documentation | QA | AI-ACC | 1.0 | 1.0 | 21 tests pass, COMMENT-REPLY.md updated |
 
 ---
 
@@ -82,5 +85,5 @@ Need to:
 ---
 
 **Ledger Created:** 2025-12-07
-**Last Updated:** 2025-12-07
+**Last Updated:** 2025-12-16
 **Retrospective Status:** CRITICAL - NEEDED

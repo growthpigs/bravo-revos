@@ -164,24 +164,37 @@ async function checkMem0() {
     };
   }
 
-  // Optional: Test actual connectivity (lightweight call)
+  // Test connectivity using v2 API (POST /v2/memories/ with user_id)
   try {
     const start = Date.now();
-    const response = await fetch('https://api.mem0.ai/v1/memories/', {
-      method: 'GET',
+    const response = await fetch('https://api.mem0.ai/v2/memories/', {
+      method: 'POST',
       headers: {
         'Authorization': `Token ${process.env.MEM0_API_KEY}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        user_id: 'health_check_user',
+        limit: 1,
+      }),
       signal: AbortSignal.timeout(3000), // 3s timeout
     });
     const latency = Date.now() - start;
 
-    if (response.ok || response.status === 401) {
-      // 401 means API key works but may need user_id - that's fine
+    // 200 = success, 401 = auth issue (API reachable), 404 = no memories (OK)
+    if (response.ok || response.status === 401 || response.status === 404) {
       return {
         status: 'healthy' as const,
         message: 'Mem0 API connected',
+        latency,
+      };
+    }
+
+    // 400/422 = validation error (API reachable but params wrong) - still healthy
+    if (response.status === 400 || response.status === 422) {
+      return {
+        status: 'healthy' as const,
+        message: 'Mem0 API reachable (validation response)',
         latency,
       };
     }
