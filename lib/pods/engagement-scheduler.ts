@@ -36,7 +36,7 @@ export async function getPendingActivities(
   podId: string,
   limit: number = 100
 ): Promise<EngagementActivity[]> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   try {
     const now = new Date().toISOString();
@@ -128,7 +128,7 @@ export async function scheduleLikeActivities(
   activities: EngagementActivity[],
   maxMembersPerHour: number = 3
 ): Promise<ScheduledJob[]> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
   const scheduledJobs: ScheduledJob[] = [];
 
   // Group by post to apply staggering per post
@@ -199,7 +199,7 @@ export async function scheduleLikeActivities(
 export async function scheduleCommentActivities(
   activities: EngagementActivity[]
 ): Promise<ScheduledJob[]> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
   const scheduledJobs: ScheduledJob[] = [];
 
   for (let i = 0; i < activities.length; i++) {
@@ -253,7 +253,7 @@ export async function markActivityExecuted(
   activityId: string,
   success: boolean = true
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   try {
     const { error } = await supabase
@@ -286,7 +286,7 @@ export async function updateMemberEngagementMetrics(
   memberId: string,
   engagementsCount: number = 1
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   try {
     const { error } = await supabase.rpc('increment_member_engagement', {
@@ -319,7 +319,7 @@ export async function getPodEngagementStats(podId: string): Promise<{
   executedActivities: number;
   failedActivities: number;
 }> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   try {
     const { data, error } = await supabase

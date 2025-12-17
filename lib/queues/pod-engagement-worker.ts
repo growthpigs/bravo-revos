@@ -94,89 +94,119 @@ let queueInstance: Queue<EngagementJobData> | null = null;
 /**
  * Check if account has exceeded daily engagement limit
  * Uses Redis to track per-account daily counts with automatic TTL reset
+ * Fail-open: If Redis is unavailable, allow execution (log warning)
  */
 async function checkAccountDailyLimit(accountId: string): Promise<{
   allowed: boolean;
   count: number;
   remaining: number;
 }> {
-  const redis = getRedisConnectionSync();
-  const key = `${RATE_LIMIT_KEY_PREFIX}${accountId}`;
+  try {
+    const redis = getRedisConnectionSync();
+    const key = `${RATE_LIMIT_KEY_PREFIX}${accountId}`;
 
-  const count = await redis.get(key);
-  const currentCount = count ? parseInt(count, 10) : 0;
-  const remaining = DAILY_ENGAGEMENT_LIMIT - currentCount;
+    const count = await redis.get(key);
+    const currentCount = count ? parseInt(count, 10) : 0;
+    const remaining = DAILY_ENGAGEMENT_LIMIT - currentCount;
 
-  return {
-    allowed: currentCount < DAILY_ENGAGEMENT_LIMIT,
-    count: currentCount,
-    remaining: Math.max(0, remaining),
-  };
+    return {
+      allowed: currentCount < DAILY_ENGAGEMENT_LIMIT,
+      count: currentCount,
+      remaining: Math.max(0, remaining),
+    };
+  } catch (error) {
+    console.error(`${LOG_PREFIX} ⚠️ Redis error in rate limit check (fail-open):`, error);
+    // Fail-open: allow execution if Redis is down, but log for monitoring
+    return { allowed: true, count: 0, remaining: DAILY_ENGAGEMENT_LIMIT };
+  }
 }
 
 /**
  * Increment account's daily engagement count
  * Sets TTL to end of current day (UTC) on first increment
+ * Fail-safe: If Redis fails, log warning but don't block execution
  */
 async function incrementAccountDailyCount(accountId: string): Promise<number> {
-  const redis = getRedisConnectionSync();
-  const key = `${RATE_LIMIT_KEY_PREFIX}${accountId}`;
+  try {
+    const redis = getRedisConnectionSync();
+    const key = `${RATE_LIMIT_KEY_PREFIX}${accountId}`;
 
-  // Increment and get new value
-  const newCount = await redis.incr(key);
+    // Increment and get new value
+    const newCount = await redis.incr(key);
 
-  // Set TTL to end of day (UTC) on first increment
-  if (newCount === 1) {
-    const now = new Date();
-    const endOfDay = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() + 1, // Next day
-      0, 0, 0, 0
-    ));
-    const ttlSeconds = Math.ceil((endOfDay.getTime() - now.getTime()) / 1000);
-    await redis.expire(key, ttlSeconds);
+    // Set TTL to end of day (UTC) on first increment
+    if (newCount === 1) {
+      const now = new Date();
+      const endOfDay = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1, // Next day
+        0, 0, 0, 0
+      ));
+      const ttlSeconds = Math.ceil((endOfDay.getTime() - now.getTime()) / 1000);
+      await redis.expire(key, ttlSeconds);
 
-    if (FEATURE_FLAGS.ENABLE_LOGGING) {
-      console.log(`${LOG_PREFIX} Set daily limit TTL for ${accountId}: ${ttlSeconds}s (resets at ${endOfDay.toISOString()})`);
+      if (FEATURE_FLAGS.ENABLE_LOGGING) {
+        console.log(`${LOG_PREFIX} Set daily limit TTL for ${accountId}: ${ttlSeconds}s (resets at ${endOfDay.toISOString()})`);
+      }
     }
-  }
 
-  return newCount;
+    return newCount;
+  } catch (error) {
+    console.error(`${LOG_PREFIX} ⚠️ Redis error incrementing daily count (continuing):`, error);
+    return 0; // Return 0 to indicate unknown count
+  }
 }
 
 /**
  * Check if account is in cooldown (after 429 rate limit error)
+ * Fail-open: If Redis fails, assume no cooldown
  */
 async function isAccountInCooldown(accountId: string): Promise<boolean> {
-  const redis = getRedisConnectionSync();
-  const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
-  const cooldown = await redis.get(key);
-  return cooldown !== null;
+  try {
+    const redis = getRedisConnectionSync();
+    const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
+    const cooldown = await redis.get(key);
+    return cooldown !== null;
+  } catch (error) {
+    console.error(`${LOG_PREFIX} ⚠️ Redis error checking cooldown (fail-open):`, error);
+    return false; // Assume no cooldown if Redis fails
+  }
 }
 
 /**
  * Set cooldown for account after receiving 429 error
  * Cooldown period: 15 minutes
+ * Best-effort: If Redis fails, log but continue
  */
 async function setAccountCooldown(accountId: string): Promise<void> {
-  const redis = getRedisConnectionSync();
-  const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
-  const ttlSeconds = Math.ceil(RATE_LIMIT_COOLDOWN_MS / 1000);
+  try {
+    const redis = getRedisConnectionSync();
+    const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
+    const ttlSeconds = Math.ceil(RATE_LIMIT_COOLDOWN_MS / 1000);
 
-  await redis.setex(key, ttlSeconds, new Date().toISOString());
+    await redis.setex(key, ttlSeconds, new Date().toISOString());
 
-  console.log(`${LOG_PREFIX} ⚠️ Account ${accountId} in cooldown for ${ttlSeconds}s (429 rate limit hit)`);
+    console.log(`${LOG_PREFIX} ⚠️ Account ${accountId} in cooldown for ${ttlSeconds}s (429 rate limit hit)`);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} ⚠️ Redis error setting cooldown (continuing):`, error);
+  }
 }
 
 /**
  * Get remaining cooldown time for account (in seconds)
+ * Returns 0 if Redis fails
  */
 async function getAccountCooldownRemaining(accountId: string): Promise<number> {
-  const redis = getRedisConnectionSync();
-  const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
-  const ttl = await redis.ttl(key);
-  return Math.max(0, ttl);
+  try {
+    const redis = getRedisConnectionSync();
+    const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
+    const ttl = await redis.ttl(key);
+    return Math.max(0, ttl);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} ⚠️ Redis error getting cooldown TTL:`, error);
+    return 0;
+  }
 }
 
 /**
@@ -1150,7 +1180,7 @@ export async function addEngagementJob(jobData: EngagementJobData): Promise<Job<
   const delayMs = Math.max(0, scheduledTime.getTime() - now.getTime());
 
   const job = await queue.add('execute-engagement', jobData, {
-    jobId: `engagement-${jobData.activityId}-${Date.now()}`,
+    jobId: `engagement-${jobData.activityId}`, // Activity ID only - BullMQ rejects duplicates
     delay: delayMs, // BullMQ native delay - job won't be processed until this time
     priority: calculateJobPriority(jobData),
   });
