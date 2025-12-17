@@ -2,25 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function createClient(options?: { isServiceRole?: boolean }) {
-  const cookieStore = await cookies()
-
-  console.log('[AUTH_DEBUG] createClient called', {
-    isServiceRole: options?.isServiceRole,
-    cookieCount: cookieStore.getAll().length,
-    cookies: cookieStore.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
-  });
-
-  // Use service role key if requested, otherwise use anon key
-  const apiKey = options?.isServiceRole
-    ? process.env.SUPABASE_SERVICE_ROLE_KEY!
-    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  // CRITICAL: When using service role, do NOT send cookies
-  // Cookies contain user auth tokens that override the service role key
+  // CRITICAL: Service role requests should NOT call cookies()
+  // Workers run outside Next.js request context and cookies() will throw
   if (options?.isServiceRole) {
     return createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      apiKey,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
         cookies: {
           getAll() {
@@ -34,10 +21,18 @@ export async function createClient(options?: { isServiceRole?: boolean }) {
     )
   }
 
-  // For regular authenticated requests, use cookies
+  // For regular authenticated requests, use cookies (requires Next.js request context)
+  const cookieStore = await cookies()
+
+  console.log('[AUTH_DEBUG] createClient called', {
+    isServiceRole: options?.isServiceRole,
+    cookieCount: cookieStore.getAll().length,
+    cookies: cookieStore.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
+  });
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    apiKey,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {

@@ -412,7 +412,7 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
  */
 async function fetchActivityFromDatabase(activityId: string): Promise<EngagementActivity | null> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient({ isServiceRole: true });
 
     const { data, error } = await supabase
       .from('pod_activities')
@@ -473,7 +473,7 @@ export async function resolveUnipileAccountId(
     console.log(`${LOG_PREFIX} Resolving unipile_account_id for member ${memberId}`);
   }
 
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   // pod_members has unipile_account_id directly
   const { data: member, error: memberError } = await supabase
@@ -668,7 +668,7 @@ async function executeCommentEngagement(params: {
     }
 
     // Fetch pod's voice cartridge to apply personality
-    const supabase = await createClient();
+    const supabase = await createClient({ isServiceRole: true });
     const { data: pod, error: podError } = await supabase
       .from('pods')
       .select('voice_cartridge_id')
@@ -839,7 +839,7 @@ async function updateActivityInDatabase(
   result: ExecutionResult
 ): Promise<void> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient({ isServiceRole: true });
 
     // Step 1: Check current status for idempotency
     // Only update if status is still 'pending' or 'scheduled'
@@ -1041,7 +1041,7 @@ async function handleFailedActivity(
   attempt: number
 ): Promise<void> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient({ isServiceRole: true });
 
     // Mark activity as permanently failed with detailed error info
     const { error: updateError } = await supabase
