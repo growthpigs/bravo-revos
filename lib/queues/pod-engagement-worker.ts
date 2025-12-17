@@ -14,7 +14,15 @@ const QUEUE_NAME = 'pod-engagement';
 const WORKER_NAME = 'pod-engagement-executor';
 const JOB_TIMEOUT_MS = 30_000; // 30 seconds max per engagement
 const API_CALL_TIMEOUT_MS = 25_000; // 25 seconds for individual API calls
-const WORKER_CONCURRENCY = 5; // Process 5 jobs simultaneously
+
+// Rate limiting constants (LinkedIn via Unipile)
+// LinkedIn limit: 100 reactions/day/account
+// We use 90 as buffer (90% of limit) to avoid hitting hard limit
+const WORKER_CONCURRENCY = 2; // Reduced from 5 to prevent overwhelming API
+const DAILY_ENGAGEMENT_LIMIT = 90; // Per account daily limit (LinkedIn allows 100)
+const RATE_LIMIT_COOLDOWN_MS = 15 * 60 * 1000; // 15 min cooldown after 429
+const RATE_LIMIT_KEY_PREFIX = 'pod-engagement:daily:'; // Redis key prefix
+const COOLDOWN_KEY_PREFIX = 'pod-engagement:cooldown:'; // Redis key for account cooldown
 
 /**
  * Engagement activity from database
@@ -78,6 +86,98 @@ export class EngagementJobError extends Error {
 // Global worker instance
 let workerInstance: Worker<EngagementJobData> | null = null;
 let queueInstance: Queue<EngagementJobData> | null = null;
+
+// ============================================================================
+// Per-Account Rate Limiting (LinkedIn: 100 reactions/day/account)
+// ============================================================================
+
+/**
+ * Check if account has exceeded daily engagement limit
+ * Uses Redis to track per-account daily counts with automatic TTL reset
+ */
+async function checkAccountDailyLimit(accountId: string): Promise<{
+  allowed: boolean;
+  count: number;
+  remaining: number;
+}> {
+  const redis = getRedisConnectionSync();
+  const key = `${RATE_LIMIT_KEY_PREFIX}${accountId}`;
+
+  const count = await redis.get(key);
+  const currentCount = count ? parseInt(count, 10) : 0;
+  const remaining = DAILY_ENGAGEMENT_LIMIT - currentCount;
+
+  return {
+    allowed: currentCount < DAILY_ENGAGEMENT_LIMIT,
+    count: currentCount,
+    remaining: Math.max(0, remaining),
+  };
+}
+
+/**
+ * Increment account's daily engagement count
+ * Sets TTL to end of current day (UTC) on first increment
+ */
+async function incrementAccountDailyCount(accountId: string): Promise<number> {
+  const redis = getRedisConnectionSync();
+  const key = `${RATE_LIMIT_KEY_PREFIX}${accountId}`;
+
+  // Increment and get new value
+  const newCount = await redis.incr(key);
+
+  // Set TTL to end of day (UTC) on first increment
+  if (newCount === 1) {
+    const now = new Date();
+    const endOfDay = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + 1, // Next day
+      0, 0, 0, 0
+    ));
+    const ttlSeconds = Math.ceil((endOfDay.getTime() - now.getTime()) / 1000);
+    await redis.expire(key, ttlSeconds);
+
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Set daily limit TTL for ${accountId}: ${ttlSeconds}s (resets at ${endOfDay.toISOString()})`);
+    }
+  }
+
+  return newCount;
+}
+
+/**
+ * Check if account is in cooldown (after 429 rate limit error)
+ */
+async function isAccountInCooldown(accountId: string): Promise<boolean> {
+  const redis = getRedisConnectionSync();
+  const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
+  const cooldown = await redis.get(key);
+  return cooldown !== null;
+}
+
+/**
+ * Set cooldown for account after receiving 429 error
+ * Cooldown period: 15 minutes
+ */
+async function setAccountCooldown(accountId: string): Promise<void> {
+  const redis = getRedisConnectionSync();
+  const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
+  const ttlSeconds = Math.ceil(RATE_LIMIT_COOLDOWN_MS / 1000);
+
+  await redis.setex(key, ttlSeconds, new Date().toISOString());
+
+  console.log(`${LOG_PREFIX} ⚠️ Account ${accountId} in cooldown for ${ttlSeconds}s (429 rate limit hit)`);
+}
+
+/**
+ * Get remaining cooldown time for account (in seconds)
+ */
+async function getAccountCooldownRemaining(accountId: string): Promise<number> {
+  const redis = getRedisConnectionSync();
+  const key = `${COOLDOWN_KEY_PREFIX}${accountId}`;
+  const ttl = await redis.ttl(key);
+  return Math.max(0, ttl);
+}
 
 /**
  * Get or create the engagement queue
@@ -167,6 +267,9 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
 
   console.log(`${LOG_PREFIX} Processing job ${job.id}: ${engagementType} for activity ${activityId}`);
 
+  // Track resolved profile ID for rate limiting
+  let resolvedProfileId: string | undefined;
+
   try {
     // Step 1: Fetch activity from database to verify it exists and is ready
     const activity = await fetchActivityFromDatabase(activityId);
@@ -182,23 +285,42 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
       );
     }
 
-    // Step 3: Check if scheduled_for time has arrived
+    // Step 3: Defense-in-depth time check (BullMQ delay handles this, but log if early)
     const scheduledTime = new Date(activity.scheduled_for);
     const now = new Date();
-
     if (scheduledTime > now) {
-      // Not yet time to execute - reschedule job
-      const delayMs = scheduledTime.getTime() - now.getTime();
-      console.log(`${LOG_PREFIX} Activity not yet ready. Rescheduling in ${delayMs}ms`);
-      throw new Error(`Activity not ready for execution yet (scheduled for ${activity.scheduled_for})`);
+      const earlyMs = scheduledTime.getTime() - now.getTime();
+      console.log(`${LOG_PREFIX} ⚠️ Job arrived ${earlyMs}ms early (BullMQ delay may have drifted). Processing anyway.`);
     }
 
     // Step 3.5: Resolve Unipile account ID
     // Prefer job data profileId, fallback to activity data, then resolve from member
-    const resolvedProfileId = profileId || await resolveUnipileAccountId(
+    resolvedProfileId = profileId || await resolveUnipileAccountId(
       activity.member_id,
       activity.unipile_account_id
     );
+
+    // Step 3.6: Check per-account rate limits (LinkedIn: 100/day)
+    const limitCheck = await checkAccountDailyLimit(resolvedProfileId);
+    if (!limitCheck.allowed) {
+      throw new EngagementJobError(
+        `Account ${resolvedProfileId} exceeded daily limit (${limitCheck.count}/${DAILY_ENGAGEMENT_LIMIT})`,
+        'rate_limit'
+      );
+    }
+
+    // Step 3.7: Check if account is in cooldown (after 429)
+    if (await isAccountInCooldown(resolvedProfileId)) {
+      const remainingSec = await getAccountCooldownRemaining(resolvedProfileId);
+      throw new EngagementJobError(
+        `Account ${resolvedProfileId} in cooldown (${remainingSec}s remaining after 429 error)`,
+        'rate_limit'
+      );
+    }
+
+    if (FEATURE_FLAGS.ENABLE_LOGGING) {
+      console.log(`${LOG_PREFIX} Rate check passed: ${limitCheck.count}/${DAILY_ENGAGEMENT_LIMIT} engagements today for ${resolvedProfileId}`);
+    }
 
     // Step 4: Execute the engagement
     let executionResult: ExecutionResult;
@@ -230,6 +352,14 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
     // Step 5: Update database with result
     await updateActivityInDatabase(activityId, executionResult);
 
+    // Step 6: Increment account's daily engagement count (only on success)
+    if (executionResult.success && resolvedProfileId) {
+      const newCount = await incrementAccountDailyCount(resolvedProfileId);
+      if (FEATURE_FLAGS.ENABLE_LOGGING) {
+        console.log(`${LOG_PREFIX} Daily count for ${resolvedProfileId}: ${newCount}/${DAILY_ENGAGEMENT_LIMIT}`);
+      }
+    }
+
     const duration = Date.now() - startTime;
     console.log(
       `${LOG_PREFIX} ✅ Engagement executed successfully (${engagementType}, ${duration}ms)`
@@ -248,6 +378,13 @@ async function processEngagementJob(job: Job<EngagementJobData>): Promise<Execut
     console.error(
       `${LOG_PREFIX} ❌ Engagement execution failed (${engagementType}, attempt ${attempt}/${maxAttempts}, ${duration}ms): [${errorType}] ${errorMessage}`
     );
+
+    // Set cooldown for this account if we hit a rate limit (429)
+    // This prevents hammering the API and getting the account flagged
+    if (errorType === 'rate_limit' && resolvedProfileId) {
+      await setAccountCooldown(resolvedProfileId);
+      console.log(`${LOG_PREFIX} 🛑 Account ${resolvedProfileId} put in 15-minute cooldown after rate limit`);
+    }
 
     // E-05-5: Error-type-specific retry logic
     // Determine if we should retry based on error classification
@@ -1007,13 +1144,20 @@ export async function addEngagementJob(jobData: EngagementJobData): Promise<Job<
 
   const queue = getEngagementQueue();
 
+  // Calculate delay until scheduled time (BullMQ handles timing natively)
+  const scheduledTime = new Date(jobData.scheduledFor);
+  const now = new Date();
+  const delayMs = Math.max(0, scheduledTime.getTime() - now.getTime());
+
   const job = await queue.add('execute-engagement', jobData, {
     jobId: `engagement-${jobData.activityId}-${Date.now()}`,
+    delay: delayMs, // BullMQ native delay - job won't be processed until this time
     priority: calculateJobPriority(jobData),
   });
 
+  const delayMinutes = Math.round(delayMs / 60000);
   console.log(
-    `${LOG_PREFIX} Job added to queue: ${job.id} (activity: ${jobData.activityId})`
+    `${LOG_PREFIX} Job added to queue: ${job.id} (activity: ${jobData.activityId}, delay: ${delayMinutes}min)`
   );
 
   return job;
