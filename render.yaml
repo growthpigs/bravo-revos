@@ -1,10 +1,11 @@
 # Render.com Configuration for Bravo revOS
-# Last Updated: 2025-11-09
+# Last Updated: 2025-12-17
 #
-# This file defines 3 services:
+# This file defines 4 services:
 # 1. Web Service (Next.js + API routes)
 # 2. Background Worker (webhook-delivery)
-# 3. Background Worker (pod-automation)
+# 3. Background Worker (pod-automation) - E-04 Scheduler
+# 4. Background Worker (pod-engagement) - E-05 Executor
 #
 # IMPORTANT: Set all environment variables in Render Dashboard
 # See ENVIRONMENT_VARIABLES.md for complete reference
@@ -175,6 +176,60 @@ services:
       # Email (OPTIONAL)
       - key: RESEND_API_KEY
         sync: false
+
+      # Node Environment
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 18
+
+  # ===================================================================
+  # Background Worker - Pod Engagement Executor (E-05)
+  # Executes scheduled engagements (likes, comments) via Unipile API
+  # ===================================================================
+  - type: worker
+    name: bravo-revos-engagement-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: main
+    buildCommand: npm install
+    startCommand: npm run worker:pod-engagement
+
+    envVars:
+      # Supabase (REQUIRED)
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://kvjcidxbyimoswntpjcp.supabase.co
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # CRITICAL SECRET
+
+      # App Configuration
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+
+      # Security (REQUIRED)
+      - key: ENCRYPTION_KEY
+        sync: false  # Must match web service
+      - key: CRON_SECRET
+        sync: false  # Must match web service
+
+      # Redis (REQUIRED)
+      - key: REDIS_URL
+        sync: false  # Upstash Redis connection URL
+
+      # OpenAI (REQUIRED for voice cartridge)
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # Unipile (REQUIRED for E-05)
+      - key: UNIPILE_DSN
+        value: https://api3.unipile.com:13344
+      - key: UNIPILE_API_KEY
+        sync: false  # Required for LinkedIn engagement
+      - key: UNIPILE_MOCK_MODE
+        value: false  # Set to 'true' for testing without API calls
 
       # Node Environment
       - key: NODE_ENV
