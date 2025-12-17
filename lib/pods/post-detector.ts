@@ -33,7 +33,7 @@ export async function saveDetectedPost(
   activitiesCreated: number;
   error?: string;
 }> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   try {
     // Check if post already exists
@@ -158,7 +158,7 @@ export async function getPodMemberByLinkedInAccountId(
   linkedinAccountDatabaseId: string
 ): Promise<string | null> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient({ isServiceRole: true });
 
     const { data, error } = await supabase
       .from('pod_members')
@@ -185,7 +185,7 @@ export async function getPodMemberByLinkedInAccountId(
 export async function getPodMembersWithAccounts(
   podId: string
 ): Promise<Array<{ id: string; linkedin_account_id: string }>> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   try {
     const { data, error } = await supabase
@@ -210,7 +210,7 @@ export async function getPodMembersWithAccounts(
  * Update last poll time for a post
  */
 export async function updateLastPolledTime(postId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   try {
     await supabase

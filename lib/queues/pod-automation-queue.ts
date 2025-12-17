@@ -216,7 +216,7 @@ async function fetchActivityForExecution(activityId: string): Promise<{
   scheduled_for: string;
   unipile_account_id?: string;
 } | null> {
-  const supabase = await createClient();
+  const supabase = await createClient({ isServiceRole: true });
 
   // DB column is 'activity_type', code interface uses 'engagement_type'
   const { data, error } = await supabase
