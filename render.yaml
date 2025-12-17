@@ -193,7 +193,7 @@ services:
     region: oregon
     plan: starter
     branch: main
-    buildCommand: npm install
+    buildCommand: npm ci && npm rebuild esbuild
     startCommand: npm run worker:pod-engagement
 
     envVars:
