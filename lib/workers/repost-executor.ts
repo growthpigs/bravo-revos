@@ -43,7 +43,8 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
 
       // Step A: Fetch the pod member's session cookies from Unipile API
       // Assuming Unipile API endpoint for session is /v1/accounts/{id}/session
-      const unipileBaseUrl = process.env.UNIPILE_API_BASE_URL || 'https://api1.unipile.com:13211';
+      // FIX: Use UNIPILE_DSN (consistent with rest of codebase) instead of UNIPILE_API_BASE_URL
+      const unipileBaseUrl = process.env.UNIPILE_DSN || 'https://api3.unipile.com:13344';
       const unipileApiKey = process.env.UNIPILE_API_KEY;
 
       if (!unipileApiKey) {

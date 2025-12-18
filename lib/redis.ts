@@ -17,13 +17,9 @@ export function getRedisConnectionSync(): Redis {
     return connection;
   }
 
-  // Prevent race condition with simple flag
-  if (connectionPromise) {
-    // Connection is initializing, return placeholder that will queue commands
-    // This is safe because ioredis queues commands until connected
-    console.log('[REDIS] Connection initializing, commands will be queued');
-    return connection!;  // Will be set by the promise
-  }
+  // Prevent race condition: if connection is being created, wait for it
+  // FIX: Don't return connection! which could be null - create immediately instead
+  // The previous code had a race condition where connection could be null
 
   // Create connection immediately (singleton)
   connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {

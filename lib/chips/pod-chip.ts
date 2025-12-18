@@ -3,7 +3,7 @@ import { tool } from '@openai/agents';
 import { BaseChip } from './base-chip';
 import { AgentContext, extractAgentContext } from '@/lib/cartridges/types';
 // Note: Using 'any' type for supabase client since pod tables aren't in generated types
-import { queueAmplification, queueRepost } from '@/lib/queues/pod-queue';
+import { podAmplificationQueue, PodAmplificationJob } from '@/lib/queues/pod-amplification-queue';
 
 interface PodSession {
   id: string;
@@ -387,14 +387,19 @@ export class PodChip extends BaseChip {
       }
 
       const delayMs = i * 5 * 60 * 1000; // 5 minutes between each
-      const jobId = await queueRepost({
-        member_id: member.id,
-        post_url: postUrl,
-        unipile_account_id: member.unipile_account_id,
-        pod_id: finalPodId,
-      }, delayMs);
+      const jobData: PodAmplificationJob = {
+        podActivityId: `${member.id}-${Date.now()}`,
+        postUrl: postUrl,
+        memberUnipileAccountId: member.unipile_account_id,
+      };
 
-      queuedJobs.push(jobId);
+      const job = await podAmplificationQueue.add(
+        `repost-${member.id}`,
+        jobData,
+        { delay: delayMs }
+      );
+
+      queuedJobs.push(job.id || '');
     }
 
     return this.formatSuccess({

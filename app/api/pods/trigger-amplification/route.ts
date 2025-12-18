@@ -42,9 +42,17 @@ export async function POST(req: Request) {
     const podId = podMemberData.pod_id;
 
     // 3. Look up all other active members of the user's Pod
+    // FIX: unipile_account_id is on linkedin_accounts table, not pod_members
+    // Must join through linkedin_accounts to get the actual Unipile account ID
     const { data: podMembers, error: podMembersError } = await supabase
       .from('pod_members')
-      .select('id, unipile_account_id, linkedin_account_id') // Ensure unipile_account_id is available
+      .select(`
+        id,
+        linkedin_account_id,
+        linkedin_accounts!inner (
+          unipile_account_id
+        )
+      `)
       .eq('pod_id', podId)
       .neq('linkedin_account_id', post.linkedin_account_id); // Exclude the original poster
 
@@ -61,10 +69,19 @@ export async function POST(req: Request) {
     const jobsToAdd: any[] = [];
 
     for (const member of podMembers) {
-      // Ensure we have a unipile_account_id for the member
-      const memberUnipileAccountId = member.unipile_account_id || member.linkedin_account_id; // Fallback
+      // Extract unipile_account_id from joined linkedin_accounts
+      // FIX: Now correctly extracting from the JOIN result
+      const linkedAccount = (member as any).linkedin_accounts;
+      const memberUnipileAccountId = linkedAccount?.unipile_account_id;
+
       if (!memberUnipileAccountId) {
-        console.warn(`Pod member ${member.id} has no Unipile or LinkedIn account ID. Skipping.`);
+        console.warn(`Pod member ${member.id} has no linked Unipile account. Skipping.`);
+        continue;
+      }
+
+      // Validate post_url exists BEFORE creating activity (post_url is NOT NULL in schema)
+      if (!post.post_url) {
+        console.warn(`Post ${postId} has no post_url. Skipping repost for member ${member.id}.`);
         continue;
       }
 
@@ -79,16 +96,11 @@ export async function POST(req: Request) {
         pod_id: podId,
         member_id: member.id,
         post_id: postId,
-        activity_type: 'repost', // or a more specific type like 'linkedin_repost'
+        post_url: post.post_url, // Required: NOT NULL per schema
+        activity_type: 'repost', // DB column is 'activity_type' per migration 20251116
         status: 'pending',
         scheduled_for: scheduledFor,
       });
-
-      // Validate post_url exists before queueing
-      if (!post.post_url) {
-        console.warn(`Post ${postId} has no post_url. Skipping repost for member ${member.id}.`);
-        continue;
-      }
 
       jobsToAdd.push({
         name: `repost-${podActivityId}`,

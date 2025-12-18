@@ -458,11 +458,12 @@ async function fetchActivityFromDatabase(activityId: string): Promise<Engagement
       return null;
     }
 
-    // DB column is 'activity_type', code interface uses 'engagement_type'
+    // DB column is 'activity_type' per migration 20251116_update_pod_activities_for_workers.sql
+    // Map to interface field 'engagement_type' for code consistency
     return {
       id: data.id,
       pod_id: data.pod_id,
-      engagement_type: data.activity_type, // Map activity_type → engagement_type
+      engagement_type: data.activity_type, // Map DB 'activity_type' → code 'engagement_type'
       post_id: data.post_id,
       member_id: data.member_id, // Actual DB column name
       unipile_account_id: data.unipile_account_id, // May be null, needs resolution
@@ -498,17 +499,25 @@ export async function resolveUnipileAccountId(
     return activityUnipileId;
   }
 
-  // Slow path: lookup from pod_members directly
+  // Slow path: lookup via pod_members → linkedin_accounts relationship
+  // FIX: pod_members has linkedin_account_id FK, not direct unipile_account_id
+  // Must join through linkedin_accounts table per 001_initial_schema.sql
   if (FEATURE_FLAGS.ENABLE_LOGGING) {
     console.log(`${LOG_PREFIX} Resolving unipile_account_id for member ${memberId}`);
   }
 
   const supabase = await createClient({ isServiceRole: true });
 
-  // pod_members has unipile_account_id directly
+  // Query through the relationship: pod_members.linkedin_account_id → linkedin_accounts.unipile_account_id
   const { data: member, error: memberError } = await supabase
     .from('pod_members')
-    .select('unipile_account_id')
+    .select(`
+      id,
+      linkedin_account_id,
+      linkedin_accounts!inner (
+        unipile_account_id
+      )
+    `)
     .eq('id', memberId)
     .single();
 
@@ -519,18 +528,21 @@ export async function resolveUnipileAccountId(
     );
   }
 
-  if (!member?.unipile_account_id) {
+  // Extract unipile_account_id from the joined linkedin_accounts
+  const unipileAccountId = (member?.linkedin_accounts as any)?.unipile_account_id;
+
+  if (!unipileAccountId) {
     throw new EngagementJobError(
-      `Pod member ${memberId} has no Unipile account ID`,
+      `Pod member ${memberId} has no linked LinkedIn account with Unipile ID`,
       'validation_error'
     );
   }
 
   if (FEATURE_FLAGS.ENABLE_LOGGING) {
-    console.log(`${LOG_PREFIX} Resolved unipile_account_id: ${member.unipile_account_id}`);
+    console.log(`${LOG_PREFIX} Resolved unipile_account_id: ${unipileAccountId}`);
   }
 
-  return member.unipile_account_id;
+  return unipileAccountId;
 }
 
 /**
