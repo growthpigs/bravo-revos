@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     const activitiesToCreate = podMembers.map((member) => ({
       pod_id: campaign.pod_id,
-      post_id: `manual_${Date.now()}`,
+      post_id: null, // post_id is UUID type, use null for manual triggers
       post_url: post_url,
       member_id: member.id,
       unipile_account_id: member.unipile_account_id,
