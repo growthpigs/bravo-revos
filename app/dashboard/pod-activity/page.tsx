@@ -100,15 +100,34 @@ export default function PodActivityPage() {
     setLoading(true);
 
     try {
-      // Get activities for pods where user is a member
+      // First, get the user's pod member IDs
+      const { data: memberships, error: memberError } = await supabase
+        .from('pod_members')
+        .select('id, pod_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+
+      if (memberError) {
+        console.error('Error loading memberships:', memberError);
+        return;
+      }
+
+      if (!memberships || memberships.length === 0) {
+        setActivities([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get activities for pods the user is a member of
+      const podIds = memberships.map(m => m.pod_id);
+
       let query = supabase
         .from('pod_activities')
         .select(`
           *,
-          pods!inner(name, client_id),
-          pod_members!inner(user_id)
+          pods(name, client_id)
         `)
-        .eq('pod_members.user_id', user.id)
+        .in('pod_id', podIds)
         .order('scheduled_for', { ascending: true });
 
       // Apply status filter
@@ -127,10 +146,10 @@ export default function PodActivityPage() {
       const transformedActivities = (data || []).map((activity: any) => ({
         id: activity.id,
         pod_id: activity.pod_id,
-        pod_name: activity.pods.name,
+        pod_name: activity.pods?.name || 'Unknown Pod',
         post_id: activity.post_id,
         post_url: activity.post_url,
-        engagement_type: activity.engagement_type,
+        engagement_type: activity.activity_type || 'like', // Use activity_type field
         scheduled_for: activity.scheduled_for,
         status: activity.status,
         created_at: activity.created_at,
