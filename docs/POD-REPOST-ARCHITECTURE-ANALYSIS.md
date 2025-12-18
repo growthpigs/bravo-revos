@@ -1,6 +1,30 @@
 # Pod Repost Architecture Analysis
 **Date:** 2024-12-18
-**Status:** Critical findings documented
+**Status:** DECISION MADE - Repost deferred, likes/comments shipped
+**Last Updated:** 2024-12-18
+
+---
+
+## CTO Decision (2024-12-18)
+
+### Verified Facts
+1. **Unipile session endpoint does NOT exist** - Tested `GET /v1/accounts/{id}/session` → 404
+2. **Unipile has NO native repost API** - Confirmed via docs search
+3. **Likes work** - `POST /api/v1/posts/{postId}/reactions` ✅
+4. **Comments work** - `POST /api/v1/posts/{postId}/comments` ✅
+
+### Decision
+**Ship likes + comments NOW. Defer reposts until Unipile adds session export or alternative solution.**
+
+| Action | Timeline | Status |
+|--------|----------|--------|
+| Ship likes + comments | Immediate | ✅ Ready |
+| Disable repost code path | Done | ✅ Feature-flagged |
+| Email Unipile support | This week | Pending |
+| Re-evaluate repost | After Unipile response | Backlog |
+
+### Feature Flag
+Set `ENABLE_REPOST_FEATURE=true` in env to enable reposts (will fail without solution).
 
 ---
 

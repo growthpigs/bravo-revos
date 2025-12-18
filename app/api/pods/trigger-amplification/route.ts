@@ -3,7 +3,25 @@ import { createClient } from '@/lib/supabase/client';
 import { podAmplificationQueue } from '@/lib/queues/pod-amplification-queue';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * FEATURE STATUS: DISABLED (2024-12-18)
+ *
+ * Reposts require browser automation with LinkedIn session cookies.
+ * Unipile does NOT have a session export endpoint.
+ * Set ENABLE_REPOST_FEATURE=true when a solution is implemented.
+ */
+const REPOST_FEATURE_ENABLED = process.env.ENABLE_REPOST_FEATURE === 'true';
+
 export async function POST(req: Request) {
+  // Feature gate: Return early if reposts are disabled
+  if (!REPOST_FEATURE_ENABLED) {
+    return NextResponse.json({
+      message: 'Repost feature is currently disabled. Likes and comments are available via pod engagement.',
+      feature_status: 'disabled',
+      reason: 'Unipile session export not available - see docs/POD-REPOST-ARCHITECTURE-ANALYSIS.md'
+    }, { status: 200 });
+  }
+
   const supabase = createClient(); // Use appropriate client for API routes
 
   try {

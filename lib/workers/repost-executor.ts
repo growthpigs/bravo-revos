@@ -4,6 +4,22 @@ import playwright, { BrowserContext } from 'playwright';
 import { PodAmplificationJob, podAmplificationQueue } from '@/lib/queues/pod-amplification-queue';
 import { createClient } from '@/lib/supabase/client';
 
+/**
+ * FEATURE STATUS: DISABLED (2024-12-18)
+ *
+ * Reposts require browser automation with LinkedIn session cookies.
+ * Unipile does NOT have a session export endpoint (verified 404).
+ *
+ * To enable reposts, one of these solutions is needed:
+ * 1. Unipile adds session export endpoint (contact support@unipile.com)
+ * 2. Manual cookie collection during user onboarding
+ * 3. Custom browser extension to capture cookies
+ *
+ * Until then, likes + comments work via Unipile API.
+ * Set ENABLE_REPOST_FEATURE=true to enable (will fail without solution above)
+ */
+const REPOST_FEATURE_ENABLED = process.env.ENABLE_REPOST_FEATURE === 'true';
+
 // Use a shared Redis connection for the worker
 const redisConnection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
@@ -20,6 +36,16 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
   podAmplificationQueue.name,
   async (job) => {
     const { podActivityId, postUrl, memberUnipileAccountId } = job.data;
+
+    // FEATURE GATE: Repost is disabled until Unipile session export is available
+    if (!REPOST_FEATURE_ENABLED) {
+      console.log('[REPOST_EXECUTOR] Feature disabled. Marking activity as skipped:', podActivityId);
+      await supabase.from('pod_activities').update({
+        status: 'skipped',
+        // Note: Add reason field if schema supports it
+      }).eq('id', podActivityId);
+      return { status: 'skipped', reason: 'Repost feature disabled - Unipile session export not available' };
+    }
 
     // Safety Rail: Mock Mode
     if (process.env.UNIPILE_MOCK_MODE === 'true') {
