@@ -100,64 +100,17 @@ export default function PodActivityPage() {
     setLoading(true);
 
     try {
-      // First, get the user's pod member IDs
-      const { data: memberships, error: memberError } = await supabase
-        .from('pod_members')
-        .select('id, pod_id')
-        .eq('user_id', user.id)
-        .eq('status', 'active');
+      // Use API route to fetch activities (bypasses RLS)
+      const response = await fetch(`/api/pods/activities?status=${filterStatus}`);
 
-      if (memberError) {
-        console.error('Error loading memberships:', memberError);
-        return;
-      }
-
-      if (!memberships || memberships.length === 0) {
-        setActivities([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get activities for pods the user is a member of
-      const podIds = memberships.map(m => m.pod_id);
-
-      let query = supabase
-        .from('pod_activities')
-        .select(`
-          *,
-          pods(name, client_id)
-        `)
-        .in('pod_id', podIds)
-        .order('scheduled_for', { ascending: true });
-
-      // Apply status filter
-      if (filterStatus !== 'all') {
-        query = query.eq('status', filterStatus);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
+      if (!response.ok) {
+        const error = await response.json();
         console.error('Error loading activities:', error);
         return;
       }
 
-      // Transform data
-      const transformedActivities = (data || []).map((activity: any) => ({
-        id: activity.id,
-        pod_id: activity.pod_id,
-        pod_name: activity.pods?.name || 'Unknown Pod',
-        post_id: activity.post_id,
-        post_url: activity.post_url,
-        engagement_type: activity.activity_type || 'like', // Use activity_type field
-        scheduled_for: activity.scheduled_for,
-        status: activity.status,
-        created_at: activity.created_at,
-        execution_attempts: activity.execution_attempts || 0,
-        last_error: activity.last_error,
-      }));
-
-      setActivities(transformedActivities);
+      const { activities: fetchedActivities } = await response.json();
+      setActivities(fetchedActivities || []);
     } catch (error) {
       console.error('Error loading activities:', error);
     } finally {
