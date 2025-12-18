@@ -60,7 +60,7 @@ export function TriggerPodButton({
       console.log('Pod amplification triggered:', result);
 
       // Success
-      alert(`Pod amplification triggered successfully! Activity ID: ${result.activity_id}`);
+      alert(`Pod amplification triggered! ${result.activity_count || 1} activities created for pod members.`);
       router.refresh(); // Refresh the page to show updated data
     } catch (error) {
       console.error('Error triggering pod:', error);
