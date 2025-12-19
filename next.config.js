@@ -5,10 +5,12 @@ const nextConfig = {
   // Mark tokenizer packages as external to prevent encoder.json build-time loading
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Exclude tokenizer packages from server bundles - they try to load encoder.json at build time
+      // Exclude problematic packages from server bundles
       config.externals = config.externals || [];
-      config.externals.push('gpt-tokenizer');
-      config.externals.push('gpt-3-encoder');
+      config.externals.push('gpt-tokenizer');  // tries to load encoder.json at build time
+      config.externals.push('gpt-3-encoder');  // tries to load encoder.json at build time
+      config.externals.push('gologin');        // puppeteer + native deps cause serverless issues
+      config.externals.push('puppeteer-core'); // native deps cause serverless issues
     }
 
     // Fix for gologin dependencies - optional modules that don't exist in browser/serverless
