@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import { podAmplificationQueue } from '@/lib/queues/pod-amplification-queue';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
  */
 
 export async function POST(req: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   try {
     const { postId } = await req.json();
@@ -46,18 +46,20 @@ export async function POST(req: Request) {
     }
 
     // 2. Get the pod for the original poster
+    // Note: User may be in multiple pods - use first match (most recent)
     const { data: podMemberData, error: podMemberError } = await supabase
       .from('pod_members')
       .select('pod_id')
       .eq('linkedin_account_id', post.linkedin_account_id)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (podMemberError || !podMemberData) {
+    if (podMemberError || !podMemberData || podMemberData.length === 0) {
       console.error('Error fetching pod member for original poster:', podMemberError);
       return NextResponse.json({ error: 'Could not find pod for the original poster.' }, { status: 404 });
     }
 
-    const podId = podMemberData.pod_id;
+    const podId = podMemberData[0].pod_id;
 
     // 3. Get all other active members with their GoLogin profile info
     // Join linkedin_accounts to get gologin_profile_id and gologin_status

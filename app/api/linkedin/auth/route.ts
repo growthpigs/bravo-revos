@@ -24,15 +24,8 @@ export async function POST(request: NextRequest) {
     console.log('[DEBUG_LINKEDIN] Account Name:', accountName);
     console.log('[DEBUG_LINKEDIN] UNIPILE_MOCK_MODE env:', process.env.UNIPILE_MOCK_MODE);
 
-    // DIAGNOSTIC: Log received credentials to check for corruption
-    if (password) {
-      console.log('[AUTH_DEBUG] Received credentials:', {
-        username,
-        password: `[${password.length} chars] starts:"${password.slice(0,3)}" ends:"${password.slice(-3)}"`,
-        passwordHasSpecialChars: /[!@#$%^&*(),.?":{}|<>\\/[\]+=_-]/.test(password),
-        passwordBytes: [...password].map((c) => c.charCodeAt(0))
-      });
-    }
+    // SECURITY: Never log passwords or credential details
+    // Removed credential logging per security audit SEC #1
 
     // Check mock mode flag - if explicitly false, use production mode even in dev environment
     // If flag is true or NODE_ENV is development (without explicit false), use development mode

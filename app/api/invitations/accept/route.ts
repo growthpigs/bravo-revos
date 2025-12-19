@@ -6,10 +6,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 function generateSecurePassword(): string {
-  // Generate a secure random password
-  return Math.random().toString(36).slice(-16) + Math.random().toString(36).slice(-16);
+  // Generate cryptographically secure random password (24 chars, base64)
+  return crypto.randomBytes(18).toString('base64');
 }
 
 export async function POST(request: NextRequest) {
