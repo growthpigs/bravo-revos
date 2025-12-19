@@ -11,10 +11,12 @@ const nextConfig = {
       config.externals.push('gpt-3-encoder');
     }
 
-    // Fix for gologin/when/requestretry - 'vertx' is an optional JVM dependency that doesn't exist in Node.js
+    // Fix for gologin dependencies - optional modules that don't exist in browser/serverless
     config.resolve = config.resolve || {};
     config.resolve.fallback = config.resolve.fallback || {};
-    config.resolve.fallback.vertx = false;
+    config.resolve.fallback.vertx = false;        // JVM dependency in when/requestretry
+    config.resolve.fallback.bufferutil = false;   // Optional ws performance module
+    config.resolve.fallback['utf-8-validate'] = false;  // Optional ws validation module
 
     return config;
   },
