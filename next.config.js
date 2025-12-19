@@ -10,6 +10,12 @@ const nextConfig = {
       config.externals.push('gpt-tokenizer');
       config.externals.push('gpt-3-encoder');
     }
+
+    // Fix for gologin/when/requestretry - 'vertx' is an optional JVM dependency that doesn't exist in Node.js
+    config.resolve = config.resolve || {};
+    config.resolve.fallback = config.resolve.fallback || {};
+    config.resolve.fallback.vertx = false;
+
     return config;
   },
   eslint: {
