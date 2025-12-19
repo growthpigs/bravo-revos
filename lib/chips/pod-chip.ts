@@ -361,10 +361,19 @@ export class PodChip extends BaseChip {
       return this.formatError('User has no associated pod');
     }
 
-    // Get pod members (excluding the author)
+    // Get pod members with their GoLogin profile info (excluding the author)
     const { data: members, error: membersError } = await (supabase as any)
       .from('pod_members')
-      .select('id, user_id, unipile_account_id')
+      .select(`
+        id,
+        user_id,
+        repost_enabled,
+        linkedin_account_id,
+        linkedin_accounts!inner (
+          gologin_profile_id,
+          gologin_status
+        )
+      `)
       .eq('pod_id', finalPodId)
       .eq('status', 'active')
       .neq('user_id', userId);
@@ -380,9 +389,23 @@ export class PodChip extends BaseChip {
     // Queue reposts with staggered timing (5-60 minutes apart)
     const queuedJobs: string[] = [];
     for (let i = 0; i < members.length; i++) {
-      const member = members[i];
-      if (!member.unipile_account_id) {
-        console.log(`[POD_CHIP] Skipping member ${member.id} - no Unipile account`);
+      const member = members[i] as any;
+      const linkedAccount = member.linkedin_accounts;
+      const gologinProfileId = linkedAccount?.gologin_profile_id;
+      const gologinStatus = linkedAccount?.gologin_status;
+      const repostEnabled = member.repost_enabled !== false; // Default true
+
+      // Skip members without GoLogin profile or with repost disabled
+      if (!repostEnabled) {
+        console.log(`[POD_CHIP] Skipping member ${member.id} - repost disabled`);
+        continue;
+      }
+      if (!gologinProfileId) {
+        console.log(`[POD_CHIP] Skipping member ${member.id} - no GoLogin profile`);
+        continue;
+      }
+      if (gologinStatus !== 'active') {
+        console.log(`[POD_CHIP] Skipping member ${member.id} - GoLogin status: ${gologinStatus}`);
         continue;
       }
 
@@ -390,7 +413,7 @@ export class PodChip extends BaseChip {
       const jobData: PodAmplificationJob = {
         podActivityId: `${member.id}-${Date.now()}`,
         postUrl: postUrl,
-        memberUnipileAccountId: member.unipile_account_id,
+        gologinProfileId: gologinProfileId,
       };
 
       const job = await podAmplificationQueue.add(

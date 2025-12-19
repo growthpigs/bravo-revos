@@ -4,25 +4,19 @@ import { podAmplificationQueue } from '@/lib/queues/pod-amplification-queue';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * FEATURE STATUS: DISABLED (2024-12-18)
+ * POST /api/pods/trigger-amplification
  *
- * Reposts require browser automation with LinkedIn session cookies.
- * Unipile does NOT have a session export endpoint.
- * Set ENABLE_REPOST_FEATURE=true when a solution is implemented.
+ * Triggers automatic reposts for all pod members when a post is published.
+ *
+ * Architecture:
+ * - Uses GoLogin for browser automation (session management)
+ * - Each pod member must have enabled repost feature (gologin_profile_id set)
+ * - Members without GoLogin profiles are skipped (tracked as 'skipped' status)
+ * - Members with repost_enabled=false are also skipped
  */
-const REPOST_FEATURE_ENABLED = process.env.ENABLE_REPOST_FEATURE === 'true';
 
 export async function POST(req: Request) {
-  // Feature gate: Return early if reposts are disabled
-  if (!REPOST_FEATURE_ENABLED) {
-    return NextResponse.json({
-      message: 'Repost feature is currently disabled. Likes and comments are available via pod engagement.',
-      feature_status: 'disabled',
-      reason: 'Unipile session export not available - see docs/POD-REPOST-ARCHITECTURE-ANALYSIS.md'
-    }, { status: 200 });
-  }
-
-  const supabase = createClient(); // Use appropriate client for API routes
+  const supabase = createClient();
 
   try {
     const { postId } = await req.json();
@@ -34,7 +28,7 @@ export async function POST(req: Request) {
     // 1. Get the original post and the user who created it
     const { data: post, error: postError } = await supabase
       .from('posts')
-      .select('id, linkedin_account_id, campaign_id, post_url') // Include post_url for repost navigation
+      .select('id, linkedin_account_id, campaign_id, post_url')
       .eq('id', postId)
       .single();
 
@@ -43,9 +37,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Post not found or inaccessible' }, { status: 404 });
     }
 
-    // 2. Get the pod associated with the campaign (assuming one pod per campaign or client)
-    // For simplicity, let's assume the campaign_id is linked to a pod.
-    // A more robust solution might involve querying pods directly or through user's primary pod.
+    // Validate post_url exists
+    if (!post.post_url) {
+      return NextResponse.json({
+        error: 'Post has no LinkedIn URL. Cannot trigger repost.',
+        postId
+      }, { status: 400 });
+    }
+
+    // 2. Get the pod for the original poster
     const { data: podMemberData, error: podMemberError } = await supabase
       .from('pod_members')
       .select('pod_id')
@@ -59,20 +59,21 @@ export async function POST(req: Request) {
 
     const podId = podMemberData.pod_id;
 
-    // 3. Look up all other active members of the user's Pod
-    // FIX: unipile_account_id is on linkedin_accounts table, not pod_members
-    // Must join through linkedin_accounts to get the actual Unipile account ID
+    // 3. Get all other active members with their GoLogin profile info
+    // Join linkedin_accounts to get gologin_profile_id and gologin_status
     const { data: podMembers, error: podMembersError } = await supabase
       .from('pod_members')
       .select(`
         id,
         linkedin_account_id,
+        repost_enabled,
         linkedin_accounts!inner (
-          unipile_account_id
+          gologin_profile_id,
+          gologin_status
         )
       `)
       .eq('pod_id', podId)
-      .neq('linkedin_account_id', post.linkedin_account_id); // Exclude the original poster
+      .neq('linkedin_account_id', post.linkedin_account_id); // Exclude original poster
 
     if (podMembersError) {
       console.error('Error fetching pod members:', podMembersError);
@@ -85,37 +86,77 @@ export async function POST(req: Request) {
 
     const podActivitiesToInsert: any[] = [];
     const jobsToAdd: any[] = [];
+    let skippedCount = 0;
+    let queuedCount = 0;
 
     for (const member of podMembers) {
-      // Extract unipile_account_id from joined linkedin_accounts
-      // FIX: Now correctly extracting from the JOIN result
       const linkedAccount = (member as any).linkedin_accounts;
-      const memberUnipileAccountId = linkedAccount?.unipile_account_id;
+      const gologinProfileId = linkedAccount?.gologin_profile_id;
+      const gologinStatus = linkedAccount?.gologin_status;
+      const repostEnabled = member.repost_enabled !== false; // Default true
 
-      if (!memberUnipileAccountId) {
-        console.warn(`Pod member ${member.id} has no linked Unipile account. Skipping.`);
-        continue;
-      }
-
-      // Validate post_url exists BEFORE creating activity (post_url is NOT NULL in schema)
-      if (!post.post_url) {
-        console.warn(`Post ${postId} has no post_url. Skipping repost for member ${member.id}.`);
-        continue;
-      }
-
-      // Calculate randomized delay (2–15 minutes)
+      // Calculate randomized delay (2–15 minutes for natural appearance)
       const delayMinutes = Math.floor(Math.random() * (15 - 2 + 1)) + 2;
       const scheduledFor = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
-
       const podActivityId = uuidv4();
 
+      // Check if member should be skipped
+      if (!repostEnabled) {
+        console.log(`[TRIGGER_AMPLIFICATION] Member ${member.id} has repost disabled. Skipping.`);
+        podActivitiesToInsert.push({
+          id: podActivityId,
+          pod_id: podId,
+          member_id: member.id,
+          post_id: postId,
+          post_url: post.post_url,
+          activity_type: 'repost',
+          status: 'skipped',
+          scheduled_for: scheduledFor,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      if (!gologinProfileId) {
+        console.log(`[TRIGGER_AMPLIFICATION] Member ${member.id} has no GoLogin profile. Skipping.`);
+        podActivitiesToInsert.push({
+          id: podActivityId,
+          pod_id: podId,
+          member_id: member.id,
+          post_id: postId,
+          post_url: post.post_url,
+          activity_type: 'repost',
+          status: 'skipped',
+          scheduled_for: scheduledFor,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      if (gologinStatus !== 'active') {
+        console.log(`[TRIGGER_AMPLIFICATION] Member ${member.id} GoLogin status is '${gologinStatus}'. Skipping.`);
+        podActivitiesToInsert.push({
+          id: podActivityId,
+          pod_id: podId,
+          member_id: member.id,
+          post_id: postId,
+          post_url: post.post_url,
+          activity_type: 'repost',
+          status: 'skipped',
+          scheduled_for: scheduledFor,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      // Member is ready for repost
       podActivitiesToInsert.push({
         id: podActivityId,
         pod_id: podId,
         member_id: member.id,
         post_id: postId,
-        post_url: post.post_url, // Required: NOT NULL per schema
-        activity_type: 'repost', // DB column is 'activity_type' per migration 20251116
+        post_url: post.post_url,
+        activity_type: 'repost',
         status: 'pending',
         scheduled_for: scheduledFor,
       });
@@ -124,29 +165,40 @@ export async function POST(req: Request) {
         name: `repost-${podActivityId}`,
         data: {
           podActivityId: podActivityId,
-          postUrl: post.post_url, // Use actual LinkedIn URL for Playwright navigation
-          memberUnipileAccountId: memberUnipileAccountId,
+          postUrl: post.post_url,
+          gologinProfileId: gologinProfileId,
         },
         opts: {
           delay: delayMinutes * 60 * 1000, // BullMQ delay in milliseconds
         },
       });
+      queuedCount++;
     }
 
-    // Insert pod_activities rows
-    const { error: insertError } = await supabase
-      .from('pod_activities')
-      .insert(podActivitiesToInsert);
+    // Insert all pod_activities rows (including skipped ones for tracking)
+    if (podActivitiesToInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from('pod_activities')
+        .insert(podActivitiesToInsert);
 
-    if (insertError) {
-      console.error('Error inserting pod activities:', insertError);
-      return NextResponse.json({ error: 'Failed to queue pod activities' }, { status: 500 });
+      if (insertError) {
+        console.error('Error inserting pod activities:', insertError);
+        return NextResponse.json({ error: 'Failed to queue pod activities' }, { status: 500 });
+      }
     }
 
-    // Add jobs to BullMQ
-    await podAmplificationQueue.addBulk(jobsToAdd);
+    // Add jobs to BullMQ (only for non-skipped members)
+    if (jobsToAdd.length > 0) {
+      await podAmplificationQueue.addBulk(jobsToAdd);
+    }
 
-    return NextResponse.json({ message: 'Pod amplification jobs queued successfully', count: jobsToAdd.length }, { status: 200 });
+    return NextResponse.json({
+      message: 'Pod amplification triggered',
+      queued: queuedCount,
+      skipped: skippedCount,
+      total: podMembers.length,
+      postUrl: post.post_url
+    }, { status: 200 });
 
   } catch (error: any) {
     console.error('Unhandled error in trigger-amplification API:', error);

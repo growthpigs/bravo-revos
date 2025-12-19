@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Search, Edit, UserCircle, Mail, Building2, Copy, Check } from 'lucide-react'
 import { toast } from 'sonner'
@@ -31,6 +32,7 @@ interface User {
   first_name: string | null
   last_name: string | null
   role: 'user' | 'super_admin' | 'admin' | 'manager' | 'member'
+  roles: string[]
   client_id: string | null
   unipile_account_id: string | null
   pod_members?: Array<{ id: string; pods: { name: string }[] }>
@@ -57,7 +59,7 @@ export default function AdminUsersPage() {
     first_name: '',
     last_name: '',
     password: '',
-    role: 'user' as 'user' | 'super_admin',
+    roles: ['user'] as string[],
     client_id: ''
   })
 
@@ -87,6 +89,7 @@ export default function AdminUsersPage() {
           first_name,
           last_name,
           role,
+          roles,
           client_id,
           unipile_account_id,
           last_login_at,
@@ -121,9 +124,11 @@ export default function AdminUsersPage() {
   const filterUsers = () => {
     let filtered = users
 
-    // Tab filter: "Users" shows ALL, "Admins" shows only admin roles
+    // Tab filter: "Users" shows ALL, "Admins" shows only users with admin roles
     if (activeTab === 'admins') {
-      filtered = filtered.filter((user) => user.role === 'super_admin' || user.role === 'admin')
+      filtered = filtered.filter((user) =>
+        user.roles?.includes('super_admin') || user.roles?.includes('admin')
+      )
     }
     // "users" tab shows everyone (no filter)
 
@@ -140,7 +145,7 @@ export default function AdminUsersPage() {
 
     // Role filter
     if (roleFilter !== 'all') {
-      filtered = filtered.filter((user) => user.role === roleFilter)
+      filtered = filtered.filter((user) => user.roles?.includes(roleFilter))
     }
 
     setFilteredUsers(filtered)
@@ -153,7 +158,7 @@ export default function AdminUsersPage() {
       first_name: user.first_name || '',
       last_name: user.last_name || '',
       password: '',
-      role: (user.role === 'super_admin' ? 'super_admin' : 'user') as 'user' | 'super_admin',
+      roles: user.roles || ['user'],
       client_id: user.client_id || ''
     })
     setShowEditModal(true)
@@ -166,7 +171,7 @@ export default function AdminUsersPage() {
       first_name: '',
       last_name: '',
       password: '',
-      role: 'user',
+      roles: ['user'],
       client_id: ''
     })
     setShowCreateModal(true)
@@ -180,13 +185,18 @@ export default function AdminUsersPage() {
       }
 
       if (editingUser) {
-        // Update existing user
+        // Update existing user - save both roles array and legacy role field
+        const primaryRole = formData.roles.includes('super_admin') ? 'super_admin'
+          : formData.roles.includes('admin') ? 'admin'
+          : 'user'
+
         const { error } = await supabase
           .from('users')
           .update({
             first_name: formData.first_name || null,
             last_name: formData.last_name || null,
-            role: formData.role,
+            roles: formData.roles,
+            role: primaryRole,
             client_id: formData.client_id || null,
             updated_at: new Date().toISOString()
           })
@@ -203,12 +213,17 @@ export default function AdminUsersPage() {
         }
 
         // Create new user via direct creation API
+        const primaryRole = formData.roles.includes('super_admin') ? 'super_admin'
+          : formData.roles.includes('admin') ? 'admin'
+          : 'user'
+
         const createPayload = {
           email: formData.email,
           firstName: formData.first_name || 'User',
           lastName: formData.last_name || '',
           password: formData.password,
-          role: formData.role,
+          role: primaryRole,
+          roles: formData.roles,
         };
 
         console.log('[USERS_PAGE] Creating user directly:', {
@@ -253,7 +268,7 @@ export default function AdminUsersPage() {
           first_name: '',
           last_name: '',
           password: '',
-          role: 'user',
+          roles: ['user'],
           client_id: ''
         })
 
@@ -395,15 +410,17 @@ export default function AdminUsersPage() {
                       <UserCircle className="h-6 w-6 text-gray-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="text-lg font-semibold text-gray-900 truncate">
                           {user.first_name && user.last_name
                             ? `${user.first_name} ${user.last_name}`
                             : user.email}
                         </h3>
-                        <Badge className={getRoleBadgeColor(user.role)} variant="secondary">
-                          {user.role}
-                        </Badge>
+                        {user.roles?.map((role) => (
+                          <Badge key={role} className={getRoleBadgeColor(role)} variant="secondary">
+                            {role}
+                          </Badge>
+                        ))}
                       </div>
                       <div className="flex items-center gap-1 text-sm text-gray-600">
                         <Mail className="h-4 w-4" />
@@ -513,22 +530,44 @@ export default function AdminUsersPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value: any) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <Label>Roles</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="role-user"
+                    checked={formData.roles.includes('user')}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setFormData({ ...formData, roles: [...formData.roles, 'user'] })
+                      } else {
+                        setFormData({ ...formData, roles: formData.roles.filter(r => r !== 'user') })
+                      }
+                    }}
+                  />
+                  <Label htmlFor="role-user" className="text-sm font-normal cursor-pointer">
+                    User <span className="text-gray-500">- Standard access</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="role-admin"
+                    checked={formData.roles.includes('super_admin')}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setFormData({ ...formData, roles: [...formData.roles, 'super_admin'] })
+                      } else {
+                        setFormData({ ...formData, roles: formData.roles.filter(r => r !== 'super_admin') })
+                      }
+                    }}
+                  />
+                  <Label htmlFor="role-admin" className="text-sm font-normal cursor-pointer">
+                    Super Admin <span className="text-gray-500">- Full administrative access</span>
+                  </Label>
+                </div>
+              </div>
               <p className="text-xs text-gray-500">
-                User: Standard access • Super Admin: Full administrative access
+                Select one or more roles for this user
               </p>
             </div>
 

@@ -21,7 +21,7 @@ export const podAmplificationQueue = new Queue('podAmplification', {
 export interface PodAmplificationJob {
   podActivityId: string;
   postUrl: string;
-  memberUnipileAccountId: string;
+  gologinProfileId: string;  // GoLogin profile ID for browser automation
 }
 
 // Worker will be defined in lib/workers/repost-executor.ts
