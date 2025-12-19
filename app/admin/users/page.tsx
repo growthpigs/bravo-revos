@@ -121,12 +121,11 @@ export default function AdminUsersPage() {
   const filterUsers = () => {
     let filtered = users
 
-    // Tab filter (users vs admins)
-    if (activeTab === 'users') {
-      filtered = filtered.filter((user) => user.role === 'user' || user.role === 'member')
-    } else {
+    // Tab filter: "Users" shows ALL, "Admins" shows only admin roles
+    if (activeTab === 'admins') {
       filtered = filtered.filter((user) => user.role === 'super_admin' || user.role === 'admin')
     }
+    // "users" tab shows everyone (no filter)
 
     // Search filter
     if (searchTerm) {
