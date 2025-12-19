@@ -36,6 +36,7 @@ interface HealthData {
 }
 
 // Default state when health API hasn't responded yet
+// Use empty string for timestamp to avoid hydration mismatch (server vs client time)
 const DEFAULT_HEALTH_DATA: HealthData = {
   status: 'unknown',
   checks: {
@@ -51,7 +52,7 @@ const DEFAULT_HEALTH_DATA: HealthData = {
     cron: { status: 'unknown' },
     webhooks: { status: 'unknown' },
     email: { status: 'unknown' },
-    timestamp: new Date().toISOString(),
+    timestamp: '',
   },
 };
 
@@ -76,7 +77,7 @@ function getBuildTimeStatus(): HealthData {
       cron: { status: 'healthy' },
       webhooks: { status: 'healthy' },
       email: { status: 'disabled' }, // Not configured yet
-      timestamp: new Date().toISOString(),
+      timestamp: '', // Set on client side only to avoid hydration mismatch
     },
   };
 }

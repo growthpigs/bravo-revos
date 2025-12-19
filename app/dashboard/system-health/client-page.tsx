@@ -53,8 +53,8 @@ export function ClientSystemHealthPage({ clientMetrics }: ClientSystemHealthPage
               <div className="text-2xl font-bold uppercase">
                 {data?.status || 'UNKNOWN'}
               </div>
-              <div className="text-sm text-gray-500">
-                Last checked: {data ? new Date(data.checks.timestamp).toLocaleString() : 'Never'}
+              <div className="text-sm text-gray-500" suppressHydrationWarning>
+                Last checked: {data?.checks.timestamp ? new Date(data.checks.timestamp).toLocaleString() : 'Checking...'}
               </div>
             </div>
           </div>
