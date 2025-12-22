@@ -77,3 +77,5 @@ sentry.properties
 .vercel
 worktrees/
 .env.vercel
+pai-context
+pai-docs

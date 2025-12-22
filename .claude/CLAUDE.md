@@ -8,9 +8,12 @@
 
 **BEFORE DOING ANYTHING:**
 - `~/.claude/CLAUDE.md` (PAI system)
-- `~/.claude/context/tools/CLAUDE.md` (tools)
-- `~/.claude/context/projects/revos/CLAUDE.md` (project context)
-- `~/.claude/context/projects/revos/design-guide.md` (design)
+- `./pai-context/CLAUDE.md` (project context - symlinked to PAI-System)
+
+**Project Documentation:** `./pai-context/`
+- CLAUDE.md, RUNBOOK.md - Full project context
+- features/ - Living feature specifications
+- _docs/ - A-F system documents
 
 ---
 
