@@ -1,14 +1,43 @@
 # Bravo revOS - Project Instructions
 
+## 🚪 MANDATORY: READ GLOBAL PAI SYSTEM FIRST
+
+**Before doing anything on this project:**
+
+Read `/Users/rodericandrews/.claude/CLAUDE.md` completely.
+
+This file contains:
+- The mandatory startup sequence (mem0, chi-gateway MCPs, local docs)
+- Tool selection priorities (which tools to use, when)
+- The entire PAI infrastructure that makes this system work
+
+**Do not proceed with project work until you understand the global system.**
+
+---
+
+## Tracking
+
+**Project Type:** PARTNER
+**Stakeholders:** Bravo
+**Sheet ID:** `1A6nfb7cGsuAR4P16GQ3EmGQydG1NYd8bBajRpOPyOcc`
+**Sheet Link:** [RevOS Project Dashboard](https://docs.google.com/spreadsheets/d/1A6nfb7cGsuAR4P16GQ3EmGQydG1NYd8bBajRpOPyOcc/edit)
+
+**Session Logging Format:**
+```
+mcp__chi-gateway__sheets_append({
+  spreadsheetId: "1A6nfb7cGsuAR4P16GQ3EmGQydG1NYd8bBajRpOPyOcc",
+  range: "Sheet2!A:E",
+  values: [["YYYY-MM-DD", "Task description", "DUs", "Category", "✅ Done"]]
+})
+```
+
+---
+
 ## MANDATORY SESSION START PROTOCOL
 
-**YOU MUST DO THIS BEFORE ANYTHING ELSE:**
+**AFTER reading the global PAI system, proceed with these steps:**
 
-1. **Read these files (actually use Read tool):**
-   - `~/.claude/CLAUDE.md` (PAI system rules)
-   - `~/.claude/context/tools/CLAUDE.md` (MCP tools)
-   - `~/.claude/context/projects/revos/CLAUDE.md` (project context)
-   - `~/.claude/context/systems/error-patterns.md` (mistakes to avoid)
+1. **Load project context (use Read tool):**
 
 2. **Run health checks:**
    ```bash
