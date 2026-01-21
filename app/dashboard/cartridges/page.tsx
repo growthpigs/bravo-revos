@@ -157,10 +157,7 @@ export default function CartridgesPage() {
 
   // Poll style cartridge status if processing
   useEffect(() => {
-    console.log('[DEBUG_POLL] Style polling effect triggered, status:', styleCartridge?.analysis_status);
-
     if (!styleCartridge?.id) {
-      console.log('[DEBUG_POLL] No style cartridge, skipping poll');
       return;
     }
 
@@ -168,8 +165,6 @@ export default function CartridgesPage() {
 
     // Only poll if status is 'analyzing' (the status during processing)
     if (status === 'analyzing') {
-      console.log('[DEBUG_POLL] Starting style status polling for:', styleCartridge.id);
-
       const pollStyleStatus = async () => {
         try {
           const response = await fetch(`/api/cartridges/style/${styleCartridge.id}/status`, {
@@ -178,11 +173,9 @@ export default function CartridgesPage() {
 
           if (response.ok) {
             const data = await response.json();
-            console.log('[DEBUG_POLL] Style status update:', data);
 
             // Update the cartridge status if it changed
             if (data.status !== status) {
-              console.log('[DEBUG_POLL] Status changed from', status, 'to', data.status);
               await fetchStyleCartridge();
 
               // Show toast on completion or failure
@@ -194,7 +187,7 @@ export default function CartridgesPage() {
             }
           }
         } catch (error) {
-          console.error('[DEBUG_POLL] Error polling style status:', error);
+          // Silently handle polling errors
         }
       };
 
@@ -207,11 +200,9 @@ export default function CartridgesPage() {
       setPollingIntervals(prev => ({ ...prev, style: interval }));
 
       return () => {
-        console.log('[DEBUG_POLL] Cleaning up style polling interval');
         clearInterval(interval);
       };
     } else {
-      console.log('[DEBUG_POLL] Style not processing, clearing any existing interval');
       // Clear interval if status is not processing
       if (pollingIntervals.style) {
         clearInterval(pollingIntervals.style);
@@ -222,19 +213,14 @@ export default function CartridgesPage() {
 
   // Poll instruction cartridges status if processing
   useEffect(() => {
-    console.log('[DEBUG_POLL] Instructions polling effect triggered, count:', instructionCartridges.length);
-
     const processingInstructions = instructionCartridges.filter(
       inst => inst.process_status === 'processing'
     );
-
-    console.log('[DEBUG_POLL] Processing instructions:', processingInstructions.map(i => i.id));
 
     // Clear intervals for instructions that are no longer processing
     const currentIds = new Set(processingInstructions.map(i => i.id));
     pollingIntervals.instructions.forEach((interval, id) => {
       if (!currentIds.has(id)) {
-        console.log('[DEBUG_POLL] Clearing interval for instruction:', id);
         clearInterval(interval);
         pollingIntervals.instructions.delete(id);
       }
@@ -243,8 +229,6 @@ export default function CartridgesPage() {
     // Set up polling for each processing instruction
     processingInstructions.forEach(instruction => {
       if (!pollingIntervals.instructions.has(instruction.id)) {
-        console.log('[DEBUG_POLL] Starting polling for instruction:', instruction.id);
-
         const pollInstructionStatus = async () => {
           try {
             const response = await fetch(`/api/cartridges/instructions/${instruction.id}/status`, {
@@ -253,11 +237,9 @@ export default function CartridgesPage() {
 
             if (response.ok) {
               const data = await response.json();
-              console.log('[DEBUG_POLL] Instruction status update:', instruction.id, data);
 
               // If status changed, refetch all instructions
               if (data.status !== instruction.process_status) {
-                console.log('[DEBUG_POLL] Instruction status changed from', instruction.process_status, 'to', data.status);
                 await fetchInstructionCartridges();
 
                 // Show toast on completion or failure
@@ -269,7 +251,7 @@ export default function CartridgesPage() {
               }
             }
           } catch (error) {
-            console.error('[DEBUG_POLL] Error polling instruction status:', error);
+            // Silently handle polling errors
           }
         };
 
@@ -284,7 +266,6 @@ export default function CartridgesPage() {
 
     // Cleanup function
     return () => {
-      console.log('[DEBUG_POLL] Cleaning up all instruction polling intervals');
       pollingIntervals.instructions.forEach(interval => clearInterval(interval));
       pollingIntervals.instructions.clear();
     };
@@ -295,55 +276,29 @@ export default function CartridgesPage() {
   }, []);
 
   const fetchAllCartridges = async () => {
-    console.log('[TRACE_INIT] ========== CARTRIDGE FETCH SESSION START ==========');
-    console.log('[TRACE_INIT] 1. Window location:', window.location.href);
-    console.log('[TRACE_INIT] 2. Document cookies present:', document.cookie ? 'YES' : 'NO');
-    console.log('[TRACE_INIT] 3. Cookie details:', document.cookie);
-
-    // Check localStorage for Supabase auth
-    const authKeys = Object.keys(localStorage).filter(k => k.includes('supabase'));
-    console.log('[TRACE_INIT] 4. LocalStorage auth keys:', authKeys);
-    authKeys.forEach(key => {
-      console.log('[TRACE_INIT]   -', key, ':', localStorage.getItem(key)?.substring(0, 50) + '...');
-    });
-
     setLoading(true);
     try {
       const supabase = createClient();
-      console.log('[TRACE_INIT] 5. Supabase client created');
 
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('[TRACE_INIT] 6. Auth check result:', {
-        hasUser: !!user,
-        userId: user?.id,
-        error: authError?.message
-      });
 
       if (authError || !user) {
-        console.error('[TRACE_INIT] 7. Auth failed, redirecting to login:', authError);
         router.push('/auth/login');
         return;
       }
 
-      console.log('[TRACE_INIT] 8. Starting parallel fetches...');
       // Fetch all cartridge types in parallel
-      const results = await Promise.allSettled([
-        fetchVoiceCartridges().catch(e => { console.log('[TRACE_ERROR] Voice failed:', e); return 'failed'; }),
-        fetchStyleCartridge().catch(e => { console.log('[TRACE_ERROR] Style failed:', e); return 'failed'; }),
-        fetchPreferencesCartridge().catch(e => { console.log('[TRACE_ERROR] Preferences failed:', e); return 'failed'; }),
-        fetchInstructionCartridges().catch(e => { console.log('[TRACE_ERROR] Instructions failed:', e); return 'failed'; }),
-        fetchBrandCartridge().catch(e => { console.log('[TRACE_ERROR] Brand failed:', e); return 'failed'; })
+      await Promise.allSettled([
+        fetchVoiceCartridges(),
+        fetchStyleCartridge(),
+        fetchPreferencesCartridge(),
+        fetchInstructionCartridges(),
+        fetchBrandCartridge()
       ]);
-
-      console.log('[TRACE_INIT] 9. Fetch results:', results.map((r, i) =>
-        `${['Voice', 'Style', 'Preferences', 'Instructions', 'Brand'][i]}: ${r.status}`
-      ));
     } catch (error) {
-      console.error('[TRACE_INIT] 10. CRITICAL ERROR:', error);
       toast.error('Failed to load cartridges');
     } finally {
       setLoading(false);
-      console.log('[TRACE_INIT] ========== CARTRIDGE FETCH SESSION END ==========');
     }
   };
 
@@ -370,109 +325,82 @@ export default function CartridgesPage() {
 
   const fetchStyleCartridge = async () => {
     try {
-      console.log('[TRACE_STYLE] 1. Starting style fetch');
       const response = await fetch('/api/cartridges/style', {
-        credentials: 'include', // CRITICAL: Include cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         }
       });
-      console.log('[TRACE_STYLE] 2. Response status:', response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[TRACE_STYLE] 3. Error response:', errorText);
         throw new Error(`Style fetch failed: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('[TRACE_STYLE] 4. Success, got data:', data);
       setStyleCartridge(data.cartridge);
     } catch (error) {
-      console.error('[TRACE_STYLE] 5. FULL ERROR:', error);
-      throw error; // Re-throw to be caught by Promise.allSettled
+      throw error;
     }
   };
 
   const fetchPreferencesCartridge = async () => {
     try {
-      console.log('[TRACE_PREFS] 1. Starting preferences fetch');
       const response = await fetch('/api/cartridges/preferences', {
-        credentials: 'include', // CRITICAL: Include cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         }
       });
-      console.log('[TRACE_PREFS] 2. Response status:', response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[TRACE_PREFS] 3. Error response:', errorText);
         throw new Error(`Preferences fetch failed: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('[TRACE_PREFS] 4. Success, got data:', data);
       setPreferencesCartridge(data.preferences);
     } catch (error) {
-      console.error('[TRACE_PREFS] 5. FULL ERROR:', error);
-      throw error; // Re-throw to be caught by Promise.allSettled
+      throw error;
     }
   };
 
   const fetchInstructionCartridges = async () => {
     try {
-      console.log('[TRACE_INSTR] 1. Starting instructions fetch');
       const response = await fetch('/api/cartridges/instructions', {
-        credentials: 'include', // CRITICAL: Include cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         }
       });
-      console.log('[TRACE_INSTR] 2. Response status:', response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[TRACE_INSTR] 3. Error response:', errorText);
         throw new Error(`Instructions fetch failed: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('[TRACE_INSTR] 4. Success, got data:', data);
       setInstructionCartridges(data.cartridges || []);
     } catch (error) {
-      console.error('[TRACE_INSTR] 5. FULL ERROR:', error);
-      throw error; // Re-throw to be caught by Promise.allSettled
+      throw error;
     }
   };
 
   const fetchBrandCartridge = async () => {
     try {
-      console.log('[TRACE_API] 1. Frontend: Starting brand fetch');
-      console.log('[TRACE_API] 2. Frontend: Current URL:', window.location.href);
-      console.log('[TRACE_API] 3. Frontend: Cookies present:', document.cookie ? 'YES' : 'NO');
-
       const response = await fetch('/api/cartridges/brand', {
-        credentials: 'include', // CRITICAL: Include cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         }
       });
 
-      console.log('[TRACE_API] 4. Frontend: Response status:', response.status);
-      console.log('[TRACE_API] 5. Frontend: Response headers:', response.headers.get('content-type'));
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[TRACE_API] 6. Frontend: Error response body:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('[TRACE_API] 7. Frontend: Success, got data:', data);
       setBrandCartridge(data.brand);
 
-      // CRITICAL: Initialize brandFormData from loaded brand to prevent empty overwrites
+      // Initialize brandFormData from loaded brand to prevent empty overwrites
       if (data.brand) {
         setBrandFormData({
           name: data.brand.name || '',
@@ -483,15 +411,9 @@ export default function CartridgesPage() {
           target_audience: data.brand.target_audience || '',
           core_messaging: data.brand.core_messaging || ''
         });
-        console.log('[TRACE_API] 7b. Initialized brandFormData from brand:', {
-          company_description: data.brand.company_description?.substring(0, 50),
-          industry: data.brand.industry,
-          target_audience: data.brand.target_audience
-        });
       }
     } catch (error) {
-      console.error('[TRACE_API] 8. Frontend: FULL ERROR:', error);
-      console.error('Error fetching brand cartridge:', error);
+      // Silently handle brand fetch errors
     }
   };
 
@@ -776,14 +698,6 @@ export default function CartridgesPage() {
   };
 
   const handleBrandSave = async (data: Partial<BrandCartridge>) => {
-    // DEBUG: Log what we're saving
-    console.log('[BRAND_SAVE] Saving brand data:', {
-      company_description: data.company_description?.substring(0, 50),
-      industry: data.industry,
-      target_audience: data.target_audience,
-      has_core_messaging: !!data.core_messaging
-    });
-
     try {
       const response = await fetch('/api/cartridges/brand', {
         method: brandCartridge ? 'PATCH' : 'POST',
