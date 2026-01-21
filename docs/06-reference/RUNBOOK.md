@@ -1,5 +1,45 @@
 # RevOS Runbook
 
+## 🚨 CRITICAL: Pre-Work Checklist (Added 2026-01-21)
+
+**Lesson Learned:** 5 duplicate AudienceOS directories caused confusion, wrong repo edited, wasted time. Follow this checklist EVERY session.
+
+### Before Making ANY Changes
+
+1. **Which repo deploys to production?**
+   ```bash
+   # Check .vercel/project.json for projectName
+   cat .vercel/project.json | grep projectName
+   ```
+   | Project | Production Repo | Vercel Project |
+   |---------|-----------------|----------------|
+   | RevOS | `revos` | `bravo-revos` |
+   | AudienceOS | `command_center_audience_OS` | `v0-audience-os-command-center` |
+
+2. **Are you in the right directory?**
+   ```bash
+   pwd && git remote get-url origin
+   ```
+
+3. **Is there codebase sprawl?**
+   ```bash
+   ls ~/projects | grep -i revos   # Check for duplicates
+   ls ~/projects | grep -i audience  # Check for duplicates
+   ```
+
+4. **Runtime-First Rule:**
+   > "Verification requires Execution. File existence does not imply functionality. Repo existence does not imply production deployment."
+
+   Always run `npm run build` after changes - don't assume syntax correctness means it works.
+
+5. **Known Gotchas:**
+   - `@/` path aliases don't work cross-package in monorepos (use relative imports)
+   - Broken symlinks cause silent build failures (check with `ls -la`)
+   - Same commit can have flaky builds on Vercel - check multiple deployments
+   - Debug console.log statements MUST be removed before production
+
+---
+
 ## Quick Links
 
 | Resource | URL |
