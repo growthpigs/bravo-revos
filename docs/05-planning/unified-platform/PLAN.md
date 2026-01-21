@@ -1640,3 +1640,219 @@ export async function getMemories(
 ---
 
 *9/10 Confidence Update | 2026-01-21 | Ready for Phase 0 execution*
+
+---
+
+# PART 5: RUNTIME VERIFICATION RESULTS
+
+**Date:** 2026-01-21
+**Method:** Claude in Chrome browser automation + local code grep
+**Purpose:** Verify 6 critical issues identified by competing audit agents
+
+---
+
+## EXECUTIVE SUMMARY
+
+**CRITICAL FINDING: Plan confidence should be 4/10, NOT 9/10**
+
+Runtime verification exposed fundamental incompatibilities that would cause production failure:
+
+| # | Issue | Finding | Verdict |
+|---|-------|---------|---------|
+| CRITICAL-1 | RLS Pattern | MIXED - Some fixed, most broken | ⚠️ BLOCKER |
+| CRITICAL-2 | Trigger Function | EXISTS (2 rows in pg_proc) | ✅ OK |
+| CRITICAL-3 | Mem0 Format | MISMATCH - 2-part vs 3-part | ⚠️ BLOCKER |
+| CRITICAL-4 | AI Provider | MISMATCH - Gemini vs AgentKit | 🔴 MAJOR BLOCKER |
+| CRITICAL-5 | Cartridge Schema | INCOMPATIBLE - different FK, naming | 🔴 MAJOR BLOCKER |
+| CRITICAL-6 | Table Names | MISMATCH - singular vs plural | ⚠️ BLOCKER |
+
+---
+
+## DETAILED FINDINGS
+
+### CRITICAL-1: RLS Pattern Verification
+
+**Query executed in AudienceOS Supabase:**
+```sql
+SELECT policyname, qual FROM pg_policies WHERE tablename != 'migrations';
+```
+
+**Results:**
+| Policy | Pattern Used | Status |
+|--------|-------------|--------|
+| `agency_via_user` | `SELECT agency_id FROM "user" WHERE id = auth.uid()` | ✅ CORRECT |
+| `client_agency_delete` | `get_user_agency_id()` function | ✅ CORRECT |
+| `ad_performance_rls` | `auth.jwt() ->> 'agency_id'` | ❌ BROKEN |
+| `alert_rls` | `auth.jwt() ->> 'agency_id'` | ❌ BROKEN |
+| `brand_cartridge_*` | `auth.jwt() ->> 'agency_id'` | ❌ BROKEN |
+| `chat_message_rls` | `auth.jwt() ->> 'agency_id'` | ❌ BROKEN |
+| `chat_session_rls` | `auth.jwt() ->> 'agency_id'` | ❌ BROKEN |
+
+**VERDICT:** Plan copies BROKEN JWT pattern to all 11 new tables. Must use user lookup pattern.
+
+---
+
+### CRITICAL-2: Trigger Function Verification
+
+**Query executed in AudienceOS Supabase:**
+```sql
+SELECT proname, prosrc FROM pg_proc WHERE proname = 'update_updated_at_column';
+```
+
+**Results:** 2 rows returned
+| proname | prosrc |
+|---------|--------|
+| update_updated_at_column | `NEW.updated_at = NOW(); RETURN NEW;` |
+| update_updated_at_column | `NEW.updated_at = now(); RETURN NEW;` |
+
+**VERDICT:** ✅ Function exists. No blocker.
+
+---
+
+### CRITICAL-3: Mem0 Format Verification
+
+**AudienceOS (lib/memory/mem0-service.ts:33-34):**
+```typescript
+function buildScopedUserId(agencyId: string, userId: string): string {
+  return `${agencyId}:${userId}`;  // SINGLE colon, 2-PART
+}
+```
+
+**RevOS (lib/mem0/client.ts:50):**
+```typescript
+const key = `${agencyId || 'default'}::${clientId || 'default'}::${userId}`;
+// DOUBLE colon, 3-PART
+```
+
+**VERDICT:** Format mismatch. Either migrate AudienceOS to 3-part OR modify all RevOS chips.
+
+---
+
+### CRITICAL-4: AI Provider Verification
+
+**AudienceOS HGC (lib/chat/router.ts:12):**
+```typescript
+import { GoogleGenAI } from '@google/genai';  // GEMINI
+```
+
+**RevOS Chips (15+ files in lib/chips/):**
+```typescript
+import { tool } from '@openai/agents';        // AGENTKIT
+import OpenAI from 'openai';                   // DIRECT OPENAI CLIENT
+```
+
+**Chips with direct OpenAI usage:**
+- blueprint-chip.ts (openai.chat.completions.create)
+- write-chip.ts (dynamic import OpenAI)
+- lead-magnet-chip.ts (openai client import)
+
+**VERDICT:** ALL 15 chips are tightly coupled to OpenAI/AgentKit. IAIProvider abstraction requires rewriting EVERY chip.
+
+---
+
+### CRITICAL-5: Cartridge Schema Verification
+
+**AudienceOS Supabase (verified via SQL):**
+- `brand_cartridge` (SINGULAR, agency_id FK)
+- `style_cartridge` (SINGULAR, agency_id FK)
+- `instruction_cartridge` (SINGULAR)
+- `preferences_cartridge` (SINGULAR)
+- `voice_cartridge` (SINGULAR)
+
+**RevOS Supabase (verified via SQL):**
+- `brand_cartridges` (PLURAL, user_id FK!)
+- `style_cartridges` (PLURAL)
+- `voice_cartridges` (PLURAL)
+- `agency_cartridges` (PLURAL, with generic `data jsonb` column)
+
+**Key Differences:**
+1. Naming: SINGULAR vs PLURAL
+2. Foreign key: `agency_id` vs `user_id`
+3. Structure: Typed columns vs generic `data jsonb`
+
+**VERDICT:** Architecturally incompatible. Can't port chips without schema alignment.
+
+---
+
+### CRITICAL-6: Chip Table References Verification
+
+**Tables referenced by RevOS chips (grep verified):**
+
+| Table (as coded) | Chips Using It | Plan Table Name | Match? |
+|------------------|---------------|-----------------|--------|
+| `leads` | lead-chip, dm-scraper, campaign, analytics | `lead` | ❌ |
+| `posts` | publishing, campaign, analytics | `post` | ❌ |
+| `campaigns` | campaign, analytics | `campaign` | ❌ |
+| `linkedin_accounts` | publishing | `linkedin_account` | ❌ |
+| `brand_cartridges` | blueprint, write | `brand_cartridge` | ❌ |
+| `style_cartridges` | write | `style_cartridge` | ❌ |
+| `pod_members` | pod-chip | `pod_member` | ❌ |
+| `lead_magnets` | lead-magnet-chip | `lead_magnet` | ❌ |
+| `monitoring_jobs` | monitor-chip | NOT IN PLAN | ❌ |
+| `background_jobs` | monitor, dm, webhook | NOT IN PLAN | ❌ |
+
+**VERDICT:** Plan uses SINGULAR names, chips query PLURAL. All 15 chips will fail with "table not found" errors.
+
+---
+
+## REQUIRED FIXES BEFORE PHASE 0
+
+### Fix 1: RLS Pattern (must do)
+```sql
+-- CORRECT pattern for all new tables:
+CREATE POLICY "linkedin_account_rls" ON linkedin_account FOR ALL
+  USING (agency_id IN (SELECT agency_id FROM "user" WHERE id = auth.uid()));
+```
+
+### Fix 2: Table Naming Decision (must choose)
+**Option A:** Keep singular names, rewrite all 15 chips
+**Option B:** Use plural names, no chip changes needed
+
+Recommendation: **Option B** - Plural names to avoid 15+ file rewrites
+
+### Fix 3: Cartridge FK Decision (must choose)
+**Option A:** Keep agency_id, chips query by agency
+**Option B:** Add user_id FK to match RevOS pattern
+
+Recommendation: Depends on multi-tenant model. Need CTO decision.
+
+### Fix 4: AI Provider Decision (must choose)
+**Option A:** Full abstraction (IAIProvider), refactor all chips
+**Option B:** Keep chips as-is, add AgentKit to AudienceOS alongside Gemini
+
+Recommendation: **Option B** for Phase 0-1, then migrate to abstraction
+
+### Fix 5: Mem0 Format (must choose)
+**Option A:** 3-part everywhere (migrate AudienceOS)
+**Option B:** 2-part everywhere (modify RevOS chips)
+
+Already decided in plan: **Option A** (3-part)
+
+---
+
+## REVISED CONFIDENCE
+
+| Aspect | Claimed | Actual | Gap |
+|--------|---------|--------|-----|
+| Technical feasibility | 9/10 | 4/10 | -5 |
+| Timeline accuracy | 8/10 | 3/10 | -5 |
+| Risk level | 2/10 | 7/10 | +5 |
+
+**Reason for downgrade:**
+- Plan assumes simple "port and run" but chips won't compile due to table name mismatches
+- Plan assumes IAIProvider abstraction is optional but it's required for ANY chip to work
+- Plan assumes RLS pattern is consistent but it's broken
+- Plan assumes 7-10 days but reality is closer to 20-25 days
+
+---
+
+## RECOMMENDED NEXT STEPS
+
+1. **CTO Decision Meeting** - Resolve naming convention (singular vs plural)
+2. **Phase -1: Critical Fixes** - Fix RLS, add missing tables, align schemas
+3. **Phase 0 Revised** - Apply migrations with CORRECT patterns
+4. **Phase 1 Revised** - Port chips with table name awareness
+
+---
+
+*Runtime Verification Complete | 2026-01-21 | Confidence revised to 4/10*

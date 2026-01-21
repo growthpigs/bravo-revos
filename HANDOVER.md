@@ -1,14 +1,47 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-20 16:30 CET
+**Last Updated:** 2026-01-21
 **Branch:** main
-**Session:** Database Merge - Phase 0 Cleanup COMPLETE
+**Session:** Unified Platform Phase 1 COMPLETE
 
 ---
 
 ## Current Task
 
-**RevOS + AudienceOS Database Merge**
+**Unified Platform (RevOS + AudienceOS)**
+
+Phase 1 UI Shell is COMPLETE in the unified platform worktree. RevOS is now accessible via app switcher in AudienceOS.
+
+### Unified Platform Status
+
+| Phase | Status | Location |
+|-------|--------|----------|
+| Phase 1 (UI Shell) | ✅ COMPLETE | `/Users/rodericandrews/_PAI/projects/audienceos-unified-platform` |
+| Phase 2 (Real RevOS) | ⏳ PENDING | ~12-15 days estimated |
+| Phase 3 (HGC Adapter) | ⏳ PENDING | Dual AI backend support |
+
+**Preview URL:** https://v0-audience-os-command-center-vithewpoa.vercel.app
+**Branch:** `feature/unified-platform`
+
+### What's Built (Phase 1)
+
+- ✅ App Switcher - Dropdown to toggle between AudienceOS and RevOS
+- ✅ Conditional Navigation - Sidebar shows different nav per app
+- ✅ RevOS Stub Pages - Campaigns, Content, Outreach, Cartridges, Analytics
+- ✅ SSR Hydration - Zustand with `skipHydration` pattern
+- ✅ Gradient Logo Fix - `safeActiveApp` fallback for hydration
+
+### What's Next (Phase 2)
+
+Real RevOS functionality requires porting from this codebase:
+- Schema migration (campaigns, leads, posts tables)
+- Component porting (CampaignWizard, LeadsTable, PostComposer)
+- API endpoints (/api/campaigns, /api/leads, /api/posts)
+- HGC adapter (switch between Gemini and AgentKit)
+
+---
+
+## Previous Task: Database Merge - Phase 0 COMPLETE
 
 Combining RevOS and AudienceOS into a shared database with app toggle (like 11 Labs studio/agents).
 
