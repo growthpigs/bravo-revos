@@ -1,6 +1,6 @@
 # UNIFIED-APP: Same URL, Separate Apps Architecture
 
-**Status:** IN PROGRESS - Prerequisites Complete
+**Status:** IN PROGRESS - Phase 2 Complete, Ready for Vercel Setup
 **Last Updated:** 2026-01-22
 **Approach:** Option C - Path-based routing on single domain via monorepo
 
@@ -57,6 +57,29 @@ hgc-monorepo/
 - `ba5d6ca` (revos): Upgrade to React 19, Next.js 16, Tailwind v4
 - `b871789` (hgc-monorepo): Add RevOS to unified monorepo
 
+### Phase 2: Vercel Routing Infrastructure ✅ COMPLETE
+
+Configuration for path-based routing:
+
+```
+hgc-monorepo/
+├── vercel.json          ✅ Rewrites for /revos/* and /audienceos/*
+├── public/index.html    ✅ Landing page with app selection
+├── packages/
+│   ├── revos/next.config.js       ✅ basePath: '/revos' (when UNIFIED_PLATFORM=true)
+│   └── audiences-os/next.config.mjs ✅ basePath: '/audienceos' (when UNIFIED_PLATFORM=true)
+```
+
+**Key implementation:**
+- `basePath` controlled by `UNIFIED_PLATFORM` env var
+- Standalone deployments unaffected (basePath empty)
+- Unified deployments use path prefixes
+- Router vercel.json proxies to internal deployments
+
+**Commits:**
+- `d7aacc3` (revos): Add basePath config for unified platform deployment
+- `7a8bd8c` (hgc-monorepo): Add unified platform routing infrastructure
+
 ---
 
 ## Why Option C (Monorepo)
@@ -75,12 +98,18 @@ hgc-monorepo/
 
 ## Remaining Work
 
-### Phase 2: Vercel Deployment Configuration
+### Phase 2: Vercel Deployment Configuration ✅ CODE COMPLETE
 
-1. [ ] Configure Vercel for monorepo deployment
-2. [ ] Set up path routing in vercel.json
-3. [ ] Configure custom domain: `unified.diiiploy.io`
-4. [ ] Test builds for all packages
+1. [x] Configure basePath in both apps
+2. [x] Set up path routing in vercel.json
+3. [ ] Create Vercel projects in dashboard (manual step)
+4. [ ] Configure custom domain: `unified.diiiploy.io` (manual step)
+5. [ ] Set `UNIFIED_PLATFORM=true` in Vercel env vars (manual step)
+
+**Next manual steps:**
+1. Create 3 Vercel projects from monorepo (router, revos, audienceos)
+2. Configure rewrites destinations with actual deployment URLs
+3. Add custom domain to router project
 
 ### Phase 3: App Toggle Component
 
