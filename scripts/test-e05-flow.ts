@@ -41,7 +41,7 @@ async function resolveUnipileAccountIdStandalone(memberId: string): Promise<stri
   const supabase = getSupabase();
 
   const { data: member, error } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('unipile_account_id')
     .eq('id', memberId)
     .single();
@@ -122,7 +122,7 @@ async function runTest(): Promise<void> {
 
       // Find a pod with members
       const { data: pods } = await supabase
-        .from('pods')
+        .from('pod')
         .select('id, name')
         .limit(1);
 
@@ -132,7 +132,7 @@ async function runTest(): Promise<void> {
 
         // Find a member for this pod with Unipile account (direct column, not through linkedin_accounts)
         const { data: members } = await supabase
-          .from('pod_members')
+          .from('pod_member')
           .select('id, unipile_account_id')
           .eq('pod_id', TEST_CONFIG.podId)
           .not('unipile_account_id', 'is', null)
@@ -191,7 +191,7 @@ async function runTest(): Promise<void> {
     // post_url is required (NOT NULL), post_id is optional (FK to posts table)
     // Column is 'activity_type' not 'engagement_type' (from migration 20251116)
     const { data: activity, error: createError } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .insert({
         pod_id: TEST_CONFIG.podId,
         member_id: TEST_CONFIG.memberId,
@@ -231,7 +231,7 @@ async function runTest(): Promise<void> {
     // (Real scheduler uses Next.js server client, we use standalone client)
     const scheduledFor = new Date(Date.now() + 5 * 60 * 1000); // 5 min from now
     const { error: scheduleError } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .update({
         status: 'scheduled',
         scheduled_for: scheduledFor.toISOString(),
@@ -246,7 +246,7 @@ async function runTest(): Promise<void> {
 
     // Verify status changed
     const { data: scheduledActivity } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('status')
       .eq('id', testActivityId)
       .single();
@@ -323,7 +323,7 @@ async function runTest(): Promise<void> {
 
     // Cleanup: Delete test activity
     console.log(`\n${LOG_PREFIX} Cleanup: Removing test activity...`);
-    await supabase.from('pod_activities').delete().eq('id', testActivityId);
+    await supabase.from('pod_activity').delete().eq('id', testActivityId);
     console.log(`${LOG_PREFIX} ✅ Test activity deleted`);
 
     // Print summary

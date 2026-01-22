@@ -262,7 +262,7 @@ async function handleGetAllCampaigns() {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('id, name, status, created_at, lead_magnet_source')
     .order('created_at', { ascending: false })
 
@@ -281,7 +281,7 @@ async function handleGetCampaignById(campaign_id: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('*')
     .eq('id', campaign_id)
     .single()
@@ -292,13 +292,13 @@ async function handleGetCampaignById(campaign_id: string) {
 
   // Get lead count
   const { count: leadsCount } = await supabase
-    .from('leads')
+    .from('lead')
     .select('*', { count: 'exact', head: true })
     .eq('campaign_id', campaign_id)
 
   // Get posts count
   const { count: postsCount } = await supabase
-    .from('posts')
+    .from('post')
     .select('*', { count: 'exact', head: true })
     .eq('campaign_id', campaign_id)
 
@@ -323,7 +323,7 @@ async function handleCreateCampaign(name: string, voice_id?: string, description
   }
 
   const { data, error } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .insert({
       name,
       voice_id: voice_id || null,
@@ -361,7 +361,7 @@ async function handleSchedulePost(content: string, schedule_time: string, campai
   }
 
   const { data, error } = await supabase
-    .from('posts')
+    .from('post')
     .insert({
       content,
       scheduled_for: schedule_time,
@@ -390,7 +390,7 @@ async function handleTriggerDMScraper(post_id: string, trigger_word?: string, le
 
   // Get post details to extract unipile info
   const { data: post } = await supabase
-    .from('posts')
+    .from('post')
     .select('unipile_post_id, linkedin_account_id, campaign_id')
     .eq('id', post_id)
     .single()
@@ -401,7 +401,7 @@ async function handleTriggerDMScraper(post_id: string, trigger_word?: string, le
 
   // Get linkedin account unipile ID
   const { data: linkedinAccount } = await supabase
-    .from('linkedin_accounts')
+    .from('linkedin_account')
     .select('unipile_account_id')
     .eq('id', post.linkedin_account_id)
     .single()
@@ -449,7 +449,7 @@ async function handleGetAllPods() {
 
   // Get all pods where user is a member
   const { data: pods, error } = await supabase
-    .from('pods')
+    .from('pod')
     .select(`
       id,
       name,
@@ -493,7 +493,7 @@ async function handleGetPodMembers(pod_id: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('user_id, linkedin_account_id, status')
     .eq('pod_id', pod_id)
     .eq('status', 'active')
@@ -505,7 +505,7 @@ async function handleGetPodMembers(pod_id: string) {
   // Get user details for each member
   const memberIds = data.map(m => m.user_id)
   const { data: users } = await supabase
-    .from('users')
+    .from('user')
     .select('id, email, full_name')
     .in('id', memberIds)
 
@@ -530,7 +530,7 @@ async function handleSendPodLinks(post_id: string, pod_id: string, linkedin_url:
 
   // Get pod members
   const { data: members } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('user_id')
     .eq('pod_id', pod_id)
     .eq('status', 'active')
@@ -574,7 +574,7 @@ async function handleUpdateCampaignStatus(campaign_id: string, status: string) {
   }
 
   const { data, error} = await supabase
-    .from('campaigns')
+    .from('campaign')
     .update({
       status,
       updated_at: new Date().toISOString()
@@ -615,7 +615,7 @@ async function handleExecuteLinkedInCampaign(
     }
 
     const { data: linkedinAccounts } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .select('unipile_account_id')
       .eq('user_id', user.id)
       .eq('status', 'active')
@@ -641,7 +641,7 @@ async function handleExecuteLinkedInCampaign(
 
     // 2. Store post in database
     const { data: dbPost, error: postError } = await supabase
-      .from('posts')
+      .from('post')
       .insert({
         campaign_id,
         unipile_post_id: post.id,
@@ -693,7 +693,7 @@ async function handleExecuteLinkedInCampaign(
 
     // Update campaign to active if it was draft
     await supabase
-      .from('campaigns')
+      .from('campaign')
       .update({ status: 'active' })
       .eq('id', campaign_id)
       .eq('status', 'draft')

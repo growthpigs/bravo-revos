@@ -196,7 +196,7 @@ async function sendToESPWebhook(
 async function getPendingLeads(): Promise<PendingLead[]> {
   // Find DM activities that haven't had email captured
   const { data, error } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('id, campaign_id, unipile_account_id, metadata, created_at')
     .eq('action', 'dm_sent')
     .eq('status', 'success')
@@ -212,7 +212,7 @@ async function getPendingLeads(): Promise<PendingLead[]> {
   const leadIds = data.map(d => d.id);
 
   const { data: captured } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('metadata->parent_activity_id')
     .eq('action', 'email_captured')
     .in('metadata->parent_activity_id', leadIds);
@@ -239,7 +239,7 @@ async function getPendingLeads(): Promise<PendingLead[]> {
  */
 async function getCampaignWebhook(campaignId: string): Promise<CampaignWebhook | null> {
   const { data, error } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select(`
       id,
       created_by,
@@ -307,7 +307,7 @@ async function recordEmailCapture(
   email: string,
   webhookDelivered: boolean
 ): Promise<void> {
-  await supabase.from('pod_activities').insert({
+  await supabase.from('pod_activity').insert({
     campaign_id: lead.campaign_id,
     unipile_account_id: lead.unipile_account_id,
     action: 'email_captured',

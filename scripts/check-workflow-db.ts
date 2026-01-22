@@ -12,7 +12,7 @@ async function checkWorkflow() {
   console.log('=== CHECKING WRITE WORKFLOW IN DATABASE ===\n');
 
   const { data, error } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .select('id, name, workflow_type, triggers, steps, output_config, prompts, updated_at')
     .eq('name', 'write-linkedin-post')
     .single();

@@ -71,7 +71,7 @@ export class CampaignChip extends BaseChip {
   private async handleGetAllCampaigns(context: AgentContext) {
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await context.supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -81,7 +81,7 @@ export class CampaignChip extends BaseChip {
     }
 
     const { data, error } = await context.supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id, name, status, created_at, lead_magnet_source')
       .eq('client_id', userData.client_id) // TENANT ISOLATION
       .order('created_at', { ascending: false });
@@ -103,7 +103,7 @@ export class CampaignChip extends BaseChip {
   private async handleGetCampaignById(campaign_id: string, context: AgentContext) {
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await context.supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -113,7 +113,7 @@ export class CampaignChip extends BaseChip {
     }
 
     const { data, error } = await context.supabase
-      .from('campaigns')
+      .from('campaign')
       .select('*')
       .eq('id', campaign_id)
       .eq('client_id', userData.client_id) // TENANT ISOLATION
@@ -125,13 +125,13 @@ export class CampaignChip extends BaseChip {
 
     // Get lead count (campaign already validated above)
     const { count: leadsCount } = await context.supabase
-      .from('leads')
+      .from('lead')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaign_id);
 
     // Get posts count (campaign already validated above)
     const { count: postsCount } = await context.supabase
-      .from('posts')
+      .from('post')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaign_id);
 
@@ -157,7 +157,7 @@ export class CampaignChip extends BaseChip {
   ) {
     // Get user's client_id
     const { data: userData, error: userError } = await context.supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -170,7 +170,7 @@ export class CampaignChip extends BaseChip {
     }
 
     const { data, error } = await context.supabase
-      .from('campaigns')
+      .from('campaign')
       .insert({
         name,
         voice_id: voice_id || null,

@@ -9,22 +9,22 @@ export default async function SystemHealthPage() {
   // Get user and client
   const { data: { user } } = await supabase.auth.getUser()
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('client_id')
     .eq('id', user?.id || '')
     .single()
 
   // Get client-specific metrics
   const { count: campaignsCount } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('*', { count: 'exact', head: true })
     .eq('client_id', userData?.client_id || '')
 
   const { count: leadsCount } = await supabase
-    .from('leads')
+    .from('lead')
     .select('*', { count: 'exact', head: true })
     .in('campaign_id', (await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .eq('client_id', userData?.client_id || '')).data?.map(c => c.id) || [''])
 
@@ -32,10 +32,10 @@ export default async function SystemHealthPage() {
     .from('email_extractions')
     .select('*', { count: 'exact', head: true })
     .in('lead_id', (await supabase
-      .from('leads')
+      .from('lead')
       .select('id')
       .in('campaign_id', (await supabase
-        .from('campaigns')
+        .from('campaign')
         .select('id')
         .eq('client_id', userData?.client_id || '')).data?.map(c => c.id) || [''])).data?.map(l => l.id) || [''])
 
@@ -43,19 +43,19 @@ export default async function SystemHealthPage() {
     .from('email_extractions')
     .select('*', { count: 'exact', head: true })
     .in('lead_id', (await supabase
-      .from('leads')
+      .from('lead')
       .select('id')
       .in('campaign_id', (await supabase
-        .from('campaigns')
+        .from('campaign')
         .select('id')
         .eq('client_id', userData?.client_id || '')).data?.map(c => c.id) || [''])).data?.map(l => l.id) || [''])
     .eq('status', 'completed')
 
   const { count: linkedinAccountsCount } = await supabase
-    .from('linkedin_accounts')
+    .from('linkedin_account')
     .select('*', { count: 'exact', head: true })
     .in('user_id', (await supabase
-      .from('users')
+      .from('user')
       .select('id')
       .eq('client_id', userData?.client_id || '')).data?.map(u => u.id) || [''])
     .eq('is_active', true)

@@ -130,7 +130,7 @@ export class LeadChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -143,7 +143,7 @@ export class LeadChip extends BaseChip {
 
     // Check for duplicate WITHIN SAME CLIENT ONLY (tenant-scoped)
     const { data: existing } = await supabase
-      .from('leads')
+      .from('lead')
       .select('id, email')
       .eq('email', leadData.email.toLowerCase())
       .eq('client_id', clientId) // TENANT ISOLATION - only check within same client
@@ -173,7 +173,7 @@ export class LeadChip extends BaseChip {
     };
 
     const { data: lead, error: leadError } = await supabase
-      .from('leads')
+      .from('lead')
       .insert(newLead)
       .select()
       .single();
@@ -221,7 +221,7 @@ export class LeadChip extends BaseChip {
     delete (cleanUpdates as any).email;
 
     const { data: updated, error } = await supabase
-      .from('leads')
+      .from('lead')
       .update(cleanUpdates)
       .eq('id', leadId)
       .select()
@@ -257,7 +257,7 @@ export class LeadChip extends BaseChip {
     }
 
     const { data: lead, error } = await supabase
-      .from('leads')
+      .from('lead')
       .select(`
         *,
         lead_activities (
@@ -298,7 +298,7 @@ export class LeadChip extends BaseChip {
 
     // Build query
     let query = supabase
-      .from('leads')
+      .from('lead')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
@@ -361,7 +361,7 @@ export class LeadChip extends BaseChip {
 
     // Search across multiple fields
     const { data: leads, error } = await supabase
-      .from('leads')
+      .from('lead')
       .select('*')
       .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,company.ilike.%${searchQuery}%`)
       .limit(20);
@@ -408,7 +408,7 @@ export class LeadChip extends BaseChip {
 
     // Get current lead
     const { data: lead, error: fetchError } = await supabase
-      .from('leads')
+      .from('lead')
       .select('tags')
       .eq('id', leadId)
       .single();
@@ -432,7 +432,7 @@ export class LeadChip extends BaseChip {
 
     // Update lead
     const { error: updateError } = await supabase
-      .from('leads')
+      .from('lead')
       .update({
         tags: updatedTags,
         updated_at: new Date().toISOString()
@@ -469,7 +469,7 @@ export class LeadChip extends BaseChip {
 
     // Get current score
     const { data: lead, error: fetchError } = await supabase
-      .from('leads')
+      .from('lead')
       .select('engagement_score')
       .eq('id', leadId)
       .single();
@@ -482,7 +482,7 @@ export class LeadChip extends BaseChip {
 
     // Update score
     const { error: updateError } = await supabase
-      .from('leads')
+      .from('lead')
       .update({
         engagement_score: newScore,
         updated_at: new Date().toISOString()
@@ -540,7 +540,7 @@ export class LeadChip extends BaseChip {
     // Update last contact if it's a contact activity
     if (['dm_sent', 'email_sent', 'reply_received'].includes(activityType)) {
       await supabase
-        .from('leads')
+        .from('lead')
         .update({ last_contact_at: new Date().toISOString() })
         .eq('id', leadId);
     }

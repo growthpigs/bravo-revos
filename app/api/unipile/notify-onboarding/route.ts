@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Create app user with Unipile account
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .insert({
         id: userId,
         email: invitation.email,
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     // Add to pod if specified
     if (invitation.pod_id) {
       const { error: podError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .insert({
           user_id: userId,
           pod_id: invitation.pod_id,

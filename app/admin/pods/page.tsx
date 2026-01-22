@@ -93,7 +93,7 @@ export default function AdminPodsPage() {
     try {
       setIsLoading(true)
       const { data, error } = await supabase
-        .from('pods')
+        .from('pod')
         .select('*')
         .order('created_at', { ascending: false })
 
@@ -129,7 +129,7 @@ export default function AdminPodsPage() {
       setIsLoadingMembers(true)
       // Get current members
       const { data: members, error: membersError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .select('id, user_id, users(id, email, first_name, last_name)')
         .eq('pod_id', podId)
 
@@ -140,7 +140,7 @@ export default function AdminPodsPage() {
       // Get available users (not in this pod)
       const memberUserIds = (members || []).map((m: any) => m.user_id)
       const { data: users, error: usersError } = await supabase
-        .from('users')
+        .from('user')
         .select('id, email, first_name, last_name, client_id')
         .not('id', 'in', `(${memberUserIds.join(',')})`)
 
@@ -179,7 +179,7 @@ export default function AdminPodsPage() {
     setIsEditingPod(true)
     try {
       const { error } = await supabase
-        .from('pods')
+        .from('pod')
         .update({
           name: editPodName.trim(),
           description: editPodDescription.trim() || null,
@@ -206,7 +206,7 @@ export default function AdminPodsPage() {
     try {
       const newStatus = pod.status === 'active' ? 'paused' : 'active'
       const { error } = await supabase
-        .from('pods')
+        .from('pod')
         .update({
           status: newStatus,
           updated_at: new Date().toISOString()
@@ -228,7 +228,7 @@ export default function AdminPodsPage() {
 
     try {
       const { error } = await supabase
-        .from('pods')
+        .from('pod')
         .delete()
         .eq('id', podToDelete.id)
 
@@ -275,7 +275,7 @@ export default function AdminPodsPage() {
       }
 
       const { error } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .insert({
           pod_id: editingPod.id,
           user_id: selectedUserToAdd,
@@ -343,7 +343,7 @@ export default function AdminPodsPage() {
 
     try {
       const { error } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .delete()
         .eq('id', podMemberId)
 

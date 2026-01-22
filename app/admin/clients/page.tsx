@@ -13,13 +13,13 @@ export default async function AdminClientsPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('agency_id')
     .eq('id', user?.id || '')
     .single()
 
   const { data: clients } = await supabase
-    .from('clients')
+    .from('client')
     .select('*, campaigns(count), users(count)')
     .eq('agency_id', userData?.agency_id || '')
     .order('created_at', { ascending: false })

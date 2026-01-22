@@ -220,7 +220,7 @@ async function fetchActivityForExecution(activityId: string): Promise<{
 
   // DB column is 'activity_type', code interface uses 'engagement_type'
   const { data, error } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('id, pod_id, post_id, member_id, activity_type, comment_text, scheduled_for, unipile_account_id')
     .eq('id', activityId)
     .single();

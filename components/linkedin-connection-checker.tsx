@@ -22,7 +22,7 @@ export function LinkedInConnectionChecker() {
       }
 
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('unipile_account_id, role')
         .eq('id', user.id)
         .single()

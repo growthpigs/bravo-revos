@@ -24,7 +24,7 @@ async function updateWorkflowTriggers() {
 
   // Get current workflow
   const { data: workflow, error: fetchError } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .select('*')
     .eq('name', 'write-linkedin-post')
     .single();
@@ -48,7 +48,7 @@ async function updateWorkflowTriggers() {
   console.log('✏️  Updating triggers to:', updatedTriggers);
 
   const { data: updated, error: updateError } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .update({ triggers: updatedTriggers })
     .eq('name', 'write-linkedin-post')
     .select()

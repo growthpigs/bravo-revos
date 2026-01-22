@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's client_id and check if admin
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id, role')
       .eq('id', user.id)
       .maybeSingle()

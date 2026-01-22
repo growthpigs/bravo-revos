@@ -30,7 +30,7 @@ describe('Authentication & Settings Validation', () => {
       await supabase.from('connected_accounts').delete().eq('id', testAccountId)
     }
     if (testUserId) {
-      await supabase.from('users').delete().eq('id', testUserId)
+      await supabase.from('user').delete().eq('id', testUserId)
     }
   })
 
@@ -41,7 +41,7 @@ describe('Authentication & Settings Validation', () => {
     })
 
     test('should connect to Supabase successfully', async () => {
-      const { data, error } = await supabase.from('users').select('count').limit(1)
+      const { data, error } = await supabase.from('user').select('count').limit(1)
       expect(error).toBeNull()
     })
   })

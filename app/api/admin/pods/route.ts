@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (!finalClientId) {
       console.log('[PODS_API] No client_id provided, fetching from user record...')
       const { data: userData, error: userError } = await supabase
-        .from('users')
+        .from('user')
         .select('client_id')
         .eq('id', user.id)
         .single()
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     // Step 7: Attempt to create pod
     console.log('[PODS_API] Step 6: Attempting to create pod in database...')
     const { data: pod, error } = await supabase
-      .from('pods')
+      .from('pod')
       .insert(insertPayload)
       .select()
       .single()

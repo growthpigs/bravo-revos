@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Store in database
     const { data: linkedinAccount, error: insertError } = await supabaseAdmin
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .insert({
         user_id: userId,
         account_name: accountName,

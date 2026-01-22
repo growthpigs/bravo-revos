@@ -88,7 +88,7 @@ async function handlePostPublished(data: any) {
 
   // 1. Update campaign status
   const { error: updateError } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .update({
       status: 'active',
       last_post_url: post_url,
@@ -102,7 +102,7 @@ async function handlePostPublished(data: any) {
 
   // 2. Get campaign's associated pod
   const { data: campaign, error: campaignError } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('pod_id, user_id, name')
     .eq('id', campaign_id)
     .single();
@@ -125,7 +125,7 @@ async function handlePostPublished(data: any) {
   deadline.setHours(deadline.getHours() + 1); // 1 hour window for reshares
 
   const { data: activity, error: activityError } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .insert({
       pod_id: campaign.pod_id,
       post_id: post_id,
@@ -267,7 +267,7 @@ async function handlePostFailed(data: any) {
 
   // Update campaign status to failed
   await supabase
-    .from('campaigns')
+    .from('campaign')
     .update({
       status: 'failed',
       error_message: error
@@ -306,7 +306,7 @@ async function notifyPodMembers(
 
   // Placeholder: In production, fetch pod members and send notifications
   // const { data: members } = await supabase
-  //   .from('pod_members')
+  //   .from('pod_member')
   //   .select('user_id, users(email, full_name)')
   //   .eq('pod_id', podId)
   //   .eq('status', 'active');

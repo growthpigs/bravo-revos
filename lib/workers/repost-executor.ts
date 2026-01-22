@@ -42,7 +42,7 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
     // Validate required data
     if (!gologinProfileId) {
       console.error('[REPOST_EXECUTOR] No GoLogin profile ID provided');
-      await supabase.from('pod_activities').update({
+      await supabase.from('pod_activity').update({
         status: 'skipped',
       }).eq('id', podActivityId);
       return { status: 'skipped', reason: 'No GoLogin profile ID - user needs to enable repost feature' };
@@ -52,7 +52,7 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
     if (process.env.UNIPILE_MOCK_MODE === 'true') {
       console.log('[MOCK MODE] Skipping physical repost. Updating DB to success for activity:', podActivityId);
 
-      await supabase.from('pod_activities').update({
+      await supabase.from('pod_activity').update({
         status: 'success',
         proof_screenshot_url: 'https://placehold.co/600x400?text=MOCK+REPOST+SUCCESS',
       }).eq('id', podActivityId);
@@ -65,7 +65,7 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
     let screenshotUrl: string | null = null;
 
     try {
-      await supabase.from('pod_activities').update({ status: 'in_progress' }).eq('id', podActivityId);
+      await supabase.from('pod_activity').update({ status: 'in_progress' }).eq('id', podActivityId);
 
       console.log(`[REPOST_EXECUTOR] Starting repost for activity ${podActivityId}`);
       console.log(`[REPOST_EXECUTOR] Post URL: ${postUrl}`);
@@ -211,7 +211,7 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
       }
 
       // Step E: Update pod_activities with success
-      await supabase.from('pod_activities').update({
+      await supabase.from('pod_activity').update({
         status: 'success',
         proof_screenshot_url: screenshotUrl,
       }).eq('id', podActivityId);
@@ -224,7 +224,7 @@ export const repostExecutorWorker = new Worker<PodAmplificationJob>(
       console.error(`[REPOST_EXECUTOR] Error processing job ${job.id}:`, error);
 
       // Update pod_activities with failed status
-      await supabase.from('pod_activities').update({
+      await supabase.from('pod_activity').update({
         status: 'failed',
       }).eq('id', podActivityId);
 

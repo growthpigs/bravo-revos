@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     // Get user's client_id
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single()
@@ -161,7 +161,7 @@ export async function GET(req: NextRequest) {
 
     // Get user's client_id
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single()
@@ -218,7 +218,7 @@ export async function DELETE(req: NextRequest) {
 
     // Get user's client_id for ownership check
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single()

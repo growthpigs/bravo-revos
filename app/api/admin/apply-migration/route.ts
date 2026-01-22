@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Insert the "write" workflow directly
     const { data, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .insert({
         name: 'write-linkedin-post',
         display_name: 'Write LinkedIn Post',

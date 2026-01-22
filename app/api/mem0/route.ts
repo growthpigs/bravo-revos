@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's agency and client
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('agency_id, client_id')
       .eq('id', user.id)
       .maybeSingle();
@@ -181,7 +181,7 @@ export async function PUT(request: NextRequest) {
 
     // Get user's agency and client
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('agency_id, client_id')
       .eq('id', user.id)
       .maybeSingle();
@@ -241,7 +241,7 @@ export async function DELETE(request: NextRequest) {
 
     // Get user's agency and client
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('agency_id, client_id')
       .eq('id', user.id)
       .maybeSingle();

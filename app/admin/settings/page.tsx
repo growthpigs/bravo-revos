@@ -79,7 +79,7 @@ export default function AdminSettingsPage() {
 
       // Get user's client and agency
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('client_id, clients(agency_id)')
         .eq('id', user.id)
         .single()
@@ -88,7 +88,7 @@ export default function AdminSettingsPage() {
 
       // Get agency details
       const { data: agencyData, error } = await supabase
-        .from('agencies')
+        .from('agency')
         .select('*')
         .eq('id', (userData.clients as any).agency_id)
         .single()
@@ -136,7 +136,7 @@ export default function AdminSettingsPage() {
       }
 
       const { error } = await supabase
-        .from('agencies')
+        .from('agency')
         .update({
           name: companyName,
           settings: updatedSettings,
@@ -172,7 +172,7 @@ export default function AdminSettingsPage() {
       }
 
       const { error } = await supabase
-        .from('agencies')
+        .from('agency')
         .update({
           settings: updatedSettings,
           updated_at: new Date().toISOString()
@@ -212,7 +212,7 @@ export default function AdminSettingsPage() {
       }
 
       const { error } = await supabase
-        .from('agencies')
+        .from('agency')
         .update({
           settings: updatedSettings,
           updated_at: new Date().toISOString()

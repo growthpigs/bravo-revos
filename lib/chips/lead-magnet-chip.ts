@@ -118,7 +118,7 @@ export class LeadMagnetChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -173,7 +173,7 @@ export class LeadMagnetChip extends BaseChip {
     };
 
     const { data: magnet, error: magnetError } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .insert(magnetData)
       .select()
       .single();
@@ -187,7 +187,7 @@ export class LeadMagnetChip extends BaseChip {
 
     // Update with download URL
     await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .update({ download_url: fileUrl })
       .eq('id', magnet.id);
 
@@ -207,7 +207,7 @@ export class LeadMagnetChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -217,7 +217,7 @@ export class LeadMagnetChip extends BaseChip {
     }
 
     let query = supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .select('*')
       .eq('client_id', userData.client_id) // TENANT ISOLATION
       .order('created_at', { ascending: false })
@@ -260,7 +260,7 @@ export class LeadMagnetChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -274,7 +274,7 @@ export class LeadMagnetChip extends BaseChip {
     if (!magnetId) {
       // Get overall stats - TENANT FILTERED
       const { data: stats } = await supabase
-        .from('lead_magnets')
+        .from('lead_magnet')
         .select('type, downloads')
         .eq('client_id', clientId) // TENANT ISOLATION
         .order('downloads', { ascending: false });
@@ -304,7 +304,7 @@ export class LeadMagnetChip extends BaseChip {
 
     // Get specific magnet stats - TENANT FILTERED
     const { data: magnet, error } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .select('*')
       .eq('id', magnetId)
       .eq('client_id', clientId) // TENANT ISOLATION
@@ -351,7 +351,7 @@ export class LeadMagnetChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -361,7 +361,7 @@ export class LeadMagnetChip extends BaseChip {
     }
 
     const { data: updated, error } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .update({
         ...updates,
         updated_at: new Date().toISOString()

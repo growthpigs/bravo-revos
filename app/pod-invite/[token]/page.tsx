@@ -48,7 +48,7 @@ export default function PodInvitePage({ params }: { params: { token: string } })
 
       // Verify invite token
       const { data, error } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .select('*, users(email), clients(name), invite_sent_at')
         .eq('invite_token', params.token)
         .single();
@@ -108,7 +108,7 @@ export default function PodInvitePage({ params }: { params: { token: string } })
 
       // ✅ SECURITY: Re-verify token is still valid before setting password (prevent TOCTOU)
       const { data: recheck } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .select('onboarding_status, invite_sent_at')
         .eq('invite_token', params.token)
         .eq('user_id', member.user_id)
@@ -151,7 +151,7 @@ export default function PodInvitePage({ params }: { params: { token: string } })
 
       // Update pod_member onboarding status
       await supabase
-        .from('pod_members')
+        .from('pod_member')
         .update({
           onboarding_status: 'password_set',
           invite_accepted_at: new Date().toISOString(),

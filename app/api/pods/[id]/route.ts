@@ -14,7 +14,7 @@ export async function GET(
     const { id } = params;
 
     const { data: pod, error } = await supabase
-      .from('pods')
+      .from('pod')
       .select(`
         id,
         client_id,
@@ -159,7 +159,7 @@ export async function PATCH(
     }
 
     const { data: pod, error } = await supabase
-      .from('pods')
+      .from('pod')
       .update(updates)
       .eq('id', id)
       .select()
@@ -206,7 +206,7 @@ export async function DELETE(
     const { id } = params;
 
     const { error } = await supabase
-      .from('pods')
+      .from('pod')
       .delete()
       .eq('id', id);
 

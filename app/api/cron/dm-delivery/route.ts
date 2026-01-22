@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString()
 
     const { data: deliveries, error: queryError } = await supabase
-      .from('dm_deliveries')
+      .from('dm_delivery')
       .select(`
         id,
         sequence_id,
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         if (!authorId) {
           console.error('[DM_DELIVERY] No author_id in lead metadata for', lead.id)
           await supabase
-            .from('dm_deliveries')
+            .from('dm_delivery')
             .update({
               status: 'failed',
               error_message: 'Missing author_id in lead metadata',
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         if (!scrapeJob) {
           console.error('[DM_DELIVERY] No scrape job found for campaign', sequence.campaign_id)
           await supabase
-            .from('dm_deliveries')
+            .from('dm_delivery')
             .update({
               status: 'failed',
               error_message: 'No Unipile account found for campaign',
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
 
           // Update delivery status to sent
           await supabase
-            .from('dm_deliveries')
+            .from('dm_delivery')
             .update({
               status: 'sent',
               sent_at: new Date().toISOString(),
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
 
           // Update lead status
           await supabase
-            .from('leads')
+            .from('lead')
             .update({
               status: `dm_step${delivery.step_number}_sent`,
               updated_at: new Date().toISOString()
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
           // Update sequence analytics
           await supabase
-            .from('dm_sequences')
+            .from('dm_sequence')
             .update({
               sent_count: sequence.sent_count + 1,
               updated_at: new Date().toISOString()
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
           if (retry_count < 3) {
             // Retry later
             await supabase
-              .from('dm_deliveries')
+              .from('dm_delivery')
               .update({
                 status: 'pending',
                 error_message: error.message || 'Send failed',
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
           } else {
             // Failed permanently
             await supabase
-              .from('dm_deliveries')
+              .from('dm_delivery')
               .update({
                 status: 'failed',
                 error_message: error.message || 'Max retries exceeded',

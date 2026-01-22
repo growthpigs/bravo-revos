@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // Get the existing default client (we already created it)
     const { data: clients, error: clientFetchError } = await supabase
-      .from('clients')
+      .from('client')
       .select('id')
       .limit(1)
 
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Create user record in users table using service role
     const { error: insertError } = await supabase
-      .from('users')
+      .from('user')
       .insert({
         id: userId,
         email,

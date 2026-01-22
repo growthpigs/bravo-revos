@@ -206,7 +206,7 @@ async function testScrapeJobCreation() {
   // First, we need a real campaign and post to satisfy foreign keys
   // Let's check if we have any existing campaigns
   const { data: campaigns } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('id')
     .limit(1);
 
@@ -216,7 +216,7 @@ async function testScrapeJobCreation() {
   }
 
   const { data: posts } = await supabase
-    .from('posts')
+    .from('post')
     .select('id')
     .limit(1);
 

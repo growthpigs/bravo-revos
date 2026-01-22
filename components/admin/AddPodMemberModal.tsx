@@ -117,7 +117,7 @@ export function AddPodMemberModal({
   const loadClients = async () => {
     try {
       const { data, error } = await supabase
-        .from('clients')
+        .from('client')
         .select('id, name, slug')
         .order('name')
 
@@ -168,7 +168,7 @@ export function AddPodMemberModal({
       if (editingMember) {
         // Update existing member
         const { error } = await supabase
-          .from('pod_members')
+          .from('pod_member')
           .update({
             name: formData.name,
             linkedin_url: formData.linkedin_url,
@@ -183,7 +183,7 @@ export function AddPodMemberModal({
       } else {
         // Create new member
         const { error } = await supabase
-          .from('pod_members')
+          .from('pod_member')
           .insert({
             name: formData.name,
             linkedin_url: formData.linkedin_url,

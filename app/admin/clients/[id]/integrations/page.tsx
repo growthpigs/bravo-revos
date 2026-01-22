@@ -46,7 +46,7 @@ export default function ClientIntegrationsPage() {
       setError(null);
 
       const { data, error } = await supabase
-        .from('clients')
+        .from('client')
         .select('id, name, unipile_api_key, unipile_dsn, unipile_enabled, unipile_configured_at')
         .eq('id', clientId)
         .single();
@@ -95,7 +95,7 @@ export default function ClientIntegrationsPage() {
 
       // Save credentials (regardless of enabled state)
       const { error } = await supabase
-        .from('clients')
+        .from('client')
         .update({
           unipile_api_key: apiKey || null,
           unipile_dsn: dsn || null,

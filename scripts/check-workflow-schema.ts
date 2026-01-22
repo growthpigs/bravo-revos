@@ -13,7 +13,7 @@ async function checkWorkflowSchema() {
 
   // Try to select with actual schema
   const { data, error } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .select('id, name, workflow_type, triggers, steps')
     .limit(5);
 

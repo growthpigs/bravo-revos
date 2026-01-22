@@ -22,7 +22,7 @@ export async function validateNoDuplicateActivities(): Promise<ValidationResult>
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('pod_id, post_id')
       .then((result) => {
         // Group and check for duplicates
@@ -78,7 +78,7 @@ export async function validateActivityStatusFlow(): Promise<ValidationResult> {
     const supabase = await createClient();
 
     const result = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('status');
 
     const statuses = new Set(result.data?.map((a: any) => a.status) || []);
@@ -164,7 +164,7 @@ export async function validateSuccessRate(minRate: number = 80): Promise<Validat
     const supabase = await createClient();
 
     const result = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('status');
 
     const all = result.data || [];
@@ -208,7 +208,7 @@ export async function validateExecutionTime(maxMs: number = 5000): Promise<Valid
     const supabase = await createClient();
 
     const result = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('created_at, executed_at');
 
     let totalTime = 0;

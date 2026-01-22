@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Verify invitation token
     const { data: podMember, error: memberError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select(`
         id,
         user_id,
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
       // Store in linkedin_accounts table
       const { data: linkedinAccount, error: insertError } = await supabase
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .insert({
           user_id: userId,
           client_id: clientId,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
 
       // Link LinkedIn account to pod member
       const { error: linkError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .update({
           linkedin_account_id: linkedinAccount.id,
           invitation_token: null, // Clear token after successful auth
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
       sessionExpiresAt.setDate(sessionExpiresAt.getDate() + 90);
 
       const { data: linkedinAccount, error: updateError } = await supabase
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .upsert({
           unipile_account_id: accountId,
           user_id: userId,
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
 
       // Link LinkedIn account to pod member
       const { error: linkError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .update({
           linkedin_account_id: linkedinAccount.id,
           invitation_token: null, // Clear token after successful auth
@@ -284,7 +284,7 @@ export async function GET(request: NextRequest) {
 
     // Verify invitation token
     const { data: podMember, error: memberError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select(`
         id,
         linkedin_account_id,

@@ -28,13 +28,13 @@ export default async function AdminLayout({
 
   // Get user's agency info
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('id, email, agency_id')
     .eq('id', user.id)
     .single()
 
   const { data: agencyData } = await supabase
-    .from('agencies')
+    .from('agency')
     .select('id, name')
     .eq('id', userData?.agency_id || '')
     .single()

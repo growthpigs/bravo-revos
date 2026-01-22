@@ -73,7 +73,7 @@ async function checkDatabase() {
 
     // Simple query - no auth required
     const { error } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('count')
       .limit(1);
 

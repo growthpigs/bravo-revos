@@ -52,7 +52,7 @@ export async function invitePodMember({
 
     // Get current user's client info
     const { data: client } = await supabase
-      .from('clients')
+      .from('client')
       .select('name')
       .eq('id', clientId)
       .single();
@@ -87,7 +87,7 @@ export async function invitePodMember({
     }
 
     // 2. Create user record in users table
-    const { error: userError } = await supabase.from('users').insert({
+    const { error: userError } = await supabase.from('user').insert({
       id: authUser.user.id,
       email,
       full_name: name,
@@ -109,7 +109,7 @@ export async function invitePodMember({
 
     // 4. Create pod_member record
     const { data: podMember, error: memberError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .insert({
         user_id: authUser.user.id,
         client_id: clientId,
@@ -127,7 +127,7 @@ export async function invitePodMember({
     if (memberError) {
       console.error('[INVITE_POD_MEMBER] Pod member error:', memberError);
       // Rollback: delete user and auth user
-      await supabase.from('users').delete().eq('id', authUser.user.id);
+      await supabase.from('user').delete().eq('id', authUser.user.id);
       await supabase.auth.admin.deleteUser(authUser.user.id);
       return { success: false, error: `Failed to create pod member: ${memberError.message}` };
     }
@@ -184,7 +184,7 @@ export async function activatePodMember(memberId: string): Promise<{ success: bo
 
     // 1. Get member details
     const { data: member, error: fetchError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('*, users(email, full_name, client_id), clients(name)')
       .eq('id', memberId)
       .single();
@@ -195,7 +195,7 @@ export async function activatePodMember(memberId: string): Promise<{ success: bo
 
     // ✅ SECURITY: Verify admin belongs to same client as pod member
     const { data: adminUserRecord } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', adminUser.id)
       .single();
@@ -211,7 +211,7 @@ export async function activatePodMember(memberId: string): Promise<{ success: bo
 
     // 3. Activate member
     const { error: updateError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .update({
         onboarding_status: 'active',
         is_active: true,
@@ -259,7 +259,7 @@ export async function resendPodInvite(memberId: string): Promise<{ success: bool
 
     // Get member details
     const { data: member, error: fetchError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('*, users(email, full_name, client_id), clients(name)')
       .eq('id', memberId)
       .single();
@@ -270,7 +270,7 @@ export async function resendPodInvite(memberId: string): Promise<{ success: bool
 
     // ✅ SECURITY: Verify admin belongs to same client
     const { data: adminUserRecord } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', adminUser.id)
       .single();
@@ -298,7 +298,7 @@ export async function resendPodInvite(memberId: string): Promise<{ success: bool
 
     // Update invite_sent_at timestamp
     await supabase
-      .from('pod_members')
+      .from('pod_member')
       .update({ invite_sent_at: new Date().toISOString() })
       .eq('id', memberId);
 
@@ -329,7 +329,7 @@ export async function togglePodMemberActive(
 
     // ✅ SECURITY: Verify admin belongs to same client
     const { data: member } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('client_id')
       .eq('id', memberId)
       .single();
@@ -339,7 +339,7 @@ export async function togglePodMemberActive(
     }
 
     const { data: adminUserRecord } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', adminUser.id)
       .single();
@@ -349,7 +349,7 @@ export async function togglePodMemberActive(
     }
 
     const { error } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .update({ is_active: isActive })
       .eq('id', memberId);
 

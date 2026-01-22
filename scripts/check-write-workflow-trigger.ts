@@ -13,7 +13,7 @@ async function checkWriteWorkflow() {
 
   // Get the write workflow
   const { data, error } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .select('*')
     .eq('name', 'write-linkedin-post')
     .single();

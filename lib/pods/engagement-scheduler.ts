@@ -43,7 +43,7 @@ export async function getPendingActivities(
 
     // Note: DB column is 'activity_type', code interface uses 'engagement_type'
     const { data, error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select(
         'id, pod_id, post_id, member_id, activity_type, status, scheduled_for, executed_at'
       )
@@ -155,7 +155,7 @@ export async function scheduleLikeActivities(
       try {
         // Update activity with scheduled timestamp
         const { error } = await supabase
-          .from('pod_activities')
+          .from('pod_activity')
           .update({
             status: 'scheduled',
             scheduled_for: scheduledFor.toISOString(),
@@ -209,7 +209,7 @@ export async function scheduleCommentActivities(
     try {
       // Update activity with scheduled timestamp and mark as scheduled
       const { error } = await supabase
-        .from('pod_activities')
+        .from('pod_activity')
         .update({
           status: 'scheduled',
           scheduled_for: scheduledFor.toISOString(),
@@ -257,7 +257,7 @@ export async function markActivityExecuted(
 
   try {
     const { error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .update({
         status: success ? 'executed' : 'failed',
         executed_at: new Date().toISOString(),
@@ -323,7 +323,7 @@ export async function getPodEngagementStats(podId: string): Promise<{
 
   try {
     const { data, error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('status')
       .eq('pod_id', podId);
 

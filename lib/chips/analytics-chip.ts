@@ -78,7 +78,7 @@ export class AnalyticsChip extends BaseChip {
 
     // SECURITY: First get user's client_id for tenant isolation
     const { data: userData } = await context.supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -89,7 +89,7 @@ export class AnalyticsChip extends BaseChip {
 
     // Get campaign data WITH tenant filter
     const { data: campaign } = await context.supabase
-      .from('campaigns')
+      .from('campaign')
       .select('*')
       .eq('id', campaign_id)
       .eq('client_id', userData.client_id) // TENANT ISOLATION
@@ -101,21 +101,21 @@ export class AnalyticsChip extends BaseChip {
 
     // Get posts count
     const { count: postsCount } = await context.supabase
-      .from('posts')
+      .from('post')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaign_id)
       .gte('created_at', since);
 
     // Get leads count
     const { count: leadsCount } = await context.supabase
-      .from('leads')
+      .from('lead')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaign_id)
       .gte('created_at', since);
 
     // Get webhook delivery stats
     const { count: webhooksDelivered } = await context.supabase
-      .from('webhook_deliveries')
+      .from('webhook_delivery')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaign_id)
       .eq('status', 'delivered')
@@ -145,7 +145,7 @@ export class AnalyticsChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await context.supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -158,14 +158,14 @@ export class AnalyticsChip extends BaseChip {
 
     // Get campaigns count - TENANT FILTERED
     const { count: campaignsCount } = await context.supabase
-      .from('campaigns')
+      .from('campaign')
       .select('*', { count: 'exact', head: true })
       .eq('client_id', clientId) // TENANT ISOLATION
       .gte('created_at', since);
 
     // Get total posts - TENANT FILTERED via campaign
     const { count: postsCount } = await context.supabase
-      .from('posts')
+      .from('post')
       .select('*, campaigns!inner(client_id)', { count: 'exact', head: true })
       .eq('campaigns.client_id', clientId) // TENANT ISOLATION via join
       .eq('status', 'published')
@@ -173,7 +173,7 @@ export class AnalyticsChip extends BaseChip {
 
     // Get total leads - TENANT FILTERED
     const { count: leadsCount } = await context.supabase
-      .from('leads')
+      .from('lead')
       .select('*', { count: 'exact', head: true })
       .eq('client_id', clientId) // TENANT ISOLATION
       .gte('created_at', since);

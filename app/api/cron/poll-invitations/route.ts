@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get all active LinkedIn accounts
     const { data: accounts, error: accountsError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .select('id, unipile_account_id, user_id')
       .eq('status', 'connected');
 
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
 
           // Update lead with email if captured
           if (capturedEmail && pending.lead_id) {
-            await supabase.from('leads').update({
+            await supabase.from('lead').update({
               email: capturedEmail,
               status: 'email_captured',
             }).eq('id', pending.lead_id);

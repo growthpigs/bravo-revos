@@ -32,7 +32,7 @@ export async function canUserPost(userId: string): Promise<RateLimitStatus> {
 
   // Count posts published this week
   const { count: postsThisWeek, error } = await supabase
-    .from('posts')
+    .from('post')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'published')
     .gte('published_at', weekStart.toISOString())
@@ -84,7 +84,7 @@ export async function canUserSendDM(userId: string): Promise<RateLimitStatus> {
 
   // Count DMs sent today
   const { count: dmsToday, error } = await supabase
-    .from('dm_deliveries')
+    .from('dm_delivery')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'sent')
     .gte('sent_at', dayStart.toISOString());

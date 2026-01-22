@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
       // Get user's client info
       const { data: userData, error: userError } = await supabase
-        .from('users')
+        .from('user')
         .select('id, client_id')
         .eq('email', user.email)
         .single();
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch client's Unipile credentials
     const { data: clientData, error: clientError } = await supabase
-      .from('clients')
+      .from('client')
       .select('unipile_api_key, unipile_dsn, unipile_enabled')
       .eq('id', clientId)
       .single();
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     // Get all LinkedIn accounts for this user
     console.log('[DEBUG_LINKEDIN_API] Querying accounts with userId:', userId);
     const { data: accounts, error: accountsError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
           // Update database if status changed
           if (dbStatus !== account.status) {
             await supabase
-              .from('linkedin_accounts')
+              .from('linkedin_account')
               .update({ status: dbStatus })
               .eq('id', account.id);
           }
@@ -215,7 +215,7 @@ export async function DELETE(request: NextRequest) {
 
       // Get user ID and client ID from users table
       const { data: userData, error: userError } = await supabase
-        .from('users')
+        .from('user')
         .select('id, client_id')
         .eq('email', user.email)
         .single();
@@ -233,7 +233,7 @@ export async function DELETE(request: NextRequest) {
 
     // Fetch client's Unipile credentials
     const { data: clientData, error: clientError } = await supabase
-      .from('clients')
+      .from('client')
       .select('unipile_api_key, unipile_dsn, unipile_enabled')
       .eq('id', clientId)
       .single();
@@ -256,7 +256,7 @@ export async function DELETE(request: NextRequest) {
 
     // Get the account to verify ownership
     const { data: account, error: fetchError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .select('id, user_id, unipile_account_id')
       .eq('id', accountId)
       .single();
@@ -286,7 +286,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete from database
     const { error: deleteError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .delete()
       .eq('id', accountId);
 

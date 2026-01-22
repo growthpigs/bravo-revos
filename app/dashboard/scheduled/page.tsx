@@ -12,7 +12,7 @@ export default async function ScheduledActionsPage() {
 
   // Get scheduled posts
   const { data: posts } = await supabase
-    .from('posts')
+    .from('post')
     .select(`
       id,
       content,

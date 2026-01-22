@@ -34,7 +34,7 @@ export function getMem0Client(): MemoryClient {
 /**
  * Build tenant-isolated memory key
  * Ensures complete isolation: agencyId::clientId::userId
- * If agencyId or clientId not provided, uses "default" placeholders
+ * Uses "_" wildcard for missing values (matches AudienceOS format)
  */
 export function buildTenantKey(
   agencyId: string | undefined | null,
@@ -47,7 +47,8 @@ export function buildTenantKey(
     );
   }
 
-  const key = `${agencyId || 'default'}::${clientId || 'default'}::${userId}`;
+  // Use "_" for wildcards to match AudienceOS mem0-service.ts format
+  const key = `${agencyId || '_'}::${clientId || '_'}::${userId}`;
   return key;
 }
 

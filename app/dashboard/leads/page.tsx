@@ -56,21 +56,21 @@ export default function LeadsPage() {
         const { data: { user } } = await supabase.auth.getUser()
 
         const { data: userData } = await supabase
-          .from('users')
+          .from('user')
           .select('client_id')
           .eq('id', user?.id || '')
           .single()
 
         // Fetch campaigns
         const { data: campaignsData } = await supabase
-          .from('campaigns')
+          .from('campaign')
           .select('id, name')
           .eq('client_id', userData?.client_id || '')
           .order('created_at', { ascending: false })
 
         // Fetch leads
         const { data: leadsData } = await supabase
-          .from('leads')
+          .from('lead')
           .select('*, campaigns(name)')
           .eq('campaigns.client_id', userData?.client_id || '')
           .order('created_at', { ascending: false })

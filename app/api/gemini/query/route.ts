@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     // Get user's client_id
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single()

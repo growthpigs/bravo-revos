@@ -36,7 +36,7 @@ export default function AuthDebugPage() {
       } else {
         // Get user details
         const { data: userData } = await supabase
-          .from('users')
+          .from('user')
           .select('*')
           .eq('id', data.user.id)
           .single()
@@ -91,7 +91,7 @@ export default function AuthDebugPage() {
       // Create user record in users table
       if (authData.user) {
         const { error: insertError } = await supabase
-          .from('users')
+          .from('user')
           .insert({
             id: authData.user.id,
             email: email,
@@ -137,7 +137,7 @@ export default function AuthDebugPage() {
 
       if (session) {
         const { data: userData } = await supabase
-          .from('users')
+          .from('user')
           .select('*')
           .eq('id', session.user.id)
           .single()

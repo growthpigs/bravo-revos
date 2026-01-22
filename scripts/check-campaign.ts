@@ -7,7 +7,7 @@ async function check() {
   )
 
   const { data, error } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('id, name, status, created_at')
     .ilike('name', '%Future of AI%')
     .order('created_at', { ascending: false })

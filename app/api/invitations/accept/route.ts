@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     // Create app user
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .insert(userPayload)
       .select()
       .single();
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
         severity: 'HIGH',
       });
 
-      const { error: podError } = await supabase.from('pod_members').insert({
+      const { error: podError } = await supabase.from('pod_member').insert({
         user_id: userId,
         pod_id: invitation.pod_id,
         is_active: true,

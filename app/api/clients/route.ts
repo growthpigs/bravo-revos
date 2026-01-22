@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's agency
     let { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('agency_id')
       .eq('id', user.id)
       .single()
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // If user exists but doesn't have an agency, create one
     if (userData && !userData.agency_id) {
       const { data: agency, error: agencyError } = await supabase
-        .from('agencies')
+        .from('agency')
         .insert({
           name: `${user.email?.split('@')[0]}'s Agency`,
           slug: user.email?.split('@')[0] || 'agency',
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
       // Update user with the new agency_id
       const { error: updateError } = await supabase
-        .from('users')
+        .from('user')
         .update({ agency_id: agency.id })
         .eq('id', user.id)
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Create client
     const { data: client, error } = await supabase
-      .from('clients')
+      .from('client')
       .insert({
         name,
         slug,

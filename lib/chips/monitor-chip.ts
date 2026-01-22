@@ -100,7 +100,7 @@ export class MonitorChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -195,7 +195,7 @@ export class MonitorChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -252,7 +252,7 @@ export class MonitorChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -285,7 +285,7 @@ export class MonitorChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -333,7 +333,7 @@ export class MonitorChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();

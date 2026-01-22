@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 
       // Update users table with Unipile account ID
       const { error: updateError } = await supabase
-        .from('users')
+        .from('user')
         .update({
           unipile_account_id: accountId,
           // linkedin_connected will be auto-updated by trigger
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
       // Update pod_member record with Unipile account ID
       const { error: updateError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .update({
           unipile_account_id: accountId,
           onboarding_status: 'unipile_connected',
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       // Update users table with unipile_account_id
       console.log('[UniPile Notify] Updating users table...');
       const { data: updateData, error: updateError } = await supabase
-        .from('users')
+        .from('user')
         .update({
           unipile_account_id: accountId,
         })

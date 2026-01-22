@@ -101,7 +101,7 @@ export class PodChip extends BaseChip {
 
     // Get pod members
     const { data: members, error: membersError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('*')
       .eq('pod_id', session.data.session.pod_id)
       .eq('status', 'active');
@@ -227,7 +227,7 @@ export class PodChip extends BaseChip {
     }
 
     const { data: members, error } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select(`
         *,
         users (
@@ -326,7 +326,7 @@ export class PodChip extends BaseChip {
     if (!userId) return null;
 
     const { data } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('pod_id')
       .eq('user_id', userId)
       .eq('status', 'active')
@@ -363,7 +363,7 @@ export class PodChip extends BaseChip {
 
     // Get pod members with their GoLogin profile info (excluding the author)
     const { data: members, error: membersError } = await (supabase as any)
-      .from('pod_members')
+      .from('pod_member')
       .select(`
         id,
         user_id,
@@ -449,7 +449,7 @@ export class PodChip extends BaseChip {
 
     // Get recent pod activities
     const { data: activities, error } = await (supabase as any)
-      .from('pod_activities')
+      .from('pod_activity')
       .select('*')
       .eq('activity_type', 'repost')
       .order('created_at', { ascending: false })
@@ -495,7 +495,7 @@ export class PodChip extends BaseChip {
 
     // Cancel pending activities
     const { data: cancelled, error } = await (supabase as any)
-      .from('pod_activities')
+      .from('pod_activity')
       .update({ status: 'failed', error_message: 'Cancelled by user' })
       .eq('status', 'queued')
       .select();

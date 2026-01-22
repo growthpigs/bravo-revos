@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the LinkedIn account exists and has the expected profile
     const { data: linkedinAccount, error: accountError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .select('id, gologin_profile_id, gologin_status')
       .eq('id', linkedinAccountId)
       .single();
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     const newStatus = isLoggedIn ? 'active' : 'pending_auth';
 
     const { error: updateError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .update({ gologin_status: newStatus })
       .eq('id', linkedinAccountId);
 

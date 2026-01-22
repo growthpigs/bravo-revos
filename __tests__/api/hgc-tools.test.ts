@@ -67,7 +67,7 @@ describe('HGC Tool Handlers', () => {
       })
 
       // Handler should query: id, name, status, created_at, lead_magnet_source
-      const selectCall = mockSupabase.from('campaigns').select
+      const selectCall = mockSupabase.from('campaign').select
       expect(selectCall).toBeDefined()
     })
 

@@ -80,7 +80,7 @@ export default function LeadMagnetsPage() {
       if (!user) throw new Error('Not authenticated')
 
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('client_id')
         .eq('id', user.id)
         .single()
@@ -89,7 +89,7 @@ export default function LeadMagnetsPage() {
 
       // Fetch lead magnets for this client
       const { data, error } = await supabase
-        .from('lead_magnets')
+        .from('lead_magnet')
         .select('*')
         .eq('client_id', userData.client_id)
         .order('created_at', { ascending: false })
@@ -195,7 +195,7 @@ export default function LeadMagnetsPage() {
       if (!user) throw new Error('Not authenticated')
 
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('client_id')
         .eq('id', user.id)
         .single()
@@ -229,7 +229,7 @@ export default function LeadMagnetsPage() {
         }
 
         const { error } = await supabase
-          .from('lead_magnets')
+          .from('lead_magnet')
           .update({
             name: formData.name,
             description: formData.description || null,
@@ -251,7 +251,7 @@ export default function LeadMagnetsPage() {
         const filePath = await uploadFile(userData.client_id, selectedFile)
 
         const { error } = await supabase
-          .from('lead_magnets')
+          .from('lead_magnet')
           .insert({
             client_id: userData.client_id,
             name: formData.name,
@@ -296,7 +296,7 @@ export default function LeadMagnetsPage() {
 
       // Delete from database
       const { error } = await supabase
-        .from('lead_magnets')
+        .from('lead_magnet')
         .delete()
         .eq('id', magnetToDelete.id)
 

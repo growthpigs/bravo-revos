@@ -26,7 +26,7 @@ async function main() {
   // 1. Check campaign status
   console.log('1️⃣ Checking campaign setup...');
   const { data: campaign, error: campError } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select(`
       id, name, status, trigger_word, last_post_url, created_by,
       lead_magnets!lead_magnet_id (name),
@@ -104,7 +104,7 @@ async function main() {
   // 4. Check Redis connection (for BullMQ queues)
   console.log('\n4️⃣ Checking queue status...');
   const { data: activities } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('action, status, created_at')
     .eq('campaign_id', CAMPAIGN_ID)
     .order('created_at', { ascending: false })

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     // ✅ SECURITY: Validate invite token belongs to this user and is in correct state
     const { data: member, error: tokenError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('user_id, onboarding_status, invite_sent_at')
       .eq('invite_token', inviteToken)
       .eq('user_id', userId)

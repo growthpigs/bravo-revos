@@ -121,7 +121,7 @@ describe('AdminUsersPage - Multi-Role Functionality', () => {
       })
 
       // Verify query selects roles array
-      const fromResult = mockSupabase.from('users')
+      const fromResult = mockSupabase.from('user')
       expect(fromResult.select).toHaveBeenCalledWith(
         expect.stringContaining('roles')
       )
@@ -223,7 +223,7 @@ describe('AdminUsersPage - Multi-Role Functionality', () => {
       fireEvent.click(saveButton)
 
       await waitFor(() => {
-        expect(mockSupabase.from('users').update).toHaveBeenCalledWith(
+        expect(mockSupabase.from('user').update).toHaveBeenCalledWith(
           expect.objectContaining({
             roles: expect.arrayContaining(['user', 'super_admin']),
           })
@@ -258,7 +258,7 @@ describe('AdminUsersPage - Multi-Role Functionality', () => {
       fireEvent.click(saveButton)
 
       await waitFor(() => {
-        expect(mockSupabase.from('users').update).toHaveBeenCalledWith(
+        expect(mockSupabase.from('user').update).toHaveBeenCalledWith(
           expect.objectContaining({
             roles: ['user'],
           })

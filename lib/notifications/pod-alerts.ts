@@ -26,7 +26,7 @@ export async function sendActivityAlert(params: {
 
   // Get member and user details
   const { data: member, error: memberError } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('*, users(*)')
     .eq('id', params.memberId)
     .single();

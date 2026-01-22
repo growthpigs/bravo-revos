@@ -194,7 +194,7 @@ export class MarketingConsole {
 
     try {
       const { data: userData } = await this.supabase
-        .from('users')
+        .from('user')
         .select('client_id')
         .eq('id', userId)
         .single();

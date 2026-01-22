@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (!unipileAccountId) {
       // Fetch user's LinkedIn accounts
       const { data: linkedinAccounts, error: accountsError } = await supabase
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .select('unipile_account_id, status')
         .eq('user_id', user.id)
         .eq('status', 'active')
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     let profileUrl = null;
     try {
       const { data: accountData } = await supabase
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .select('profile_url')
         .eq('unipile_account_id', unipileAccountId)
         .single();
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's client_id for RLS
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single();
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     let savedPost = null;
     if (userData?.client_id) {
       const { data: postData, error: postError } = await supabase
-        .from('posts')
+        .from('post')
         .insert({
           user_id: user.id,
           campaign_id: campaignId || null,
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       // Update campaign with last_post_url if campaign_id provided
       if (campaignId) {
         const { error: campaignError } = await supabase
-          .from('campaigns')
+          .from('campaign')
           .update({
             last_post_url: postResult.url,
             last_post_at: new Date().toISOString(),

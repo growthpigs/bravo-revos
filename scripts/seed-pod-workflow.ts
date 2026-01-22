@@ -12,7 +12,7 @@ async function seedPodWorkflow() {
   console.log('🌱 Seeding pod amplification workflow...');
 
   const { data, error } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .upsert({
       name: 'trigger-pod-amplification',
       display_name: 'Pod Amplification',

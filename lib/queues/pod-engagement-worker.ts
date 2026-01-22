@@ -445,7 +445,7 @@ async function fetchActivityFromDatabase(activityId: string): Promise<Engagement
     const supabase = await createClient({ isServiceRole: true });
 
     const { data, error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('*')
       .eq('id', activityId)
       .maybeSingle();
@@ -510,7 +510,7 @@ export async function resolveUnipileAccountId(
 
   // Query through the relationship: pod_members.linkedin_account_id → linkedin_accounts.unipile_account_id
   const { data: member, error: memberError } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select(`
       id,
       linkedin_account_id,
@@ -712,7 +712,7 @@ async function executeCommentEngagement(params: {
     // Fetch pod's voice cartridge to apply personality
     const supabase = await createClient({ isServiceRole: true });
     const { data: pod, error: podError } = await supabase
-      .from('pods')
+      .from('pod')
       .select('voice_cartridge_id')
       .eq('id', podId)
       .maybeSingle();
@@ -886,7 +886,7 @@ async function updateActivityInDatabase(
     // Step 1: Check current status for idempotency
     // Only update if status is still 'pending' or 'scheduled'
     const { data: currentActivity, error: fetchError } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('status, execution_attempts, execution_result')
       .eq('id', activityId)
       .maybeSingle();
@@ -924,7 +924,7 @@ async function updateActivityInDatabase(
     // Step 3: Perform atomic update (only if status hasn't changed)
     // This prevents race conditions from concurrent execution attempts
     const { data: updated, error: updateError } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .update(updateData)
       .eq('id', activityId)
       .eq('status', 'scheduled') // Atomic: only update if still scheduled (E-04 sets this)
@@ -1087,7 +1087,7 @@ async function handleFailedActivity(
 
     // Mark activity as permanently failed with detailed error info
     const { error: updateError } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .update({
         status: 'failed',
         executed_at: new Date().toISOString(),

@@ -47,7 +47,7 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
 
   // Get user's client_id
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('client_id')
     .eq('id', user.id)
     .single()
@@ -58,7 +58,7 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
 
   // Fetch campaign
   const { data: campaign, error } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('*')
     .eq('id', params.id)
     .eq('client_id', userData.client_id)
@@ -83,7 +83,7 @@ export default async function CampaignDetailsPage({ params }: PageProps) {
   let webhookConfig = null
   if (campaign.webhook_config_id) {
     const { data } = await supabase
-      .from('webhook_configs')
+      .from('webhook_config')
       .select('*')
       .eq('id', campaign.webhook_config_id)
       .single()

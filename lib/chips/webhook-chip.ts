@@ -118,7 +118,7 @@ export class WebhookChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -169,7 +169,7 @@ export class WebhookChip extends BaseChip {
     };
 
     const { data: delivery, error: deliveryError } = await supabase
-      .from('webhook_deliveries')
+      .from('webhook_delivery')
       .insert(deliveryDataWithUser)
       .select()
       .single();
@@ -183,7 +183,7 @@ export class WebhookChip extends BaseChip {
 
     // Update delivery record
     await supabase
-      .from('webhook_deliveries')
+      .from('webhook_delivery')
       .update({
         status: result.success ? 'success' : 'failed',
         attempts: 1,
@@ -308,7 +308,7 @@ export class WebhookChip extends BaseChip {
 
     // SECURITY: Get user's client_id for tenant isolation
     const { data: userData } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', context.userId)
       .single();
@@ -320,7 +320,7 @@ export class WebhookChip extends BaseChip {
     if (!deliveryId) {
       // Get recent deliveries - TENANT FILTERED
       const { data: recent, error } = await supabase
-        .from('webhook_deliveries')
+        .from('webhook_delivery')
         .select('*')
         .eq('user_id', context.userId) // TENANT ISOLATION
         .order('created_at', { ascending: false })
@@ -346,7 +346,7 @@ export class WebhookChip extends BaseChip {
 
     // Specific delivery lookup - TENANT FILTERED
     const { data: delivery, error } = await supabase
-      .from('webhook_deliveries')
+      .from('webhook_delivery')
       .select('*')
       .eq('id', deliveryId)
       .eq('user_id', context.userId) // TENANT ISOLATION

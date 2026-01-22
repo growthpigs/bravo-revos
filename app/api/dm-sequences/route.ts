@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // Build query - RLS enforces user access
     let query = supabase
-      .from('dm_sequences')
+      .from('dm_sequence')
       .select('*')
       .order('created_at', { ascending: false })
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Verify campaign exists - RLS ensures user can only access their own campaigns
     const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .eq('id', validatedData.campaign_id)
       .maybeSingle()
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: sequence, error: sequenceError } = await supabase
-      .from('dm_sequences')
+      .from('dm_sequence')
       .insert(sequenceData)
       .select()
       .single()

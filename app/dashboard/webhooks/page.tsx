@@ -75,7 +75,7 @@ export default function WebhooksPage() {
       if (!user) throw new Error('Not authenticated')
 
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('client_id')
         .eq('id', user.id)
         .single()
@@ -84,7 +84,7 @@ export default function WebhooksPage() {
 
       // Fetch webhooks for this client
       const { data, error } = await supabase
-        .from('webhook_configs')
+        .from('webhook_config')
         .select('*')
         .eq('client_id', userData.client_id)
         .order('created_at', { ascending: false })
@@ -146,7 +146,7 @@ export default function WebhooksPage() {
       if (!user) throw new Error('Not authenticated')
 
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('client_id')
         .eq('id', user.id)
         .single()
@@ -154,7 +154,7 @@ export default function WebhooksPage() {
       if (editingWebhook) {
         // Update existing webhook
         const { error } = await supabase
-          .from('webhook_configs')
+          .from('webhook_config')
           .update({
             name: formData.name,
             url: formData.url,
@@ -174,7 +174,7 @@ export default function WebhooksPage() {
         if (!userData?.client_id) throw new Error('No client associated with user')
 
         const { error } = await supabase
-          .from('webhook_configs')
+          .from('webhook_config')
           .insert({
             client_id: userData.client_id,
             name: formData.name,
@@ -213,7 +213,7 @@ export default function WebhooksPage() {
 
     try {
       const { error } = await supabase
-        .from('webhook_configs')
+        .from('webhook_config')
         .delete()
         .eq('id', webhookToDelete.id)
 
@@ -232,7 +232,7 @@ export default function WebhooksPage() {
   const handleToggleActive = async (webhook: WebhookConfig) => {
     try {
       const { error } = await supabase
-        .from('webhook_configs')
+        .from('webhook_config')
         .update({
           active: !webhook.active,
           updated_at: new Date().toISOString()

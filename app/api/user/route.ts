@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Get user profile from database
     console.log('[API_USER] Querying users table for id:', user.id);
     const { data: userData, error } = await supabase
-      .from('users')
+      .from('user')
       .select('email, full_name')
       .eq('id', user.id)
       .single()
@@ -72,7 +72,7 @@ export async function PUT(request: NextRequest) {
 
     // Update user profile
     const { error } = await supabase
-      .from('users')
+      .from('user')
       .update({ full_name })
       .eq('id', user.id)
 

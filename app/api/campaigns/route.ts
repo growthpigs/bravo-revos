@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     // RLS automatically filters to user's campaigns
     const { data: campaigns, error: campaignsError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('*')
       .order('created_at', { ascending: false })
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's client_id (REQUIRED for RLS)
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single()
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Get user's default pod (first active pod membership)
     let defaultPodId: string | null = null
     const { data: podMemberships } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('pod_id')
       .eq('user_id', user.id)
       .eq('is_active', true)
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
 
     // Create campaign
     const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .insert(campaignData)
       .select()
       .single()
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       console.log('[CAMPAIGNS_API] Creating webhook config')
 
       const { data: webhookConfig, error: webhookError } = await supabase
-        .from('webhook_configs')
+        .from('webhook_config')
         .insert({
           client_id: userData.client_id,  // FIX: Use client_id not user.id
           name: `${validatedData.name} - Webhook`,
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Update campaign with webhook_config_id
         await supabase
-          .from('campaigns')
+          .from('campaign')
           .update({ webhook_config_id: webhookConfig.id })
           .eq('id', campaign.id)
 

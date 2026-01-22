@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Update campaign - RLS ensures user can only update their own
     const { data: updated, error: updateError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .update(body)
       .eq('id', campaignId)
       .select()
@@ -68,7 +68,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // First fetch to get webhook_config_id - RLS ensures we can only see our own
     const { data: campaign } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id, webhook_config_id')
       .eq('id', campaignId)
       .single()
@@ -83,14 +83,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Delete webhook config if exists
     if (campaign.webhook_config_id) {
       await supabase
-        .from('webhook_configs')
+        .from('webhook_config')
         .delete()
         .eq('id', campaign.webhook_config_id)
     }
 
     // Delete campaign - RLS ensures user can only delete their own
     const { error: deleteError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .delete()
       .eq('id', campaignId)
 

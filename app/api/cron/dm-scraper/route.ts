@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
 
         // Get post owner's profile URL for self-comment filtering
         const { data: postOwner } = await supabase
-          .from('linkedin_accounts')
+          .from('linkedin_account')
           .select('profile_url')
           .eq('unipile_account_id', job.unipile_account_id)
           .single()
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
 
         // Get active DM sequence for this campaign (if exists)
         const { data: dmSequence } = await supabase
-          .from('dm_sequences')
+          .from('dm_sequence')
           .select('*')
           .eq('campaign_id', job.campaign_id)
           .eq('status', 'active')
@@ -305,7 +305,7 @@ export async function POST(request: NextRequest) {
               const firstName = authorName.split(' ')[0] || authorName
               const lastName = authorName.split(' ').slice(1).join(' ') || ''
 
-              await supabase.from('dm_deliveries').insert({
+              await supabase.from('dm_delivery').insert({
                 sequence_id: dmSequence.id,
                 lead_id: newLead.id,
                 step_number: 1,
@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
               )
 
               await supabase
-                .from('leads')
+                .from('lead')
                 .update({ status: 'dm_sent' })
                 .eq('id', newLead.id)
 

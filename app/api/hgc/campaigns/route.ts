@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Query campaigns with metrics - RLS filters to user's campaigns
     let query = supabase
-      .from('campaigns')
+      .from('campaign')
       .select(`
         id,
         name,
@@ -57,13 +57,13 @@ export async function GET(request: NextRequest) {
       (campaigns || []).map(async (campaign) => {
         // Count leads generated
         const { count: leadsCount } = await supabase
-          .from('leads')
+          .from('lead')
           .select('*', { count: 'exact', head: true })
           .eq('campaign_id', campaign.id)
 
         // Count posts created
         const { count: postsCount } = await supabase
-          .from('posts')
+          .from('post')
           .select('*', { count: 'exact', head: true })
           .eq('campaign_id', campaign.id)
 

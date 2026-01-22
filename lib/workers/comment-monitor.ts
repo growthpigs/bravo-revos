@@ -431,7 +431,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      const { data: leadData } = await supabase.from('leads').upsert({
+      const { data: leadData } = await supabase.from('lead').upsert({
         campaign_id: job.campaign_id,
         linkedin_id: authorId,
         linkedin_url: authorProfileUrl,
@@ -454,7 +454,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
         // Update lead with captured email
         if (leadId) {
-          await supabase.from('leads').update({
+          await supabase.from('lead').update({
             email: emailResult.email,
             status: 'email_captured',
           }).eq('id', leadId);
@@ -539,7 +539,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
           // Update lead status
           if (leadId) {
-            await supabase.from('leads').update({
+            await supabase.from('lead').update({
               status: 'dm_sent',
             }).eq('id', leadId);
           }
@@ -622,7 +622,7 @@ async function processScrapeJob(job: ActiveScrapeJob): Promise<number> {
 
         // Update lead status
         if (leadId) {
-          await supabase.from('leads').update({
+          await supabase.from('lead').update({
             status: 'connection_pending',
           }).eq('id', leadId);
         }

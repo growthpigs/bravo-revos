@@ -26,7 +26,7 @@ async function createTestPodMembers() {
   try {
     // 1. Get or create test client (temporary "pod")
     let { data: existingClient } = await supabase
-      .from('clients')
+      .from('client')
       .select('id')
       .limit(1)
       .single();
@@ -35,7 +35,7 @@ async function createTestPodMembers() {
 
     if (!testClientId) {
       const { data: newClient, error } = await supabase
-        .from('clients')
+        .from('client')
         .insert({
           name: 'Test Pod - Courageous Bear',
           agency_id: 'c3ae8595-ba0a-44c8-aa44-db0bdfc3f951',
@@ -93,7 +93,7 @@ async function createTestPodMembers() {
           if (user) {
             // Create users table entry
             await supabase
-              .from('users')
+              .from('user')
               .upsert({
                 id: user.id,
                 email: testUser.email,
@@ -105,7 +105,7 @@ async function createTestPodMembers() {
 
             // Create pod_member entry
             await supabase
-              .from('pod_members')
+              .from('pod_member')
               .upsert({
                 client_id: testClientId,
                 user_id: user.id,
@@ -130,7 +130,7 @@ async function createTestPodMembers() {
 
       // Create users table entry
       const { error: userError } = await supabase
-        .from('users')
+        .from('user')
         .insert({
           id: authUser.user.id,
           email: testUser.email,
@@ -148,7 +148,7 @@ async function createTestPodMembers() {
 
       // Create pod_member entry
       const { error: memberError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .insert({
           client_id: testClientId,
           user_id: authUser.user.id,
@@ -172,7 +172,7 @@ async function createTestPodMembers() {
     const rodericUserId = '5ccd18cd-476a-4923-a6c4-b6cc7b4c5b84';
 
     const { error: rodericError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .insert({
         client_id: testClientId,
         user_id: rodericUserId,
@@ -193,7 +193,7 @@ async function createTestPodMembers() {
 
     // 4. Verify creation
     const { data: podMembers } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id, name, linkedin_url, is_active, onboarding_status, client_id')
       .eq('is_active', true)
       .eq('onboarding_status', 'active');

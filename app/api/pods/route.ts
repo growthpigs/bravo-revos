@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's client_id for tenant scoping
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single();
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     let query = supabase
-      .from('pods')
+      .from('pod')
       .select(`
         id,
         client_id,
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     // Get user's client_id for tenant scoping
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single();
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     // Create pod - SECURITY: Use effectiveClientId (verified user's client)
     const { data: pod, error: podError } = await supabase
-      .from('pods')
+      .from('pod')
       .insert({
         client_id: effectiveClientId, // CRITICAL: Use verified client_id, not from request
         name,

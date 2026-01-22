@@ -240,7 +240,7 @@ describe('Security: Authentication Fixes', () => {
       mockSupabase.from.mockReturnValueOnce(mockQuery);
 
       const { data: userData } = await mockSupabase.auth.getUser();
-      const query = mockSupabase.from('pod_activities').select('*, pod_members!inner(user_id)');
+      const query = mockSupabase.from('pod_activity').select('*, pod_members!inner(user_id)');
 
       expect(userData.user.id).toBe('user-456');
       expect(mockQuery.select).toBeDefined();

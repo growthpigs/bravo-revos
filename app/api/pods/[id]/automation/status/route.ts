@@ -34,7 +34,7 @@ export async function GET(
     // Get pod info from database
     const supabase = await createClient();
     const { data: pod } = await supabase
-      .from('pods')
+      .from('pod')
       .select('id, name, status')
       .eq('id', podId)
       .maybeSingle();

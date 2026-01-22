@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Check for active pod memberships
     const { data: memberships, error } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id, pod_id')
       .eq('user_id', user.id)
       .eq('is_active', true);

@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
 
             // Update lead status
             if (pending.lead_id) {
-              await supabase.from('leads').update({
+              await supabase.from('lead').update({
                 status: newStatus
               }).eq('id', pending.lead_id);
             }
@@ -260,7 +260,7 @@ export async function GET(request: NextRequest) {
 
             // Update lead status
             if (pending.lead_id) {
-              await supabase.from('leads').update({
+              await supabase.from('lead').update({
                 status: 'connection_expired'
               }).eq('id', pending.lead_id);
             }

@@ -9,31 +9,31 @@ export default async function AdminDashboardPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('agency_id')
     .eq('id', user?.id || '')
     .single()
 
   // Get stats
   const { count: clientsCount } = await supabase
-    .from('clients')
+    .from('client')
     .select('*', { count: 'exact', head: true })
     .eq('agency_id', userData?.agency_id || '')
 
   const { data: clients } = await supabase
-    .from('clients')
+    .from('client')
     .select('id')
     .eq('agency_id', userData?.agency_id || '')
 
   const clientIds = clients?.map(c => c.id) || []
 
   const { count: campaignsCount } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('*', { count: 'exact', head: true })
     .in('client_id', clientIds.length > 0 ? clientIds : [''])
 
   const { count: usersCount } = await supabase
-    .from('users')
+    .from('user')
     .select('*', { count: 'exact', head: true })
     .eq('agency_id', userData?.agency_id || '')
 

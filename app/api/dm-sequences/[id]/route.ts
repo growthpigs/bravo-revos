@@ -36,7 +36,7 @@ export async function GET(
 
     // Fetch sequence (RLS enforces user access)
     const { data: sequence, error: sequenceError } = await supabase
-      .from('dm_sequences')
+      .from('dm_sequence')
       .select('*')
       .eq('id', params.id)
       .maybeSingle()
@@ -108,7 +108,7 @@ export async function PUT(
 
     // Update sequence (RLS enforces user access)
     const { data: sequence, error: updateError } = await supabase
-      .from('dm_sequences')
+      .from('dm_sequence')
       .update(validatedData)
       .eq('id', params.id)
       .select()
@@ -162,7 +162,7 @@ export async function DELETE(
 
     // Delete sequence (RLS enforces user access)
     const { error: deleteError } = await supabase
-      .from('dm_sequences')
+      .from('dm_sequence')
       .delete()
       .eq('id', params.id)
 

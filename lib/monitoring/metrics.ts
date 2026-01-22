@@ -49,7 +49,7 @@ export async function getEngagementMetrics(): Promise<EngagementMetrics> {
 
     // Get activity counts by status
     const { data: activities, error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('id, status, executed_at, created_at');
 
     if (error) {
@@ -111,7 +111,7 @@ export async function getPodMetrics(): Promise<PodMetrics[]> {
 
     // Get all pods with member counts and activity stats
     const { data: pods, error: podsError } = await supabase
-      .from('pods')
+      .from('pod')
       .select(
         `
         id,
@@ -197,7 +197,7 @@ export async function getHistoricalMetrics(
     since.setHours(since.getHours() - hours);
 
     const { data: activities, error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('id, status, executed_at')
       .gte('executed_at', since.toISOString());
 

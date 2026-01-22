@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Get campaign - RLS ensures user can only access their own campaigns
     const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id, name, pod_id, user_id, post_template, status')
       .eq('id', campaign_id)
       .single();
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Update campaign with post URL and status (use admin to bypass RLS)
     const { error: updateError } = await supabaseAdmin
-      .from('campaigns')
+      .from('campaign')
       .update({
         last_post_url: post_url,
         last_post_at: new Date().toISOString(),
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     // Get pod members to create activities for (excluding the triggering user)
     const { data: podMembers, error: membersError } = await supabaseAdmin
-      .from('pod_members')
+      .from('pod_member')
       .select('id, name, unipile_account_id')
       .eq('pod_id', campaign.pod_id)
       .eq('status', 'active')
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     }));
 
     const { data: activities, error: activityError } = await supabaseAdmin
-      .from('pod_activities')
+      .from('pod_activity')
       .insert(activitiesToCreate)
       .select();
 

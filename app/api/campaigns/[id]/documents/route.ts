@@ -20,7 +20,7 @@ export async function GET(
 
     // Verify campaign exists - RLS ensures user owns it
     const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .eq('id', params.id)
       .single();
@@ -77,7 +77,7 @@ export async function POST(
 
     // Verify campaign exists - RLS ensures user owns it
     const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .eq('id', params.id)
       .single();
@@ -156,7 +156,7 @@ export async function DELETE(
 
     // Verify campaign exists - RLS ensures user owns it
     const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .eq('id', params.id)
       .single();

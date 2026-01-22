@@ -6,7 +6,7 @@ export default async function PodLeaderboard({ params }: { params: { id: string 
 
   // Get pod info
   const { data: pod, error: podError } = await supabase
-    .from('pods')
+    .from('pod')
     .select('id, name')
     .eq('id', params.id)
     .maybeSingle();

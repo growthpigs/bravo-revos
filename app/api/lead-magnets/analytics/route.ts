@@ -13,19 +13,19 @@ export async function GET() {
 
     // 1. Total custom magnets count - RLS filters to user's magnets
     const { count: customMagnetsCount } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .select('*', { count: 'exact', head: true })
 
     // 2. Total downloads sum - RLS filters to user's magnets
     const { data: downloadData } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .select('download_count')
 
     const totalDownloads = downloadData?.reduce((sum, m) => sum + (m.download_count || 0), 0) || 0
 
     // 3. Most popular custom magnet - RLS filters to user's magnets
     const { data: mostPopular } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .select('id, name, download_count')
       .order('download_count', { ascending: false })
       .limit(1)
@@ -33,14 +33,14 @@ export async function GET() {
 
     // 4. Active campaigns using lead magnets - RLS filters to user's campaigns
     const { count: activeCampaignsCount } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'active')
       .or('lead_magnet_id.not.is.null,library_magnet_id.not.is.null')
 
     // 5. Campaign usage per custom magnet - RLS filters to user's campaigns
     const { data: campaignUsage } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('lead_magnet_id')
       .eq('lead_magnet_source', 'custom')
       .not('lead_magnet_id', 'is', null)

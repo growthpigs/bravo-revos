@@ -54,7 +54,7 @@ export default function OfferingsPage() {
 
         if (error || !user) {
           console.error('Auth error:', error);
-          window.location.href = '/login';
+          window.location.href = '/auth/login';
           return;
         }
 

@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       // Get user's client info using admin client
       console.log('[DEBUG_LINKEDIN] Looking up user in database:', user.email);
       const { data: userData, error: userError } = await supabaseAdmin
-        .from('users')
+        .from('user')
         .select('id, client_id, email, full_name')
         .eq('email', user.email)
         .single();
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     // Fetch client's Unipile credentials
     console.log('[DEBUG_LINKEDIN] Looking up client configuration:', clientId);
     const { data: clientData, error: clientError } = await supabaseAdmin
-      .from('clients')
+      .from('client')
       .select('unipile_api_key, unipile_dsn, unipile_enabled, name')
       .eq('id', clientId)
       .single();
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       });
 
       const { data: linkedinAccount, error: insertError } = await supabaseAdmin
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .insert({
           user_id: userId,
           account_name: accountName,
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
       sessionExpiresAt.setDate(sessionExpiresAt.getDate() + 90);
 
       const { data: linkedinAccount, error: updateError } = await supabaseAdmin
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .upsert({
           unipile_account_id: accountId,
           user_id: userId,

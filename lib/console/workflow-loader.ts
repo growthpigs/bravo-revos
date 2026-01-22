@@ -68,7 +68,7 @@ export async function loadWorkflow(
   try {
     // Query workflow from database
     const { data, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .select('*')
       .eq('name', workflowName)
       .eq('is_active', true)
@@ -115,7 +115,7 @@ export async function findWorkflowByTrigger(
   try {
     // Get all active workflows
     const { data: workflows, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .select('*')
       .eq('is_active', true);
 

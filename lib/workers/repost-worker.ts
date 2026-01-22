@@ -43,7 +43,7 @@ export class RepostWorker {
     console.log(`[REPOST_WORKER] Processing for member ${member_id}`);
 
     const supabase = getSupabase();
-    const { data: activity } = await supabase.from('pod_activities').insert({
+    const { data: activity } = await supabase.from('pod_activity').insert({
       pod_member_id: member_id, post_url, activity_type: 'repost', status: 'processing'
     }).select().single();
 
@@ -68,12 +68,12 @@ export class RepostWorker {
       await page.waitForTimeout(3000);
       await browser.close();
 
-      if (activity) await supabase.from('pod_activities').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', activity.id);
+      if (activity) await supabase.from('pod_activity').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', activity.id);
       console.log(`✅ [REPOST_WORKER] Success for member ${member_id}`);
       return { success: true };
     } catch (error: any) {
       if (browser) await browser.close();
-      if (activity) await supabase.from('pod_activities').update({ status: 'failed', error_message: error.message }).eq('id', activity.id);
+      if (activity) await supabase.from('pod_activity').update({ status: 'failed', error_message: error.message }).eq('id', activity.id);
       throw error;
     }
   }

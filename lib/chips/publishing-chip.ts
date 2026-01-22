@@ -101,7 +101,7 @@ export class PublishingChip extends BaseChip {
 
       // Get ALL user's active LinkedIn accounts
       const { data: linkedinAccounts } = await context.supabase
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .select('id, account_name, unipile_account_id')
         .eq('user_id', context.userId)
         .eq('status', 'active');
@@ -144,7 +144,7 @@ export class PublishingChip extends BaseChip {
       // 1. Create DB record first (Draft state)
       // This ensures we have a record even if the API call succeeds but the subsequent DB update fails.
       const { data: dbPost, error: insertError } = await context.supabase
-        .from('posts')
+        .from('post')
         .insert({
           campaign_id,
           linkedin_account_id: linkedinAccountId, // Link to specific account
@@ -175,7 +175,7 @@ export class PublishingChip extends BaseChip {
 
       // 3. Update post status to 'published'
       const { data: updatedPost, error: updateError } = await context.supabase
-        .from('posts')
+        .from('post')
         .update({
           unipile_post_id: post.id,
           status: 'published',
@@ -273,7 +273,7 @@ Link: ${post.url}`,
       if (dbPostId) {
         try {
           await context.supabase
-            .from('posts')
+            .from('post')
             .update({
               status: 'failed',
               metrics: { error: error.message || 'Unknown error during publishing' } // Store error in JSONB
@@ -299,7 +299,7 @@ Link: ${post.url}`,
     context: AgentContext
   ) {
     const { data, error } = await context.supabase
-      .from('posts')
+      .from('post')
       .insert({
         content,
         scheduled_for: schedule_time,

@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         // Update post record with post_url if available
         if (shareUrl && postRecord.id) {
           await supabase
-            .from('posts')
+            .from('post')
             .update({ post_url: shareUrl })
             .eq('id', postRecord.id);
         }

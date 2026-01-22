@@ -21,7 +21,7 @@ export async function checkSessionStatus(accountId: string): Promise<SessionChec
 
   // Get account from database
   const { data: account, error } = await supabase
-    .from('linkedin_accounts')
+    .from('linkedin_account')
     .select('*')
     .eq('id', accountId)
     .single();
@@ -41,7 +41,7 @@ export async function checkSessionStatus(accountId: string): Promise<SessionChec
     if (unipileStatus.status === 'CREDENTIALS') {
       // Update database status
       await supabase
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .update({
           status: 'expired',
           updated_at: new Date().toISOString(),
@@ -58,7 +58,7 @@ export async function checkSessionStatus(accountId: string): Promise<SessionChec
     if (unipileStatus.status === 'DISCONNECTED') {
       // Update database status
       await supabase
-        .from('linkedin_accounts')
+        .from('linkedin_account')
         .update({
           status: 'error',
           updated_at: new Date().toISOString(),
@@ -86,7 +86,7 @@ export async function checkSessionStatus(accountId: string): Promise<SessionChec
   if (daysUntilExpiry < 0) {
     // Expired
     await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .update({
         status: 'expired',
         updated_at: new Date().toISOString(),
@@ -129,7 +129,7 @@ export async function monitorAllSessions(): Promise<SessionCheckResult[]> {
 
   // Get all active accounts
   const { data: accounts, error } = await supabase
-    .from('linkedin_accounts')
+    .from('linkedin_account')
     .select('id')
     .eq('status', 'active')
     .order('last_sync_at', { ascending: true });

@@ -22,13 +22,13 @@ export default async function DashboardLayout({
 
   // Get user's client info
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('id, email, full_name, client_id')
     .eq('id', user.id)
     .single()
 
   const { data: clientData } = await supabase
-    .from('clients')
+    .from('client')
     .select('id, name')
     .eq('id', userData?.client_id || '')
     .single()

@@ -38,7 +38,7 @@ export async function saveDetectedPost(
   try {
     // Check if post already exists
     const { data: existingPost } = await supabase
-      .from('posts')
+      .from('post')
       .select('id')
       .eq('unipile_post_id', post.id)
       .maybeSingle();
@@ -53,7 +53,7 @@ export async function saveDetectedPost(
 
     // Insert post into database
     const { data: newPost, error: postError } = await supabase
-      .from('posts')
+      .from('post')
       .insert({
         linkedin_account_id: linkedinAccountId,
         unipile_post_id: post.id,
@@ -83,7 +83,7 @@ export async function saveDetectedPost(
 
     // Get all active pod members with linkedin accounts
     const { data: podMembers, error: membersError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id, linkedin_account_id')
       .eq('pod_id', podId)
       .eq('status', 'active')
@@ -119,7 +119,7 @@ export async function saveDetectedPost(
     }
 
     const { data: createdActivities, error: activitiesError } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .insert(activities)
       .select('id');
 
@@ -161,7 +161,7 @@ export async function getPodMemberByLinkedInAccountId(
     const supabase = await createClient({ isServiceRole: true });
 
     const { data, error } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id')
       .eq('pod_id', podId)
       .eq('linkedin_account_id', linkedinAccountDatabaseId)
@@ -189,7 +189,7 @@ export async function getPodMembersWithAccounts(
 
   try {
     const { data, error } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id, linkedin_account_id')
       .eq('pod_id', podId)
       .eq('status', 'active');
@@ -214,7 +214,7 @@ export async function updateLastPolledTime(postId: string): Promise<void> {
 
   try {
     await supabase
-      .from('posts')
+      .from('post')
       .update({
         last_polled_at: new Date().toISOString(),
       })

@@ -1,186 +1,101 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-21
+**Last Updated:** 2026-01-22
 **Branch:** main
-**Session:** Unified Platform Phase 1 COMPLETE
+**Session:** Database Unification COMPLETE ✅
 
 ---
 
-## Current Task
+## Current State: UNIFIED PLATFORM
 
-**Unified Platform (RevOS + AudienceOS)**
+RevOS now shares the same Supabase database as AudienceOS. Both apps access the same data.
 
-Phase 1 UI Shell is COMPLETE in the unified platform worktree. RevOS is now accessible via app switcher in AudienceOS.
+| Item | Value |
+|------|-------|
+| Database | `ebxshdqfaqupnvpghodi` (AudienceOS Supabase) |
+| Table Convention | SINGULAR (user, client, agency, campaign) |
+| Mem0 Key Format | `agencyId::clientId::userId` (with `_` wildcard) |
+| Environment | `.env.local` + `.env.vercel` both updated |
 
-### Unified Platform Status
+### What Was Done (2026-01-22)
 
-| Phase | Status | Location |
-|-------|--------|----------|
-| Phase 1 (UI Shell) | ✅ COMPLETE | `/Users/rodericandrews/_PAI/projects/audienceos-unified-platform` |
-| Phase 2 (Real RevOS) | ⏳ PENDING | ~12-15 days estimated |
-| Phase 3 (HGC Adapter) | ⏳ PENDING | Dual AI backend support |
+**1. Database Tables Created in AudienceOS:**
+- 14 RevOS tables created via Supabase SQL Editor
+- linkedin_account, lead_magnet, campaign, post, comment, lead
+- webhook_config, webhook_delivery, pod, pod_member, pod_activity
+- dm_sequence, dm_delivery, console_workflow
 
-**Preview URL:** https://v0-audience-os-command-center-vithewpoa.vercel.app
-**Branch:** `feature/unified-platform`
+**2. Code References Updated (293 total):**
+| Pattern | Count | Status |
+|---------|-------|--------|
+| `campaigns` → `campaign` | 53 | ✅ |
+| `posts` → `post` | 32 | ✅ |
+| `leads` → `lead` | 39 | ✅ |
+| `linkedin_accounts` → `linkedin_account` | 30 | ✅ |
+| `console_workflows` → `console_workflow` | 21 | ✅ |
+| `users` → `user` | 94 | ✅ |
+| `clients` → `client` | 18 | ✅ |
+| `agencies` → `agency` | 6 | ✅ |
 
-### What's Built (Phase 1)
+**3. Environment Files Updated:**
+- `.env.local` → AudienceOS Supabase credentials
+- `.env.vercel` → AudienceOS Supabase credentials (CTO audit fix)
 
-- ✅ App Switcher - Dropdown to toggle between AudienceOS and RevOS
-- ✅ Conditional Navigation - Sidebar shows different nav per app
-- ✅ RevOS Stub Pages - Campaigns, Content, Outreach, Cartridges, Analytics
-- ✅ SSR Hydration - Zustand with `skipHydration` pattern
-- ✅ Gradient Logo Fix - `safeActiveApp` fallback for hydration
-
-### What's Next (Phase 2)
-
-Real RevOS functionality requires porting from this codebase:
-- Schema migration (campaigns, leads, posts tables)
-- Component porting (CampaignWizard, LeadsTable, PostComposer)
-- API endpoints (/api/campaigns, /api/leads, /api/posts)
-- HGC adapter (switch between Gemini and AgentKit)
-
----
-
-## Previous Task: Database Merge - Phase 0 COMPLETE
-
-Combining RevOS and AudienceOS into a shared database with app toggle (like 11 Labs studio/agents).
-
-### Progress
-
-- [x] Researched both schemas
-- [x] Created `features/DATABASE-MERGE.md` spec
-- [x] **STRESS TEST PASSED** - Runtime verification via Claude in Chrome
-- [x] Verified ABBY contamination (empty tables - safe to drop)
-- [x] Verified active chat tables (plural = active, singular = orphan)
-- [x] Verified RLS security warnings in both DBs
-- [x] Decided naming convention (AudienceOS singular = gold standard)
-- [x] Documented app_context table categorization
-- [x] **PHASE 0 CLEANUP COMPLETE** - All scripts executed and verified
-- [ ] Create migration scripts
-- [ ] UI alignment research
-
-### Phase 0 Cleanup Results (Confidence: 10/10)
-
-| Task | Action | Status |
-|------|--------|--------|
-| ABBY tables | DROP `outfit_history`, `swatches`, `swipe_cartridges` | ✅ DONE |
-| Orphan chat tables | DROP `chat_message`, `chat_session` (singular) | ✅ DONE |
-| RLS RevOS | Enable on `backup_dm_sequences`, `campaigns_trigger_word_backup` | ✅ DONE |
-| RLS AudienceOS | Enable on `user`, `permission` | ✅ DONE |
-| Verification | Table Editor inspection in both DBs | ✅ VERIFIED |
-
-### Key Decisions Made
-
-1. **AudienceOS is gold standard** for UI/menus AND naming convention
-2. **Single shared database** - AudienceOS Supabase (`ebxshdqfaqupnvpghodi`)
-3. **App context pattern** - `app_context` column for app-specific data
-4. **HGC will be shared** - same component, different backend per app
-5. **SINGULAR naming** - All tables use singular names (agency, client, chat_message)
+**4. Verification:**
+- TypeScript compiles clean (0 errors)
+- Runtime test: 12/12 table existence checks passed
+- All SINGULAR tables exist, no PLURAL tables exist
 
 ---
 
-## Schema Merge Summary
+## What's Next
 
-### VERIFIED TABLE COUNTS
+### From CTO Analysis (CC1):
 
-| Database | Original Estimate | Actual Count |
-|----------|-------------------|--------------|
-| AudienceOS | 19 | **26+** |
-| RevOS | 30 | **55+** |
+The AudienceOS team found that while **tables exist**, the **API routes don't**:
 
-### SHARED (Merge)
+| Component | Tables | API Routes |
+|-----------|--------|------------|
+| Webhook System | ✅ webhook_config, webhook_delivery | ❌ Missing |
+| Campaign System | ✅ campaign, lead, comment | ❌ Missing |
+| Pod System | ✅ pod, pod_member, pod_activity | ❌ Missing |
+| LinkedIn Sync | ✅ user_oauth_credential | ✅ EXISTS in AudienceOS |
 
-| Concept | AudienceOS | RevOS | Action |
-|---------|------------|-------|--------|
-| Tenant | `agency` | `agencies` | Use AudienceOS |
-| Users | `user` | `users` | Use AudienceOS |
-| Clients | `client` | `clients` | Use AudienceOS |
-| Chat | `chat_session` | `chat_sessions` | Unify (singular) |
-| Cartridges | Multiple types | `brand_cartridges` etc | Unify |
-
-### CLEANUP COMPLETE ✅
-
-**RevOS - DROPPED tables:**
-- ~~`outfit_history`~~ (ABBY - 0 rows) ✅
-- ~~`swatches`~~ (ABBY - 0 rows) ✅
-- ~~`swipe_cartridges`~~ (ABBY - 0 rows) ✅
-- ~~`chat_message`~~ (orphan - 0 rows) ✅
-- ~~`chat_session`~~ (orphan - 0 rows) ✅
-
-**RLS Fixed:**
-- RevOS: `backup_dm_sequences`, `campaigns_trigger_word_backup` ✅
-- AudienceOS: `user`, `permission` ✅
-
----
-
-## Blockers
-
-**ALL RESOLVED:**
-- ~~ABBY contamination~~ → Tables dropped ✅
-- ~~Duplicate chat tables~~ → Orphans dropped ✅
-- ~~RLS warnings~~ → Fixed in both DBs ✅
-- ~~Naming convention~~ → Decision: use singular (AudienceOS) ✅
-
-**REMAINING:**
-- None - Phase 0 complete, ready for Phase 1
-
----
-
-## Next Steps (For Next Session)
-
-1. ~~**Run Phase 0 cleanup**~~ - ✅ COMPLETE
-2. **Create migration script** - Schema additions to AudienceOS (add RevOS-only tables)
-3. **UI alignment research** - Compare RevOS menus vs AudienceOS Linear design
-4. **HGC extraction** - Plan shared component architecture
-
----
-
-## Files Changed This Session
-
-- `features/DATABASE-MERGE.md` - Phase 0 cleanup scripts documented
-- `HANDOVER.md` - Updated with Phase 0 completion status
-
-### SQL Executed This Session
-
-**RevOS (`trdoainmejxanrownbuz`):**
-```sql
-DROP TABLE IF EXISTS outfit_history;
-DROP TABLE IF EXISTS swatches;
-DROP TABLE IF EXISTS swipe_cartridges;
-DROP TABLE IF EXISTS chat_message;
-DROP TABLE IF EXISTS chat_session;
-ALTER TABLE backup_dm_sequences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE campaigns_trigger_word_backup ENABLE ROW LEVEL SECURITY;
-```
-
-**AudienceOS (`ebxshdqfaqupnvpghodi`):**
-```sql
-ALTER TABLE "user" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE permission ENABLE ROW LEVEL SECURITY;
-```
+**Recommended Week 2 Focus:**
+1. Webhook API Routes (CRUD for webhook_config + delivery service)
+2. Verify LinkedIn sync works from RevOS
+3. Campaign API Routes (if time)
 
 ---
 
 ## Branch Status
 
-**Clean branches (keep):**
-- `main` - Primary development
-- `staging` - Staging deploys
-- `production` - Production deploys
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| main | Primary development | ✅ Clean |
+| staging | Staging deploys | ✅ Available |
+| production | Production deploys | 🔒 PR only |
 
 ---
 
 ## Related Projects
 
-- **AudienceOS:** `/Users/rodericandrews/_PAI/projects/audienceos`
-  - Supabase: `ebxshdqfaqupnvpghodi` (will be PRIMARY)
-  - Deployment: audienceos-agro-bros.vercel.app
+| Project | Supabase | Notes |
+|---------|----------|-------|
+| **AudienceOS** | `ebxshdqfaqupnvpghodi` | PRIMARY (shared) |
+| **RevOS** | Same as above | Now unified |
 
-- **RevOS:** This project
-  - Supabase: `trdoainmejxanrownbuz` (will be DEPRECATED after merge)
-  - Deployment: bravo-revos.vercel.app
+---
+
+## Key Files
+
+| Purpose | Location |
+|---------|----------|
+| Feature spec | `features/DATABASE-MERGE.md` |
+| Project context | `CLAUDE.md` |
+| Tech docs | `docs/04-technical/` |
 
 ---
 
 **Handover Author:** Chi CTO
-**Verification Method:** Claude in Chrome (Supabase SQL Editor + Table Editor runtime verification)
+**Verification:** Runtime test 12/12 passed

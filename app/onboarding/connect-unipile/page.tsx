@@ -40,7 +40,7 @@ export default function ConnectUnipilePage() {
 
       // Get pod member record
       const { data: member, error: memberError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .select('*, clients(name)')
         .eq('user_id', user.id)
         .single();

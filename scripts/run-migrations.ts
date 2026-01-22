@@ -18,7 +18,7 @@ async function runMigrations() {
   // Migration 1: Fix Roderic's agency_id
   console.log('Migration 1: Fixing agency_id...');
   const { data: userData, error: userError } = await supabase
-    .from('users')
+    .from('user')
     .update({ agency_id: 'c3ae8595-ba0a-44c8-aa44-db0bdfc3f951' })
     .eq('email', 'rodericandrews@icloud.com')
     .select();

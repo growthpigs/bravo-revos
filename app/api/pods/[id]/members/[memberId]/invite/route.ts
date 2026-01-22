@@ -16,7 +16,7 @@ export async function POST(
 
     // Get pod member details
     const { data: podMember, error: memberError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select(`
         id,
         user_id,
@@ -62,7 +62,7 @@ export async function POST(
 
     // Store invitation token in pod_members
     const { error: updateError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .update({
         invitation_token: invitationToken,
         invitation_expires_at: expiresAt.toISOString(),

@@ -196,7 +196,7 @@ export class DMScraperChip {
    */
   private async getLeadsAwaitingEmail(campaignId?: string) {
     let query = this.supabase
-      .from('leads')
+      .from('lead')
       .select('id, linkedin_id, campaign_id, updated_at')
       .is('email', null) // No email captured yet
       .eq('status', 'dm_sent'); // Has been sent a DM
@@ -219,7 +219,7 @@ export class DMScraperChip {
    */
   private async updateLeadWithEmail(leadId: string, extractedEmail: ExtractedEmail): Promise<boolean> {
     const { error } = await this.supabase
-      .from('leads')
+      .from('lead')
       .update({
         email: extractedEmail.email,
         status: 'email_captured',

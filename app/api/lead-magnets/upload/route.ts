@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // Verify lead magnet exists - RLS ensures user owns it
     const { data: leadMagnet, error: leadMagnetError } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .select('id')
       .eq('id', leadMagnetId)
       .single();
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     // Update lead_magnets table with file metadata
     const { error: updateError } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .update({
         file_path: uploadResult.path,
         file_size: file.size,

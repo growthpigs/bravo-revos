@@ -236,7 +236,7 @@ export class CampaignOrchestrator {
       // Get lead magnet details
       const supabase = await createClient();
       const { data: leadMagnet } = await supabase
-        .from('lead_magnets')
+        .from('lead_magnet')
         .select('title')
         .eq('id', campaign.lead_magnet_id)
         .single();
@@ -265,7 +265,7 @@ export class CampaignOrchestrator {
   private async getCampaign(campaignId: string): Promise<Campaign | null> {
     const supabase = await createClient();
     const { data } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('*')
       .eq('id', campaignId)
       .single();
@@ -276,7 +276,7 @@ export class CampaignOrchestrator {
   private async getPod(podId: string): Promise<Pod | null> {
     const supabase = await createClient();
     const { data } = await supabase
-      .from('pods')
+      .from('pod')
       .select('*, pod_members(count)')
       .eq('id', podId)
       .single();
@@ -294,7 +294,7 @@ export class CampaignOrchestrator {
   private async getPost(postId: string): Promise<Post | null> {
     const supabase = await createClient();
     const { data } = await supabase
-      .from('posts')
+      .from('post')
       .select('*')
       .eq('id', postId)
       .single();
@@ -306,7 +306,7 @@ export class CampaignOrchestrator {
     // Get metrics from past posts in this campaign
     const supabase = await createClient();
     const { data: posts } = await supabase
-      .from('posts')
+      .from('post')
       .select('*, comments(count), leads(count)')
       .eq('campaign_id', campaignId)
       .order('published_at', { ascending: false })
@@ -340,13 +340,13 @@ export class CampaignOrchestrator {
     // Get all pod members with their profiles to find post URL
     const supabase = await createClient();
     const { data: members } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id, profile_id')
       .eq('pod_id', params.podId);
 
     // Get post with URL
     const { data: post } = await supabase
-      .from('posts')
+      .from('post')
       .select('linkedin_post_url')
       .eq('id', params.postId)
       .single();
@@ -400,7 +400,7 @@ export class CampaignOrchestrator {
 
     // Insert all activities
     const { error } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .insert(activities);
 
     if (error) {
@@ -477,7 +477,7 @@ export class CampaignOrchestrator {
     // Get posts in time range
     const supabase = await createClient();
     const { data: posts } = await supabase
-      .from('posts')
+      .from('post')
       .select(
         `
         *,

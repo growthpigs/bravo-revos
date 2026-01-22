@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch the workflow
     const { data, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .select('*')
       .eq('name', 'write-linkedin-post')
       .single();

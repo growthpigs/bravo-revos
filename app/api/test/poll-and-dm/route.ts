@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
               const firstName = nameParts[0] || '';
               const lastName = nameParts.slice(1).join(' ') || '';
 
-              const { error: leadError } = await serviceSupabase.from('leads').upsert({
+              const { error: leadError } = await serviceSupabase.from('lead').upsert({
                 campaign_id: job.campaign_id,
                 linkedin_id: author.id,
                 first_name: firstName,

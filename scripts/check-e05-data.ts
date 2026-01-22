@@ -9,12 +9,12 @@ const supabase = createClient(
 
 async function check() {
   // Check pods
-  const { data: pods } = await supabase.from('pods').select('id, name').limit(5);
+  const { data: pods } = await supabase.from('pod').select('id, name').limit(5);
   console.log('Pods:', JSON.stringify(pods, null, 2));
 
   // Check pod_members with linkedin
   const { data: members } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('id, pod_id, linkedin_account_id')
     .not('linkedin_account_id', 'is', null)
     .limit(5);
@@ -22,7 +22,7 @@ async function check() {
 
   // Check linkedin_accounts with unipile
   const { data: accounts } = await supabase
-    .from('linkedin_accounts')
+    .from('linkedin_account')
     .select('id, unipile_account_id, name')
     .not('unipile_account_id', 'is', null)
     .limit(5);
@@ -30,7 +30,7 @@ async function check() {
 
   // Check all pod_members
   const { data: allMembers } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('id, pod_id, linkedin_account_id, user_id')
     .limit(10);
   console.log('\nAll pod members:', JSON.stringify(allMembers, null, 2));

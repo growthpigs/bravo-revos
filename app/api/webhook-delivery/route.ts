@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       );
 
       const { data: dbLead, error: leadError } = await supabase
-        .from('leads')
+        .from('lead')
         .select(
           `
           id,
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
       );
 
       const { data: delivery, error: deliveryError } = await supabase
-        .from('webhook_deliveries')
+        .from('webhook_delivery')
         .insert({
           lead_id: leadId,
           webhook_url: webhookUrl,
@@ -300,7 +300,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's client_id for tenant scoping
     const { data: userData, error: userError } = await authSupabase
-      .from('users')
+      .from('user')
       .select('client_id')
       .eq('id', user.id)
       .single();
@@ -320,7 +320,7 @@ export async function GET(request: NextRequest) {
 
     // CRITICAL: Join through leads → campaigns to filter by client_id
     let query = supabase
-      .from('webhook_deliveries')
+      .from('webhook_delivery')
       .select(`
         *,
         leads!inner(

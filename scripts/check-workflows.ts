@@ -9,7 +9,7 @@ const supabase = createClient(
 
 async function main() {
   const { data, error } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .select('name, triggers')
     .order('name');
 

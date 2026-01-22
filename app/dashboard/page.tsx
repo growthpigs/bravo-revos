@@ -14,25 +14,25 @@ export default async function DashboardPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('client_id')
     .eq('id', user?.id || '')
     .single()
 
   // Get stats
   const { count: campaignsCount } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('*', { count: 'exact', head: true })
     .eq('client_id', userData?.client_id || '')
     .eq('status', 'active')
 
   const { count: leadsCount } = await supabase
-    .from('leads')
+    .from('lead')
     .select('*, campaigns!inner(*)', { count: 'exact', head: true })
     .eq('campaigns.client_id', userData?.client_id || '')
 
   const { count: conversionsCount } = await supabase
-    .from('leads')
+    .from('lead')
     .select('*, campaigns!inner(*)', { count: 'exact', head: true })
     .eq('campaigns.client_id', userData?.client_id || '')
     .eq('status', 'webhook_sent')

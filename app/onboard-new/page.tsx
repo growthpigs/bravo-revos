@@ -46,7 +46,7 @@ function OnboardNewContent() {
 
       // Check if unipile_account_id has been set by the webhook
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('unipile_account_id')
         .eq('id', user.id)
         .single()
@@ -59,7 +59,7 @@ function OnboardNewContent() {
         console.log('[ONBOARD_NEW] Unipile account ID not set yet, waiting for webhook...')
         setTimeout(async () => {
           const { data: retryData } = await supabase
-            .from('users')
+            .from('user')
             .select('unipile_account_id')
             .eq('id', user.id)
             .single()
@@ -128,7 +128,7 @@ function OnboardNewContent() {
       // Check if user already has LinkedIn connected and password set
       // If so, redirect straight to dashboard
       const { data: userData } = await supabase
-        .from('users')
+        .from('user')
         .select('unipile_account_id')
         .eq('id', user.id)
         .single()

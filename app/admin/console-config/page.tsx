@@ -1159,7 +1159,7 @@ export default function ConsoleConfigPage() {
 
                             // Save to console_workflows table
                             const { error } = await supabase
-                              .from('console_workflows')
+                              .from('console_workflow')
                               .upsert({
                                 id: selectedWorkflow,
                                 name: parsed.name || selectedWorkflow,

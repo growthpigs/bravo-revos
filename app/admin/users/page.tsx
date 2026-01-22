@@ -82,7 +82,7 @@ export default function AdminUsersPage() {
     try {
       setIsLoading(true)
       const { data, error } = await supabase
-        .from('users')
+        .from('user')
         .select(`
           id,
           email,
@@ -191,7 +191,7 @@ export default function AdminUsersPage() {
           : 'user'
 
         const { error } = await supabase
-          .from('users')
+          .from('user')
           .update({
             first_name: formData.first_name || null,
             last_name: formData.last_name || null,

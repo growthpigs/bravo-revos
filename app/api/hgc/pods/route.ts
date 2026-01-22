@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch pod with members and activity (RLS enforces user access via pod_members)
     const { data: pod, error: podError } = await supabase
-      .from('pods')
+      .from('pod')
       .select(`
         id,
         name,
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     // Get recent pod activities
     const { data: activities } = await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .select('id, action_type, status, created_at, executed_at')
       .eq('pod_id', podId)
       .order('created_at', { ascending: false })

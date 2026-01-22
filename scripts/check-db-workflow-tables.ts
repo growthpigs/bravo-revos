@@ -28,7 +28,7 @@ async function checkTables() {
   // Check console_workflows
   console.log('\nChecking console_workflows table...');
   const { data: workflows, error: wfError } = await supabase
-    .from('console_workflows')
+    .from('console_workflow')
     .select('id, name, console_id')
     .limit(5);
 

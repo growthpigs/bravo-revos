@@ -10,40 +10,40 @@ export default async function AdminSystemHealthPage() {
   // Get user and agency
   const { data: { user } } = await supabase.auth.getUser()
   const { data: userData } = await supabase
-    .from('users')
+    .from('user')
     .select('agency_id')
     .eq('id', user?.id || '')
     .single()
 
   // Get agency-scoped metrics
   const { count: clientsCount } = await supabase
-    .from('clients')
+    .from('client')
     .select('*', { count: 'exact', head: true })
     .eq('agency_id', userData?.agency_id || '')
 
   const { data: clients } = await supabase
-    .from('clients')
+    .from('client')
     .select('id')
     .eq('agency_id', userData?.agency_id || '')
 
   const clientIds = clients?.map(c => c.id) || []
 
   const { count: campaignsCount } = await supabase
-    .from('campaigns')
+    .from('campaign')
     .select('*', { count: 'exact', head: true })
     .in('client_id', clientIds.length > 0 ? clientIds : [''])
 
   const { count: usersCount } = await supabase
-    .from('users')
+    .from('user')
     .select('*', { count: 'exact', head: true })
     .eq('agency_id', userData?.agency_id || '')
 
   // Get LinkedIn account status
   const { count: linkedinActiveCount } = await supabase
-    .from('linkedin_accounts')
+    .from('linkedin_account')
     .select('*', { count: 'exact', head: true })
     .in('user_id', (await supabase
-      .from('users')
+      .from('user')
       .select('id')
       .eq('agency_id', userData?.agency_id || '')).data?.map(u => u.id) || [''])
     .eq('is_active', true)
@@ -51,29 +51,29 @@ export default async function AdminSystemHealthPage() {
   // Get pod activity stats (last 24 hours)
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const { count: podsPending } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('*', { count: 'exact', head: true })
     .in('campaign_id', (await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .in('client_id', clientIds.length > 0 ? clientIds : [''])).data?.map(c => c.id) || [''])
     .eq('status', 'pending')
 
   const { count: podsFailed } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('*', { count: 'exact', head: true })
     .in('campaign_id', (await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .in('client_id', clientIds.length > 0 ? clientIds : [''])).data?.map(c => c.id) || [''])
     .eq('status', 'failed')
     .gte('created_at', oneDayAgo)
 
   const { count: podsTotal } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('*', { count: 'exact', head: true })
     .in('campaign_id', (await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
       .in('client_id', clientIds.length > 0 ? clientIds : [''])).data?.map(c => c.id) || [''])
     .gte('created_at', oneDayAgo)

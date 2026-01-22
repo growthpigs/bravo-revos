@@ -76,7 +76,7 @@ export default function SettingsPage() {
       }
 
       const { data: profile } = await supabase
-        .from('users')
+        .from('user')
         .select('client_id')
         .eq('id', user.id)
         .single()
@@ -87,7 +87,7 @@ export default function SettingsPage() {
       }
 
       const { data: client } = await supabase
-        .from('clients')
+        .from('client')
         .select('unipile_enabled')
         .eq('id', profile.client_id)
         .single()

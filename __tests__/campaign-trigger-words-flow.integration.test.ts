@@ -23,7 +23,7 @@ describe('Campaign Trigger Words Flow - Integration Tests', () => {
   // Helper: Create test campaign
   async function createTestCampaign(supabase: any, triggerWords: string[]) {
     const { data, error } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .insert({
         name: `Test Campaign ${Date.now()}`,
         description: 'Integration test campaign',

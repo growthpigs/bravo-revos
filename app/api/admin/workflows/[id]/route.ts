@@ -35,7 +35,7 @@ export async function PUT(
     } = body;
 
     const { data: workflow, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .update({
         name,
         workflow_type,
@@ -90,7 +90,7 @@ export async function DELETE(
     if (hard) {
       // Hard delete
       const { error } = await supabase
-        .from('console_workflows')
+        .from('console_workflow')
         .delete()
         .eq('id', params.id);
 
@@ -101,7 +101,7 @@ export async function DELETE(
     } else {
       // Soft delete (set is_active = false)
       const { error } = await supabase
-        .from('console_workflows')
+        .from('console_workflow')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', params.id);
 
@@ -139,7 +139,7 @@ export async function PATCH(
     const { is_active } = await req.json();
 
     const { data: workflow, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .update({ is_active, updated_at: new Date().toISOString() })
       .eq('id', params.id)
       .select()

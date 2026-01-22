@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Build query
     let query = supabase
-      .from('posts')
+      .from('post')
       .select(`
         *,
         campaigns (
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     // Insert post
     const { data: post, error: insertError } = await supabase
-      .from('posts')
+      .from('post')
       .insert(postData)
       .select()
       .single()
@@ -178,7 +178,7 @@ export async function PATCH(request: NextRequest) {
 
     // Update post (RLS ensures user owns it)
     const { data: post, error: updateError } = await supabase
-      .from('posts')
+      .from('post')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -234,7 +234,7 @@ export async function DELETE(request: NextRequest) {
 
     // Delete post (RLS ensures user owns it)
     const { error: deleteError } = await supabase
-      .from('posts')
+      .from('post')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id)

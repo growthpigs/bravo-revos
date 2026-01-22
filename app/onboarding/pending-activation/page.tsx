@@ -45,7 +45,7 @@ export default function PendingActivationPage() {
       }
 
       const { data: member, error: memberError } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .select('*, clients(name)')
         .eq('user_id', user.id)
         .single();
@@ -89,7 +89,7 @@ export default function PendingActivationPage() {
       if (!user) return;
 
       const { data: member } = await supabase
-        .from('pod_members')
+        .from('pod_member')
         .select('onboarding_status, is_active')
         .eq('user_id', user.id)
         .single();

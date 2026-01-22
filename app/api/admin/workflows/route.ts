@@ -19,7 +19,7 @@ export async function GET() {
 
     // Fetch all workflows (including inactive for admin)
     const { data: workflows, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .select('*')
       .order('category', { ascending: true })
       .order('name', { ascending: true });
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     }
 
     const { data: workflow, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .insert({
         name,
         workflow_type,

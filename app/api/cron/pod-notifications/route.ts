@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       try {
         // Get user email
         const { data: user } = await supabase
-          .from('users')
+          .from('user')
           .select('email, full_name')
           .eq('id', notification.user_id)
           .single()

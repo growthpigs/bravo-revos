@@ -16,7 +16,7 @@ export async function DELETE(
 
     // Get member details
     const { data: member, error: memberError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id, pod_id, user_id, status')
       .eq('id', memberId)
       .eq('pod_id', podId)
@@ -31,14 +31,14 @@ export async function DELETE(
 
     // Check current active member count
     const { count: activeMemberCount } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('*', { count: 'exact', head: true })
       .eq('pod_id', podId)
       .eq('status', 'active');
 
     // Get pod minimum members requirement
     const { data: pod } = await supabase
-      .from('pods')
+      .from('pod')
       .select('min_members')
       .eq('id', podId)
       .single();
@@ -60,7 +60,7 @@ export async function DELETE(
     // Mark member as 'left' instead of deleting
     // This preserves historical activity data
     const { error: updateError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .update({
         status: 'left',
       })
@@ -77,7 +77,7 @@ export async function DELETE(
     // Update pod_activities to set member_id to NULL for this member's future activities
     // (keeps historical record but won't assign future tasks)
     await supabase
-      .from('pod_activities')
+      .from('pod_activity')
       .update({ member_id: null })
       .eq('member_id', memberId)
       .eq('status', 'pending');
@@ -151,7 +151,7 @@ export async function PATCH(
     }
 
     const { data: member, error } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .update(updates)
       .eq('id', memberId)
       .eq('pod_id', podId)

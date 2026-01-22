@@ -239,7 +239,7 @@ async function processDMJob(job: Job<DMJobData>): Promise<void> {
     await incrementDMCount(accountId);
 
     // FUTURE: Update dm_sequences table with success status (Phase D)
-    // await supabase.from('dm_sequences').update({ status: 'sent', sent_at: new Date() })
+    // await supabase.from('dm_sequence').update({ status: 'sent', sent_at: new Date() })
 
     return;
   } catch (error) {

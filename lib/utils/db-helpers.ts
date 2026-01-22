@@ -79,7 +79,7 @@ export async function upsertLead(
     const lastName = nameParts.slice(1).join(' ') || null;
 
     const { data, error } = await supabase
-      .from('leads')
+      .from('lead')
       .upsert(
         {
           campaign_id: leadData.campaign_id,

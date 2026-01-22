@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's pod memberships
     const { data: memberships, error: memberError } = await supabaseAdmin
-      .from('pod_members')
+      .from('pod_member')
       .select('id, pod_id')
       .eq('user_id', user.id)
       .eq('status', 'active');
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     // Build query for activities
     let query = supabaseAdmin
-      .from('pod_activities')
+      .from('pod_activity')
       .select(`
         *,
         pods(name, client_id)

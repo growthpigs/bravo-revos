@@ -44,7 +44,7 @@ async function linkLinkedInAccount(
   // 1. Get user_id from email
   console.log('Looking up user...');
   const { data: user, error: userError } = await supabase
-    .from('users')
+    .from('user')
     .select('id, email, full_name')
     .eq('email', userEmail)
     .single();
@@ -82,7 +82,7 @@ async function linkLinkedInAccount(
     sessionExpiresAt.setDate(sessionExpiresAt.getDate() + 90);
 
     const { data: linkedAccount, error: insertError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .insert({
         user_id: user.id,
         account_name: accountName,

@@ -16,7 +16,7 @@ async function test() {
 
   // Find existing pod and member
   const { data: member } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('id, pod_id, unipile_account_id')
     .not('unipile_account_id', 'is', null)
     .limit(1)
@@ -32,7 +32,7 @@ async function test() {
   // Create test activity with UUID post_id
   const testPostId = randomUUID();
   const { data: activity, error } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .insert({
       pod_id: member.pod_id,
       member_id: member.id,
@@ -78,7 +78,7 @@ async function test() {
 
   // Check if activity status changed
   const { data: updated } = await supabase
-    .from('pod_activities')
+    .from('pod_activity')
     .select('status, executed_at, last_error')
     .eq('id', activity.id)
     .single();
@@ -98,7 +98,7 @@ async function test() {
   }
 
   // Cleanup
-  await supabase.from('pod_activities').delete().eq('id', activity.id);
+  await supabase.from('pod_activity').delete().eq('id', activity.id);
   console.log('[TEST] Cleaned up test activity');
 
   process.exit(0);

@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Insert into users table
     const { error: insertError } = await supabaseAdmin
-      .from('users')
+      .from('user')
       .insert({
         id: userData.user.id,
         email: email,

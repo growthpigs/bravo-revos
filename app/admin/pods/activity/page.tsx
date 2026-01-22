@@ -88,7 +88,7 @@ export default function ActivityDashboardPage() {
       setIsLoading(true)
 
       const { data, error } = await supabase
-        .from('pod_activities')
+        .from('pod_activity')
         .select(`
           *,
           pod_members(name, linkedin_url),

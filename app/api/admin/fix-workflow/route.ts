@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Update the workflow with correct regex pattern
     const { data, error } = await supabase
-      .from('console_workflows')
+      .from('console_workflow')
       .update({
         triggers: {
           commands: ['write'],

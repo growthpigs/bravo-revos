@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // Get campaigns for user - RLS filters to user's campaigns
     const { data: campaigns } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select('id')
 
     const campaignIds = campaigns?.map(c => c.id) || []
@@ -55,14 +55,14 @@ export async function GET(request: NextRequest) {
 
     // Count posts in date range
     const { count: postsCount } = await supabase
-      .from('posts')
+      .from('post')
       .select('*', { count: 'exact', head: true })
       .in('campaign_id', campaignIds)
       .gte('created_at', startDate.toISOString())
 
     // Count leads generated
     const { count: leadsCount } = await supabase
-      .from('leads')
+      .from('lead')
       .select('*', { count: 'exact', head: true })
       .in('campaign_id', campaignIds)
       .gte('created_at', startDate.toISOString())
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     // Get top performing campaigns by lead count
     const { data: topCampaigns } = await supabase
-      .from('campaigns')
+      .from('campaign')
       .select(`
         id,
         name,

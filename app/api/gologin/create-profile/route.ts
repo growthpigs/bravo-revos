@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the LinkedIn account belongs to this user
     const { data: linkedinAccount, error: accountError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .select('id, user_id, gologin_profile_id, gologin_status')
       .eq('id', linkedinAccountId)
       .single();
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // Store profile ID in database (pending until auth completes)
     const { error: updateError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .update({
         gologin_profile_id: profileId,
         gologin_status: 'pending_auth'

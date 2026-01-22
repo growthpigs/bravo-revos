@@ -221,7 +221,7 @@ export function createWebhookWorker(): Worker<WebhookJobData> {
         console.log(`${LOG_PREFIX} Delivery ${deliveryId} succeeded`);
 
         // Update lead status to webhook_sent
-        await supabase.from('leads').update({ status: 'webhook_sent' }).eq('id', leadId);
+        await supabase.from('lead').update({ status: 'webhook_sent' }).eq('id', leadId);
       } else {
         console.log(
           `${LOG_PREFIX} Delivery ${deliveryId} permanently failed after ${attempt} attempts`
@@ -229,7 +229,7 @@ export function createWebhookWorker(): Worker<WebhookJobData> {
       }
 
       // Update webhook_deliveries table
-      await supabase.from('webhook_deliveries').update(updateData).eq('id', deliveryId);
+      await supabase.from('webhook_delivery').update(updateData).eq('id', deliveryId);
 
       // Log delivery attempt
       await supabase.from('webhook_delivery_logs').insert({

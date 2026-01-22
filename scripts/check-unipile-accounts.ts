@@ -12,7 +12,7 @@ async function checkUnipileAccounts() {
   console.log('\n=== CHECKING UNIPILE ACCOUNT IDs ===\n');
 
   const { data, error } = await supabase
-    .from('pod_members')
+    .from('pod_member')
     .select('id, name, unipile_account_id, is_active')
     .eq('is_active', true);
 

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Update lead status
     const status = extractionResult.email ? 'email_captured' : 'dm_replied';
     const { error: updateError } = await supabase
-      .from('leads')
+      .from('lead')
       .update({
         email: extractionResult.email,
         status,

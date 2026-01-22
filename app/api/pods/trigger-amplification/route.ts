@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     // 1. Get the original post and the user who created it
     const { data: post, error: postError } = await supabase
-      .from('posts')
+      .from('post')
       .select('id, linkedin_account_id, campaign_id, post_url')
       .eq('id', postId)
       .single();
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     // 2. Get the pod for the original poster
     // Note: User may be in multiple pods - use first match (most recent)
     const { data: podMemberData, error: podMemberError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('pod_id')
       .eq('linkedin_account_id', post.linkedin_account_id)
       .order('created_at', { ascending: false })
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     // 3. Get all other active members with their GoLogin profile info
     // Join linkedin_accounts to get gologin_profile_id and gologin_status
     const { data: podMembers, error: podMembersError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select(`
         id,
         linkedin_account_id,
@@ -180,7 +180,7 @@ export async function POST(req: Request) {
     // Insert all pod_activities rows (including skipped ones for tracking)
     if (podActivitiesToInsert.length > 0) {
       const { error: insertError } = await supabase
-        .from('pod_activities')
+        .from('pod_activity')
         .insert(podActivitiesToInsert);
 
       if (insertError) {

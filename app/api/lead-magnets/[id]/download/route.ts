@@ -34,7 +34,7 @@ export async function GET(
 
     // Get lead magnet details (RLS filters to user's resources)
     const { data: leadMagnet, error: leadMagnetError } = await supabase
-      .from('lead_magnets')
+      .from('lead_magnet')
       .select('id, file_path, name')
       .eq('id', leadMagnetId)
       .single();

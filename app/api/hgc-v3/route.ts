@@ -477,7 +477,7 @@ Remember: Output ONLY the post content. No introduction or explanation.`,
 
         if (user) {
           const { data: savedPost, error: saveError } = await supabase
-            .from('posts')
+            .from('post')
             .insert({
               user_id: user.id,
               content: generatedPost,

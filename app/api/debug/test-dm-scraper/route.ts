@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     // Step 5: Query linkedin_accounts
     steps.push({ step: '5_get_owner', status: 'starting' })
     const { data: postOwner, error: ownerError } = await supabase
-      .from('linkedin_accounts')
+      .from('linkedin_account')
       .select('profile_url')
       .eq('unipile_account_id', job.unipile_account_id)
       .single()
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
     // Step 7: Query dm_sequences
     steps.push({ step: '7_get_dm_sequence', status: 'starting' })
     const { data: dmSequence, error: seqError } = await supabase
-      .from('dm_sequences')
+      .from('dm_sequence')
       .select('*')
       .eq('campaign_id', job.campaign_id)
       .eq('status', 'active')

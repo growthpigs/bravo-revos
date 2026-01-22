@@ -34,7 +34,7 @@ export async function POST(
 
     // Check if pod exists and get current member count
     const { data: pod, error: podError } = await supabase
-      .from('pods')
+      .from('pod')
       .select('id, max_members, min_members')
       .eq('id', podId)
       .single();
@@ -48,7 +48,7 @@ export async function POST(
 
     // Check if user is already a member
     const { data: existingMember } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('id, status')
       .eq('pod_id', podId)
       .eq('user_id', userId)
@@ -58,7 +58,7 @@ export async function POST(
       if (existingMember.status === 'left') {
         // Reactivate member
         const { data: member, error } = await supabase
-          .from('pod_members')
+          .from('pod_member')
           .update({
             status: 'active',
             suspended_at: null,
@@ -92,7 +92,7 @@ export async function POST(
 
     // Check max members limit
     const { count: memberCount } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .select('*', { count: 'exact', head: true })
       .eq('pod_id', podId)
       .eq('status', 'active');
@@ -106,7 +106,7 @@ export async function POST(
 
     // Add member
     const { data: member, error: memberError } = await supabase
-      .from('pod_members')
+      .from('pod_member')
       .insert({
         pod_id: podId,
         user_id: userId,

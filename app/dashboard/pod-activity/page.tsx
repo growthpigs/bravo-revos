@@ -67,7 +67,7 @@ export default function PodActivityPage() {
 
       if (error) {
         console.error('Auth error:', error);
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
         return;
       }
 
@@ -80,7 +80,7 @@ export default function PodActivityPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
-        window.location.href = '/login';
+        window.location.href = '/auth/login';
       }
     });
 

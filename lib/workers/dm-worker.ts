@@ -58,7 +58,7 @@ interface CampaignConfig {
  */
 async function getCampaignConfig(campaignId: string): Promise<CampaignConfig | null> {
   const { data, error } = await getSupabase()
-    .from('campaigns')
+    .from('campaign')
     .select(`
       dm_template_step1,
       created_by,
@@ -91,7 +91,7 @@ async function getDailyDMCount(unipileAccountId: string): Promise<number> {
   today.setHours(0, 0, 0, 0);
 
   const { count, error } = await getSupabase()
-    .from('pod_activities')
+    .from('pod_activity')
     .select('*', { count: 'exact', head: true })
     .eq('unipile_account_id', unipileAccountId)
     .eq('action', 'dm_sent')
@@ -128,7 +128,7 @@ async function recordDMActivity(
   errorMessage?: string
 ): Promise<void> {
   const { error } = await getSupabase()
-    .from('pod_activities')
+    .from('pod_activity')
     .insert({
       campaign_id: jobData.campaignId,
       unipile_account_id: jobData.accountId,
