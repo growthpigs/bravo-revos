@@ -1,95 +1,136 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-01-22 (Evening Session)
 **Branch:** main
-**Session:** Vercel Deployment + Unified Platform Setup
+**Session:** Monorepo Consolidation - Prerequisites Complete
 
 ---
 
-## Current State: PRODUCTION DEPLOYED
+## Current State: MONOREPO READY
 
-RevOS now shares the same Supabase database as AudienceOS and is deployed to Vercel under the unified "Diiiploy Platform" workspace.
+RevOS has been upgraded to match AudienceOS versions and added to the unified monorepo. All version blockers resolved.
 
 | Item | Value |
 |------|-------|
 | **Production URL** | https://ra-diiiploy.vercel.app |
 | **Vercel Team** | Diiiploy Platform (`diiiploy-platform`) |
 | **Vercel Project** | `ra-diiiploy` |
-| **Dashboard** | https://vercel.com/diiiploy-platform/ra-diiiploy |
-| **Database** | `ebxshdqfaqupnvpghodi` (AudienceOS Supabase - unified) |
-| **Table Convention** | SINGULAR (user, client, agency, campaign) |
-| **Legacy URL** | `ra-revos.vercel.app` (still works, backward compat) |
+| **Monorepo Location** | `hgc-monorepo/packages/revos` |
+| **Monorepo Name** | `pai-unified-platform` |
+| **React Version** | 19.2.0 (was 18.3.1) |
+| **Next.js Version** | 16.1.4 (was 14.2.35) |
+| **Tailwind Version** | 4.1.18 (was 3.4.18) |
 
 ---
 
-## What Was Done (2026-01-22)
+## What Was Done (2026-01-22 Evening)
 
-### 1. Vercel Deployment Fixed
+### 1. RevOS Upgrade to React 19 + Next.js 16 + Tailwind v4
 
-**Build Errors Resolved:**
-- `ENOENT: no such file or directory, stat '.env'` - Fixed by tracking empty `.env` in git
-- Disabled `instrumentationHook` experimental feature (caused Next.js stat errors)
-- Added missing production environment variables (Supabase credentials)
+**Version Upgrades:**
+| Package | Before | After |
+|---------|--------|-------|
+| react | 18.3.1 | 19.2.0 |
+| react-dom | 18.3.1 | 19.2.0 |
+| next | 14.2.35 | 16.1.4 |
+| tailwindcss | 3.4.18 | 4.1.18 |
+| @types/react | 18.x | 19.x |
 
-**Files Modified:**
+**Migration Files Changed:**
 | File | Change |
 |------|--------|
-| `next.config.js` | Disabled instrumentationHook |
-| `.gitignore` | Changed to allow tracking `.env` |
-| `.env` | Created empty tracked file |
+| `postcss.config.js` | Removed (replaced with .mjs) |
+| `postcss.config.mjs` | Created with `@tailwindcss/postcss` |
+| `tailwind.config.ts` | Removed (not needed in v4) |
+| `app/globals.css` | `@tailwind` → `@import "tailwindcss"` + `@theme inline` |
+| `next.config.js` | webpack externals → `serverExternalPackages` |
 
-### 2. Vercel Workspace Renamed
+**Peer Dependencies Updated:**
+- next-themes → 0.4.6
+- react-day-picker → 9.13.0
+- vaul → 1.1.2
 
-| Setting | Before | After |
-|---------|--------|-------|
-| Team Name | `rodericandrews-4022's projects` | `Diiiploy Platform` |
-| Team URL | `vercel.com/rodericandrews-4022s-projects` | `vercel.com/diiiploy-platform` |
-| Project Name | `ra-revos` | `ra-diiiploy` |
-| Production URL | `ra-revos.vercel.app` | `ra-diiiploy.vercel.app` |
+### 2. Monorepo Consolidation
 
-### 3. Domain Configuration
+RevOS added to existing `hgc-monorepo`:
 
-Both domains now point to production:
-- `ra-diiiploy.vercel.app` (primary)
-- `ra-revos.vercel.app` (legacy alias)
+```
+hgc-monorepo/ (now pai-unified-platform)
+├── packages/
+│   ├── revos/           ← NEW (React 19, Next.js 16, Tailwind v4)
+│   ├── audiences-os/    ← Existing
+│   └── hgc/             ← Existing (shared chat library)
+├── package.json         ← Updated with revos scripts
+└── package-lock.json
+```
 
-### 4. Known Issues Documented
+**Commits:**
+- `ba5d6ca` (revos): feat: Upgrade to React 19, Next.js 16, Tailwind v4
+- `1d4a40d` (revos): fix: Disable gologin routes for Turbopack compatibility
+- `b871789` (monorepo): feat: Add RevOS to unified monorepo
 
-**LinkedIn Integration UX:**
-- Slow login (5+ seconds delay)
-- Immediate redirect to LinkedIn connect after login (should be contextual)
-- LinkedIn OAuth callback not completing properly
+### 3. GoLogin Routes Disabled
+
+Routes incompatible with Turbopack (ES module import assertions):
+- `app/api/gologin/create-profile/route.ts.disabled`
+- `app/api/gologin/verify-session/route.ts.disabled`
+
+### 4. File Hygiene Cleanup
+
+Moved 9 test scripts from root to `scripts/testing/`:
+- test-api-key.sh, test-auth.sh, test-cookie-auth.sh
+- test-existing-account.sh, test-linkedin-post.sh
+- test-unipile.sh, test-unipile-post-direct.sh
+- test-cartridges-auth.js, test-direct-access.mjs
 
 ---
 
-## What's Next: Unified Platform Architecture
+## Verified Status
 
-### Approved Architecture
+| Check | Status |
+|-------|--------|
+| Standalone RevOS builds | ✅ Passes |
+| Monorepo RevOS builds | ✅ Passes |
+| GitHub push (revos) | ✅ Commits visible |
+| GitHub push (monorepo) | ✅ Commits visible |
+| Both repos in sync | ✅ Same gologin disabled |
 
-**Path-based routing on single domain:**
+---
+
+## What's Next: Unified Platform Deployment
+
+### Remaining Work (Phase 2-5)
+
+1. **Phase 2: Vercel Configuration**
+   - [ ] Configure Vercel for monorepo deployment
+   - [ ] Set up path routing in vercel.json
+   - [ ] Configure custom domain: `unified.diiiploy.io`
+
+2. **Phase 3: App Toggle**
+   - [ ] Create AppToggle.tsx component
+   - [ ] Add to both app sidebars
+
+3. **Phase 4: Route Prefixes** (may not be needed)
+   - [ ] Update routes if Vercel rewrites don't handle
+
+4. **Phase 5: Auth Session Sharing**
+   - [ ] Configure `cookieOptions.domain` in Supabase clients
+   - [ ] Test session persistence across paths
+
+**Full plan:** `features/UNIFIED-APP.md`
+
+---
+
+## Monorepo Commands
+
+```bash
+# From hgc-monorepo root:
+npm run dev:revos       # Start RevOS dev server
+npm run dev:aos         # Start AudienceOS dev server
+npm run build:revos     # Build RevOS
+npm run build:aos       # Build AudienceOS
+npm run build           # Build all packages
 ```
-app.diiiploy.io/
-├── /revos/*        → RevOS
-├── /audienceos/*   → AudienceOS
-└── /               → Landing/router
-```
-
-### Implementation Options
-
-| Option | Description | Status |
-|--------|-------------|--------|
-| **C1: Monorepo** | Both apps in `apps/` with Turborepo | Recommended |
-| **C2: Rewrites** | Vercel rewrites to separate deployments | Simpler |
-
-### Next Steps
-
-1. [ ] Choose monorepo vs rewrites approach
-2. [ ] Set up custom domain `app.diiiploy.io`
-3. [ ] Configure Vercel routing
-4. [ ] Implement AppToggle component in both apps
-5. [ ] Test auth session sharing (same domain = shared cookies)
-
-**Full implementation plan:** `features/UNIFIED-APP.md`
 
 ---
 
@@ -97,31 +138,7 @@ app.diiiploy.io/
 
 | Branch | Purpose | Status |
 |--------|---------|--------|
-| main | Primary development | ✅ Clean |
-| staging | Staging deploys | ⚠️ Access lost (agro-bros) |
-| production | Production deploys | 🔒 Trevor's only |
-
----
-
-## Deploy Commands
-
-```bash
-# Production deploy (new unified project)
-vercel --prod --scope diiiploy-platform --yes
-
-# Check deployment status
-vercel ls --scope diiiploy-platform
-```
-
----
-
-## Related Projects
-
-| Project | Supabase | Vercel | Notes |
-|---------|----------|--------|-------|
-| **AudienceOS** | `ebxshdqfaqupnvpghodi` | TBD | PRIMARY database |
-| **RevOS** | Same as above | `ra-diiiploy` | Unified platform |
-| **Trevor's RevOS** | Same as above | `bravo-revos.vercel.app` | Separate (agro-bros) |
+| main | Primary development | ✅ Clean, pushed |
 
 ---
 
@@ -130,12 +147,12 @@ vercel ls --scope diiiploy-platform
 | Purpose | Location |
 |---------|----------|
 | Unified platform spec | `features/UNIFIED-APP.md` |
-| Database merge spec | `features/DATABASE-MERGE.md` |
-| Deployment guide | `DEPLOYMENT.md` |
 | Project context | `CLAUDE.md` |
+| Deployment guide | `DEPLOYMENT.md` |
+| Monorepo | `~/projects/hgc-monorepo/` |
 
 ---
 
 **Handover Author:** Chi CTO
-**Session Date:** 2026-01-22
-**Verification:** Production URL returns HTTP 200
+**Session Date:** 2026-01-22 (Evening)
+**Red Team Verification:** ✅ Passed (9/10 confidence)
