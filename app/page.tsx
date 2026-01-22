@@ -41,7 +41,7 @@ const apps: AppOption[] = [
     icon: '/audienceos-icon.svg',
     gradient: 'from-purple-500 via-pink-500 to-cyan-500',
     hoverGradient: 'group-hover:from-purple-400 group-hover:via-pink-400 group-hover:to-cyan-400',
-    path: 'https://v0-audience-os-command-center-sage.vercel.app',
+    path: '/audienceos',
     disabled: false,
   },
 ]
