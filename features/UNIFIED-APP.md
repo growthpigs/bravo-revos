@@ -190,16 +190,82 @@ Before deployment:
 
 ---
 
+## 🚨 BLOCKERS IDENTIFIED (Validated 2026-01-22)
+
+**Validation Method:** Runtime verification via `npm ls` commands
+
+### Blocker 1: React Version Mismatch (CRITICAL)
+```
+RevOS:      React 18.3.1   ← MUST UPGRADE
+AudienceOS: React 19.2.0   ← Current
+HGC:        React 19.2.3   ← Current
+```
+**Impact:** React 18 and 19 cannot coexist in same dependency tree.
+
+### Blocker 2: Next.js Version Mismatch (CRITICAL)
+```
+RevOS:      Next.js 14.2.35  ← 2 MAJOR VERSIONS BEHIND
+AudienceOS: Next.js 16.1.3   ← Current
+HGC:        Next.js 16.1.1   ← Current
+```
+**Impact:** Different build systems, middleware changes, App Router API differences.
+
+### Blocker 3: Tailwind Version Mismatch (CRITICAL)
+```
+RevOS:      Tailwind 3.4.18  ← v3 (JS config: @tailwind directives)
+AudienceOS: Tailwind 4.1.18  ← v4 (CSS config: @import "tailwindcss")
+HGC:        Tailwind 4.1.18  ← v4 (CSS config)
+```
+**Impact:** Fundamentally different configuration systems. Cannot share configs.
+
+### RevOS Upgrade Scope Assessment
+| Metric | Value | Risk |
+|--------|-------|------|
+| Total TS/TSX files | 558 | HIGH |
+| @types/react | 18.3.12 | Must upgrade |
+| Sentry integration | v10.25.0 | Must verify |
+| Next.js router usage | 35 files | MEDIUM |
+
+---
+
+## Decision: Prerequisite Upgrade Required
+
+**Confidence Score:** 3/10 → Cannot proceed with monorepo until upgrades complete
+
+### Required Sequence
+
+**Phase 0: RevOS Upgrades (BLOCKING)**
+```
+1. React 18 → 19
+2. @types/react 18 → 19
+3. Next.js 14 → 16
+4. Tailwind v3 → v4
+5. Verify Sentry compatibility
+```
+**Estimated:** 2-3 weeks dedicated effort
+
+**Phase 1: Monorepo Setup (AFTER Phase 0)**
+```
+1. Initialize Turborepo
+2. Move apps to apps/
+3. Configure shared tsconfig
+4. Deploy to Vercel
+```
+
+---
+
 ## Next Steps
 
-1. [ ] Choose between monorepo vs rewrites approach
-2. [ ] Set up Vercel project configuration
-3. [ ] Implement AppToggle component in both apps
-4. [ ] Update routes with path prefixes
-5. [ ] Test auth session sharing
-6. [ ] Deploy and verify
+1. [x] ~~Choose between monorepo vs rewrites~~ → **MONOREPO** (validated as right architecture)
+2. [ ] **PREREQUISITE:** Upgrade RevOS to React 19 + Next.js 16 + Tailwind v4
+3. [ ] Set up Vercel project configuration
+4. [ ] Implement AppToggle component in both apps
+5. [ ] Update routes with path prefixes
+6. [ ] Test auth session sharing
+7. [ ] Deploy and verify
 
 ---
 
 **Author:** Chi CTO
 **Validated:** Stress-tested with validator agents (2026-01-22)
+**Runtime Verification:** `npm ls react next tailwindcss` executed on all repos
