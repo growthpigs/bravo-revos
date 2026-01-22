@@ -41,9 +41,8 @@ const apps: AppOption[] = [
     icon: '/audienceos-icon.svg',
     gradient: 'from-purple-500 via-pink-500 to-cyan-500',
     hoverGradient: 'group-hover:from-purple-400 group-hover:via-pink-400 group-hover:to-cyan-400',
-    path: '/audienceos/auth/login',
-    disabled: true,
-    badge: 'Coming Soon',
+    path: 'https://v0-audience-os-command-center-sage.vercel.app',
+    disabled: false,
   },
 ]
 
@@ -51,7 +50,12 @@ export default function AppSelectorPage() {
   const router = useRouter()
 
   const handleAppSelect = (app: AppOption) => {
-    router.push(app.path)
+    // External URLs (starting with http) open in same tab
+    if (app.path.startsWith('http')) {
+      window.location.href = app.path
+    } else {
+      router.push(app.path)
+    }
   }
 
   return (
