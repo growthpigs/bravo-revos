@@ -8,18 +8,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/audienceos/ui/dialog"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Label } from "@/components/audienceos/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useOnboardingStore } from "@/stores/onboarding-store"
+} from "@/components/audienceos/ui/select"
+import { useOnboardingStore } from "@/stores/audienceos/onboarding-store"
 import { Mail, Info, Loader2, Globe } from "lucide-react"
 import { toast } from "sonner"
 import { SEOPreviewCard } from "./seo-preview-card"

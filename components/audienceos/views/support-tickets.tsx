@@ -2,17 +2,17 @@
 
 import React, { useState, useMemo, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { useSlideTransition } from "@/hooks/use-slide-transition"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
-import { cn } from "@/lib/utils"
+import { useSlideTransition } from "@/hooks/audienceos/use-slide-transition"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
+import { cn } from "@/lib/audienceos/utils"
 import {
   InboxItem,
   TicketDetailPanel,
   ListHeader,
   type Ticket,
-} from "@/components/linear"
-import { useTicketStore, type Ticket as StoreTicket } from "@/stores/ticket-store"
+} from "@/components/audienceos/linear"
+import { useTicketStore, type Ticket as StoreTicket } from "@/stores/audienceos/ticket-store"
 import {
   Inbox,
   Clock,

@@ -10,17 +10,17 @@ import {
   intelligenceSettingsGroups,
   ActivityFeed,
   type ActivityType,
-} from "@/components/linear"
+} from "@/components/audienceos/linear"
 import {
   FirehoseFeed,
   type FirehoseItemData,
-} from "@/components/dashboard"
-import { cn } from "@/lib/utils"
-import { CartridgesPage } from "@/components/cartridges"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/audienceos/dashboard"
+import { cn } from "@/lib/audienceos/utils"
+import { CartridgesPage } from "@/components/audienceos/cartridges"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Textarea } from "@/components/audienceos/ui/textarea"
+import { Badge } from "@/components/audienceos/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -28,7 +28,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/audienceos/ui/dialog"
 import {
   MessageSquare,
   FileSearch,

@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Label } from "@/components/audienceos/ui/label"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Progress } from "@/components/audienceos/ui/progress"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,11 +16,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/audienceos/ui/alert-dialog"
 import { Upload, FileText, Eye, Trash2, Loader2, X } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
-import { type StyleCartridge } from "@/types/cartridges"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
+import { type StyleCartridge } from "@/types/audienceos/cartridges"
 
 export function StyleTab() {
   const { toast } = useToast()

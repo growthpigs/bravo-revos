@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useOnboardingStore } from "@/stores/onboarding-store"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useOnboardingStore } from "@/stores/audienceos/onboarding-store"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Label } from "@/components/audienceos/ui/label"
+import { Textarea } from "@/components/audienceos/ui/textarea"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
 import { Video, Sparkles, Loader2, Save, FileText } from "lucide-react"
 import { toast } from "sonner"
 

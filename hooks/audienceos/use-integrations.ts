@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/audienceos/supabase'
 import { useIntegrationsStore } from '@/lib/store'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'

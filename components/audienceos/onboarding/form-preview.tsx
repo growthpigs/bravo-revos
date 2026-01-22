@@ -1,16 +1,16 @@
 "use client"
 
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/audienceos/ui/input"
+import { Label } from "@/components/audienceos/ui/label"
+import { Textarea } from "@/components/audienceos/ui/textarea"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import type { Database } from "@/types/database"
+} from "@/components/audienceos/ui/select"
+import type { Database } from "@/types/audienceos/database"
 
 type IntakeFormField = Database['public']['Tables']['intake_form_field']['Row']
 

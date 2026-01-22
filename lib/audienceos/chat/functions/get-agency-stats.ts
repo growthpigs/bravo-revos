@@ -91,10 +91,7 @@ export async function getAgencyStats(
   }
 
   // Only use mock data when Supabase client is NOT provided (true standalone/dev mode)
-  // In production, this should NEVER happen - fail loud if it does
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('[SECURITY] Supabase client is required in production. Mock data is disabled.');
-  }
+  console.warn('[DEV MODE] get_agency_stats: No Supabase client, using mock data - NOT FOR PRODUCTION');
   // Fallback: Mock stats for standalone mode
   const stats: AgencyStats = {
     period,

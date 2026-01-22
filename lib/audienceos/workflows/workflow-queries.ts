@@ -8,7 +8,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database, WorkflowStatus } from '@/types/database'
+import type { Database, WorkflowStatus } from '@/types/audienceos/database'
 import type {
   Workflow,
   WorkflowInsert,

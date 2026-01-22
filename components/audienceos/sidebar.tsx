@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import {
   LayoutDashboard,
   Kanban,
@@ -19,8 +19,8 @@ import {
   LifeBuoy,
   FolderKanban,
 } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/audienceos/ui/dropdown-menu"
 
 interface SidebarProps {
   activeView: string

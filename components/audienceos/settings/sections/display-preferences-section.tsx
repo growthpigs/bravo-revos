@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import { Sun, Moon, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/audienceos/use-toast"
 
 export function DisplayPreferencesSection() {
   const { theme, setTheme } = useTheme()

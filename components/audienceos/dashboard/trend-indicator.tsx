@@ -1,8 +1,8 @@
 "use client"
 
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { TrendDirection } from "@/types/dashboard"
+import { cn } from "@/lib/audienceos/utils"
+import type { TrendDirection } from "@/types/audienceos/dashboard"
 
 interface TrendIndicatorProps {
   trend: TrendDirection

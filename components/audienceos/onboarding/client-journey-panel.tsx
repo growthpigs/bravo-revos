@@ -1,8 +1,8 @@
 "use client"
 
-import { useOnboardingStore, type Stage } from "@/stores/onboarding-store"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { useOnboardingStore, type Stage } from "@/stores/audienceos/onboarding-store"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/audienceos/ui/avatar"
+import { Button } from "@/components/audienceos/ui/button"
 import { StageBadge } from "./stage-badge"
 import { Video, FileText, CheckCircle2, Clock, ExternalLink } from "lucide-react"
 import { format } from "date-fns"

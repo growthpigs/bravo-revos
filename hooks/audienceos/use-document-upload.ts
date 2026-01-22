@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useKnowledgeBaseStore } from '@/stores/knowledge-base-store'
+import { useKnowledgeBaseStore } from '@/stores/audienceos/knowledge-base-store'
 import type { KnowledgeBaseDocument } from '@/types/knowledge-base'
 import type { DocumentCategory } from '@/types/database'
 

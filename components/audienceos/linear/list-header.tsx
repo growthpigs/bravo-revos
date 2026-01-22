@@ -2,16 +2,16 @@
 
 import React from "react"
 import { Search, LayoutGrid, List, SortAsc, MoreHorizontal, X, ChevronDown, Download, RefreshCw, Settings, Columns } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import { cn } from "@/lib/utils"
+} from "@/components/audienceos/ui/dropdown-menu"
+import { cn } from "@/lib/audienceos/utils"
 
 export interface FilterOption {
   label: string

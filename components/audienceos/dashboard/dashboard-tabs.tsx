@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { LayoutGrid, CheckSquare, Users, AlertTriangle, TrendingUp } from "lucide-react"
 
 export type DashboardTab = "overview" | "tasks" | "clients" | "alerts" | "performance"

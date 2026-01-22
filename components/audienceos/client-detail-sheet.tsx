@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/audienceos/ui/sheet"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/audienceos/ui/tabs"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Button } from "@/components/audienceos/ui/button"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
+import { Input } from "@/components/audienceos/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/audienceos/ui/select"
 import Link from "next/link"
 import { ExternalLink } from "lucide-react"
 import {
@@ -24,9 +24,9 @@ import {
   Video,
   Check,
 } from "lucide-react"
-import { type Client, type ZoomRecording } from "@/types/pipeline"
-import { owners } from "@/lib/constants/pipeline"
-import { cn } from "@/lib/utils"
+import { type Client, type ZoomRecording } from "@/types/audienceos/pipeline"
+import { owners } from "@/lib/audienceos/constants/pipeline"
+import { cn } from "@/lib/audienceos/utils"
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 
 interface ClientDetailSheetProps {

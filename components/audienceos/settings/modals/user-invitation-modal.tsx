@@ -8,21 +8,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/audienceos/ui/dialog"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Label } from "@/components/audienceos/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/audienceos/ui/select"
 import { Mail, AlertCircle, Loader2, Info } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
-import type { UserRole } from "@/types/database"
+import { useAuth } from "@/hooks/audienceos/use-auth"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import type { UserRole } from "@/types/audienceos/database"
 
 interface UserInvitationModalProps {
   isOpen: boolean

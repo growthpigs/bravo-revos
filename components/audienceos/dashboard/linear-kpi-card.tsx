@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { TrendingUp, TrendingDown } from "lucide-react"
 
 export interface LinearKPIData {

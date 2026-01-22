@@ -1,15 +1,15 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
-import { useSettingsStore } from "@/stores/settings-store"
-import { createClient } from "@/lib/supabase"
-import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown"
+import { cn } from "@/lib/audienceos/utils"
+import { Input } from "@/components/audienceos/ui/input"
+import { Switch } from "@/components/audienceos/ui/switch"
+import { Button } from "@/components/audienceos/ui/button"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { useSettingsStore } from "@/stores/audienceos/settings-store"
+import { createClient } from "@/lib/supabase/client"
+import { MultiSelectDropdown } from "@/components/audienceos/ui/multi-select-dropdown"
 import {
   Bell,
   Mail,
@@ -23,8 +23,8 @@ import {
   Globe,
   AlertCircle,
 } from "lucide-react"
-import type { NotificationPreferences } from "@/types/settings"
-import type { MultiSelectOption } from "@/components/ui/multi-select-dropdown"
+import type { NotificationPreferences } from "@/types/audienceos/settings"
+import type { MultiSelectOption } from "@/components/audienceos/ui/multi-select-dropdown"
 
 // Clients will be fetched from API
 

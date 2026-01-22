@@ -13,16 +13,16 @@ import React from "react"
 import { useDroppable } from "@dnd-kit/core"
 import { KanbanCard } from "./kanban-card"
 import { MoreHorizontal, Plus, SortAsc, Filter, EyeOff, Settings } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/audienceos/ui/button"
+import { cn } from "@/lib/audienceos/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { type MinimalClient, getOwnerData } from "@/types/client"
+} from "@/components/audienceos/ui/dropdown-menu"
+import { type MinimalClient, getOwnerData } from "@/types/audienceos/client"
 
 interface KanbanColumnProps {
   /** Stage name (e.g., "Onboarding", "Live") - also used as droppable ID */

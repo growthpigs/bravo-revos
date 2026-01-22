@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { useDocumentSearch } from '@/hooks/use-document-search'
+import { useDocumentSearch } from '@/hooks/audienceos/use-document-search'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'

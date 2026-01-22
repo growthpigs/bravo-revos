@@ -1,21 +1,21 @@
 "use client"
 
 import { useEffect, useCallback, useState, useRef } from "react"
-import { useDashboardStore } from "@/stores/dashboard-store"
+import { useDashboardStore } from "@/stores/audienceos/dashboard-store"
 import {
   calculateAllKPIs,
   fetchTrends,
-} from "@/lib/services/kpi-service"
+} from "@/lib/audienceos/services/kpi-service"
 import {
   fetchDashboardData,
   calculateActiveOnboardings,
   calculateAtRiskClients,
   calculateSupportHours,
   calculateAvgInstallTime,
-} from "@/lib/services/dashboard-queries"
-import { createClient, getAuthenticatedUser } from "@/lib/supabase"
-import type { TimePeriod, DashboardKPIs, DashboardTrends, RefreshState } from "@/types/dashboard"
-import type { Database } from "@/types/database"
+} from "@/lib/audienceos/services/dashboard-queries"
+import { createClient, getAuthenticatedUser } from "@/lib/supabase/client"
+import type { TimePeriod, DashboardKPIs, DashboardTrends, RefreshState } from "@/types/audienceos/dashboard"
+import type { Database } from "@/types/audienceos/database"
 
 type Client = Database['public']['Tables']['client']['Row']
 type Ticket = Database['public']['Tables']['ticket']['Row']

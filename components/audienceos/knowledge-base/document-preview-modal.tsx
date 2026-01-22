@@ -6,12 +6,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { cn } from "@/lib/utils"
+} from "@/components/audienceos/ui/dialog"
+import { Button } from "@/components/audienceos/ui/button"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/audienceos/ui/tabs"
+import { ScrollArea } from "@/components/audienceos/ui/scroll-area"
+import { cn } from "@/lib/audienceos/utils"
 import {
   X,
   Download,
@@ -27,14 +27,14 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react"
-import type { KnowledgeBaseDocument } from "@/types/knowledge-base"
+import type { KnowledgeBaseDocument } from "@/types/audienceos/knowledge-base"
 import {
   formatFileSize,
   CATEGORY_LABELS,
   FILE_TYPE_INFO,
   INDEX_STATUS_INFO,
-} from "@/types/knowledge-base"
-import { SendToAiButton } from "@/components/ui/send-to-ai-button"
+} from "@/types/audienceos/knowledge-base"
+import { SendToAiButton } from "@/components/audienceos/ui/send-to-ai-button"
 import { Share2, Trash2 } from "lucide-react"
 
 interface DocumentPreviewModalProps {

@@ -1,9 +1,9 @@
 "use client"
 
 import React from "react"
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/audienceos/utils"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
+import { Button } from "@/components/audienceos/ui/button"
 import { ExternalLink } from "lucide-react"
 
 interface ClientRowProps {

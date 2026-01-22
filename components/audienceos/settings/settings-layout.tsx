@@ -2,13 +2,13 @@
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { useSettingsStore } from "@/stores/settings-store"
-import { useAuthStore } from "@/lib/store"
-import type { SettingsSection } from "@/types/settings"
-import { SETTINGS_PERMISSIONS } from "@/types/settings"
+import { cn } from "@/lib/audienceos/utils"
+import { useSettingsStore } from "@/stores/audienceos/settings-store"
+import { useAuthStore } from "@/lib/audienceos/store"
+import type { SettingsSection } from "@/types/audienceos/settings"
+import { SETTINGS_PERMISSIONS } from "@/types/audienceos/settings"
 import { ChevronLeft, Building2, User, Users, LogOut, Loader2 } from "lucide-react"
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/client"
 
 // Workspace settings items (admin/agency-level)
 const workspaceItems: Array<{

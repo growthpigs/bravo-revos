@@ -29,10 +29,10 @@
 
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { useSlideTransition } from "@/hooks/use-slide-transition"
-import { useOnboardingStore, type OnboardingInstanceWithRelations, type Stage } from "@/stores/onboarding-store"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { cn } from "@/lib/utils"
+import { useSlideTransition } from "@/hooks/audienceos/use-slide-transition"
+import { useOnboardingStore, type OnboardingInstanceWithRelations, type Stage } from "@/stores/audienceos/onboarding-store"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/audienceos/ui/avatar"
+import { cn } from "@/lib/audienceos/utils"
 import {
   DndContext,
   DragOverlay,

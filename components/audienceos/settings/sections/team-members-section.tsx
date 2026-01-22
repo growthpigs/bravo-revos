@@ -1,19 +1,19 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
+import { Switch } from "@/components/audienceos/ui/switch"
+import { Label } from "@/components/audienceos/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/audienceos/ui/select"
 import {
   UserPlus,
   Search,
@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,12 +47,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { UserInvitationModal } from "@/components/settings/modals/user-invitation-modal"
-import { ClientAssignmentModal } from "@/components/settings/modals/client-assignment-modal"
+} from "@/components/audienceos/ui/alert-dialog"
+import { UserInvitationModal } from "@/components/audienceos/settings/modals/user-invitation-modal"
+import { ClientAssignmentModal } from "@/components/audienceos/settings/modals/client-assignment-modal"
 import { toast } from "sonner"
-import type { TeamMember } from "@/types/settings"
-import { RoleHierarchyLevel } from "@/types/rbac"
+import type { TeamMember } from "@/types/audienceos/settings"
+import { RoleHierarchyLevel } from "@/types/audienceos/rbac"
 
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()

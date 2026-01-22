@@ -8,18 +8,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+} from "@/components/audienceos/ui/dialog"
+import { Button } from "@/components/audienceos/ui/button"
+import { Label } from "@/components/audienceos/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { MultiSelectDropdown, type MultiSelectOption } from "@/components/ui/multi-select-dropdown"
+} from "@/components/audienceos/ui/select"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { MultiSelectDropdown, type MultiSelectOption } from "@/components/audienceos/ui/multi-select-dropdown"
 import {
   Users,
   AlertCircle,
@@ -29,10 +29,10 @@ import {
   Eye,
   Pencil,
 } from "lucide-react"
-import { useClientAssignment } from "@/hooks/use-client-assignment"
-import { useToast } from "@/hooks/use-toast"
-import type { TeamMember } from "@/types/settings"
-import { cn } from "@/lib/utils"
+import { useClientAssignment } from "@/hooks/audienceos/use-client-assignment"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import type { TeamMember } from "@/types/audienceos/settings"
+import { cn } from "@/lib/audienceos/utils"
 
 interface ClientAssignmentModalProps {
   isOpen: boolean

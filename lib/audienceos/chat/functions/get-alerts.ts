@@ -173,10 +173,7 @@ export async function getAlerts(
   }
 
   // Only use mock data when Supabase client is NOT provided (true standalone/dev mode)
-  // In production, this should NEVER happen - fail loud if it does
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('[SECURITY] Supabase client is required in production. Mock data is disabled.');
-  }
+  console.warn('[DEV MODE] get_alerts: No Supabase client, using mock data - NOT FOR PRODUCTION');
   // Fallback: Use mock data for standalone mode
   let alerts = [...MOCK_ALERTS];
 

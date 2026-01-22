@@ -11,13 +11,13 @@ import {
   type DashboardTab,
   type FirehoseTab,
 } from "./dashboard"
-import { type MinimalClient, getOwnerData } from "@/types/client"
-import { useDashboardStore } from "@/stores/dashboard-store"
-import { cn } from "@/lib/utils"
+import { type MinimalClient, getOwnerData } from "@/types/audienceos/client"
+import { useDashboardStore } from "@/stores/audienceos/dashboard-store"
+import { cn } from "@/lib/audienceos/utils"
 import { Clock, AlertCircle, ExternalLink, X, CheckCircle2, CheckSquare, AlertTriangle, TrendingUp, Sparkles, PenLine, ArrowUpCircle, Clock3 } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Button } from "@/components/audienceos/ui/button"
 
 interface DashboardViewProps {
   clients: MinimalClient[]

@@ -1,19 +1,19 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/audienceos/ui/button"
+import { Badge } from "@/components/audienceos/ui/badge"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
+} from "@/components/audienceos/ui/select"
+import { Input } from "@/components/audienceos/ui/input"
 import { X, Search, User, AlertTriangle, Ban, Filter } from "lucide-react"
-import { type Stage, type HealthStatus, type Owner } from "@/types/pipeline"
-import { stages, owners } from "@/lib/constants/pipeline"
-import { cn } from "@/lib/utils"
+import { type Stage, type HealthStatus, type Owner } from "@/types/audienceos/pipeline"
+import { stages, owners } from "@/lib/audienceos/constants/pipeline"
+import { cn } from "@/lib/audienceos/utils"
 
 export interface PipelineFilters {
   stage: Stage | "all"

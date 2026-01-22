@@ -13,7 +13,7 @@
  * TASK-010: Effective permission calculation for custom roles
  */
 
-import { createClient as createBrowserClient, createServiceRoleClient } from '@/lib/supabase';
+import { createClient as createBrowserClient } from '@/lib/audienceos/supabase';
 import type {
   EffectivePermission,
   PermissionCheckResult,
@@ -57,9 +57,9 @@ class PermissionService {
     agencyId: string,
     supabase?: SupabaseClient<any>
   ): Promise<EffectivePermission[]> {
-    // Validate inputs - do not log actual IDs
+    // Validate inputs
     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-      console.error('[PermissionService] Invalid userId provided');
+      console.error('[PermissionService] Invalid userId:', userId);
       return [];
     }
     if (!agencyId || typeof agencyId !== 'string' || agencyId.trim() === '') {
@@ -78,9 +78,8 @@ class PermissionService {
       return cached.permissions;
     }
 
-    // Create client - use service_role to bypass RLS for permission lookups
-    // Permission lookups are internal server operations, not user-facing queries
-    const client = createServiceRoleClient() || supabase || createBrowserClient();
+    // Create client if not provided
+    const client = supabase || createBrowserClient();
 
     try {
       // Get user with role and permissions
@@ -500,8 +499,7 @@ class PermissionService {
       return null;
     }
 
-    // Use service_role to bypass RLS for hierarchy lookups
-    const client = createServiceRoleClient() || supabase || createBrowserClient();
+    const client = supabase || createBrowserClient();
 
     try {
       const { data: user, error } = await client
@@ -565,8 +563,7 @@ class PermissionService {
       return [];
     }
 
-    // Use service_role to bypass RLS for member access lookups
-    const client = createServiceRoleClient() || supabase || createBrowserClient();
+    const client = supabase || createBrowserClient();
 
     try {
       // Check if user is a Member
@@ -622,8 +619,7 @@ class PermissionService {
       return false;
     }
 
-    // Use service_role to bypass RLS for client access checks
-    const client = createServiceRoleClient() || supabase || createBrowserClient();
+    const client = supabase || createBrowserClient();
 
     try {
       const hierarchyLevel = await this.getUserHierarchyLevel(

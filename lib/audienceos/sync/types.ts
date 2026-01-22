@@ -3,7 +3,7 @@
  * Types for data synchronization from external providers
  */
 
-import type { IntegrationProvider } from '@/types/database'
+import type { IntegrationProvider } from '@/types/audienceos/database'
 
 // =============================================================================
 // SYNC JOB TYPES

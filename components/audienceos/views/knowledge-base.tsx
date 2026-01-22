@@ -2,23 +2,23 @@
 
 import React, { useState, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { useSlideTransition } from "@/hooks/use-slide-transition"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
-import { cn } from "@/lib/utils"
+import { useSlideTransition } from "@/hooks/audienceos/use-slide-transition"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
+import { cn } from "@/lib/audienceos/utils"
 import {
   DocumentCard,
   type DocumentCategory,
   categoryLabels,
-} from "@/components/linear/document-card"
-import { DocumentPreviewPanel, type Document } from "@/components/linear/document-preview-panel"
-import { DocumentUploadModal } from "@/components/linear/document-upload-modal"
-import { DriveLinkModal } from "@/components/knowledge-base/drive-link-modal"
-import { ProcessingPanel } from "@/components/knowledge-base/processing-panel"
-import { SearchPanel } from "@/components/knowledge-base/search-panel"
-import { ListHeader } from "@/components/linear"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/audienceos/linear/document-card"
+import { DocumentPreviewPanel, type Document } from "@/components/audienceos/linear/document-preview-panel"
+import { DocumentUploadModal } from "@/components/audienceos/linear/document-upload-modal"
+import { DriveLinkModal } from "@/components/audienceos/knowledge-base/drive-link-modal"
+import { ProcessingPanel } from "@/components/audienceos/knowledge-base/processing-panel"
+import { SearchPanel } from "@/components/audienceos/knowledge-base/search-panel"
+import { ListHeader } from "@/components/audienceos/linear"
+import { Button } from "@/components/audienceos/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/audienceos/ui/tabs"
 import {
   Upload,
   FolderOpen,
@@ -39,7 +39,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +49,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/audienceos/ui/alert-dialog"
 
 // Diiiploy - Knowledge Base Documents (initial data, will be replaced by API)
 const initialDocuments: Document[] = [

@@ -1,6 +1,6 @@
 "use client"
 
-import { SettingsLayout, SettingsContent } from "@/components/settings"
+import { SettingsLayout, SettingsContent } from "@/components/audienceos/settings"
 
 interface SettingsViewProps {
   onBack?: () => void

@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { useSlideTransition } from "@/hooks/use-slide-transition"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
-import { useAutomationsStore } from "@/stores/automations-store"
-import { cn } from "@/lib/utils"
-import { ListHeader } from "@/components/linear"
+import { useSlideTransition } from "@/hooks/audienceos/use-slide-transition"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
+import { useAutomationsStore } from "@/stores/audienceos/automations-store"
+import { cn } from "@/lib/audienceos/utils"
+import { ListHeader } from "@/components/audienceos/linear"
 import {
   Zap,
   Users,
@@ -30,17 +30,17 @@ import {
   X,
   Loader2,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/audienceos/ui/button"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Switch } from "@/components/audienceos/ui/switch"
+import { Input } from "@/components/audienceos/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +50,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/audienceos/ui/alert-dialog"
 
 // Icons for integrations
 function SlackIcon({ className }: { className?: string }) {

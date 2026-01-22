@@ -2,7 +2,7 @@
 
 import React from "react"
 import Image from "next/image"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import {
   FileText,
   FileSpreadsheet,
@@ -23,14 +23,14 @@ import {
   Sparkles,
   Check,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/audienceos/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 
 export type DocumentType = "document" | "spreadsheet" | "presentation" | "image" | "video" | "pdf" | "folder" | "other"
 export type DocumentCategory = "onboarding" | "reporting" | "creative" | "strategy" | "contracts" | "templates" | "training"

@@ -1,20 +1,20 @@
 "use client"
 
 import { useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Button } from "@/components/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Switch } from "@/components/audienceos/ui/switch"
+import { Button } from "@/components/audienceos/ui/button"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/audienceos/ui/select"
 import { GripVertical, Trash2, Loader2 } from "lucide-react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import type { Database } from "@/types/database"
+import type { Database } from "@/types/audienceos/database"
 
 type IntakeFormField = Database['public']['Tables']['intake_form_field']['Row']
 type FieldType = Database['public']['Enums']['field_type']

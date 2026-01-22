@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/audienceos/ui/button"
+import { Card } from "@/components/audienceos/ui/card"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/audienceos/ui/tabs"
+import { Input } from "@/components/audienceos/ui/input"
 import {
   ArrowLeft,
   ExternalLink,
@@ -22,11 +22,11 @@ import {
   Check,
   Share2,
 } from "lucide-react"
-import { owners } from "@/lib/constants/pipeline"
-import { cn } from "@/lib/utils"
+import { owners } from "@/lib/audienceos/constants/pipeline"
+import { cn } from "@/lib/audienceos/utils"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { useClientDetail } from "@/hooks/use-client-detail"
-import { useAuth } from "@/hooks/use-auth"
+import { useClientDetail } from "@/hooks/audienceos/use-client-detail"
+import { useAuth } from "@/hooks/audienceos/use-auth"
 
 interface ClientDetailViewProps {
   clientId: string

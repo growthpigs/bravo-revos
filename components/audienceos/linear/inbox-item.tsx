@@ -1,8 +1,8 @@
 "use client"
 
 import React from "react"
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { cn } from "@/lib/audienceos/utils"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
 
 export type TicketPriority = "urgent" | "high" | "medium" | "low"
 export type TicketStatus = "open" | "in_progress" | "waiting" | "resolved" | "closed"

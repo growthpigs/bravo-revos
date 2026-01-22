@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react'
 import { motion } from 'motion/react'
-import { useDocumentProcessing } from '@/hooks/use-document-processing'
+import { useDocumentProcessing } from '@/hooks/audienceos/use-document-processing'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'

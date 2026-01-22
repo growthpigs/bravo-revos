@@ -7,7 +7,7 @@
  */
 
 import type { ExecutorContext, GetRecentCommunicationsArgs, CommunicationSummary } from './types';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * Mock communications for standalone testing (per-client)

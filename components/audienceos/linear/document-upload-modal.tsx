@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useDocumentUpload } from '@/hooks/use-document-upload'
+import { useDocumentUpload } from '@/hooks/audienceos/use-document-upload'
 import { Upload, AlertCircle, CheckCircle } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
 

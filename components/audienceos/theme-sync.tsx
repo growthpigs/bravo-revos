@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useTheme } from 'next-themes'
-import { useAuth } from '@/hooks/use-auth'
+import { useAuth } from '@/hooks/audienceos/use-auth'
 
 /**
  * ThemeSync - Loads user's theme preference from database on mount

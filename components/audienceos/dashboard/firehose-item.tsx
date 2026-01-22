@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { formatDistanceToNow } from "date-fns"
 
 export type FirehoseSeverity = "critical" | "warning" | "info"

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/audienceos/supabase'
 import { useCommunicationsStore, type CommunicationWithMeta } from '@/stores/communications-store'
 import { communicationsKeys } from './use-communications'
 import { toast } from 'sonner'

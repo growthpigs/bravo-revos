@@ -2,14 +2,14 @@
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
-import { StageConfirmModal } from "@/components/stage-confirm-modal"
+import { cn } from "@/lib/audienceos/utils"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Button } from "@/components/audienceos/ui/button"
+import { Textarea } from "@/components/audienceos/ui/textarea"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
+import { StageConfirmModal } from "@/components/audienceos/stage-confirm-modal"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,14 +19,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/audienceos/ui/alert-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 import {
   X,
   Copy,

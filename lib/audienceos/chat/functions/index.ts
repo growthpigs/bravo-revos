@@ -14,12 +14,6 @@ import { getAgencyStats } from './get-agency-stats';
 import { getRecentCommunications } from './get-communications';
 import { navigateTo } from './navigate-to';
 import { validateFunctionArgs } from './schemas';
-import {
-  getEmails,
-  getCalendarEvents,
-  getDriveFiles,
-  checkGoogleConnection,
-} from './google-workspace';
 
 // Re-export types
 export type { ExecutorContext } from './types';
@@ -167,78 +161,6 @@ export const hgcFunctions = [
       required: ['destination'],
     },
   },
-  // Google Workspace functions
-  {
-    name: 'get_emails',
-    description: 'Get emails from Gmail inbox. Use when user asks about emails, messages, or inbox.',
-    parameters: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Gmail search query (e.g., "from:john", "subject:meeting", "is:unread")',
-        },
-        maxResults: {
-          type: 'number',
-          description: 'Maximum emails to return (default: 10)',
-        },
-        unreadOnly: {
-          type: 'boolean',
-          description: 'Only return unread emails',
-        },
-      },
-    },
-  },
-  {
-    name: 'get_calendar_events',
-    description: 'Get calendar events. Use when user asks about meetings, schedule, or calendar.',
-    parameters: {
-      type: 'object',
-      properties: {
-        timeMin: {
-          type: 'string',
-          description: 'Start time in ISO format (default: now)',
-        },
-        timeMax: {
-          type: 'string',
-          description: 'End time in ISO format (default: 7 days from now)',
-        },
-        maxResults: {
-          type: 'number',
-          description: 'Maximum events to return (default: 10)',
-        },
-      },
-    },
-  },
-  {
-    name: 'get_drive_files',
-    description: 'Search Google Drive files. Use when user asks about documents, files, or wants to find a file.',
-    parameters: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'Search term to find in file names',
-        },
-        maxResults: {
-          type: 'number',
-          description: 'Maximum files to return (default: 10)',
-        },
-        mimeType: {
-          type: 'string',
-          description: 'Filter by file type (e.g., "application/pdf", "application/vnd.google-apps.document")',
-        },
-      },
-    },
-  },
-  {
-    name: 'check_google_connection',
-    description: 'Check which Google services are connected (Gmail, Calendar, Drive).',
-    parameters: {
-      type: 'object',
-      properties: {},
-    },
-  },
 ];
 
 /**
@@ -251,11 +173,6 @@ export const executors: Record<string, FunctionExecutor> = {
   get_recent_communications: getRecentCommunications,
   get_agency_stats: getAgencyStats,
   navigate_to: navigateTo,
-  // Google Workspace functions
-  get_emails: getEmails,
-  get_calendar_events: getCalendarEvents,
-  get_drive_files: getDriveFiles,
-  check_google_connection: checkGoogleConnection,
 };
 
 /**

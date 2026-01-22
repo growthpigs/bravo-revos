@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { RefreshCw, Wifi, WifiOff } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/audienceos/ui/button"
+import { cn } from "@/lib/audienceos/utils"
 
 interface LastUpdatedProps {
   lastUpdated: string | null

@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { useToast } from "@/hooks/use-toast"
-import { useSettingsStore } from "@/stores/settings-store"
-import { useAuthStore } from "@/lib/store"
-import { fetchWithCsrf } from "@/lib/csrf"
+import { Input } from "@/components/audienceos/ui/input"
+import { Button } from "@/components/audienceos/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/audienceos/ui/select"
+import { Switch } from "@/components/audienceos/ui/switch"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { useSettingsStore } from "@/stores/audienceos/settings-store"
+import { useAuthStore } from "@/lib/audienceos/store"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
 import { CheckCircle2, Loader2, AlertCircle } from "lucide-react"
-import type { AgencySettings } from "@/types/settings"
+import type { AgencySettings } from "@/types/audienceos/settings"
 
 // Common timezones (matching API validation)
 const TIMEZONES = [

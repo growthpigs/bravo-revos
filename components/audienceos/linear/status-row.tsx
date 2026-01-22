@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { Plus, ChevronRight } from "lucide-react"
 
 export type StatusType = "backlog" | "planned" | "in_progress" | "completed" | "canceled" | "blocked"

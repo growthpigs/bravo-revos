@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/audienceos/supabase'
 import type { User, Session, SupabaseClient } from '@supabase/supabase-js'
 
 // Mock mode detection - allows app to work without real Supabase

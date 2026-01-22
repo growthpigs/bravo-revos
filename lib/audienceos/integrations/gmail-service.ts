@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/audienceos/supabase'
 import { decryptToken, deserializeEncryptedToken } from '@/lib/crypto'
 
 /**

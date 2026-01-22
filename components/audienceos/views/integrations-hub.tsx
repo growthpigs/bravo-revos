@@ -16,17 +16,17 @@
  */
 
 import React, { useState, useMemo, useEffect } from "react"
-import { cn } from "@/lib/utils"
-import { VerticalPageLayout, VerticalSection } from "@/components/linear/vertical-section"
+import { cn } from "@/lib/audienceos/utils"
+import { VerticalPageLayout, VerticalSection } from "@/components/audienceos/linear/vertical-section"
 import { Search, Check, AlertCircle, Clock, ExternalLink, Settings2, RefreshCw } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { integrationIcons } from "@/components/linear/integration-card"
-import { IntegrationSettingsModal } from "@/components/linear/integration-settings-modal"
-import { IntegrationConnectModal } from "@/components/linear/integration-connect-modal"
+import { Input } from "@/components/audienceos/ui/input"
+import { Button } from "@/components/audienceos/ui/button"
+import { Skeleton } from "@/components/audienceos/ui/skeleton"
+import { integrationIcons } from "@/components/audienceos/linear/integration-card"
+import { IntegrationSettingsModal } from "@/components/audienceos/linear/integration-settings-modal"
+import { IntegrationConnectModal } from "@/components/audienceos/linear/integration-connect-modal"
 import { toast } from "sonner"
-import type { Database } from "@/types/database"
+import type { Database } from "@/types/audienceos/database"
 
 type IntegrationProvider = Database['public']['Enums']['integration_provider']
 

@@ -3,13 +3,13 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@supabase/ssr"
-import { useAuthStore } from "@/lib/store"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { useAuthStore } from "@/lib/audienceos/store"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Label } from "@/components/audienceos/ui/label"
+import { Switch } from "@/components/audienceos/ui/switch"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Badge } from "@/components/audienceos/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -17,13 +17,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/audienceos/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 import {
   Shield,
   Plus,

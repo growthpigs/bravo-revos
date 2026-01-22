@@ -1,10 +1,10 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/audienceos/ui/card"
+import { Skeleton } from "@/components/audienceos/ui/skeleton"
 import { TrendIndicator } from "./trend-indicator"
-import { cn } from "@/lib/utils"
-import type { KPI, KPIType } from "@/types/dashboard"
+import { cn } from "@/lib/audienceos/utils"
+import type { KPI, KPIType } from "@/types/audienceos/dashboard"
 import {
   Users,
   AlertTriangle,

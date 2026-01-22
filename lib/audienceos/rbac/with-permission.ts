@@ -11,7 +11,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase';
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/audienceos/supabase';
 import { permissionService } from './permission-service';
 import { auditService } from './audit-service';
 import { enforceClientAccess } from './client-access';

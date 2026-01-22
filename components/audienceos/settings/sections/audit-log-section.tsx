@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { useSettingsStore } from "@/stores/settings-store"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Input } from "@/components/audienceos/ui/input"
+import { Button } from "@/components/audienceos/ui/button"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { useSettingsStore } from "@/stores/audienceos/settings-store"
 import {
   Shield,
   Search,
@@ -19,7 +19,7 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-react"
-import type { AuditLogEntry } from "@/types/settings"
+import type { AuditLogEntry } from "@/types/audienceos/settings"
 
 // Mock audit log data
 const MOCK_AUDIT_LOG: AuditLogEntry[] = [

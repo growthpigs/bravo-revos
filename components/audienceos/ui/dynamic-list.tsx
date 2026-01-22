@@ -1,10 +1,10 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
 import { X, Plus, Diamond, CheckCircle, GripVertical } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 
 // ============================================================
 // Milestone List (Project/Onboarding Milestones)

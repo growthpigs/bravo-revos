@@ -10,11 +10,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+} from "@/components/audienceos/ui/alert-dialog"
+import { Textarea } from "@/components/audienceos/ui/textarea"
+import { Label } from "@/components/audienceos/ui/label"
 import { AlertTriangle, UserX } from "lucide-react"
-import type { Stage } from "@/types/pipeline"
+import type { Stage } from "@/types/audienceos/pipeline"
 
 interface StageConfirmModalProps {
   open: boolean

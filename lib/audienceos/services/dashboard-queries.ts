@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
+import type { Database } from '@/types/audienceos/database'
 
 type Client = Database['public']['Tables']['client']['Row']
 type Ticket = Database['public']['Tables']['ticket']['Row']

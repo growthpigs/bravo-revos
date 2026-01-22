@@ -10,7 +10,7 @@
  * TASK-010: Effective permission calculation for custom roles
  */
 
-import { createClient as createBrowserClient } from '@/lib/supabase';
+import { createClient as createBrowserClient } from '@/lib/audienceos/supabase';
 import { permissionService } from './permission-service';
 import { auditService } from './audit-service';
 import type {
@@ -19,7 +19,7 @@ import type {
   PermissionAction,
 } from './types';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+import type { Database } from '@/types/audienceos/database';
 
 /**
  * Type guards for Supabase relation objects

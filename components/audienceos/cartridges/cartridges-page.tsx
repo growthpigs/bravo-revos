@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/audienceos/ui/tabs"
 import {
   Mic,
   Palette,
@@ -14,7 +14,7 @@ import { StyleTab } from "./tabs/style-tab"
 import { PreferencesTab } from "./tabs/preferences-tab"
 import { InstructionsTab } from "./tabs/instructions-tab"
 import { BrandTab } from "./tabs/brand-tab"
-import type { CartridgeType } from "@/types/cartridges"
+import type { CartridgeType } from "@/types/audienceos/cartridges"
 
 const tabs = [
   { id: "voice" as const, label: "Voice", icon: Mic, description: "Tone and personality" },

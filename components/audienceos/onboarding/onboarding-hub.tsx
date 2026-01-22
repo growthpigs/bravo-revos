@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { useOnboardingStore } from "@/stores/onboarding-store"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
+import { useOnboardingStore } from "@/stores/audienceos/onboarding-store"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/audienceos/ui/tabs"
+import { Button } from "@/components/audienceos/ui/button"
 import { ActiveOnboardings } from "./active-onboardings"
 import { ClientJourneyConfig } from "./client-journey-config"
 import { FormBuilder } from "./form-builder"

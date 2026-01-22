@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/audienceos/supabase'
 import { useTicketStore, type Ticket } from '@/stores/ticket-store'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 

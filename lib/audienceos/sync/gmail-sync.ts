@@ -1,11 +1,9 @@
 /**
  * Gmail Sync Worker
  *
- * Fetches emails directly from Gmail API using user's OAuth token
+ * Fetches emails from Gmail via chi-gateway MCP
  * Normalizes to AudienceOS communication schema
  * Stores in multi-tenant database
- *
- * Architecture: Multi-tenant - each user's OAuth token fetches their own emails
  */
 
 import type { SyncJobConfig, SyncResult } from './types'
@@ -43,8 +41,7 @@ export interface NormalizedCommunication {
 }
 
 /**
- * Sync Gmail using direct Gmail API
- * Uses user's decrypted OAuth token for authentication
+ * Sync Gmail using chi-gateway MCP
  * Returns normalized communications ready to store in DB
  */
 export async function syncGmail(config: SyncJobConfig): Promise<{
@@ -109,90 +106,38 @@ export async function syncGmail(config: SyncJobConfig): Promise<{
 }
 
 /**
- * Fetch Gmail messages using direct Gmail API
- * Uses user's OAuth access token for multi-tenant authentication
+ * Fetch Gmail messages using chi-gateway
+ * chi-gateway runs as Cloudflare Worker at: https://chi-gateway.roderic-andrews.workers.dev/
  *
- * Gmail API: GET https://gmail.googleapis.com/gmail/v1/users/me/messages
- * Returns: { messages: [{id, threadId}], nextPageToken?, resultSizeEstimate }
+ * Endpoint: GET /gmail/inbox?q=...&maxResults=...
+ * Returns: { messages: [{id, threadId, snippet, payload, internalDate, labelIds}] }
  */
 async function fetchGmailMessages(accessToken: string): Promise<GmailMessage[]> {
-  const GMAIL_API_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me'
+  const CHI_GATEWAY_URL = 'https://chi-gateway.roderic-andrews.workers.dev'
 
   // Query: unread messages or messages from the last 7 days
   const query = 'is:unread OR newer_than:7d'
-  const maxResults = 50 // Lower for initial sync, can paginate later
+  const maxResults = 100
 
-  try {
-    // Step 1: Get message IDs
-    const listResponse = await fetch(
-      `${GMAIL_API_BASE}/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
+  const response = await fetch(
+    `${CHI_GATEWAY_URL}/gmail/inbox?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(
+      `Chi-Gateway Gmail inbox failed: ${response.status} ${response.statusText} - ${await response.text()}`
     )
-
-    if (!listResponse.ok) {
-      const errorText = await listResponse.text()
-      throw new Error(`Gmail API list failed: ${listResponse.status} - ${errorText}`)
-    }
-
-    const listData = (await listResponse.json()) as {
-      messages?: Array<{ id: string; threadId: string }>
-      nextPageToken?: string
-    }
-
-    if (!listData.messages || listData.messages.length === 0) {
-      console.log('[gmail-sync] No messages found matching query')
-      return []
-    }
-
-    console.log(`[gmail-sync] Found ${listData.messages.length} message IDs`)
-
-    // Step 2: Fetch full message details (batch in parallel, max 10 concurrent)
-    const messages: GmailMessage[] = []
-    const batchSize = 10
-
-    for (let i = 0; i < listData.messages.length; i += batchSize) {
-      const batch = listData.messages.slice(i, i + batchSize)
-      const batchPromises = batch.map(async (msg) => {
-        try {
-          const msgResponse = await fetch(
-            `${GMAIL_API_BASE}/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-            {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          )
-
-          if (!msgResponse.ok) {
-            console.warn(`[gmail-sync] Failed to fetch message ${msg.id}: ${msgResponse.status}`)
-            return null
-          }
-
-          return (await msgResponse.json()) as GmailMessage
-        } catch (e) {
-          console.error(`[gmail-sync] Error fetching message ${msg.id}:`, e)
-          return null
-        }
-      })
-
-      const batchResults = await Promise.all(batchPromises)
-      messages.push(...batchResults.filter((m): m is GmailMessage => m !== null))
-    }
-
-    console.log(`[gmail-sync] Fetched ${messages.length} full message details`)
-    return messages
-  } catch (error) {
-    console.error('[gmail-sync] Gmail API error:', error)
-    throw error
   }
+
+  const data = (await response.json()) as { messages?: GmailMessage[] }
+  return data.messages || []
 }
 
 /**

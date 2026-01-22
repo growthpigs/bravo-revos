@@ -1,8 +1,8 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { Loader2, CheckCircle2, XCircle, Clock, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/audienceos/ui/button"
 
 export type SyncStatus = "idle" | "syncing" | "success" | "failed"
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { Flame } from "lucide-react"
 import { FirehoseItem, FirehoseItemSkeleton, type FirehoseItemData } from "./firehose-item"
 

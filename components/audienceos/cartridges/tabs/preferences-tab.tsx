@@ -1,17 +1,17 @@
 "use client"
 
 import React, { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Button } from "@/components/audienceos/ui/button"
+import { Label } from "@/components/audienceos/ui/label"
+import { Slider } from "@/components/audienceos/ui/slider"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/audienceos/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,11 +21,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/audienceos/ui/alert-dialog"
 import { Check, Edit, Trash2, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
-import { type PreferencesCartridge, getDefaultPreferences } from "@/types/cartridges"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
+import { type PreferencesCartridge, getDefaultPreferences } from "@/types/audienceos/cartridges"
 
 export function PreferencesTab() {
   const { toast } = useToast()

@@ -1,9 +1,9 @@
 "use client"
 
 import { forwardRef, type ComponentPropsWithoutRef } from "react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/audienceos/ui/button"
 import { Sparkles } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 
 type ButtonVariant = "default" | "ghost" | "outline"
 

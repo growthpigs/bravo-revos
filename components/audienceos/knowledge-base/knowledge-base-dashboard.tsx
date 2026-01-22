@@ -2,24 +2,24 @@
 
 import type { ReactNode } from "react"
 import { useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Input } from "@/components/audienceos/ui/input"
+import { Badge } from "@/components/audienceos/ui/badge"
+import { Button } from "@/components/audienceos/ui/button"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/audienceos/ui/select"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 import {
   Search,
   FileText,
@@ -43,16 +43,16 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { KnowledgeBaseDocument, DocumentSortField } from "@/types/knowledge-base"
-import type { DocumentCategory, IndexStatus } from "@/types/database"
-import { quickLinks } from "@/lib/constants/knowledge-base"
+import { cn } from "@/lib/audienceos/utils"
+import type { KnowledgeBaseDocument, DocumentSortField } from "@/types/audienceos/knowledge-base"
+import type { DocumentCategory, IndexStatus } from "@/types/audienceos/database"
+import { quickLinks } from "@/lib/audienceos/constants/knowledge-base"
 import {
   formatFileSize,
   FILE_TYPE_INFO,
   INDEX_STATUS_INFO,
-} from "@/types/knowledge-base"
-import { useKnowledgeBaseStore } from "@/stores/knowledge-base-store"
+} from "@/types/audienceos/knowledge-base"
+import { useKnowledgeBaseStore } from "@/stores/audienceos/knowledge-base-store"
 import { DocumentUploadModal } from "./document-upload-modal"
 import { DocumentPreviewModal } from "./document-preview-modal"
 

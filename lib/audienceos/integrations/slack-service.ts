@@ -1,5 +1,5 @@
 import { WebClient } from '@slack/web-api'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/audienceos/supabase'
 import { decryptToken, deserializeEncryptedToken } from '@/lib/crypto'
 
 /**
@@ -47,7 +47,7 @@ export class SlackService {
         .single()
 
       if (error || !integration) {
-        console.error('[Slack Sync] No Slack integration found', { error: error?.message })
+        console.error('[Slack Sync] No Slack integration found for user', { userId, error })
         throw new Error('Slack not connected for user')
       }
 
@@ -62,7 +62,7 @@ export class SlackService {
         throw new Error('Failed to decrypt token')
       }
 
-      // Token decrypted - do not log userId
+      console.log('[Slack Sync] Token decrypted successfully', { userId })
 
       // Step 3: Create Slack Web API client
       const slack = new WebClient(accessToken)
@@ -74,7 +74,7 @@ export class SlackService {
       })
 
       const channels = channelsRes.channels || []
-      // Channels fetched - do not log userId
+      console.log('[Slack Sync] Fetched channels', { userId, count: channels.length })
 
       let messagesProcessed = 0
 
@@ -92,7 +92,7 @@ export class SlackService {
         }
       }
 
-      // Channel processing complete - do not log userId
+      console.log('[Slack Sync] Channel processing complete', { userId, messagesProcessed })
 
       // Step 6: Update sync timestamp
       await supabase
@@ -101,7 +101,7 @@ export class SlackService {
         .eq('user_id', userId)
         .eq('type', 'slack')
 
-      // Sync complete - do not log userId
+      console.log('[Slack Sync] Sync complete', { userId, messagesProcessed })
       return { success: true, messagesProcessed }
     } catch (error) {
       console.error('[Slack Sync] Fatal error:', error)

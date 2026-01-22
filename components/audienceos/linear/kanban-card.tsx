@@ -16,8 +16,8 @@
 import React from "react"
 import { useDraggable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { cn } from "@/lib/audienceos/utils"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
 import { Calendar, MoreVertical, ExternalLink, Edit, UserPlus, Trash2, ArrowRight } from "lucide-react"
 import {
   DropdownMenu,
@@ -28,8 +28,8 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
+} from "@/components/audienceos/ui/dropdown-menu"
+import { Button } from "@/components/audienceos/ui/button"
 
 interface KanbanCardProps {
   /** Display ID (e.g., "AB" for Agro Bros) - shown on card */

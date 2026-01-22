@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useState } from "react"
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { cn } from "@/lib/audienceos/utils"
+import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
 import { ActivityFeed, CommentInput, type ActivityType } from "./activity-feed"
 import { type TicketPriority, type TicketStatus } from "./inbox-item"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
 import {
   X,
   MoreHorizontal,
@@ -25,7 +25,7 @@ import {
   CircleDot,
   Loader2,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/audienceos/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +35,7 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +45,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/audienceos/ui/alert-dialog"
 
 interface TicketActivity {
   id: string

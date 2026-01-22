@@ -1,6 +1,6 @@
 "use client"
 
-import { useSettingsStore } from "@/stores/settings-store"
+import { useSettingsStore } from "@/stores/audienceos/settings-store"
 import { AgencyProfileSection } from "./sections/agency-profile-section"
 import { TeamMembersSection } from "./sections/team-members-section"
 import { AIConfigurationSection } from "./sections/ai-configuration-section"

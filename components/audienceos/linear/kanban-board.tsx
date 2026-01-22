@@ -26,7 +26,7 @@ import {
 } from "@dnd-kit/core"
 import { KanbanColumn } from "./kanban-column"
 import { KanbanCard } from "./kanban-card"
-import { PIPELINE_STAGES, type Stage, type MinimalClient, getOwnerData } from "@/types/client"
+import { PIPELINE_STAGES, type Stage, type MinimalClient, getOwnerData } from "@/types/audienceos/client"
 
 interface KanbanBoardProps {
   /** All clients to display across pipeline stages */

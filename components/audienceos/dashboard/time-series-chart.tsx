@@ -11,11 +11,11 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
-import type { TrendDataPoint, TimePeriod } from "@/types/dashboard"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Button } from "@/components/audienceos/ui/button"
+import { Skeleton } from "@/components/audienceos/ui/skeleton"
+import { cn } from "@/lib/audienceos/utils"
+import type { TrendDataPoint, TimePeriod } from "@/types/audienceos/dashboard"
 
 interface TimeSeriesChartProps {
   data: TrendDataPoint[] | null

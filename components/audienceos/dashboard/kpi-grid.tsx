@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { KPICard, KPICardSkeleton } from "./kpi-card"
-import type { DashboardKPIs, KPIType } from "@/types/dashboard"
+import type { DashboardKPIs, KPIType } from "@/types/audienceos/dashboard"
 
 interface KPIGridProps {
   kpis: DashboardKPIs | null

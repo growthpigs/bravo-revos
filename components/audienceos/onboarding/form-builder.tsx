@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect } from "react"
-import { useOnboardingStore } from "@/stores/onboarding-store"
+import { useOnboardingStore } from "@/stores/audienceos/onboarding-store"
 import { FieldRow } from "./field-row"
 import { FormPreview } from "./form-preview"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/audienceos/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
 import { Plus, Loader2, FileText } from "lucide-react"
 import {
   DndContext,

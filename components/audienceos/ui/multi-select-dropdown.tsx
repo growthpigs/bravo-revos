@@ -1,16 +1,16 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/audienceos/utils"
+import { Button } from "@/components/audienceos/ui/button"
+import { Checkbox } from "@/components/audienceos/ui/checkbox"
+import { Input } from "@/components/audienceos/ui/input"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/audienceos/ui/popover"
+import { Badge } from "@/components/audienceos/ui/badge"
 import { ChevronDown, X } from "lucide-react"
 
 export interface MultiSelectOption {

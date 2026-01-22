@@ -1,14 +1,14 @@
 "use client"
 
 import React, { useState } from "react"
-import { useToast } from "@/hooks/use-toast"
-import { fetchWithCsrf } from "@/lib/csrf"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Button } from "@/components/audienceos/ui/button"
+import { Input } from "@/components/audienceos/ui/input"
+import { Label } from "@/components/audienceos/ui/label"
+import { Textarea } from "@/components/audienceos/ui/textarea"
+import { Badge } from "@/components/audienceos/ui/badge"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,9 +18,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/audienceos/ui/alert-dialog"
 import { Check, Edit, Trash2, Loader2, Zap, FileText, Building2 } from "lucide-react"
-import { type BrandCartridge } from "@/types/cartridges"
+import { type BrandCartridge } from "@/types/audienceos/cartridges"
 
 export function BrandTab() {
   const { toast } = useToast()

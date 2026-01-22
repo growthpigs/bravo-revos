@@ -3,14 +3,14 @@
 import React from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { ChevronDown, Check, ExternalLink } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useAppStore, APP_CONFIGS, type AppId } from "@/stores/app-store"
+import { cn } from "@/lib/audienceos/utils"
+import { useAppStore, APP_CONFIGS, type AppId } from "@/stores/audienceos/app-store"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/audienceos/ui/dropdown-menu"
 
 interface AppSwitcherProps {
   collapsed?: boolean

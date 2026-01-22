@@ -1,10 +1,10 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/audienceos/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/audienceos/ui/avatar"
+import { Badge } from "@/components/audienceos/ui/badge"
 import { StageBadge } from "./stage-badge"
-import type { OnboardingInstanceWithRelations, Stage } from "@/stores/onboarding-store"
+import type { OnboardingInstanceWithRelations, Stage } from "@/stores/audienceos/onboarding-store"
 import { differenceInDays } from "date-fns"
 
 interface OnboardingCardProps {

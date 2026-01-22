@@ -29,10 +29,10 @@ import {
   X,
   ExternalLink,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { useStreamingText } from "./use-streaming-text"
 import { TypingCursor } from "./typing-cursor"
-import type { ChatMessage as ChatMessageType, RouteType, Citation, SessionContext } from "@/lib/chat/types"
+import type { ChatMessage as ChatMessageType, RouteType, Citation, SessionContext } from "@/lib/audienceos/chat/types"
 
 // Panel dimensions
 const PANEL_WIDTH = "85%"

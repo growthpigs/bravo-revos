@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/audienceos/utils"
 import { ChevronLeft, Users, Plus, Sparkles, Settings } from "lucide-react"
 
 export interface SettingsSection {

@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
-import { useSettingsStore } from "@/stores/settings-store"
-import { fetchWithCsrf } from "@/lib/csrf"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/audienceos/ui/card"
+import { Input } from "@/components/audienceos/ui/input"
+import { Label } from "@/components/audienceos/ui/label"
+import { Button } from "@/components/audienceos/ui/button"
+import { useToast } from "@/hooks/audienceos/use-toast"
+import { useSettingsStore } from "@/stores/audienceos/settings-store"
+import { fetchWithCsrf } from "@/lib/audienceos/csrf"
 import {
   Workflow,
   GripVertical,

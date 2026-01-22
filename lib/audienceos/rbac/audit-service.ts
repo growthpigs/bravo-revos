@@ -28,7 +28,7 @@
  * ```
  */
 
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/audienceos/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Action types for audit log
