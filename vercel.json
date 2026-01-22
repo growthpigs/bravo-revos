@@ -1,5 +1,5 @@
 {
-  "buildCommand": "touch .env && npm run build",
+  "buildCommand": "node -e \"try{require('fs').writeFileSync('.env','')}catch(e){}\" && npm run build",
   "crons": [
     {
       "path": "/api/cron/health-check",
