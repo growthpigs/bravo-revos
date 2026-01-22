@@ -5,7 +5,8 @@ import { Megaphone, Users2, TrendingUp, Zap, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { RateLimitStatus } from '@/components/rate-limit-status'
 import { PodStatusBanner } from '@/components/pod-status-banner'
-import { LinkedInConnectionChecker } from '@/components/linkedin-connection-checker'
+// LinkedIn connection checker disabled - user can connect later from settings
+// import { LinkedInConnectionChecker } from '@/components/linkedin-connection-checker'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,8 +79,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-8 space-y-6">
-      {/* LinkedIn Connection Check - shows modal if not connected */}
-      <LinkedInConnectionChecker />
+      {/* LinkedIn Connection Check - disabled, user can connect later from settings */}
+      {/* <LinkedInConnectionChecker /> */}
 
       <div className="flex items-center justify-between">
         <div>
