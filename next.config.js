@@ -2,25 +2,29 @@ const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Mark tokenizer packages as external to prevent encoder.json build-time loading
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Exclude problematic packages from server bundles
-      config.externals = config.externals || [];
-      config.externals.push('gpt-tokenizer');  // tries to load encoder.json at build time
-      config.externals.push('gpt-3-encoder');  // tries to load encoder.json at build time
-      config.externals.push('gologin');        // puppeteer + native deps cause serverless issues
-      config.externals.push('puppeteer-core'); // native deps cause serverless issues
-    }
-
-    // Fix for gologin dependencies - optional modules that don't exist in browser/serverless
-    config.resolve = config.resolve || {};
-    config.resolve.fallback = config.resolve.fallback || {};
-    config.resolve.fallback.vertx = false;        // JVM dependency in when/requestretry
-    config.resolve.fallback.bufferutil = false;   // Optional ws performance module
-    config.resolve.fallback['utf-8-validate'] = false;  // Optional ws validation module
-
-    return config;
+  // Next.js 16 uses Turbopack - use serverExternalPackages instead of webpack externals
+  serverExternalPackages: [
+    'gpt-tokenizer',    // tries to load encoder.json at build time
+    'gpt-3-encoder',    // tries to load encoder.json at build time
+    'gologin',          // puppeteer + native deps cause serverless issues
+    'puppeteer-core',   // native deps cause serverless issues
+    'when',             // contains vertx JVM dependency
+    'requestretry',     // depends on when
+    'pdf-parse',        // requires @napi-rs/canvas with DOM APIs
+    '@napi-rs/canvas',  // native canvas binding
+    'canvas',           // fallback canvas package
+  ],
+  // Disable Turbopack for build (webpack still needed for complex externals)
+  // Turbopack can't handle vertx resolution fallbacks
+  experimental: {
+    turbo: {
+      // Turbopack-specific resolve aliases
+      resolveAlias: {
+        'vertx': false,
+        'bufferutil': false,
+        'utf-8-validate': false,
+      },
+    },
   },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
