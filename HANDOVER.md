@@ -1,101 +1,117 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-22 (Current Session)
-**Branch:** main (will create feat/unified-platform-merge)
-**Session:** Unified Platform - MERGE IN PROGRESS
+**Last Updated:** 2026-01-22 (Session Complete)
+**Branch:** `feat/unified-platform-merge`
+**Session:** Unified Platform - BUILD PASSING, READY FOR DEPLOY
 
 ---
 
-## Current Session: Full Codebase Merge
+## Session Result: Full Codebase Merge COMPLETE
 
-**Decision Made:** After Red Team validation, confirmed:
-1. Vercel proxy rewrites do NOT share cookies (cookies set by target domain)
-2. Custom subdomain approach blocked (diiiploy.io not on Vercel)
-3. **CHOSEN: Merge AudienceOS into RevOS codebase**
+**What was done:**
+- Merged AudienceOS INTO RevOS codebase (242 files, 27036 lines)
+- Both apps now accessible from same domain
+- Landing page updated to route internally
 
-**Trade-off Accepted:** Coupled deployments in exchange for true shared auth
-
----
-
-## Red Team Findings (This Session)
-
-| Finding | Status | Impact |
-|---------|--------|--------|
-| @pai/hgc was phantom dependency | FIXED | Removed from monorepo, build succeeds |
-| Proxy rewrites don't share cookies | CONFIRMED | Blocked Option B (monorepo proxy) |
-| diiiploy.io not on Vercel | CONFIRMED | Blocked Option C (subdomains) |
-| AudienceOS: 95 routes + 142 components | VERIFIED | Larger scope than estimated |
-| AudienceOS Supabase: 297 lines vs RevOS: 9 lines | VERIFIED | Need to reconcile |
-
----
-
-## Merge Plan (APPROVED - In Progress)
-
-**Full implementation plan:** `features/UNIFIED-APP.md`
-
-**6-Phase Approach:**
-1. **Phase 1:** Foundation - Supabase client + database types
-2. **Phase 2:** AudienceOS components → `components/audienceos/*`
-3. **Phase 3:** AudienceOS lib → `lib/audienceos/*`
-4. **Phase 4:** AudienceOS routes → `app/audienceos/*`
-5. **Phase 5:** Landing page update (internal routing)
-6. **Phase 6:** Auth flow verification
-
-**Verification after each phase:**
+**Branch status:**
 ```bash
-npm run build && npm run typecheck
+git log --oneline -6
+8edc172 feat: Phase 5 - Update landing page for unified platform
+6c081fd feat: Phase 4 - AudienceOS routes and API integration
+357d37b feat: Phase 3 - AudienceOS lib and hooks
+7b7dab3 feat: Phase 2 - AudienceOS components (152 files)
+ec67b79 feat: Phase 1 - Foundation (Supabase types + helpers)
+```
+
+**Build status:** ✅ PASSING
+
+---
+
+## What Changed
+
+### New Routes
+- `/audienceos` - Main AudienceOS app
+- `/audienceos/[view]` - Dashboard, pipeline, clients views
+- `/audienceos/client/[id]` - Client detail pages
+- `/audienceos/onboarding/*` - Onboarding flows
+- `/api/v1/*` - 81 AudienceOS API routes
+
+### New Directories
+- `app/audienceos/` - AudienceOS page routes
+- `app/api/v1/` - AudienceOS API routes
+- `components/audienceos/` - 152 components
+- `lib/audienceos/` - AudienceOS-specific lib code
+- `hooks/audienceos/` - AudienceOS hooks
+- `stores/audienceos/` - Zustand stores
+- `types/audienceos/` - TypeScript types
+
+### Shared Utilities
+- `lib/csrf.ts` - CSRF protection
+- `lib/crypto.ts` - Encryption utilities
+- `types/database.ts` - Supabase database types (2510 lines)
+
+---
+
+## Auth Flow Architecture
+
+```
+User → Landing Page (/)
+         ↓ clicks RevOS       ↓ clicks AudienceOS
+         ↓                    ↓
+   /auth/login ←─────────────┘ (same login)
+         ↓
+   Supabase sets cookies
+         ↓
+   Middleware refreshes session on every request
+         ↓
+   User can navigate to:
+   - /dashboard (RevOS) ✅ Same cookies
+   - /audienceos (AudienceOS) ✅ Same cookies
 ```
 
 ---
 
-## Files Changed This Session
+## What's Left
 
-| File | Change | Status |
-|------|--------|--------|
-| hgc-monorepo vercel.json | Updated rewrites to existing deploys | Done |
-| hgc-monorepo audiences-os/package.json | Removed @pai/hgc | Done |
-| hgc-monorepo audiences-os/lib/hgc-integration.ts | Disabled (renamed .disabled) | Done |
+### Before Merge to Main
+1. **Manual auth test:** Login → RevOS → AudienceOS → verify no re-login
+2. **Deploy to staging:** Push to remote, deploy preview
+3. **Test on deployed URL:** Verify cookies work in production
 
----
-
-## Key Findings for Next Steps
-
-1. **Auth routes:** Both apps have `/auth` - need namespace or share
-2. **API routes:** Both have `/api` - need namespace
-3. **Supabase client:** Use AudienceOS version (more sophisticated)
-4. **Database types:** AudienceOS has 2510-line types, RevOS has none
+### Known Issues (Non-Blocking)
+- Pre-existing Next.js 16 async params warnings (23 routes)
+- These existed before merge, not caused by AudienceOS
 
 ---
 
-## Commits This Session (Monorepo)
+## Quick Commands
 
+```bash
+# Build (should pass)
+npm run build
+
+# Start dev server
+npm run dev
+
+# Check AudienceOS routes
+curl http://localhost:3000/audienceos
+
+# Push to remote
+git push origin feat/unified-platform-merge
 ```
-75ed1cb fix(router): Point rewrites to existing deployments
-9f73b14 fix(audiences-os): Remove unused @pai/hgc dependency
-```
 
 ---
 
-## Vercel Deployments
+## Related Files
 
-| Project | URL | Status |
-|---------|-----|--------|
-| ra-diiiploy | ra-diiiploy.vercel.app | Working (RevOS) |
-| v0-audience-os-command-center | v0-audience-os-command-center-sage.vercel.app | Working (AudienceOS) |
-| hgc-monorepo | hgc-monorepo-fj6ef41la-diiiploy-platform.vercel.app | Router deployed (rewrites don't share cookies) |
-
----
-
-## Next: Execute Merge
-
-Protocol in progress:
-- [ ] Complete overlap research
-- [ ] Create implementation plan
-- [ ] Create feature branch
-- [ ] Execute merge with verification
+- `features/UNIFIED-APP.md` - Full implementation plan with research
+- `app/page.tsx` - Landing page (app selector)
+- `app/audienceos/layout.tsx` - AudienceOS nested layout
+- `lib/audienceos/supabase.ts` - AudienceOS auth client
+- `hooks/audienceos/use-auth.ts` - Client-side auth hook
 
 ---
 
 **Handover Author:** Chi CTO
 **Session Date:** 2026-01-22
-**Session Status:** IN PROGRESS - Merge protocol running
+**Session Status:** ✅ COMPLETE - Ready for deploy and manual testing
