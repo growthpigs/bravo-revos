@@ -1,12 +1,50 @@
 # Bravo revOS - Production Deployment Guide
 
-**Last Updated**: 2025-11-09
-**Target Date**: This Week
-**Status**: Ready for Production
+**Last Updated**: 2026-01-22
+**Status**: Production Active
 
 ---
 
-## Prerequisites
+## ⚠️ IMPORTANT: Access Status (2026-01-22)
+
+**agro-bros Vercel account is COMPROMISED** - Roderic lost access. Do NOT use deployments in `agro-bros` team.
+
+### Current Active Deployments
+
+| Environment | URL | Vercel Team | Status |
+|-------------|-----|-------------|--------|
+| **ra-revos (Production)** | `ra-revos-rodericandrews-4022s-projects.vercel.app` | `rodericandrews-4022s-projects` | ✅ Active |
+| Trevor's Production | `bravo-revos.vercel.app` | agro-bros (Chase's) | 🔒 Production only |
+| staging | `bravo-revos-git-staging-agro-bros.vercel.app` | agro-bros | ⚠️ Access lost |
+
+### ra-revos Setup
+
+**Created:** 2026-01-22
+**Git Remote:** `origin` → `https://github.com/growthpigs/bravo-revos.git`
+**Vercel Project:** `ra-revos` in `rodericandrews-4022s-projects` workspace
+
+**Database:** Unified Supabase `ebxshdqfaqupnvpghodi` (audienceos-cc-fresh)
+- Same database as AudienceOS (unified platform)
+- SINGULAR table naming convention
+- All env vars configured for production
+
+**Deploy command:**
+```bash
+vercel --prod --scope rodericandrews-4022s-projects --yes
+```
+
+**Environment Variables:** All production credentials configured via `vercel env add`
+
+---
+
+## Legacy Documentation
+
+The following sections document the original Netlify/Render deployment approach.
+For new deployments, use Vercel as documented above.
+
+---
+
+## Prerequisites (Legacy)
 
 ### Required Accounts
 - [ ] Netlify account (frontend hosting)
