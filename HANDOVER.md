@@ -1,92 +1,50 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-22 (Late Night Session)
-**Branch:** main
-**Session:** Unified Platform - INCOMPLETE - Needs Fix
+**Last Updated:** 2026-01-22 (Current Session)
+**Branch:** main (will create feat/unified-platform-merge)
+**Session:** Unified Platform - MERGE IN PROGRESS
 
 ---
 
-## CRITICAL: What Went Wrong
+## Current Session: Full Codebase Merge
 
-**Original Goal:** Deploy unified platform where RevOS and AudienceOS share:
-- Same domain (path-based: `/revos/*`, `/audienceos/*`)
-- Same auth cookies (Supabase session shared)
-- Same database
-- Seamless app switching without re-login
+**Decision Made:** After Red Team validation, confirmed:
+1. Vercel proxy rewrites do NOT share cookies (cookies set by target domain)
+2. Custom subdomain approach blocked (diiiploy.io not on Vercel)
+3. **CHOSEN: Merge AudienceOS into RevOS codebase**
 
-**What Actually Happened:** Session drifted. Deployed apps to SEPARATE domains:
-- RevOS at `ra-diiiploy.vercel.app`
-- AudienceOS at `v0-audience-os-command-center-sage.vercel.app`
-
-**Why This Is Wrong:**
-- Different domains = different auth sessions
-- User must log in twice
-- No shared cookies
-- NOT a unified platform at all
-
-**Root Cause:** Monorepo deployment failed because `@pai/hgc` workspace dependency couldn't resolve. Instead of fixing it, took a shortcut that broke the architecture.
+**Trade-off Accepted:** Coupled deployments in exchange for true shared auth
 
 ---
 
-## Current Broken State
+## Red Team Findings (This Session)
 
-| Item | Value | Problem |
-|------|-------|---------|
-| RevOS URL | https://ra-diiiploy.vercel.app | Works, but standalone |
-| AudienceOS URL | https://v0-audience-os-command-center-sage.vercel.app | Works, but separate domain |
-| Landing Page | Shows both apps | Links to different domains (WRONG) |
-| Auth | Separate sessions | User logs in twice (WRONG) |
+| Finding | Status | Impact |
+|---------|--------|--------|
+| @pai/hgc was phantom dependency | FIXED | Removed from monorepo, build succeeds |
+| Proxy rewrites don't share cookies | CONFIRMED | Blocked Option B (monorepo proxy) |
+| diiiploy.io not on Vercel | CONFIRMED | Blocked Option C (subdomains) |
+| AudienceOS: 95 routes + 142 components | VERIFIED | Larger scope than estimated |
+| AudienceOS Supabase: 297 lines vs RevOS: 9 lines | VERIFIED | Need to reconcile |
 
 ---
 
-## What Needs To Be Fixed
+## Merge Plan (APPROVED - In Progress)
 
-### Option A: Merge AudienceOS INTO RevOS (Recommended - Simpler)
+**Full implementation plan:** `features/UNIFIED-APP.md`
 
-Add AudienceOS routes directly into RevOS Next.js app:
+**6-Phase Approach:**
+1. **Phase 1:** Foundation - Supabase client + database types
+2. **Phase 2:** AudienceOS components → `components/audienceos/*`
+3. **Phase 3:** AudienceOS lib → `lib/audienceos/*`
+4. **Phase 4:** AudienceOS routes → `app/audienceos/*`
+5. **Phase 5:** Landing page update (internal routing)
+6. **Phase 6:** Auth flow verification
+
+**Verification after each phase:**
+```bash
+npm run build && npm run typecheck
 ```
-app/
-├── dashboard/          ← RevOS routes
-├── audienceos/         ← ADD AudienceOS routes here
-│   ├── dashboard/
-│   ├── clients/
-│   └── ...
-├── auth/               ← Shared auth
-└── page.tsx            ← App selector landing
-```
-
-Benefits:
-- One codebase, one deployment
-- Truly shared auth
-- No basePath complexity
-- No Vercel rewrites needed
-
-### Option B: Fix Monorepo Deployment (More Complex)
-
-1. Fix `@pai/hgc` dependency in AudienceOS:
-   - Either bundle it inline
-   - Or publish to npm
-   - Or use Vercel's monorepo support properly
-
-2. Deploy both packages with `UNIFIED_PLATFORM=true`
-
-3. Configure Vercel rewrites in router project
-
-4. Point custom domain to router
-
----
-
-## What Was Done This Session (Some Good, Some Broken)
-
-### Good Work:
-1. **Removed emojis from landing page** - Uses actual logos now
-2. **Disabled LinkedIn auto-redirect** - Dashboard accessible without LinkedIn connection
-3. **Created Linear-style landing page** - Clean dark UI at root path
-4. **Added app-switcher component** - In sidebar (for post-login switching)
-
-### Broken Work:
-1. **Deployed AudienceOS to wrong domain** - Should share domain with RevOS
-2. **Landing page links externally** - Should use internal routing
 
 ---
 
@@ -94,75 +52,50 @@ Benefits:
 
 | File | Change | Status |
 |------|--------|--------|
-| `app/page.tsx` | Linear-style app selector | Needs fix (external link) |
-| `app/dashboard/page.tsx` | Disabled LinkedInConnectionChecker | Good |
-| `public/audienceos-icon.svg` | Added AudienceOS logo | Good |
-| `stores/app-store.ts` | Created Zustand store for app switching | Good |
-| `components/app-switcher.tsx` | Created sidebar switcher | Good |
-| `components/dashboard/dashboard-sidebar.tsx` | Added AppSwitcher | Good |
+| hgc-monorepo vercel.json | Updated rewrites to existing deploys | Done |
+| hgc-monorepo audiences-os/package.json | Removed @pai/hgc | Done |
+| hgc-monorepo audiences-os/lib/hgc-integration.ts | Disabled (renamed .disabled) | Done |
 
 ---
 
-## Commits This Session
+## Key Findings for Next Steps
+
+1. **Auth routes:** Both apps have `/auth` - need namespace or share
+2. **API routes:** Both have `/api` - need namespace
+3. **Supabase client:** Use AudienceOS version (more sophisticated)
+4. **Database types:** AudienceOS has 2510-line types, RevOS has none
+
+---
+
+## Commits This Session (Monorepo)
 
 ```
-a9b7828 feat: Enable AudienceOS link on landing page (BROKEN - external link)
-2b4196f fix: Disable auto LinkedIn redirect on dashboard
-0bbc897 fix: Use actual app logos instead of emojis
-082344b fix: Mark AudienceOS as Coming Soon until unified deploy
-3859b02 feat: Add Linear-style app selector landing page
-2b6da5b feat: Add app switcher component for unified platform
+75ed1cb fix(router): Point rewrites to existing deployments
+9f73b14 fix(audiences-os): Remove unused @pai/hgc dependency
 ```
 
 ---
 
-## Key Files & Locations
+## Vercel Deployments
 
-| Purpose | Location |
-|---------|----------|
-| Unified platform spec | `features/UNIFIED-APP.md` |
-| Landing page (needs fix) | `app/page.tsx` |
-| App store | `stores/app-store.ts` |
-| App switcher | `components/app-switcher.tsx` |
-| Monorepo | `/Users/rodericandrews/_PAI/projects/hgc-monorepo/` |
-| AudienceOS standalone | `/Users/rodericandrews/_PAI/projects/audienceos-unified-platform/` |
-| AudienceOS in monorepo | `/Users/rodericandrews/_PAI/projects/hgc-monorepo/packages/audiences-os/` |
+| Project | URL | Status |
+|---------|-----|--------|
+| ra-diiiploy | ra-diiiploy.vercel.app | Working (RevOS) |
+| v0-audience-os-command-center | v0-audience-os-command-center-sage.vercel.app | Working (AudienceOS) |
+| hgc-monorepo | hgc-monorepo-fj6ef41la-diiiploy-platform.vercel.app | Router deployed (rewrites don't share cookies) |
 
 ---
 
-## Vercel Projects
+## Next: Execute Merge
 
-| Project | URL | Notes |
-|---------|-----|-------|
-| ra-diiiploy | ra-diiiploy.vercel.app | RevOS standalone (working) |
-| v0-audience-os-command-center | v0-audience-os-command-center-sage.vercel.app | AudienceOS standalone (wrong domain) |
-| revos (monorepo) | Failed to deploy | `@pai/hgc` dependency issue |
-| audiences-os (monorepo) | Failed to deploy | Same dependency issue |
-
----
-
-## Environment
-
-- **Production URL:** https://ra-diiiploy.vercel.app
-- **Vercel Team:** diiiploy-platform
-- **React:** 19.2.0
-- **Next.js:** 16.1.4
-- **Tailwind:** 4.1.18
-
----
-
-## Next Session Priority
-
-**FIX THE UNIFIED PLATFORM:**
-
-1. Read `features/UNIFIED-APP.md` for the original architecture
-2. Choose Option A (merge codebases) or Option B (fix monorepo)
-3. Ensure both apps share the SAME DOMAIN
-4. Test that auth cookies are shared (login once, access both)
+Protocol in progress:
+- [ ] Complete overlap research
+- [ ] Create implementation plan
+- [ ] Create feature branch
+- [ ] Execute merge with verification
 
 ---
 
 **Handover Author:** Chi CTO
-**Session Date:** 2026-01-22 (Late Night)
-**Session Outcome:** Partial success, unified platform BROKEN
-**Priority for Next Session:** Fix unified platform architecture
+**Session Date:** 2026-01-22
+**Session Status:** IN PROGRESS - Merge protocol running
