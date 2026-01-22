@@ -2,6 +2,11 @@ const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Path prefix for unified platform deployment
+  // When deployed to unified.diiiploy.io, RevOS lives at /revos/*
+  // Standalone deployments keep basePath empty
+  basePath: process.env.UNIFIED_PLATFORM === 'true' ? '/revos' : '',
+
   // Next.js 16 uses Turbopack - use serverExternalPackages instead of webpack externals
   serverExternalPackages: [
     'gpt-tokenizer',    // tries to load encoder.json at build time
