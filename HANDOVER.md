@@ -1,212 +1,168 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-22 (Night Session)
+**Last Updated:** 2026-01-22 (Late Night Session)
 **Branch:** main
-**Session:** Unified Platform Phase 2 Complete + Bug Fixes
+**Session:** Unified Platform - INCOMPLETE - Needs Fix
 
 ---
 
-## Current State: VERCEL ROUTING INFRASTRUCTURE READY
+## CRITICAL: What Went Wrong
 
-Phase 2 complete - Vercel path-based routing configuration done. Bug fixes validated with Red Team (9.5/10 confidence). Ready for Vercel dashboard setup.
+**Original Goal:** Deploy unified platform where RevOS and AudienceOS share:
+- Same domain (path-based: `/revos/*`, `/audienceos/*`)
+- Same auth cookies (Supabase session shared)
+- Same database
+- Seamless app switching without re-login
 
-| Item | Value |
-|------|-------|
-| **Production URL** | https://ra-diiiploy.vercel.app |
-| **Vercel Team** | Diiiploy Platform (`diiiploy-platform`) |
-| **Vercel Project** | `ra-diiiploy` |
-| **Monorepo Location** | `hgc-monorepo/packages/revos` |
-| **Monorepo Name** | `pai-unified-platform` |
-| **React Version** | 19.2.0 (was 18.3.1) |
-| **Next.js Version** | 16.1.4 (was 14.2.35) |
-| **Tailwind Version** | 4.1.18 (was 3.4.18) |
+**What Actually Happened:** Session drifted. Deployed apps to SEPARATE domains:
+- RevOS at `ra-diiiploy.vercel.app`
+- AudienceOS at `v0-audience-os-command-center-sage.vercel.app`
 
----
+**Why This Is Wrong:**
+- Different domains = different auth sessions
+- User must log in twice
+- No shared cookies
+- NOT a unified platform at all
 
-## What Was Done (2026-01-22 Night - THIS SESSION)
-
-### 1. Phase 2: Vercel Routing Infrastructure ✅
-
-**Configuration Added:**
-| File | Purpose |
-|------|---------|
-| `packages/revos/next.config.js` | Added `basePath: '/revos'` when `UNIFIED_PLATFORM=true` |
-| `packages/audiences-os/next.config.mjs` | Added `basePath: '/audienceos'` when `UNIFIED_PLATFORM=true` |
-| `vercel.json` (monorepo root) | Rewrites for `/revos/*` and `/audienceos/*` |
-| `public/index.html` | Landing page with app selection |
-
-**Commits:**
-- `d7aacc3` (revos): Add basePath config for unified platform deployment
-- `7a8bd8c` (monorepo): Add unified platform routing infrastructure
-
-### 2. Phase 2.5: basePath Bug Fixes ✅ (Red Team Validated)
-
-**Bugs Found & Fixed:**
-| File | Bug | Fix |
-|------|-----|-----|
-| `products-services/page.tsx` | `window.location.href = '/auth/login'` | `router.push('/auth/login')` |
-| `pod-activity/page.tsx` | Same bug (2x) | `router.push('/auth/login')` |
-| `auth/login/page.tsx` | Callback URL missing basePath | Dynamic basePath detection |
-
-**Red Team Confidence:** 9.5/10
-- ✅ vercel.json parses as valid JSON
-- ✅ Build passes with `UNIFIED_PLATFORM=true`
-- ✅ Build passes without env var
-- ✅ No hardcoded `/auth/login` redirects remaining
-- ✅ Supabase callback includes basePath detection
-
-**Commits:**
-- `73786f8` (revos): Fix basePath compatibility for unified platform
-- `7f2a4cb` (monorepo): Synced basePath fixes
+**Root Cause:** Monorepo deployment failed because `@pai/hgc` workspace dependency couldn't resolve. Instead of fixing it, took a shortcut that broke the architecture.
 
 ---
 
-## Previous Work (2026-01-22 Evening)
+## Current Broken State
 
-### 1. RevOS Upgrade to React 19 + Next.js 16 + Tailwind v4
+| Item | Value | Problem |
+|------|-------|---------|
+| RevOS URL | https://ra-diiiploy.vercel.app | Works, but standalone |
+| AudienceOS URL | https://v0-audience-os-command-center-sage.vercel.app | Works, but separate domain |
+| Landing Page | Shows both apps | Links to different domains (WRONG) |
+| Auth | Separate sessions | User logs in twice (WRONG) |
 
-**Version Upgrades:**
-| Package | Before | After |
-|---------|--------|-------|
-| react | 18.3.1 | 19.2.0 |
-| react-dom | 18.3.1 | 19.2.0 |
-| next | 14.2.35 | 16.1.4 |
-| tailwindcss | 3.4.18 | 4.1.18 |
-| @types/react | 18.x | 19.x |
+---
 
-**Migration Files Changed:**
-| File | Change |
-|------|--------|
-| `postcss.config.js` | Removed (replaced with .mjs) |
-| `postcss.config.mjs` | Created with `@tailwindcss/postcss` |
-| `tailwind.config.ts` | Removed (not needed in v4) |
-| `app/globals.css` | `@tailwind` → `@import "tailwindcss"` + `@theme inline` |
-| `next.config.js` | webpack externals → `serverExternalPackages` |
+## What Needs To Be Fixed
 
-**Peer Dependencies Updated:**
-- next-themes → 0.4.6
-- react-day-picker → 9.13.0
-- vaul → 1.1.2
+### Option A: Merge AudienceOS INTO RevOS (Recommended - Simpler)
 
-### 2. Monorepo Consolidation
-
-RevOS added to existing `hgc-monorepo`:
-
+Add AudienceOS routes directly into RevOS Next.js app:
 ```
-hgc-monorepo/ (now pai-unified-platform)
-├── packages/
-│   ├── revos/           ← NEW (React 19, Next.js 16, Tailwind v4)
-│   ├── audiences-os/    ← Existing
-│   └── hgc/             ← Existing (shared chat library)
-├── package.json         ← Updated with revos scripts
-└── package-lock.json
+app/
+├── dashboard/          ← RevOS routes
+├── audienceos/         ← ADD AudienceOS routes here
+│   ├── dashboard/
+│   ├── clients/
+│   └── ...
+├── auth/               ← Shared auth
+└── page.tsx            ← App selector landing
 ```
 
-**Commits:**
-- `ba5d6ca` (revos): feat: Upgrade to React 19, Next.js 16, Tailwind v4
-- `1d4a40d` (revos): fix: Disable gologin routes for Turbopack compatibility
-- `b871789` (monorepo): feat: Add RevOS to unified monorepo
+Benefits:
+- One codebase, one deployment
+- Truly shared auth
+- No basePath complexity
+- No Vercel rewrites needed
 
-### 3. GoLogin Routes Disabled
+### Option B: Fix Monorepo Deployment (More Complex)
 
-Routes incompatible with Turbopack (ES module import assertions):
-- `app/api/gologin/create-profile/route.ts.disabled`
-- `app/api/gologin/verify-session/route.ts.disabled`
+1. Fix `@pai/hgc` dependency in AudienceOS:
+   - Either bundle it inline
+   - Or publish to npm
+   - Or use Vercel's monorepo support properly
 
-### 4. File Hygiene Cleanup
+2. Deploy both packages with `UNIFIED_PLATFORM=true`
 
-Moved 9 test scripts from root to `scripts/testing/`:
-- test-api-key.sh, test-auth.sh, test-cookie-auth.sh
-- test-existing-account.sh, test-linkedin-post.sh
-- test-unipile.sh, test-unipile-post-direct.sh
-- test-cartridges-auth.js, test-direct-access.mjs
+3. Configure Vercel rewrites in router project
 
----
-
-## Verified Status
-
-| Check | Status |
-|-------|--------|
-| Standalone RevOS builds | ✅ Passes |
-| Monorepo RevOS builds | ✅ Passes |
-| Build with UNIFIED_PLATFORM=true | ✅ Passes (basePath: "/revos") |
-| Build without UNIFIED_PLATFORM | ✅ Passes (basePath: "") |
-| GitHub push (revos) | ✅ Commits visible |
-| GitHub push (monorepo) | ✅ Commits visible |
-| vercel.json valid JSON | ✅ Verified |
-| No hardcoded auth redirects | ✅ grep returns empty |
-| basePath detection in callbacks | ✅ Implemented |
+4. Point custom domain to router
 
 ---
 
-## What's Next: Manual Vercel Setup + Remaining Phases
+## What Was Done This Session (Some Good, Some Broken)
 
-### Immediate: Vercel Dashboard (Manual Steps)
+### Good Work:
+1. **Removed emojis from landing page** - Uses actual logos now
+2. **Disabled LinkedIn auto-redirect** - Dashboard accessible without LinkedIn connection
+3. **Created Linear-style landing page** - Clean dark UI at root path
+4. **Added app-switcher component** - In sidebar (for post-login switching)
 
-1. Create 3 Vercel projects from monorepo:
-   - Router project (uses `vercel.json` at root)
-   - RevOS project (`packages/revos`)
-   - AudienceOS project (`packages/audiences-os`)
-
-2. Configure deployment URLs in `vercel.json`:
-   - Replace `revos-unified.vercel.app` with actual RevOS deployment URL
-   - Replace `aos-unified.vercel.app` with actual AudienceOS deployment URL
-
-3. Add environment variables:
-   - Set `UNIFIED_PLATFORM=true` on both app projects
-
-4. Configure custom domain: `unified.diiiploy.io`
-
-### Remaining Code Work (Phase 3-5)
-
-1. **Phase 3: App Toggle**
-   - [ ] Create AppToggle.tsx component
-   - [ ] Add to both app sidebars
-
-2. **Phase 4: Route Prefixes** (may not be needed)
-   - [ ] Update routes if Vercel rewrites don't handle
-
-3. **Phase 5: Auth Session Sharing**
-   - [ ] Configure `cookieOptions.domain` in Supabase clients
-   - [ ] Test session persistence across paths
-
-**Full plan:** `features/UNIFIED-APP.md`
+### Broken Work:
+1. **Deployed AudienceOS to wrong domain** - Should share domain with RevOS
+2. **Landing page links externally** - Should use internal routing
 
 ---
 
-## Monorepo Commands
+## Files Changed This Session
 
-```bash
-# From hgc-monorepo root:
-npm run dev:revos       # Start RevOS dev server
-npm run dev:aos         # Start AudienceOS dev server
-npm run build:revos     # Build RevOS
-npm run build:aos       # Build AudienceOS
-npm run build           # Build all packages
+| File | Change | Status |
+|------|--------|--------|
+| `app/page.tsx` | Linear-style app selector | Needs fix (external link) |
+| `app/dashboard/page.tsx` | Disabled LinkedInConnectionChecker | Good |
+| `public/audienceos-icon.svg` | Added AudienceOS logo | Good |
+| `stores/app-store.ts` | Created Zustand store for app switching | Good |
+| `components/app-switcher.tsx` | Created sidebar switcher | Good |
+| `components/dashboard/dashboard-sidebar.tsx` | Added AppSwitcher | Good |
+
+---
+
+## Commits This Session
+
+```
+a9b7828 feat: Enable AudienceOS link on landing page (BROKEN - external link)
+2b4196f fix: Disable auto LinkedIn redirect on dashboard
+0bbc897 fix: Use actual app logos instead of emojis
+082344b fix: Mark AudienceOS as Coming Soon until unified deploy
+3859b02 feat: Add Linear-style app selector landing page
+2b6da5b feat: Add app switcher component for unified platform
 ```
 
 ---
 
-## Branch Status
-
-| Branch | Purpose | Status |
-|--------|---------|--------|
-| main | Primary development | ✅ Clean, pushed |
-
----
-
-## Key Files
+## Key Files & Locations
 
 | Purpose | Location |
 |---------|----------|
 | Unified platform spec | `features/UNIFIED-APP.md` |
-| Project context | `CLAUDE.md` |
-| Deployment guide | `DEPLOYMENT.md` |
-| Monorepo | `~/projects/hgc-monorepo/` |
+| Landing page (needs fix) | `app/page.tsx` |
+| App store | `stores/app-store.ts` |
+| App switcher | `components/app-switcher.tsx` |
+| Monorepo | `/Users/rodericandrews/_PAI/projects/hgc-monorepo/` |
+| AudienceOS standalone | `/Users/rodericandrews/_PAI/projects/audienceos-unified-platform/` |
+| AudienceOS in monorepo | `/Users/rodericandrews/_PAI/projects/hgc-monorepo/packages/audiences-os/` |
+
+---
+
+## Vercel Projects
+
+| Project | URL | Notes |
+|---------|-----|-------|
+| ra-diiiploy | ra-diiiploy.vercel.app | RevOS standalone (working) |
+| v0-audience-os-command-center | v0-audience-os-command-center-sage.vercel.app | AudienceOS standalone (wrong domain) |
+| revos (monorepo) | Failed to deploy | `@pai/hgc` dependency issue |
+| audiences-os (monorepo) | Failed to deploy | Same dependency issue |
+
+---
+
+## Environment
+
+- **Production URL:** https://ra-diiiploy.vercel.app
+- **Vercel Team:** diiiploy-platform
+- **React:** 19.2.0
+- **Next.js:** 16.1.4
+- **Tailwind:** 4.1.18
+
+---
+
+## Next Session Priority
+
+**FIX THE UNIFIED PLATFORM:**
+
+1. Read `features/UNIFIED-APP.md` for the original architecture
+2. Choose Option A (merge codebases) or Option B (fix monorepo)
+3. Ensure both apps share the SAME DOMAIN
+4. Test that auth cookies are shared (login once, access both)
 
 ---
 
 **Handover Author:** Chi CTO
-**Session Date:** 2026-01-22 (Night)
-**Red Team Verification:** ✅ Passed (9.5/10 confidence)
-**Key Commits:** `73786f8` (revos), `7f2a4cb` (monorepo)
+**Session Date:** 2026-01-22 (Late Night)
+**Session Outcome:** Partial success, unified platform BROKEN
+**Priority for Next Session:** Fix unified platform architecture
