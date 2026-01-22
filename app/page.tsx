@@ -1,93 +1,142 @@
-import { Button } from '@/components/ui/button'
-import { Megaphone, Zap, Users, TrendingUp } from 'lucide-react'
-import Link from 'next/link'
+'use client'
 
-export default function HomePage() {
+import { useRouter } from 'next/navigation'
+import { ArrowRight } from 'lucide-react'
 
-  // Landing page for non-authenticated users
+/**
+ * Unified Platform Landing Page
+ * Linear-style app selector for choosing between RevOS and AudienceOS
+ */
+
+interface AppOption {
+  id: string
+  name: string
+  tagline: string
+  description: string
+  icon: string
+  gradient: string
+  hoverGradient: string
+  path: string
+}
+
+const apps: AppOption[] = [
+  {
+    id: 'revos',
+    name: 'RevOS',
+    tagline: 'Marketing Automation',
+    description: 'AI-powered LinkedIn outreach, content generation, and campaign management.',
+    icon: '📈',
+    gradient: 'from-orange-500 via-amber-500 to-green-500',
+    hoverGradient: 'group-hover:from-orange-400 group-hover:via-amber-400 group-hover:to-green-400',
+    path: '/auth/login?app=revos',
+  },
+  {
+    id: 'audienceos',
+    name: 'AudienceOS',
+    tagline: 'Client Operations',
+    description: 'Client management, pipeline tracking, and operational workflows.',
+    icon: '👥',
+    gradient: 'from-purple-500 via-pink-500 to-cyan-500',
+    hoverGradient: 'group-hover:from-purple-400 group-hover:via-pink-400 group-hover:to-cyan-400',
+    path: '/audienceos/auth/login',
+  },
+]
+
+export default function AppSelectorPage() {
+  const router = useRouter()
+
+  const handleAppSelect = (app: AppOption) => {
+    router.push(app.path)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-2">
-              <Megaphone className="h-6 w-6 text-blue-600" />
-              <span className="text-xl font-bold text-slate-900">Bravo revOS</span>
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+      {/* Header */}
+      <header className="px-6 py-4 border-b border-white/5">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">D</span>
             </div>
-            <Link href="/auth/login">
-              <Button>Sign In</Button>
-            </Link>
+            <span className="text-white/90 font-semibold tracking-tight">Diiiploy</span>
+          </div>
+          <a
+            href="https://diiiploy.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-white/50 hover:text-white/80 transition-colors"
+          >
+            Learn more
+          </a>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-3xl">
+          {/* Title */}
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-semibold text-white mb-3 tracking-tight">
+              Choose your workspace
+            </h1>
+            <p className="text-white/50 text-base">
+              Select an application to continue
+            </p>
+          </div>
+
+          {/* App Cards */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {apps.map((app) => (
+              <button
+                key={app.id}
+                onClick={() => handleAppSelect(app)}
+                className="group relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-6 text-left transition-all duration-200 cursor-pointer"
+              >
+                {/* Gradient accent bar */}
+                <div className={`absolute top-0 left-6 right-6 h-[2px] bg-gradient-to-r ${app.gradient} ${app.hoverGradient} opacity-60 group-hover:opacity-100 transition-opacity rounded-full`} />
+
+                {/* Icon and Name */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{app.icon}</span>
+                    <div>
+                      <h2 className="text-lg font-semibold text-white tracking-tight">
+                        {app.name}
+                      </h2>
+                      <p className="text-sm text-white/40">{app.tagline}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all" />
+                </div>
+
+                {/* Description */}
+                <p className="text-sm text-white/50 leading-relaxed">
+                  {app.description}
+                </p>
+
+                {/* Subtle gradient glow on hover */}
+                <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${app.gradient} opacity-0 group-hover:opacity-[0.03] transition-opacity -z-10`} />
+              </button>
+            ))}
+          </div>
+
+          {/* Footer hint */}
+          <p className="text-center text-white/30 text-sm mt-8">
+            Both applications share the same account and data
+          </p>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="px-6 py-4 border-t border-white/5">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-sm text-white/30">
+          <span>© 2026 Diiiploy</span>
+          <div className="flex items-center gap-4">
+            <a href="#" className="hover:text-white/60 transition-colors">Privacy</a>
+            <a href="#" className="hover:text-white/60 transition-colors">Terms</a>
           </div>
         </div>
-      </nav>
-
-      <main>
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center mb-16">
-            <h1 className="text-5xl font-bold text-slate-900 mb-6">
-              AI-Powered LinkedIn Lead Generation
-            </h1>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
-              Automate your LinkedIn outreach, deliver lead magnets via DM, and convert comments into qualified leads.
-            </p>
-            <Link href="/auth/login">
-              <Button size="lg" className="text-lg px-8">
-                Get Started
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <Megaphone className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                Create Engaging Posts
-              </h3>
-              <p className="text-slate-600 text-sm">
-                AI-powered content creation for maximum engagement
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-emerald-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                Capture Leads
-              </h3>
-              <p className="text-slate-600 text-sm">
-                Automatically detect trigger words in comments
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="h-6 w-6 text-orange-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                Automated DMs
-              </h3>
-              <p className="text-slate-600 text-sm">
-                Send lead magnets and follow-ups automatically
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                <TrendingUp className="h-6 w-6 text-purple-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                Track Performance
-              </h3>
-              <p className="text-slate-600 text-sm">
-                Real-time analytics and conversion tracking
-              </p>
-            </div>
-          </div>
-        </section>
-      </main>
+      </footer>
     </div>
   )
 }
