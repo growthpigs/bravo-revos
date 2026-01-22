@@ -75,10 +75,15 @@ const nextConfig = {
   },
 }
 
-// Only enable Sentry source map upload if auth token is available
-const hasSentryAuth = !!process.env.SENTRY_AUTH_TOKEN;
+// Temporarily disable Sentry wrapping - debugging build issues
+// The .env stat check in Sentry causes ENOENT on Vercel builds
+const DISABLE_SENTRY = !process.env.SENTRY_AUTH_TOKEN;
 
-module.exports = withSentryConfig(nextConfig, {
+if (DISABLE_SENTRY) {
+  module.exports = nextConfig;
+} else {
+  const hasSentryAuth = true;
+  module.exports = require('@sentry/nextjs').withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
 
@@ -120,5 +125,6 @@ module.exports = withSentryConfig(nextConfig, {
   // See the following for more information:
   // https://docs.sentry.io/product/crons/
   // https://vercel.com/docs/cron-jobs
-  automaticVercelMonitors: hasSentryAuth,
-});
+    automaticVercelMonitors: hasSentryAuth,
+  });
+}
