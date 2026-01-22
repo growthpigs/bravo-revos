@@ -17,6 +17,8 @@ interface AppOption {
   gradient: string
   hoverGradient: string
   path: string
+  disabled?: boolean
+  badge?: string
 }
 
 const apps: AppOption[] = [
@@ -39,6 +41,8 @@ const apps: AppOption[] = [
     gradient: 'from-purple-500 via-pink-500 to-cyan-500',
     hoverGradient: 'group-hover:from-purple-400 group-hover:via-pink-400 group-hover:to-cyan-400',
     path: '/audienceos/auth/login',
+    disabled: true,
+    badge: 'Coming Soon',
   },
 ]
 
@@ -89,24 +93,36 @@ export default function AppSelectorPage() {
             {apps.map((app) => (
               <button
                 key={app.id}
-                onClick={() => handleAppSelect(app)}
-                className="group relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-6 text-left transition-all duration-200 cursor-pointer"
+                onClick={() => !app.disabled && handleAppSelect(app)}
+                disabled={app.disabled}
+                className={`group relative bg-white/[0.03] border border-white/[0.06] rounded-xl p-6 text-left transition-all duration-200 ${
+                  app.disabled
+                    ? 'cursor-not-allowed opacity-60'
+                    : 'hover:bg-white/[0.06] hover:border-white/[0.12] cursor-pointer'
+                }`}
               >
                 {/* Gradient accent bar */}
-                <div className={`absolute top-0 left-6 right-6 h-[2px] bg-gradient-to-r ${app.gradient} ${app.hoverGradient} opacity-60 group-hover:opacity-100 transition-opacity rounded-full`} />
+                <div className={`absolute top-0 left-6 right-6 h-[2px] bg-gradient-to-r ${app.gradient} ${!app.disabled ? app.hoverGradient : ''} opacity-60 ${!app.disabled ? 'group-hover:opacity-100' : ''} transition-opacity rounded-full`} />
 
                 {/* Icon and Name */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{app.icon}</span>
                     <div>
-                      <h2 className="text-lg font-semibold text-white tracking-tight">
-                        {app.name}
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-white tracking-tight">
+                          {app.name}
+                        </h2>
+                        {app.badge && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/50 font-medium uppercase tracking-wide">
+                            {app.badge}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-white/40">{app.tagline}</p>
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all" />
+                  <ArrowRight className={`w-5 h-5 text-white/20 transition-all ${!app.disabled ? 'group-hover:text-white/60 group-hover:translate-x-0.5' : ''}`} />
                 </div>
 
                 {/* Description */}
@@ -115,7 +131,9 @@ export default function AppSelectorPage() {
                 </p>
 
                 {/* Subtle gradient glow on hover */}
-                <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${app.gradient} opacity-0 group-hover:opacity-[0.03] transition-opacity -z-10`} />
+                {!app.disabled && (
+                  <div className={`absolute inset-0 rounded-xl bg-gradient-to-br ${app.gradient} opacity-0 group-hover:opacity-[0.03] transition-opacity -z-10`} />
+                )}
               </button>
             ))}
           </div>
