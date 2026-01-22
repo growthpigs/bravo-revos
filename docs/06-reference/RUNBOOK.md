@@ -44,11 +44,13 @@
 
 | Resource | URL |
 |----------|-----|
-| Production | https://revos.app (TBD) |
-| Staging | https://staging.revos.app (TBD) |
-| Supabase | https://supabase.com/dashboard/project/trdoainmejxanrownbuz |
-| Netlify | See Render dashboard |
+| Production (Standalone) | https://ra-diiiploy.vercel.app |
+| Production (Unified) | https://unified.diiiploy.io/revos (TBD - pending Vercel setup) |
+| Supabase | https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi |
+| Vercel Team | https://vercel.com/diiiploy-platform |
+| Vercel Project | `ra-diiiploy` |
 | Sentry | org=badaboost |
+| Monorepo | `~/projects/hgc-monorepo/packages/revos` |
 
 ---
 
@@ -72,24 +74,93 @@
 
 ## Deployment
 
-### Production Deploy
+### Standalone Deploy (Vercel)
 
 ```bash
 cd /Users/rodericandrews/_PAI/projects/revos
 npm run build
-netlify deploy --prod
+vercel --prod
 ```
+
+### Unified Platform Deploy (Monorepo)
+
+```bash
+cd ~/projects/hgc-monorepo/packages/revos
+UNIFIED_PLATFORM=true npm run build  # Sets basePath: '/revos'
+# Deploy via Vercel dashboard or CLI
+```
+
+**Environment Variables for Unified:**
+- `UNIFIED_PLATFORM=true` → Enables basePath: `/revos`
+- Without this env var → basePath: `` (empty, standalone mode)
 
 ### Database Migrations
 
 ```bash
-supabase db push --project-ref trdoainmejxanrownbuz
+supabase db push --project-ref ebxshdqfaqupnvpghodi
 ```
 
 ### Edge Functions
 
 ```bash
-supabase functions deploy --project-ref trdoainmejxanrownbuz
+supabase functions deploy --project-ref ebxshdqfaqupnvpghodi
+```
+
+---
+
+## Unified Platform Architecture (Added 2026-01-22)
+
+### Stack Versions
+
+| Package | Version |
+|---------|---------|
+| React | 19.2.0 |
+| Next.js | 16.1.4 |
+| Tailwind | 4.1.18 |
+
+### Path-Based Routing
+
+```
+unified.diiiploy.io/
+├── /revos/*        → RevOS (this app)
+├── /audienceos/*   → AudienceOS
+└── /               → Landing page
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.js:7` | basePath config (conditional on UNIFIED_PLATFORM) |
+| `hgc-monorepo/vercel.json` | Rewrites for path routing |
+| `hgc-monorepo/public/index.html` | Landing page |
+
+### basePath Compatibility Rules
+
+1. **NEVER use** `window.location.href = '/path'` for navigation
+2. **ALWAYS use** `router.push('/path')` from next/navigation
+3. router.push() automatically prepends basePath
+4. Supabase callback URL detection in `auth/login/page.tsx`
+
+### Monorepo Structure
+
+```
+hgc-monorepo/ (pai-unified-platform)
+├── packages/
+│   ├── revos/           ← This app
+│   ├── audiences-os/    ← AudienceOS
+│   └── hgc/             ← Shared chat library
+├── vercel.json          ← Path routing rewrites
+└── public/index.html    ← Landing page
+```
+
+### Commands (from monorepo root)
+
+```bash
+npm run dev:revos       # Start RevOS dev server
+npm run build:revos     # Build RevOS
+npm run dev:aos         # Start AudienceOS dev server
+npm run build           # Build all packages
 ```
 
 ---
@@ -185,4 +256,4 @@ WHERE campaign_id = '[UUID]' AND enrichment_status = 'failed';
 
 ---
 
-*Last Updated: 2026-01-03*
+*Last Updated: 2026-01-22*

@@ -84,7 +84,8 @@
         "unipile-node-sdk": "^1.9.3",
         "vaul": "^1.1.2",
         "zod": "^3.25.76",
-        "zod-to-json-schema": "^3.24.6"
+        "zod-to-json-schema": "^3.24.6",
+        "zustand": "^5.0.10"
       },
       "devDependencies": {
         "@playwright/test": "^1.56.1",
@@ -29081,6 +29082,35 @@
       "license": "ISC",
       "peerDependencies": {
         "zod": "^3.25 || ^4"
+      }
+    },
+    "node_modules/zustand": {
+      "version": "5.0.10",
+      "resolved": "https://registry.npmjs.org/zustand/-/zustand-5.0.10.tgz",
+      "integrity": "sha512-U1AiltS1O9hSy3rul+Ub82ut2fqIAefiSuwECWt6jlMVUGejvf+5omLcRBSzqbRagSM3hQZbtzdeRc6QVScXTg==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=12.20.0"
+      },
+      "peerDependencies": {
+        "@types/react": ">=18.0.0",
+        "immer": ">=9.0.6",
+        "react": ">=18.0.0",
+        "use-sync-external-store": ">=1.2.0"
+      },
+      "peerDependenciesMeta": {
+        "@types/react": {
+          "optional": true
+        },
+        "immer": {
+          "optional": true
+        },
+        "react": {
+          "optional": true
+        },
+        "use-sync-external-store": {
+          "optional": true
+        }
       }
     },
     "node_modules/zwitch": {

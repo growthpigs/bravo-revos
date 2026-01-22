@@ -34,6 +34,8 @@ import {
   FileText
 } from 'lucide-react'
 import { isSandboxMode, toggleSandboxMode } from '@/lib/sandbox/sandbox-wrapper'
+import { AppSwitcher } from '@/components/app-switcher'
+import { useAppStore } from '@/stores/app-store'
 
 interface DashboardSidebarProps {
   user: any
@@ -97,6 +99,8 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
 
   useEffect(() => {
     setSandboxEnabled(isSandboxMode())
+    // Hydrate app store from localStorage (SSR fix)
+    useAppStore.persist.rehydrate()
   }, [])
 
   const handleToggleSandbox = () => {
@@ -108,6 +112,10 @@ export default function DashboardSidebar({ user, client }: DashboardSidebarProps
 
   return (
     <div className="flex flex-col w-64 bg-white border-r border-gray-200 h-screen sticky top-0 pt-16">
+      {/* App Switcher */}
+      <div className="px-3 py-3 border-b border-gray-200">
+        <AppSwitcher />
+      </div>
 
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-7">

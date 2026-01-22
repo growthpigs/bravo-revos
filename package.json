@@ -96,7 +96,8 @@
     "unipile-node-sdk": "^1.9.3",
     "vaul": "^1.1.2",
     "zod": "^3.25.76",
-    "zod-to-json-schema": "^3.24.6"
+    "zod-to-json-schema": "^3.24.6",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
