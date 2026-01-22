@@ -80,6 +80,27 @@ hgc-monorepo/
 - `d7aacc3` (revos): Add basePath config for unified platform deployment
 - `7a8bd8c` (hgc-monorepo): Add unified platform routing infrastructure
 
+### Phase 2.5: basePath Bug Fixes ✅ COMPLETE (Red Team Validated)
+
+Runtime-verified fixes for basePath compatibility:
+
+| File | Bug | Fix | Evidence |
+|------|-----|-----|----------|
+| `products-services/page.tsx` | `window.location.href = '/auth/login'` | `router.push('/auth/login')` | grep shows 0 remaining |
+| `pod-activity/page.tsx` | Same hardcoded redirect (2x) | `router.push('/auth/login')` | Build passes |
+| `auth/login/page.tsx` | Callback URL missing basePath | Dynamic detection from pathname | `basePath: "/revos"` in build |
+
+**Red Team Validation (Confidence: 9.5/10):**
+- ✅ vercel.json parses as valid JSON
+- ✅ Build passes with `UNIFIED_PLATFORM=true` → `basePath: "/revos"`
+- ✅ Build passes without env var → `basePath: ""`
+- ✅ No hardcoded `/auth/login` redirects remaining
+- ✅ Supabase callback URL includes basePath detection
+
+**Commits:**
+- `73786f8` (revos): Fix basePath compatibility for unified platform
+- `7f2a4cb` (hgc-monorepo): Synced basePath fixes
+
 ---
 
 ## Why Option C (Monorepo)

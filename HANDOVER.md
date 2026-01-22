@@ -1,14 +1,14 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-22 (Evening Session)
+**Last Updated:** 2026-01-22 (Night Session)
 **Branch:** main
-**Session:** Monorepo Consolidation - Prerequisites Complete
+**Session:** Unified Platform Phase 2 Complete + Bug Fixes
 
 ---
 
-## Current State: MONOREPO READY
+## Current State: VERCEL ROUTING INFRASTRUCTURE READY
 
-RevOS has been upgraded to match AudienceOS versions and added to the unified monorepo. All version blockers resolved.
+Phase 2 complete - Vercel path-based routing configuration done. Bug fixes validated with Red Team (9.5/10 confidence). Ready for Vercel dashboard setup.
 
 | Item | Value |
 |------|-------|
@@ -23,7 +23,45 @@ RevOS has been upgraded to match AudienceOS versions and added to the unified mo
 
 ---
 
-## What Was Done (2026-01-22 Evening)
+## What Was Done (2026-01-22 Night - THIS SESSION)
+
+### 1. Phase 2: Vercel Routing Infrastructure ✅
+
+**Configuration Added:**
+| File | Purpose |
+|------|---------|
+| `packages/revos/next.config.js` | Added `basePath: '/revos'` when `UNIFIED_PLATFORM=true` |
+| `packages/audiences-os/next.config.mjs` | Added `basePath: '/audienceos'` when `UNIFIED_PLATFORM=true` |
+| `vercel.json` (monorepo root) | Rewrites for `/revos/*` and `/audienceos/*` |
+| `public/index.html` | Landing page with app selection |
+
+**Commits:**
+- `d7aacc3` (revos): Add basePath config for unified platform deployment
+- `7a8bd8c` (monorepo): Add unified platform routing infrastructure
+
+### 2. Phase 2.5: basePath Bug Fixes ✅ (Red Team Validated)
+
+**Bugs Found & Fixed:**
+| File | Bug | Fix |
+|------|-----|-----|
+| `products-services/page.tsx` | `window.location.href = '/auth/login'` | `router.push('/auth/login')` |
+| `pod-activity/page.tsx` | Same bug (2x) | `router.push('/auth/login')` |
+| `auth/login/page.tsx` | Callback URL missing basePath | Dynamic basePath detection |
+
+**Red Team Confidence:** 9.5/10
+- ✅ vercel.json parses as valid JSON
+- ✅ Build passes with `UNIFIED_PLATFORM=true`
+- ✅ Build passes without env var
+- ✅ No hardcoded `/auth/login` redirects remaining
+- ✅ Supabase callback includes basePath detection
+
+**Commits:**
+- `73786f8` (revos): Fix basePath compatibility for unified platform
+- `7f2a4cb` (monorepo): Synced basePath fixes
+
+---
+
+## Previous Work (2026-01-22 Evening)
 
 ### 1. RevOS Upgrade to React 19 + Next.js 16 + Tailwind v4
 
@@ -91,29 +129,44 @@ Moved 9 test scripts from root to `scripts/testing/`:
 |-------|--------|
 | Standalone RevOS builds | ✅ Passes |
 | Monorepo RevOS builds | ✅ Passes |
+| Build with UNIFIED_PLATFORM=true | ✅ Passes (basePath: "/revos") |
+| Build without UNIFIED_PLATFORM | ✅ Passes (basePath: "") |
 | GitHub push (revos) | ✅ Commits visible |
 | GitHub push (monorepo) | ✅ Commits visible |
-| Both repos in sync | ✅ Same gologin disabled |
+| vercel.json valid JSON | ✅ Verified |
+| No hardcoded auth redirects | ✅ grep returns empty |
+| basePath detection in callbacks | ✅ Implemented |
 
 ---
 
-## What's Next: Unified Platform Deployment
+## What's Next: Manual Vercel Setup + Remaining Phases
 
-### Remaining Work (Phase 2-5)
+### Immediate: Vercel Dashboard (Manual Steps)
 
-1. **Phase 2: Vercel Configuration**
-   - [ ] Configure Vercel for monorepo deployment
-   - [ ] Set up path routing in vercel.json
-   - [ ] Configure custom domain: `unified.diiiploy.io`
+1. Create 3 Vercel projects from monorepo:
+   - Router project (uses `vercel.json` at root)
+   - RevOS project (`packages/revos`)
+   - AudienceOS project (`packages/audiences-os`)
 
-2. **Phase 3: App Toggle**
+2. Configure deployment URLs in `vercel.json`:
+   - Replace `revos-unified.vercel.app` with actual RevOS deployment URL
+   - Replace `aos-unified.vercel.app` with actual AudienceOS deployment URL
+
+3. Add environment variables:
+   - Set `UNIFIED_PLATFORM=true` on both app projects
+
+4. Configure custom domain: `unified.diiiploy.io`
+
+### Remaining Code Work (Phase 3-5)
+
+1. **Phase 3: App Toggle**
    - [ ] Create AppToggle.tsx component
    - [ ] Add to both app sidebars
 
-3. **Phase 4: Route Prefixes** (may not be needed)
+2. **Phase 4: Route Prefixes** (may not be needed)
    - [ ] Update routes if Vercel rewrites don't handle
 
-4. **Phase 5: Auth Session Sharing**
+3. **Phase 5: Auth Session Sharing**
    - [ ] Configure `cookieOptions.domain` in Supabase clients
    - [ ] Test session persistence across paths
 
@@ -154,5 +207,6 @@ npm run build           # Build all packages
 ---
 
 **Handover Author:** Chi CTO
-**Session Date:** 2026-01-22 (Evening)
-**Red Team Verification:** ✅ Passed (9/10 confidence)
+**Session Date:** 2026-01-22 (Night)
+**Red Team Verification:** ✅ Passed (9.5/10 confidence)
+**Key Commits:** `73786f8` (revos), `7f2a4cb` (monorepo)
