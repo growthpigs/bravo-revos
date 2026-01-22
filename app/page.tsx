@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 
@@ -27,7 +28,7 @@ const apps: AppOption[] = [
     name: 'RevOS',
     tagline: 'Marketing Automation',
     description: 'AI-powered LinkedIn outreach, content generation, and campaign management.',
-    icon: '📈',
+    icon: '/revos-logo.png',
     gradient: 'from-orange-500 via-amber-500 to-green-500',
     hoverGradient: 'group-hover:from-orange-400 group-hover:via-amber-400 group-hover:to-green-400',
     path: '/auth/login?app=revos',
@@ -37,7 +38,7 @@ const apps: AppOption[] = [
     name: 'AudienceOS',
     tagline: 'Client Operations',
     description: 'Client management, pipeline tracking, and operational workflows.',
-    icon: '👥',
+    icon: '/audienceos-icon.svg',
     gradient: 'from-purple-500 via-pink-500 to-cyan-500',
     hoverGradient: 'group-hover:from-purple-400 group-hover:via-pink-400 group-hover:to-cyan-400',
     path: '/audienceos/auth/login',
@@ -107,7 +108,15 @@ export default function AppSelectorPage() {
                 {/* Icon and Name */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{app.icon}</span>
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center">
+                      <Image
+                        src={app.icon}
+                        alt={`${app.name} logo`}
+                        width={40}
+                        height={40}
+                        className="object-contain"
+                      />
+                    </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h2 className="text-lg font-semibold text-white tracking-tight">
