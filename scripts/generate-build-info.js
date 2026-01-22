@@ -8,6 +8,13 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 
 try {
+  // Create empty .env file if it doesn't exist (required for Vercel builds)
+  // Some packages check for .env existence even when using environment variables
+  if (!fs.existsSync('.env')) {
+    fs.writeFileSync('.env', '# Auto-generated for Vercel build compatibility\n');
+    console.log('[BUILD_INFO] Created empty .env file for build compatibility');
+  }
+
   console.log('[BUILD_INFO] Generating build information...');
 
   let commit = 'unknown';
