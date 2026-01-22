@@ -75,6 +75,9 @@ const nextConfig = {
   },
 }
 
+// Only enable Sentry source map upload if auth token is available
+const hasSentryAuth = !!process.env.SENTRY_AUTH_TOKEN;
+
 module.exports = withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
@@ -83,12 +86,23 @@ module.exports = withSentryConfig(nextConfig, {
   silent: true,
   org: "badaboost",
   project: "bravo-revos",
+
+  // Skip source map upload if no auth token (prevents build failures)
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Disable telemetry
+  telemetry: false,
+
+  // Disable source maps completely when no auth token
+  sourcemaps: {
+    disable: !hasSentryAuth,
+  },
 }, {
   // For all available options, see:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 
   // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
+  widenClientFileUpload: hasSentryAuth,
 
   // Transpiles SDK to be compatible with IE11 (increases bundle size)
   transpileClientSDK: true,
@@ -106,5 +120,5 @@ module.exports = withSentryConfig(nextConfig, {
   // See the following for more information:
   // https://docs.sentry.io/product/crons/
   // https://vercel.com/docs/cron-jobs
-  automaticVercelMonitors: true,
+  automaticVercelMonitors: hasSentryAuth,
 });
