@@ -34,7 +34,8 @@ export default function LoginPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            // Detect basePath from current URL for unified platform deployments
+            emailRedirectTo: `${window.location.origin}${window.location.pathname.startsWith('/revos') ? '/revos' : ''}/auth/callback`,
           },
         })
 

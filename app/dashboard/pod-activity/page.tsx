@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,6 +60,7 @@ export default function PodActivityPage() {
   const [activities, setActivities] = useState<PodActivity[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed' | 'failed'>('all');
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   // Authenticate user
   useEffect(() => {
@@ -67,7 +69,7 @@ export default function PodActivityPage() {
 
       if (error) {
         console.error('Auth error:', error);
-        window.location.href = '/auth/login';
+        router.push('/auth/login');
         return;
       }
 
@@ -80,7 +82,7 @@ export default function PodActivityPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
-        window.location.href = '/auth/login';
+        router.push('/auth/login');
       }
     });
 

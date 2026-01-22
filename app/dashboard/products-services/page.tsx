@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,7 @@ export default function OfferingsPage() {
   const [selectedOffering, setSelectedOffering] = useState<Offering | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -54,7 +56,7 @@ export default function OfferingsPage() {
 
         if (error || !user) {
           console.error('Auth error:', error);
-          window.location.href = '/auth/login';
+          router.push('/auth/login');
           return;
         }
 
