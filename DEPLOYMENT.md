@@ -13,15 +13,18 @@
 
 | Environment | URL | Vercel Team | Status |
 |-------------|-----|-------------|--------|
-| **ra-revos (Production)** | `ra-revos-rodericandrews-4022s-projects.vercel.app` | `rodericandrews-4022s-projects` | ✅ Active |
+| **ra-diiiploy (Production)** | `ra-diiiploy.vercel.app` | `diiiploy-platform` | ✅ Active |
 | Trevor's Production | `bravo-revos.vercel.app` | agro-bros (Chase's) | 🔒 Production only |
 | staging | `bravo-revos-git-staging-agro-bros.vercel.app` | agro-bros | ⚠️ Access lost |
 
-### ra-revos Setup
+### ra-diiiploy Setup (Unified Platform)
 
 **Created:** 2026-01-22
 **Git Remote:** `origin` → `https://github.com/growthpigs/bravo-revos.git`
-**Vercel Project:** `ra-revos` in `rodericandrews-4022s-projects` workspace
+**Vercel Team:** Diiiploy Platform (`diiiploy-platform`)
+**Vercel Project:** `ra-diiiploy`
+**Dashboard:** https://vercel.com/diiiploy-platform/ra-diiiploy
+**Note:** This is the unified platform hosting RevOS, AudienceOS, and future apps
 
 **Database:** Unified Supabase `ebxshdqfaqupnvpghodi` (audienceos-cc-fresh)
 - Same database as AudienceOS (unified platform)
@@ -30,10 +33,22 @@
 
 **Deploy command:**
 ```bash
-vercel --prod --scope rodericandrews-4022s-projects --yes
+vercel --prod --scope diiiploy-platform --yes
 ```
 
 **Environment Variables:** All production credentials configured via `vercel env add`
+
+### Known Issues (2026-01-22)
+
+**LinkedIn Integration UX:**
+- Slow login (5+ seconds delay after clicking login)
+- Immediate redirect to LinkedIn connection after login (jarring UX - should be contextual)
+- LinkedIn OAuth callback not completing properly (window closes but app doesn't detect auth)
+- **Recommendation:** LinkedIn connect should appear when user performs LinkedIn-related action, not immediately after login
+
+**Future Architecture:**
+- Path-based unified platform: `app.diiiploy.io/revos/*` and `app.diiiploy.io/audienceos/*`
+- Automatic SSO via shared domain cookies
 
 ---
 

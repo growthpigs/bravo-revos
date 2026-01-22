@@ -2,69 +2,94 @@
 
 **Last Updated:** 2026-01-22
 **Branch:** main
-**Session:** Database Unification COMPLETE ✅
+**Session:** Vercel Deployment + Unified Platform Setup
 
 ---
 
-## Current State: UNIFIED PLATFORM
+## Current State: PRODUCTION DEPLOYED
 
-RevOS now shares the same Supabase database as AudienceOS. Both apps access the same data.
+RevOS now shares the same Supabase database as AudienceOS and is deployed to Vercel under the unified "Diiiploy Platform" workspace.
 
 | Item | Value |
 |------|-------|
-| Database | `ebxshdqfaqupnvpghodi` (AudienceOS Supabase) |
-| Table Convention | SINGULAR (user, client, agency, campaign) |
-| Mem0 Key Format | `agencyId::clientId::userId` (with `_` wildcard) |
-| Environment | `.env.local` + `.env.vercel` both updated |
-
-### What Was Done (2026-01-22)
-
-**1. Database Tables Created in AudienceOS:**
-- 14 RevOS tables created via Supabase SQL Editor
-- linkedin_account, lead_magnet, campaign, post, comment, lead
-- webhook_config, webhook_delivery, pod, pod_member, pod_activity
-- dm_sequence, dm_delivery, console_workflow
-
-**2. Code References Updated (293 total):**
-| Pattern | Count | Status |
-|---------|-------|--------|
-| `campaigns` → `campaign` | 53 | ✅ |
-| `posts` → `post` | 32 | ✅ |
-| `leads` → `lead` | 39 | ✅ |
-| `linkedin_accounts` → `linkedin_account` | 30 | ✅ |
-| `console_workflows` → `console_workflow` | 21 | ✅ |
-| `users` → `user` | 94 | ✅ |
-| `clients` → `client` | 18 | ✅ |
-| `agencies` → `agency` | 6 | ✅ |
-
-**3. Environment Files Updated:**
-- `.env.local` → AudienceOS Supabase credentials
-- `.env.vercel` → AudienceOS Supabase credentials (CTO audit fix)
-
-**4. Verification:**
-- TypeScript compiles clean (0 errors)
-- Runtime test: 12/12 table existence checks passed
-- All SINGULAR tables exist, no PLURAL tables exist
+| **Production URL** | https://ra-diiiploy.vercel.app |
+| **Vercel Team** | Diiiploy Platform (`diiiploy-platform`) |
+| **Vercel Project** | `ra-diiiploy` |
+| **Dashboard** | https://vercel.com/diiiploy-platform/ra-diiiploy |
+| **Database** | `ebxshdqfaqupnvpghodi` (AudienceOS Supabase - unified) |
+| **Table Convention** | SINGULAR (user, client, agency, campaign) |
+| **Legacy URL** | `ra-revos.vercel.app` (still works, backward compat) |
 
 ---
 
-## What's Next
+## What Was Done (2026-01-22)
 
-### From CTO Analysis (CC1):
+### 1. Vercel Deployment Fixed
 
-The AudienceOS team found that while **tables exist**, the **API routes don't**:
+**Build Errors Resolved:**
+- `ENOENT: no such file or directory, stat '.env'` - Fixed by tracking empty `.env` in git
+- Disabled `instrumentationHook` experimental feature (caused Next.js stat errors)
+- Added missing production environment variables (Supabase credentials)
 
-| Component | Tables | API Routes |
-|-----------|--------|------------|
-| Webhook System | ✅ webhook_config, webhook_delivery | ❌ Missing |
-| Campaign System | ✅ campaign, lead, comment | ❌ Missing |
-| Pod System | ✅ pod, pod_member, pod_activity | ❌ Missing |
-| LinkedIn Sync | ✅ user_oauth_credential | ✅ EXISTS in AudienceOS |
+**Files Modified:**
+| File | Change |
+|------|--------|
+| `next.config.js` | Disabled instrumentationHook |
+| `.gitignore` | Changed to allow tracking `.env` |
+| `.env` | Created empty tracked file |
 
-**Recommended Week 2 Focus:**
-1. Webhook API Routes (CRUD for webhook_config + delivery service)
-2. Verify LinkedIn sync works from RevOS
-3. Campaign API Routes (if time)
+### 2. Vercel Workspace Renamed
+
+| Setting | Before | After |
+|---------|--------|-------|
+| Team Name | `rodericandrews-4022's projects` | `Diiiploy Platform` |
+| Team URL | `vercel.com/rodericandrews-4022s-projects` | `vercel.com/diiiploy-platform` |
+| Project Name | `ra-revos` | `ra-diiiploy` |
+| Production URL | `ra-revos.vercel.app` | `ra-diiiploy.vercel.app` |
+
+### 3. Domain Configuration
+
+Both domains now point to production:
+- `ra-diiiploy.vercel.app` (primary)
+- `ra-revos.vercel.app` (legacy alias)
+
+### 4. Known Issues Documented
+
+**LinkedIn Integration UX:**
+- Slow login (5+ seconds delay)
+- Immediate redirect to LinkedIn connect after login (should be contextual)
+- LinkedIn OAuth callback not completing properly
+
+---
+
+## What's Next: Unified Platform Architecture
+
+### Approved Architecture
+
+**Path-based routing on single domain:**
+```
+app.diiiploy.io/
+├── /revos/*        → RevOS
+├── /audienceos/*   → AudienceOS
+└── /               → Landing/router
+```
+
+### Implementation Options
+
+| Option | Description | Status |
+|--------|-------------|--------|
+| **C1: Monorepo** | Both apps in `apps/` with Turborepo | Recommended |
+| **C2: Rewrites** | Vercel rewrites to separate deployments | Simpler |
+
+### Next Steps
+
+1. [ ] Choose monorepo vs rewrites approach
+2. [ ] Set up custom domain `app.diiiploy.io`
+3. [ ] Configure Vercel routing
+4. [ ] Implement AppToggle component in both apps
+5. [ ] Test auth session sharing (same domain = shared cookies)
+
+**Full implementation plan:** `features/UNIFIED-APP.md`
 
 ---
 
@@ -73,17 +98,30 @@ The AudienceOS team found that while **tables exist**, the **API routes don't**:
 | Branch | Purpose | Status |
 |--------|---------|--------|
 | main | Primary development | ✅ Clean |
-| staging | Staging deploys | ✅ Available |
-| production | Production deploys | 🔒 PR only |
+| staging | Staging deploys | ⚠️ Access lost (agro-bros) |
+| production | Production deploys | 🔒 Trevor's only |
+
+---
+
+## Deploy Commands
+
+```bash
+# Production deploy (new unified project)
+vercel --prod --scope diiiploy-platform --yes
+
+# Check deployment status
+vercel ls --scope diiiploy-platform
+```
 
 ---
 
 ## Related Projects
 
-| Project | Supabase | Notes |
-|---------|----------|-------|
-| **AudienceOS** | `ebxshdqfaqupnvpghodi` | PRIMARY (shared) |
-| **RevOS** | Same as above | Now unified |
+| Project | Supabase | Vercel | Notes |
+|---------|----------|--------|-------|
+| **AudienceOS** | `ebxshdqfaqupnvpghodi` | TBD | PRIMARY database |
+| **RevOS** | Same as above | `ra-diiiploy` | Unified platform |
+| **Trevor's RevOS** | Same as above | `bravo-revos.vercel.app` | Separate (agro-bros) |
 
 ---
 
@@ -91,11 +129,13 @@ The AudienceOS team found that while **tables exist**, the **API routes don't**:
 
 | Purpose | Location |
 |---------|----------|
-| Feature spec | `features/DATABASE-MERGE.md` |
+| Unified platform spec | `features/UNIFIED-APP.md` |
+| Database merge spec | `features/DATABASE-MERGE.md` |
+| Deployment guide | `DEPLOYMENT.md` |
 | Project context | `CLAUDE.md` |
-| Tech docs | `docs/04-technical/` |
 
 ---
 
 **Handover Author:** Chi CTO
-**Verification:** Runtime test 12/12 passed
+**Session Date:** 2026-01-22
+**Verification:** Production URL returns HTTP 200

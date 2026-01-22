@@ -1,9 +1,29 @@
 # RevOS + AudienceOS Unified Platform - REVISED PLAN v2
 
-## Status: SIMPLIFIED - No Data Migration Required
+## Status: DEPLOYMENT FOUNDATION COMPLETE
 
 **Previous Confidence:** 4/10 (with migration blockers)
-**New Confidence:** 8/10 (fresh start approach)
+**Current Confidence:** 8.5/10 (deployment complete, awaiting domain setup)
+
+### Current Deployment (2026-01-22)
+
+| Item | Value |
+|------|-------|
+| **Production URL** | https://ra-diiiploy.vercel.app |
+| **Legacy URL** | https://ra-revos.vercel.app |
+| **Vercel Team** | Diiiploy Platform (`diiiploy-platform`) |
+| **Vercel Project** | `ra-diiiploy` |
+| **Dashboard** | https://vercel.com/diiiploy-platform/ra-diiiploy |
+| **Database** | `ebxshdqfaqupnvpghodi` (unified with AudienceOS) |
+
+### Next Actions
+1. [ ] Choose monorepo vs rewrites approach (C1 vs C2)
+2. [ ] Set up custom domain `app.diiiploy.io`
+3. [ ] Configure path-based routing (`/revos/*`, `/audienceos/*`)
+4. [ ] Implement AppToggle component
+5. [ ] Test auth session sharing
+
+---
 
 ---
 
