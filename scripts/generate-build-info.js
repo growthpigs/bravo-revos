@@ -10,9 +10,14 @@ const { execSync } = require('child_process');
 try {
   // Create empty .env file if it doesn't exist (required for Vercel builds)
   // Some packages check for .env existence even when using environment variables
-  if (!fs.existsSync('.env')) {
-    fs.writeFileSync('.env', '# Auto-generated for Vercel build compatibility\n');
-    console.log('[BUILD_INFO] Created empty .env file for build compatibility');
+  try {
+    if (!fs.existsSync('.env')) {
+      fs.writeFileSync('.env', '# Auto-generated for Vercel build compatibility\n');
+      console.log('[BUILD_INFO] Created empty .env file for build compatibility');
+    }
+  } catch (envError) {
+    // Silently ignore - some environments may have read-only restrictions
+    console.log('[BUILD_INFO] Note: Could not create .env file (may be read-only)');
   }
 
   console.log('[BUILD_INFO] Generating build information...');

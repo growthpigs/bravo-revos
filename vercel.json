@@ -1,4 +1,5 @@
 {
+  "buildCommand": "touch .env && npm run build",
   "crons": [
     {
       "path": "/api/cron/health-check",
