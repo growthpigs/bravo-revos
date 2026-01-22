@@ -69,10 +69,10 @@ const nextConfig = {
       },
     ]
   },
-  // Enable Next.js instrumentation hook for Sentry
-  experimental: {
-    instrumentationHook: true,
-  },
+  // Disable instrumentationHook - causes ENOENT on Vercel when .env doesn't exist
+  // experimental: {
+  //   instrumentationHook: true,
+  // },
 }
 
 // Temporarily disable Sentry wrapping - debugging build issues
