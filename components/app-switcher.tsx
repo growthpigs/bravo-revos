@@ -52,19 +52,22 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
           )}
         >
           {!collapsed ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-lg font-semibold tracking-tight text-gray-900">
+            <div
+              className="flex items-center"
+              style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
+            >
+              <span className="text-[15px] font-semibold tracking-tight text-gray-900">
                 rev
               </span>
               <span
-                className="text-lg font-light tracking-tight bg-clip-text text-transparent"
+                className="text-[15px] font-light tracking-tight bg-clip-text text-transparent"
                 style={{
                   backgroundImage: activeConfig.gradient,
                 }}
               >
                 OS
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 ml-0.5" />
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 ml-1" />
             </div>
           ) : (
             <span
@@ -88,31 +91,32 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
           const config = APP_CONFIGS[appId]
           const isActive = config.isNative
 
+          // Format name as "revOS" or "audienceOS"
+          const formattedName = appId === 'revos' ? (
+            <span style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
+              <span className="font-semibold">rev</span>
+              <span className="font-light">OS</span>
+            </span>
+          ) : (
+            <span style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
+              <span className="font-semibold">audience</span>
+              <span className="font-light">OS</span>
+            </span>
+          )
+
           return (
             <DropdownMenuItem
               key={appId}
               onClick={() => handleAppSwitch(appId)}
               className={cn(
-                "flex items-center gap-3 cursor-pointer",
+                "flex items-center gap-2 cursor-pointer py-2",
                 isActive && "bg-blue-50"
               )}
             >
-              <span
-                className="text-lg"
-                role="img"
-                aria-label={config.name}
-              >
-                {config.icon}
-              </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span
-                    className="font-medium bg-clip-text text-transparent"
-                    style={{
-                      backgroundImage: config.gradient,
-                    }}
-                  >
-                    {config.name}
+                  <span className="text-sm text-gray-900">
+                    {formattedName}
                   </span>
                   {isActive && (
                     <Check className="w-3.5 h-3.5 text-blue-600" />

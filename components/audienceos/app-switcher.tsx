@@ -40,21 +40,21 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex items-center gap-1.5"
+                className="flex items-center"
                 style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
               >
-                <span className="text-[17px] font-semibold tracking-tight text-foreground dark:text-white">
+                <span className="text-[15px] font-semibold tracking-tight text-foreground dark:text-white">
                   audience
                 </span>
                 <span
-                  className="text-[17px] font-light tracking-tight bg-clip-text text-transparent"
+                  className="text-[15px] font-light tracking-tight bg-clip-text text-transparent"
                   style={{
                     backgroundImage: activeConfig.gradient,
                   }}
                 >
                   OS
                 </span>
-                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-0.5" />
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-1" />
               </motion.div>
             ) : (
               <motion.span
@@ -95,31 +95,32 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
             }
           }
 
+          // Format name as "revOS" or "audienceOS"
+          const formattedName = appId === 'revos' ? (
+            <span style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
+              <span className="font-semibold">rev</span>
+              <span className="font-light">OS</span>
+            </span>
+          ) : (
+            <span style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
+              <span className="font-semibold">audience</span>
+              <span className="font-light">OS</span>
+            </span>
+          )
+
           return (
             <DropdownMenuItem
               key={appId}
               onClick={handleClick}
               className={cn(
-                "flex items-center gap-3 cursor-pointer",
+                "flex items-center gap-2 cursor-pointer py-2",
                 isActive && "bg-primary/5"
               )}
             >
-              <span
-                className="text-lg"
-                role="img"
-                aria-label={config.name}
-              >
-                {config.icon}
-              </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span
-                    className="font-medium bg-clip-text text-transparent"
-                    style={{
-                      backgroundImage: config.gradient,
-                    }}
-                  >
-                    {config.name}
+                  <span className="text-sm text-foreground">
+                    {formattedName}
                   </span>
                   {isActive && (
                     <Check className="w-3.5 h-3.5 text-primary" />
