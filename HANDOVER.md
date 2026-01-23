@@ -1,8 +1,35 @@
-# RevOS - Session Handover
+# Diiiploy-OS Unified - Session Handover
 
-**Last Updated:** 2026-01-23 11:15 CET
+**Last Updated:** 2026-01-23 14:30 CET
+**Location:** `~/_PAI/projects/diiiploy-os/unified/`
 **Branch:** `main`
-**Session:** App Switcher Complete + Render Worker Investigation
+**Session:** Project Reorganization Complete
+
+---
+
+## Project Reorganization - ✅ COMPLETE (2026-01-23)
+
+**What happened:**
+- Entire `_PAI/projects/` folder reorganized into categories
+- This project moved from `revos/` → `diiiploy-os/unified/`
+- CLAUDE.md updated with new name "Diiiploy-OS Unified (RevOS + AudienceOS)"
+
+**New structure:**
+```
+_PAI/projects/
+├── diiiploy-os/    ← YOU ARE HERE (unified/, abby/, properdress/)
+├── personal/       ← war-room, google-ads-funnelizer, etc.
+├── internal/       ← chi-cto, chi-gateway
+├── experiments/    ← R&D projects
+└── _archived/      ← Legacy projects
+```
+
+**Tracking:** [Diiiploy-OS Issues Sheet](https://docs.google.com/spreadsheets/d/1QdTBb5eJJiKsrb2Zj1n5qahYZ_A-ODXmLf4C34xMEsc/edit)
+
+**Tech Debt (for future session):**
+- `docs/` folder has 15 legacy non-PAI v2 folders (plans/, analysis/, sitreps/, etc.)
+- Should consolidate into standard 10-folder structure (04-technical/, 05-planning/, 06-reference/, etc.)
+- Root-level files and `features/` folder are compliant
 
 ---
 
