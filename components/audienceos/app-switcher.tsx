@@ -2,10 +2,9 @@
 
 import React from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "motion/react"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Check } from "lucide-react"
 import { cn } from "@/lib/audienceos/utils"
-import { useAppStore, APP_CONFIGS } from "@/stores/audienceos/app-store"
+import { useAppStore, APP_CONFIGS, type AppId } from "@/stores/audienceos/app-store"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,99 +17,72 @@ interface AppSwitcherProps {
 }
 
 /**
- * App Switcher for AudienceOS
- *
- * Simple dropdown showing only the OTHER app (revOS).
- * Click to switch - no need to show current app in dropdown.
+ * App Switcher - OpenAI style
+ * Clean dropdown showing all apps with checkmark on current selection
  */
 export function AppSwitcher({ collapsed }: AppSwitcherProps) {
   const router = useRouter()
-  const { setActiveApp } = useAppStore()
+  const { activeApp, setActiveApp } = useAppStore()
 
-  // This is AudienceOS - show current app logo
-  const activeConfig = APP_CONFIGS['audienceos']
-  // The other app to switch to
-  const otherConfig = APP_CONFIGS['revos']
-
-  const handleSwitch = () => {
-    setActiveApp('revos')
-    router.push(otherConfig.basePath)
+  const handleSwitch = (appId: AppId) => {
+    if (appId === activeApp) return
+    setActiveApp(appId)
+    router.push(APP_CONFIGS[appId].basePath)
   }
+
+  const currentApp = APP_CONFIGS[activeApp] || APP_CONFIGS['audienceos']
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            "flex items-center gap-2 hover:bg-secondary/50 rounded-md transition-colors cursor-pointer",
-            collapsed ? "p-1.5 justify-center" : "py-1.5 px-2"
+            "flex items-center gap-1.5 hover:bg-secondary/50 rounded-md transition-colors cursor-pointer",
+            collapsed ? "p-1.5 justify-center" : "py-1 px-2"
           )}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            {!collapsed ? (
-              <motion.div
-                key="full-logo"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex items-center"
-                style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
-              >
-                <span className="text-[15px] font-semibold tracking-tight text-foreground dark:text-white">
-                  audience
-                </span>
-                <span
-                  className="text-[15px] font-light tracking-tight bg-clip-text text-transparent"
-                  style={{
-                    backgroundImage: activeConfig.gradient,
-                  }}
-                >
-                  OS
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-1" />
-              </motion.div>
-            ) : (
-              <motion.span
-                key="short-logo"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="text-[15px] font-semibold bg-clip-text text-transparent"
-                style={{
-                  backgroundImage: activeConfig.gradient,
-                }}
-              >
-                {activeConfig.shortName}
-              </motion.span>
-            )}
-          </AnimatePresence>
+          {!collapsed ? (
+            <>
+              <span className="text-[14px] font-medium text-foreground">
+                {currentApp.name}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+            </>
+          ) : (
+            <span className="text-[14px] font-semibold text-foreground">
+              {currentApp.shortName}
+            </span>
+          )}
         </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
         align="start"
-        sideOffset={8}
-        className="min-w-0 w-auto p-1"
+        sideOffset={4}
+        className="w-[200px] p-1 border-0 shadow-lg"
       >
-        <DropdownMenuItem
-          onClick={handleSwitch}
-          className="cursor-pointer px-3 py-2"
-        >
-          <span
-            className="text-[15px]"
-            style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
-          >
-            <span className="font-semibold text-foreground">rev</span>
-            <span
-              className="font-light bg-clip-text text-transparent"
-              style={{ backgroundImage: otherConfig.gradient }}
+        {(Object.keys(APP_CONFIGS) as AppId[]).map((appId) => {
+          const config = APP_CONFIGS[appId]
+          const isCurrent = appId === activeApp
+
+          return (
+            <DropdownMenuItem
+              key={appId}
+              onClick={() => handleSwitch(appId)}
+              className={cn(
+                "flex items-center justify-between cursor-pointer px-2 py-1.5 rounded-sm",
+                isCurrent && "bg-secondary/50"
+              )}
             >
-              OS
-            </span>
-          </span>
-        </DropdownMenuItem>
+              <span className="text-[14px] text-foreground">
+                {config.name}
+              </span>
+              {isCurrent && (
+                <Check className="w-4 h-4 text-foreground" />
+              )}
+            </DropdownMenuItem>
+          )
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -34,7 +34,7 @@ export const APP_CONFIGS: Record<AppId, AppConfig> = {
     description: 'Marketing automation & campaigns',
     gradient: 'linear-gradient(90deg, #f97316 0%, #eab308 50%, #22c55e 100%)',
     icon: '📈',
-    basePath: '/revos',
+    basePath: '/dashboard',
     isNative: true, // This deployment IS RevOS
   },
   audienceos: {
