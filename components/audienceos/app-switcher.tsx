@@ -1,8 +1,9 @@
 "use client"
 
 import React from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "motion/react"
-import { ChevronDown, Check, ExternalLink } from "lucide-react"
+import { ChevronDown, Check, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/audienceos/utils"
 import { useAppStore, APP_CONFIGS, type AppId } from "@/stores/audienceos/app-store"
 import {
@@ -17,6 +18,7 @@ interface AppSwitcherProps {
 }
 
 export function AppSwitcher({ collapsed }: AppSwitcherProps) {
+  const router = useRouter()
   const { setActiveApp } = useAppStore()
   // This deployment is always AudienceOS - the switcher just links to other apps
   const activeConfig = APP_CONFIGS['audienceos']
@@ -83,12 +85,13 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
           const isActive = config.isNative // Show as active if this is the native app
 
           const handleClick = () => {
-            if (config.url) {
-              // External app - redirect to its deployment
-              window.location.href = config.url
-            } else {
-              // Native app - just set active (already here)
+            if (config.isNative) {
+              // Already on this app, just set state
               setActiveApp(appId)
+            } else {
+              // Navigate to other app via basePath routing (same domain)
+              setActiveApp(appId)
+              router.push(config.basePath)
             }
           }
 
@@ -121,8 +124,8 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
                   {isActive && (
                     <Check className="w-3.5 h-3.5 text-primary" />
                   )}
-                  {config.url && (
-                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                  {!isActive && (
+                    <ArrowUpRight className="w-3 h-3 text-muted-foreground" />
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
