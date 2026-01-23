@@ -1,27 +1,30 @@
-# Diiiploy-OS Unified - Session Handover
+# DiiiployOS - Session Handover
 
-**Last Updated:** 2026-01-23 14:30 CET
-**Location:** `~/_PAI/projects/diiiploy-os/unified/`
+**Last Updated:** 2026-01-23 19:20 CET
+**Location:** `~/_PAI/projects/diiiploy/diiiploy-os/`
 **Branch:** `main`
-**Session:** Project Reorganization Complete
+**Session:** Company Structure Update
 
 ---
 
-## Project Reorganization - ✅ COMPLETE (2026-01-23)
+## Company Structure Update - ✅ COMPLETE (2026-01-23)
 
 **What happened:**
-- Entire `_PAI/projects/` folder reorganized into categories
-- This project moved from `revos/` → `diiiploy-os/unified/`
-- CLAUDE.md updated with new name "Diiiploy-OS Unified (RevOS + AudienceOS)"
+- Top-level renamed from `diiiploy-os/` → `diiiploy/` (company level)
+- DiiiployOS is now a PRODUCT inside `diiiploy/`, not the top folder
+- Structure reflects: Diiiploy (company) → DiiiployOS (product)
 
 **New structure:**
 ```
 _PAI/projects/
-├── diiiploy-os/    ← YOU ARE HERE (unified/, abby/, properdress/)
-├── personal/       ← war-room, google-ads-funnelizer, etc.
-├── internal/       ← chi-cto, chi-gateway
-├── experiments/    ← R&D projects
-└── _archived/      ← Legacy projects
+├── diiiploy/          ← Company level (Diiiploy)
+│   ├── diiiploy-os/   ← YOU ARE HERE (DiiiployOS product)
+│   ├── abby/
+│   └── properdress/
+├── personal/          ← war-room, google-ads-funnelizer, etc.
+├── internal/          ← chi-cto, chi-gateway
+├── experiments/       ← R&D projects
+└── _archived/         ← Legacy projects
 ```
 
 **Tracking:** [Diiiploy-OS Issues Sheet](https://docs.google.com/spreadsheets/d/1QdTBb5eJJiKsrb2Zj1n5qahYZ_A-ODXmLf4C34xMEsc/edit)

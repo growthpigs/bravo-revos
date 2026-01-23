@@ -1,7 +1,7 @@
-# Diiiploy-OS Unified (RevOS + AudienceOS)
+# DiiiployOS (RevOS + AudienceOS)
 
-**Location:** `~/_PAI/projects/diiiploy-os/unified/`
-**Formerly:** `revos/`
+**Location:** `~/_PAI/projects/diiiploy/diiiploy-os/`
+**Formerly:** `revos/` → `diiiploy-os/unified/`
 
 Multi-tenant SaaS combining:
 - **RevOS:** AI-powered LinkedIn content generation and campaign management
