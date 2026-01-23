@@ -1,12 +1,12 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-23
+**Last Updated:** 2026-01-23 11:15 CET
 **Branch:** `main`
-**Session:** App Switcher Navigation Fix - IN PROGRESS
+**Session:** App Switcher Complete + Render Worker Investigation
 
 ---
 
-## App Switcher - ✅ OpenAI Style VERIFIED
+## App Switcher - ✅ COMPLETE
 
 **Status:** Deployed and verified (commit cc0020c)
 
@@ -20,6 +20,30 @@
 **Verified:**
 - AudienceOS → click RevOS → navigates to `/dashboard` ✅
 - RevOS shows with checkmark when active ✅
+- Branch cleanup: 12 stale feature branches deleted ✅
+
+---
+
+## Render Worker Failure - ⚠️ NEEDS ATTENTION
+
+**Service:** `bravo-revos-engagement-worker` (srv-d519ifqli9vc73b002ug)
+**Alert:** Render email - server exiting with status 1
+
+**NOT related to app switcher changes.** This is a pre-existing BullMQ background worker for LinkedIn pod engagement.
+
+**Root Cause (likely):** Missing environment variables on Render.
+
+**Required env vars on Render dashboard:**
+1. `REDIS_URL` - Redis/Upstash connection string
+2. `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+3. `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
+4. `UNIPILE_API_KEY` - Unipile API key
+
+**Action needed:**
+1. Go to: https://dashboard.render.com/worker/srv-d519ifqli9vc73b002ug
+2. Click Environment tab
+3. Verify all 4 variables are set
+4. Check Logs tab for specific error message
 
 ---
 
