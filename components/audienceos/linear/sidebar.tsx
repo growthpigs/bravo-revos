@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/audienceos/ui/avatar"
 import { Button } from "@/components/audienceos/ui/button"
-import { AppSwitcher } from "@/components/app-switcher"
+import { AppSwitcher } from "@/components/audienceos/app-switcher"
 import { useAppStore } from "@/stores/audienceos/app-store"
 
 interface NavItemProps {
