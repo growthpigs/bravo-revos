@@ -234,6 +234,64 @@ WHERE campaign_id = '[UUID]' AND enrichment_status = 'failed';
 3. Check Edge Function logs
 4. Restart Edge Function if needed
 
+### Tests Failing with Supabase Mock Errors
+
+**Symptom:** `TypeError: Cannot read properties of undefined (reading 'select')` or similar chain errors
+
+**Root Cause:** `mockReturnThis()` doesn't work for Supabase chainable query builders because it returns the wrong `this` context.
+
+**Fix:**
+```typescript
+// WRONG - mockReturnThis() returns wrong context
+mockSupabase = {
+  from: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
+};
+
+// CORRECT - use shared queryBuilder with mockReturnValue()
+const queryBuilder = {
+  select: jest.fn(),
+  limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+};
+queryBuilder.select.mockReturnValue(queryBuilder);
+mockSupabase = {
+  from: jest.fn().mockReturnValue(queryBuilder),
+};
+```
+
+**Helper Available:** Use `createMockSupabaseClient()` from `__tests__/helpers/supabase-mock.ts`
+
+**Test Debt:** 48 tests currently skipped - see `TEST-DEBT.md` for tracking
+
+---
+
+## Testing
+
+### Commands
+
+```bash
+npm test                    # Run all tests (51 passing, 48 skipped)
+npm test -- --watch         # Watch mode
+npm test -- --coverage      # With coverage
+npm test -- --testPathPattern="health"  # Specific test
+```
+
+### Current Status (2026-01-22)
+
+| Metric | Value |
+|--------|-------|
+| Passing | 51 |
+| Failed | 0 |
+| Skipped | 48 |
+| Total | 99 |
+
+**Why 48 skipped?** Outdated Supabase mocks using `mockReturnThis()`. See `TEST-DEBT.md` for fix strategy.
+
+### Mock Helpers
+
+- `__tests__/helpers/supabase-mock.ts` - Shared Supabase mock creator
+- `__mocks__/@supabase/ssr.ts` - Global SSR mock
+
 ---
 
 ## Incident Response
