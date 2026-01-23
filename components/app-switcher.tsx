@@ -2,9 +2,9 @@
 
 import React from "react"
 import { useRouter } from "next/navigation"
-import { ChevronDown, Check, ArrowUpRight } from "lucide-react"
+import { ChevronDown, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useAppStore, APP_CONFIGS, type AppId } from "@/stores/app-store"
+import { useAppStore, APP_CONFIGS } from "@/stores/app-store"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,29 +17,23 @@ interface AppSwitcherProps {
 }
 
 /**
- * App Switcher for Unified Platform
+ * App Switcher for RevOS
  *
- * Allows switching between RevOS and AudienceOS within the unified platform.
- * Uses router.push() for basePath-compatible navigation (same domain).
+ * Simple dropdown showing only the OTHER app (audienceOS).
+ * Click to switch - no need to show current app in dropdown.
  */
 export function AppSwitcher({ collapsed }: AppSwitcherProps) {
   const router = useRouter()
   const { setActiveApp } = useAppStore()
-  // This deployment is always RevOS
+
+  // This is RevOS - show current app logo
   const activeConfig = APP_CONFIGS['revos']
+  // The other app to switch to
+  const otherConfig = APP_CONFIGS['audienceos']
 
-  const handleAppSwitch = (appId: AppId) => {
-    const config = APP_CONFIGS[appId]
-
-    if (config.isNative) {
-      // Already on this app, just set state
-      setActiveApp(appId)
-    } else {
-      // Navigate to other app via basePath routing
-      // router.push automatically handles basePath
-      setActiveApp(appId)
-      router.push(config.basePath)
-    }
+  const handleSwitch = () => {
+    setActiveApp('audienceos')
+    router.push(otherConfig.basePath)
   }
 
   return (
@@ -85,53 +79,26 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
       <DropdownMenuContent
         align="start"
         sideOffset={8}
-        className="w-[220px]"
+        className="w-[180px]"
       >
-        {(Object.keys(APP_CONFIGS) as AppId[]).map((appId) => {
-          const config = APP_CONFIGS[appId]
-          const isActive = config.isNative
-
-          // Format name as "revOS" or "audienceOS"
-          const formattedName = appId === 'revos' ? (
-            <span style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
-              <span className="font-semibold">rev</span>
-              <span className="font-light">OS</span>
-            </span>
-          ) : (
-            <span style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
-              <span className="font-semibold">audience</span>
-              <span className="font-light">OS</span>
-            </span>
-          )
-
-          return (
-            <DropdownMenuItem
-              key={appId}
-              onClick={() => handleAppSwitch(appId)}
-              className={cn(
-                "flex items-center gap-2 cursor-pointer py-2",
-                isActive && "bg-blue-50"
-              )}
+        <DropdownMenuItem
+          onClick={handleSwitch}
+          className="flex items-center justify-between cursor-pointer py-2"
+        >
+          <span
+            className="text-sm text-gray-900"
+            style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
+          >
+            <span className="font-semibold">audience</span>
+            <span
+              className="font-light bg-clip-text text-transparent"
+              style={{ backgroundImage: otherConfig.gradient }}
             >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-900">
-                    {formattedName}
-                  </span>
-                  {isActive && (
-                    <Check className="w-3.5 h-3.5 text-blue-600" />
-                  )}
-                  {!isActive && (
-                    <ArrowUpRight className="w-3 h-3 text-gray-400" />
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 truncate">
-                  {config.description}
-                </p>
-              </div>
-            </DropdownMenuItem>
-          )
-        })}
+              OS
+            </span>
+          </span>
+          <ArrowUpRight className="w-3 h-3 text-gray-400" />
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
