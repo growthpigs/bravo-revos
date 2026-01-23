@@ -1,12 +1,32 @@
 # RevOS - Session Handover
 
-**Last Updated:** 2026-01-22 (Vercel Verified)
-**Branch:** `main` (merged from `feat/unified-platform-merge`)
-**Session:** Unified Platform - ✅ DEPLOYED & VERIFIED ON VERCEL
+**Last Updated:** 2026-01-23
+**Branch:** `main`
+**Session:** App Switcher Navigation Fix - IN PROGRESS
 
 ---
 
-## Session Result: Full Codebase Merge COMPLETE + DEPLOYED
+## URGENT: App Switcher Fix Needed
+
+**Problem:** App switcher dropdown is over-engineered and has wrong routing.
+
+**What's wrong:**
+1. AudienceOS store uses `/dashboard` instead of `/revos` for routing
+2. Dropdown shows BOTH apps with checkmarks (should only show OTHER app)
+3. Current app with checkmark is redundant - user knows where they are
+
+**Plan:** See `docs/05-planning/app-switcher-fix/PLAN.md`
+
+**Files to modify:**
+1. `stores/audienceos/app-store.ts` - Change `basePath: '/dashboard'` → `basePath: '/revos'`
+2. `components/app-switcher.tsx` - Simplify to show only audienceOS
+3. `components/audienceos/app-switcher.tsx` - Simplify to show only revOS
+
+**Test URL:** `ra-diiiploy.vercel.app`
+
+---
+
+## Previous Session Result: Full Codebase Merge COMPLETE + DEPLOYED
 
 **What was done:**
 - Merged AudienceOS INTO RevOS codebase (360 files, 83,655 insertions)
