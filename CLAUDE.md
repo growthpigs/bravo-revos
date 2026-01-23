@@ -1,6 +1,13 @@
-# RevOS - Marketing Automation Console
+# Diiiploy-OS Unified (RevOS + AudienceOS)
 
-Multi-tenant SaaS for AI-powered LinkedIn content generation and campaign management. Chat-driven UI orchestration (HGC), not a chatbot.
+**Location:** `~/_PAI/projects/diiiploy-os/unified/`
+**Formerly:** `revos/`
+
+Multi-tenant SaaS combining:
+- **RevOS:** AI-powered LinkedIn content generation and campaign management
+- **AudienceOS:** Client management & operations dashboard
+
+Chat-driven UI orchestration (HGC), not a chatbot.
 
 ---
 
