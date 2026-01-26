@@ -1,175 +1,147 @@
-# RevOS Technical Architecture
+# RevOS Architecture
 
-## Core Philosophy
+## Critical Dependencies (DO NOT UPDATE WITHOUT TESTING)
 
-> "Assembling Lego blocks, not carving marble"
+| Package | Version | Purpose |
+|---------|---------|---------|
+| @openai/agents | 0.3.0 | AgentKit SDK - response extraction depends on this version |
+| next | 14.x | App Router, API Routes |
+| @supabase/supabase-js | 2.x | Database client |
 
-RevOS is built using **composition over custom code** - leveraging AgentKit orchestration and MCP integrations to create a flexible, maintainable LinkedIn growth engine.
+## AgentKit Response Structure (as of 2025-11-18)
 
----
+The AgentKit SDK returns responses in a specific structure. Extraction happens in `lib/console/marketing-console.ts` in the `extractResponseText()` method.
 
-## System Layers
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ LAYER 1: User Interface (Bolt.new Generated)               │
-│ • Floating Chat (AgentKit) - bottom-right                  │
-│ • Minimal Dashboards - analytics, approval queue, leads    │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│ LAYER 2: AgentKit Orchestration (OpenAI)                   │
-│ • Campaign Manager Agent                                   │
-│ • Lead Enrichment Agent                                    │
-│ • Content Generation Agent                                 │
-│ • Built-in: WebSearch, FileSearch, ImageGen, CodeInterp   │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│ LAYER 3: MCP Integration Layer                             │
-│ ✅ Apollo.io MCP - Lead enrichment                         │
-│ ✅ Mem0 MCP - Cartridge storage + persistent memory        │
-│ ✅ Supabase MCP - Database operations                      │
-│ ✅ Canva MCP - Professional graphics                       │
-│ ✅ Context7 MCP - Documentation + content ideas            │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│ LAYER 4: Background Systems (Node.js + BullMQ)             │
-│ • DM Queue Worker (50 DMs/hour rate limiting)              │
-│ • Email Sequence Worker (Instantly/Smartlead)              │
-│ • Cron Jobs (post monitoring, analytics sync)              │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│ LAYER 5: Data Layer (Supabase All-in-One)                  │
-│ PostgreSQL: users, cartridges, campaigns, leads, messages  │
-│ PGVector: embeddings, client_voice, lead_magnet_search     │
-│ Platform: Auth (JWT), Real-time, Storage, Edge Functions   │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│ LAYER 6: External APIs                                      │
-│ • Unipile: LinkedIn OAuth, DMs, comment scraping ($5/acct) │
-│ • Apollo.io: Email discovery, company data                 │
-│ • Instantly: Email sequences, deliverability               │
-│ • PostHog + Clarity: Analytics, session recordings         │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Key Technical Decisions
-
-### Why Supabase Alone (No Neon)?
-
-**Supabase Provides:**
-- PostgreSQL + PGVector (same as Neon)
-- Built-in Auth (JWT, RLS policies)
-- Real-time subscriptions (dashboard updates)
-- Storage (images, PDFs)
-- Edge Functions (webhooks)
-- Auto-generated REST APIs
-
-**Decision:** Supabase only - reduces complexity, provides more features.
-
-### Why AgentKit (OpenAI) vs Anthropic?
-
-**AgentKit Advantages:**
-- Visual Agent Builder (drag-and-drop workflows)
-- Built-in WebSearchTool (no Perplexity needed)
-- Native tool orchestration
-- Human-in-loop nodes ("Ask User")
-
-**Decision:** Pure AgentKit for MVP - can add Anthropic via Portkey later.
-
-### Why Mem0 + Supabase PGVector?
-
-- **Mem0:** Conversational memory, cartridge retrieval, learning from feedback
-- **PGVector:** Lead magnet semantic search, similar lead matching
-
-**Together:** Mem0 uses Supabase as vector storage backend → Single database, dual interfaces.
-
----
-
-## Cartridge System
-
-A **cartridge** is a context module that defines:
-- Persona (Executive Coach, Startup Founder, etc.)
-- Writing style (tone, vocabulary, structure)
-- Industry knowledge (niche-specific insights)
-- Tools enabled (which MCPs this cartridge can use)
-
-### Schema
+### Primary Extraction Path (Current Working)
 
 ```typescript
-interface Cartridge {
-  cartridge_id: string;
-  name: string;
-  persona: {
-    role: string;
-    expertise: string[];
-    target_audience: string;
-  };
-  writing_style: {
-    tone: "professional" | "casual" | "authoritative";
-    vocabulary_level: 1-10;
-    sentence_structure: "short" | "medium" | "long";
-  };
-  industry_knowledge: {
-    niche: string;
-    key_topics: string[];
-    common_pain_points: string[];
-  };
-  tools_enabled: string[];
-  system_prompt: string;
-  examples: { post: string; dm: string; email: string; }[];
-}
+// result.output array contains AgentOutputItem objects
+result.output[i].role === 'assistant'
+result.output[i].content[j].type === 'text'
+result.output[i].content[j].text // <-- This is the response text
 ```
 
----
+### Fallback Paths (for compatibility)
 
-## Cost Analysis
+1. `result.finalOutput` (string or object with .content/.text)
+2. `result.newItems[].content` (RunItem array)
+3. `result.modelResponses[].text` (AgentKit SDK structure)
+4. `result.state.modelResponses[].output[].content[].text` (legacy)
 
-### Runtime (Per Client/Month)
+## Known Working Flows
 
-| Service | Cost |
-|---------|------|
-| OpenAI API (GPT-4o + DALL-E) | $70-120 |
-| Unipile (LinkedIn) | $5/account |
-| Apollo.io (500 enrichments) | $100 |
-| Instantly (email) | $30 |
-| Supabase Pro | $25 |
-| Mem0 | $20 |
-| PostHog | $0 (free tier) |
-| **Total** | **$295-345/client/month** |
+### 1. "write" Command Flow
 
-### Revenue Model
-- Charge clients: $2,000-5,000/month
-- Margin: 85-93%
-- Break-even: 1 client
+1. User types "write"
+2. V2 route loads brand cartridge from database (using service role client)
+3. Workflow executor generates topic suggestions using AI
+4. Returns 4 topic buttons + brand context message
+5. User clicks topic button
+6. Post generated using brand/style context
+7. Content appears directly in working document area
 
----
+### 2. Health Check
 
-## Security & Compliance
+GET `/api/health` returns status for:
+- database
+- supabase
+- agentkit (version check)
+- mem0
 
-### Multi-Tenant Isolation
+### 3. Brand Context Display
 
-```sql
-CREATE POLICY "Users see own data"
-  ON leads FOR SELECT
-  USING (campaign_id IN (
-    SELECT id FROM campaigns WHERE user_id = auth.uid()
-  ));
+Format in workflow-executor.ts (lines 184-209):
+- Brand Context Loaded
+- Industry
+- Target Audience
+- Burning Question (extracted from core_messaging)
+- Topic buttons
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `app/api/hgc-v2/route.ts` | Main chat endpoint |
+| `lib/console/marketing-console.ts` | AgentKit orchestration |
+| `lib/console/workflow-executor.ts` | Workflow logic |
+| `lib/console/workflow-loader.ts` | Load workflows from DB |
+| `components/chat/FloatingChatBar.tsx` | Chat UI |
+| `app/api/health/route.ts` | Health check endpoint |
+
+## Database Tables
+
+- `console_workflows` - Workflow definitions (JSON)
+- `brand_cartridges` - Client brand data
+- `style_cartridges` - Style/voice settings
+- `hgc_sessions` - Chat sessions
+- `hgc_messages` - Chat history
+
+## Environment Variables
+
+Required:
+- `OPENAI_API_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Optional:
+- `MEM0_API_KEY` - For memory features
+- `CRON_SECRET` - For Vercel cron jobs
+
+## Deployment
+
+- **Platform**: Vercel
+- **Production deploy**: `npx vercel --prod --yes`
+- **Health monitoring**: Cron runs every 6 hours via `/api/cron/health-check`
+
+## If Something Breaks
+
+1. Check `/api/health` endpoint for status
+2. Check AgentKit version hasn't changed (should be 0.3.0)
+3. Check Vercel logs for extraction errors (`[MarketingConsole] ❌ EXTRACTION FAILED`)
+4. Revert to last known good commit: `git checkout v1.0-working-agentkit`
+
+## Version Check
+
+The system validates AgentKit version on first use:
+- `lib/console/marketing-console.ts` - logs warning if version != 0.3.0
+- `app/api/health/route.ts` - returns version status in health check
+
+## Last Known Good State
+
+- **Git tag**: v1.0-working-agentkit
+- **Date**: 2025-11-18
+- **Commit**: (see `git tag -l`)
+
+## UI Behavior
+
+### Placeholder Text
+When waiting for topic selection, working document shows:
 ```
+[SELECT A HOOK FOR YOUR LINKEDIN POST FROM ONE OF THE FOUR BUTTONS]
+```
+Styled as monospace, uppercase, small gray text.
 
-### LinkedIn Compliance
-- Use Unipile (legal compliance layer)
-- Rate limiting (50 DMs/hour)
-- Human-in-loop for content
-- No automated connection requests
+### Post Generation
+- No AI fluff in chat
+- Content goes directly to working document
+- Empty response string returned to chat
+
+### Brand Context Display
+Uses `\n\n` for paragraph breaks (Markdown requirement)
+
+## NON-NEGOTIABLES
+
+1. **AgentKit SDK ONLY** - No raw `openai.chat.completions.create()`
+2. **Mem0 integration** - scope: `agencyId::clientId::userId`
+3. **Console DB** - load via `loadConsolePrompt()`
+4. **Workflow JSON** - load from `console_workflows` table
+5. **Session persistence** - save all conversations to DB
+6. **Health monitors** - multi-source verification
+7. **RLS** - backend: service role key, frontend: anon key
+8. **Admin control** - `admin_users` table only
 
 ---
 
-*Last Updated: 2026-01-03*
-*Source: archon-specs/01-RevOS-Technical-Architecture-v3.md*
+Last Updated: 2025-11-18
+Status: STABLE - All flows working
