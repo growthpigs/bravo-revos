@@ -1,35 +1,40 @@
 # Active Tasks - Diiiploy OS
 
-**Last Updated:** 2026-01-26 15:30
-**Current Epic:** Platform Stabilization (Phase 2.1-2.3) ✅ COMPLETE
+**Last Updated:** 2026-01-26 15:55
+**Current Epic:** Database Schema Sync (Phase 3)
 
 ---
 
-## ✅ COMPLETED
+## 🔴 IN PROGRESS
+
+### Phase 3: Database Schema Sync
+- **Status:** STARTING
+- **Problem:** RevOS tables missing from AudienceOS Supabase
+- **Evidence:** Health check fails - `campaign` table doesn't exist
+- **Root cause:** Spec said "COMPLETE" but migrations never run
+
+| Step | Action | Status |
+|------|--------|--------|
+| 1 | Audit existing tables | ⏳ |
+| 2 | Generate missing table migration | ⏳ |
+| 3 | Run migration on AudienceOS | ⏳ |
+| 4 | Verify health check green | ⏳ |
+
+---
+
+## ✅ COMPLETED (Phase 2)
 
 ### Story 2.1: Fix Build Failure ✅
-- **File:** `lib/email-generation/lead-magnet-email.ts`
 - **Fix:** Lazy OpenAI initialization
 - **Commit:** `55823f5`
 
 ### Story 2.2: Fix Health Check ✅
-- **File:** `app/api/health/route.ts`
-- **Fix:** Connection-based health check (auth.getSession)
+- **Fix:** Connection-based health check
 - **Commit:** `7e91299`
 
 ### Story 2.3: Redis Configuration ✅
-- **Solution:** Provisioned Upstash Redis
-- **Instance:** `enhanced-barnacle-6920.upstash.io:6379`
-- **Env var:** Added REDIS_URL to Vercel (`ra-revos` project)
-- **Verification:** Login flow works, sessions persist
-
----
-
-## ⏳ QUEUED
-
-- Database Merge (separate epic - Phase 3)
-- Auth Flow Testing (continued)
-- User flow testing (login, create content, etc.)
+- **Instance:** `enhanced-barnacle-6920.upstash.io`
+- **Commit:** Added to Vercel env vars
 
 ---
 
@@ -37,4 +42,4 @@
 
 - Platform: **Vercel** (project: `ra-revos`)
 - Production URL: `https://ra-revos.vercel.app`
-- All 3 stories complete - epic DONE
+- Target Supabase: `ebxshdqfaqupnvpghodi` (AudienceOS)

@@ -1,12 +1,22 @@
 # Diiiploy OS - Session Handover
 
-**Last Updated:** 2026-01-26 15:30
-**Session:** Platform Stabilization Epic
+**Last Updated:** 2026-01-26 15:55
+**Session:** Database Schema Sync (Phase 3)
 **AI:** Deputy (via Clawdbot)
 
 ---
 
-## ✅ COMPLETED
+## 🔴 IN PROGRESS
+
+### Phase 3: Database Schema Sync
+- **Problem:** RevOS tables missing from AudienceOS Supabase
+- **Evidence:** Health check fails - `campaign` table doesn't exist
+- **Root cause:** Spec said "COMPLETE" but migrations never run on target DB
+- **Plan:** Audit → Generate migration → Run → Verify health
+
+---
+
+## ✅ COMPLETED (Phase 2)
 
 ### Story 2.1: Build Failure - FIXED
 - **Fix:** Changed `lib/email-generation/lead-magnet-email.ts` to use lazy OpenAI initialization
@@ -61,11 +71,12 @@
 
 ---
 
-## Next Session Should
+## Next Steps (This Session)
 
-1. Test actual user flows (login, create content, etc.)
-2. Consider database merge strategy (separate epic)
-3. Address any remaining health check issues
+1. Audit which tables exist in AudienceOS Supabase
+2. Generate migration for missing RevOS tables
+3. Run migration: `supabase db push --project-ref ebxshdqfaqupnvpghodi`
+4. Verify health check passes
 
 ---
 

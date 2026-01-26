@@ -1,14 +1,35 @@
 # DATABASE-MERGE: RevOS + AudienceOS Unified Platform
 
-**Status:** ✅ COMPLETE
-**Last Updated:** 2026-01-22
-**Verified:** Runtime test 12/12 passed
+**Status:** 🔴 IN PROGRESS - Tables missing in production
+**Last Updated:** 2026-01-26
+**Verified:** ❌ FAILED - `campaign` table missing
+
+---
+
+## Current Issue (2026-01-26)
+
+**Spec-to-Implementation Gap:** Documentation said "COMPLETE" but RevOS tables were never actually created in AudienceOS Supabase.
+
+| Problem | Evidence |
+|---------|----------|
+| Health check fails | `database: unhealthy` - missing `campaign` table |
+| Code points to AudienceOS | `.env.local` → `ebxshdqfaqupnvpghodi` ✅ |
+| Tables don't exist | Migrations never run on AudienceOS |
+
+### Plan to Fix
+
+| Step | Action | Verification |
+|------|--------|--------------|
+| 1 | Audit which tables exist vs needed | Query `information_schema.tables` |
+| 2 | Generate migration for missing tables | SQL file in `supabase/migrations/` |
+| 3 | Run migration on AudienceOS | `supabase db push` |
+| 4 | Verify health check | `/api/health` → all green |
 
 ---
 
 ## Overview
 
-RevOS and AudienceOS now share a single Supabase database. Users can switch between apps while sharing clients, agencies, and users.
+RevOS and AudienceOS will share a single Supabase database. Users can switch between apps while sharing clients, agencies, and users.
 
 ---
 
