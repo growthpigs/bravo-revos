@@ -26,6 +26,8 @@ Chat-driven UI orchestration (HGC), not a chatbot.
 |------|----------|
 | Feature plans | `docs/05-planning/[feature]/PLAN.md` |
 | Planning roadmap | `docs/05-planning/ROADMAP.md` |
+| **Dashboard** | [DiiiployOS Project Dashboard](https://docs.google.com/spreadsheets/d/1igBWxG0IbFyWrwaJ9nMNwpuX2pw5Na0q37ue_CHR9YY) |
+| **Dashboard ID** | `1igBWxG0IbFyWrwaJ9nMNwpuX2pw5Na0q37ue_CHR9YY` |
 
 ---
 
