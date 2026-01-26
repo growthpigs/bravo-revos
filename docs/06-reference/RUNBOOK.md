@@ -44,11 +44,12 @@
 
 | Resource | URL |
 |----------|-----|
-| Production (Standalone) | https://ra-diiiploy.vercel.app |
+| Production (Standalone) | https://ra-revos.vercel.app |
 | Production (Unified) | https://unified.diiiploy.io/revos (TBD - pending Vercel setup) |
 | Supabase | https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi |
 | Vercel Team | https://vercel.com/diiiploy-platform |
-| Vercel Project | `ra-diiiploy` |
+| Vercel Project | `ra-revos` |
+| Upstash Redis | https://console.upstash.com (enhanced-barnacle-6920) |
 | Sentry | org=badaboost |
 | Monorepo | `~/projects/hgc-monorepo/packages/revos` |
 
@@ -69,6 +70,7 @@
 | POSTHOG_API_KEY | Analytics | Never |
 | CLARITY_PROJECT_ID | Session recordings | Never |
 | MEM0_API_KEY | Memory/cartridges | Quarterly |
+| REDIS_URL | Auth sessions (Upstash) | Never |
 
 ---
 
