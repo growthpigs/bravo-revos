@@ -1,84 +1,50 @@
-# Diiiploy OS - Active Tasks
+# Active Tasks - Diiiploy OS
 
-**Last Updated:** 2026-01-26
-**Status:** 🟡 Operational with blockers
-
----
-
-## Current Priority (P0)
-
-### 1. Fix Build Failure
-**Problem:** Build fails due to missing OPENAI_API_KEY during page data collection
-**Location:** `/api/test-email-generation` route
-**Fix:** Use dynamic import or move API key validation to runtime
-**Effort:** 30 minutes
-
-### 2. Fix Render Worker
-**Service:** bravo-revos-engagement-worker (srv-d519ifqli9vc73b002ug)
-**Problem:** Server exiting with status 1 - missing env vars
-**Required on Render Dashboard:**
-- `REDIS_URL`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `UNIPILE_API_KEY`
-**Effort:** 15 minutes
+**Last Updated:** 2026-01-26 12:25
+**Current Epic:** Platform Stabilization (Phase 2.1-2.3)
 
 ---
 
-## Roadmap Queue (P1)
+## 🔴 IN PROGRESS
 
-### Phase 2: Bidirectional Navigation
-- Add AppSwitcher to RevOS sidebar
-- Configure RevOS as native app
-- **Effort:** 1-2 days
-- **Status:** Partially done (AudienceOS → RevOS works)
+### Story 2.1: Fix Build Failure
+- **Status:** IN PROGRESS
+- **File:** `lib/email-generation/lead-magnet-email.ts`
+- **Issue:** Module-level `new OpenAI()` requires API key at build time
+- **Fix:** Wrap in lazy initialization or dynamic import
+- **Verification:** `npm run build` passes
 
-### Phase 3: Shared Memory
-- Define memory tagging schema (`app::domain::topic`)
-- Update both apps to tag Mem0 writes
-- Add cross-app intent detection
-- **Effort:** 5 days
+### Story 2.2: Fix Health Check
+- **Status:** QUEUED
+- **File:** `app/api/health/route.ts`
+- **Issue:** Queries `campaign` table which doesn't exist in AudienceOS Supabase
+- **Fix:** Change to query `agency` table (exists in both DBs)
+- **Verification:** `GET /api/health` returns all healthy
 
-### Phase 4: Unified Auth (SSO)
-- Add RevOS tables to AudienceOS Supabase
-- Update RevOS .env to use AudienceOS Supabase
-- Migrate RLS policies to function-based pattern
-- **Effort:** 2-3 days
-
-### Phase 5: UI Alignment
-- Replace RevOS sidebar with LinearSidebar
-- Add Poppins font and gradient branding
-- Add dark mode support
-- **Effort:** 2-3 days
+### Story 2.3: Redis Configuration
+- **Status:** BLOCKED - investigating
+- **Issue:** No REDIS_URL in .env.local
+- **Action:** Check if Redis instance exists before configuring
 
 ---
 
-## Tech Debt (P2)
+## ⏳ QUEUED
 
-- [ ] Fix 48 skipped test files (Supabase mock pattern)
-- [ ] Consolidate 15 legacy non-PAI v2 folders in `docs/`
-- [ ] Resolve HGC monorepo git status (untracked)
-- [ ] Address Next.js 16 async params warnings (23 routes)
+- Database Merge (separate epic - Phase 3)
+- Auth Flow Testing (after build works)
 
 ---
 
-## NOT DOING
+## ✅ DONE TODAY
 
-### Phase 6: Database Merge (20-25 days)
-**Reason:** Table naming convention mismatch would require rewriting 15+ chips
-**Alternative:** Keep databases separate, share context via Mem0 memory tagging
-
----
-
-## Quick Reference
-
-| Resource | Location |
-|----------|----------|
-| Tracking Sheet | [Diiiploy-OS Issues](https://docs.google.com/spreadsheets/d/1QdTBb5eJJiKsrb2Zj1n5qahYZ_A-ODXmLf4C34xMEsc/edit) |
-| Vercel | bravo-revos.vercel.app |
-| Render Worker | srv-d519ifqli9vc73b002ug |
-| Slack Canvas | F0AATP37P1T in #diiiploy-os |
+- Pre-implementation verification complete
+- Risk assessment documented
+- Stress test (red team) complete
 
 ---
 
-*Next session: Fix P0 blockers first, then continue Phase 2*
+## 📝 Notes
+
+- Database merge is OUT OF SCOPE for this epic
+- Focus: Get build passing and health check green
+- Don't scope creep

@@ -6,9 +6,20 @@
 import OpenAI from 'openai';
 import { OPENAI_MODELS } from '@/lib/config/openai-models';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+// Lazy initialization to prevent build-time errors when OPENAI_API_KEY is not set
+let openaiClient: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+    openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openaiClient;
+}
 
 export interface EmailGenerationParams {
   leadMagnetName: string;
@@ -62,7 +73,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
   "preheader": "..."
 }`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: OPENAI_MODELS.FAST,
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },

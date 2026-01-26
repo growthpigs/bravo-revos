@@ -72,8 +72,9 @@ async function checkDatabase() {
     const start = Date.now();
 
     // Simple query - no auth required
+    // Note: Using 'agency' table which exists in both RevOS and AudienceOS Supabase
     const { error } = await supabase
-      .from('campaign')
+      .from('agency')
       .select('count')
       .limit(1);
 
